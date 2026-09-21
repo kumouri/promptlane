@@ -5,3 +5,11 @@ dist
 *.tsbuildinfo
 .env
 .env.local
+.env.*
+!.env.example
+__pycache__/
+*.pyc
+/artifacts/
+/runs/*/
+/.runner-test-*/
+/acceptance/tmp*/

@@ -20,3 +20,19 @@ jobs:
       - run: npm ci
       - run: npx tsc --noEmit
       - run: npx vite build
+  fixture:
+    name: Fixture protocol (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - run: python -m unittest discover -s generation -p "test_*.py"
+      - run: python -m unittest discover -s acceptance/tests -p "test_*.py"
