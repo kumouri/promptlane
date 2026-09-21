@@ -5,6 +5,7 @@ import { ScriptedPilot } from './pilots/scriptedPilot';
 import { PromptPilot } from './pilots/promptPilot';
 import { mockCallModel, httpCallModel } from './pilots/callModel';
 import { render } from './render';
+import { JAM_ROSTER, ReplayPilot, checkpointOf, decisionsByBot, idNumber, isMatchLog, tickOf, type MatchLog } from './replay';
 
 import drumsPrompt from '../prompts/pilots/drums.md?raw';
 import keytarPrompt from '../prompts/pilots/keytar.md?raw';
@@ -43,7 +44,10 @@ app.innerHTML = `
       &nbsp;—&nbsp;
       <span class="green-team" id="score-green">0 GREEN</span>
     </div>
-    <button id="start-btn">Start match</button>
+    <div class="actions">
+      <label class="replay-pick" title="Replay a match log written by npm run match">Replay…<input type="file" id="replay-file" accept=".json,application/json"></label>
+      <button id="start-btn">Start match</button>
+    </div>
   </div>
   <div class="main">
     <canvas id="arena"></canvas>
@@ -66,9 +70,12 @@ const scoreGreenEl = document.querySelector<HTMLSpanElement>('#score-green')!;
 const startBtn = document.querySelector<HTMLButtonElement>('#start-btn')!;
 const rosterEl = document.querySelector<HTMLDivElement>('#roster')!;
 const promptViewEl = document.querySelector<HTMLDivElement>('#prompt-view')!;
+const replayFileEl = document.querySelector<HTMLInputElement>('#replay-file')!;
 
 let match: Match | null = null;
 let selectedBotId: string | null = null;
+/** Set while replaying a match log (`?replay=` or the file picker); null for a live match. */
+let replay: { log: MatchLog; checkpoints: Map<number, string>; divergedAt: number | null } | null = null;
 
 function resizeCanvas(): void {
   const rect = canvas.parentElement!.getBoundingClientRect();
@@ -92,7 +99,15 @@ function renderRoster(): void {
     const label = `${slot.team === 'violet' ? '🟪' : '🟩'} ${slot.lane} · ${slot.instrument}`;
     row.innerHTML = `<span class="name">${label}</span>`;
 
+    if (replay) {
+      const who = document.createElement('span');
+      who.className = 'pilot-name';
+      who.textContent = replay.log.sides[slot.team].name;
+      row.appendChild(who);
+    }
+
     const select = document.createElement('select');
+    select.hidden = !!replay;
     (['scripted', 'prompt-mock', 'prompt-http'] as PilotKind[]).forEach((k) => {
       const opt = document.createElement('option');
       opt.value = k;
@@ -130,6 +145,17 @@ function renderPromptView(): void {
     return;
   }
   const trace = match.promptTrace.get(selectedBotId);
+  if (replay) {
+    const bot = match.bearbots.find((b) => b.id === selectedBotId)!;
+    const side = replay.log.sides[bot.team];
+    const replyLabel = `Last reply${trace ? ` (t=${trace.atSec.toFixed(1)}s)` : ''}`;
+    const replyBody = trace ? escapeHtml(trace.reply) : '<span class="hint">no decision yet</span>';
+    promptViewEl.innerHTML =
+      `<div class="block"><div class="label">${escapeHtml(side.name)} · ${escapeHtml(side.promptFile)}</div>` +
+      `${escapeHtml(side.promptText.trim())}</div>` +
+      `<div class="block"><div class="label">${replyLabel}</div>${replyBody}</div>`;
+    return;
+  }
   if (!trace) {
     promptViewEl.innerHTML = '<div class="hint">Waiting on its first decision…</div>';
     return;
@@ -169,6 +195,7 @@ function buildRoster(): RosterSlot[] {
 
 function startMatch(): void {
   match?.stop();
+  replay = null;
   match = new Match(Date.now() & 0xffffffff, buildRoster());
   selectedBotId = match.bearbots[0]?.id ?? null;
   match.onUpdate(onMatchTick);
@@ -178,16 +205,60 @@ function startMatch(): void {
   renderPromptView();
 }
 
+/**
+ * Replay a log from `npm run match`: re-run the same seeded sim with each bearbot answering from
+ * the log instead of a model. Checkpoints in the log are compared as the clock passes them, so a
+ * divergence (a changed sim, a wrong log) is shown rather than silently played.
+ */
+function startReplay(log: MatchLog): void {
+  match?.stop();
+  replay = { log, checkpoints: new Map(log.checkpoints.map((c) => [c.tick, c.state])), divergedAt: null };
+  const byBot = decisionsByBot(log);
+  const roster: RosterSlot[] = JAM_ROSTER.map((slot, i) => ({
+    ...slot,
+    pilotKind: 'prompt-http',
+    makePilot: (bot) =>
+      new ReplayPilot({
+        decisions: byBot[i],
+        idOffset: () => (match ? idNumber(match.nexuses[0].id) - log.idBase : 0),
+        onDecision: (decision, action) => {
+          if (!match || decision.cached) return;
+          match.recordPromptTrace(bot.id, { prompt: '', reply: decision.reply ?? '', action, atSec: match.clockSec });
+        },
+      }),
+  }));
+  match = new Match(log.seed, roster);
+  selectedBotId = match.bearbots[0]?.id ?? null;
+  match.onUpdate(onMatchTick);
+  match.start();
+  startBtn.textContent = 'Live match';
+  renderRoster();
+  renderPromptView();
+}
+
+function sideLabel(team: Team): string {
+  return (replay ? replay.log.sides[team].name : team).toUpperCase();
+}
+
 function onMatchTick(): void {
   if (!match) return;
   const mins = Math.max(0, Math.floor((600 - match.clockSec) / 60));
   const secs = Math.max(0, Math.floor((600 - match.clockSec) % 60));
   clockEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
-  scoreVioletEl.textContent = `VIOLET ${match.towersDestroyedBy('green')}`;
-  scoreGreenEl.textContent = `${match.towersDestroyedBy('violet')} GREEN`;
+  scoreVioletEl.textContent = `${sideLabel('violet')} ${match.towersDestroyedBy('green')}`;
+  scoreGreenEl.textContent = `${match.towersDestroyedBy('violet')} ${sideLabel('green')}`;
+
+  if (replay && replay.divergedAt === null) {
+    const tick = tickOf(match);
+    const expected = replay.checkpoints.get(tick);
+    if (expected !== undefined && expected !== checkpointOf(match)) replay.divergedAt = tick;
+  }
+  if (replay?.divergedAt !== null && replay?.divergedAt !== undefined) {
+    clockEl.textContent = `REPLAY DIVERGED @${(replay.divergedAt * replay.log.tickDt).toFixed(1)}s`;
+  }
 
   if (match.ended) {
-    const who = match.winner ? match.winner.toUpperCase() : 'NOBODY';
+    const who = match.winner ? sideLabel(match.winner) : 'NOBODY';
     clockEl.textContent = `${who} WINS (${match.endReason})`;
   }
 
@@ -195,6 +266,37 @@ function onMatchTick(): void {
 }
 
 startBtn.addEventListener('click', startMatch);
+
+function loadReplayText(text: string, source: string): void {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    promptViewEl.innerHTML = `<div class="hint">${escapeHtml(source)} is not JSON.</div>`;
+    return;
+  }
+  if (!isMatchLog(parsed)) {
+    promptViewEl.innerHTML = `<div class="hint">${escapeHtml(source)} is not a promptlane match log.</div>`;
+    return;
+  }
+  startReplay(parsed);
+}
+
+replayFileEl.addEventListener('change', () => {
+  const file = replayFileEl.files?.[0];
+  if (!file) return;
+  file.text().then((text) => loadReplayText(text, file.name));
+});
+
+const replayParam = new URLSearchParams(location.search).get('replay');
+if (replayParam) {
+  fetch(replayParam)
+    .then((res) => (res.ok ? res.text() : Promise.reject(new Error(`${res.status} ${res.statusText}`))))
+    .then((text) => loadReplayText(text, replayParam))
+    .catch((err: Error) => {
+      promptViewEl.innerHTML = `<div class="hint">Could not load ${escapeHtml(replayParam)}: ${escapeHtml(err.message)}</div>`;
+    });
+}
 
 function loop(): void {
   if (match) render(ctx, match, selectedBotId);

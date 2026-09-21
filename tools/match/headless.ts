@@ -1,0 +1,271 @@
+/**
+ * Headless jam match: two entrant prompts, each driving a whole band on `PromptPilot`, run in
+ * lockstep against the UNCHANGED specimen sim. Bundled by `cli.mjs` (esbuild) and imported there;
+ * this module has no Node dependencies so it typechecks with the app.
+ *
+ * Lockstep means the sim never advances while a model is thinking: each tick that asks a pilot
+ * for a decision waits for every outstanding reply before the next tick. The result depends only
+ * on the seed and the replies, not on wall-clock latency — which also makes the log replayable.
+ * The trade-off is time: a 10-minute match at the game's own 0.5 s polling rate is 1,200 rounds
+ * of six model calls. `cadenceSec` stretches the interval between real calls; between them the
+ * bearbot keeps its last action, exactly as the game does while a reply is in flight. (In the
+ * browser's live mode a local model that serialises six callers gives each bearbot a fresh
+ * decision only every few real seconds anyway, so a 2 s cadence is sharper than live play.)
+ */
+import type { Action, Observation, Pilot, Team } from '../../src/types';
+import { Match, TICK_DT, type RosterSlot } from '../../src/sim/match';
+import { PromptPilot } from '../../src/pilots/promptPilot';
+import type { CallModel } from '../../src/pilots/callModel';
+import {
+  CHECKPOINT_EVERY_TICKS,
+  JAM_ROSTER,
+  MATCH_LOG_SCHEMA,
+  ReplayPilot,
+  checkpointOf,
+  decisionsByBot,
+  idNumber,
+  tickOf,
+  type LogDecision,
+  type LogSide,
+  type MatchLog,
+  type SideStats,
+} from '../../src/replay';
+
+export { mockCallModel } from '../../src/pilots/callModel';
+
+const MATCH_DURATION_SEC = 600;
+const MAX_TICKS = Math.ceil(MATCH_DURATION_SEC / TICK_DT) + 2;
+
+/** The specimen keeps `tick` private; the runner drives it from outside without editing the sim. */
+type Steppable = { tick(dt: number): void };
+function step(match: Match): void {
+  (match as unknown as Steppable).tick(TICK_DT);
+}
+
+export interface RunOptions {
+  seed: number;
+  sides: Record<Team, LogSide>;
+  /** One adapter per bearbot index (0..5), so mocks can be seeded per bot. */
+  callModelFor: (botIndex: number) => CallModel;
+  /** Seconds of sim time between real model calls per bearbot. 0.5 = the game's own polling rate. */
+  cadenceSec?: number;
+  backend: Record<string, unknown>;
+  /** Yields to the event loop so the sim's own promise chain settles between ticks. */
+  flush?: () => Promise<void>;
+  /** Progress callback, once per sim-minute. */
+  onProgress?: (info: { clockSec: number; calls: number; elapsedMs: number }) => void;
+}
+
+const defaultFlush = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+function emptyStats(): SideStats {
+  return { calls: 0, cached: 0, parseErrors: 0, callErrors: 0, avgMs: 0, deaths: 0, towersLost: 0 };
+}
+
+/** Wraps a `PromptPilot`: records every ask into the log, enforces cadence, tracks in-flight calls. */
+class RecordingPilot implements Pilot {
+  private last: Action = { kind: 'hold' };
+  private nextCallAt = -Infinity;
+  private lastTrace: { reply: string; action: Action | null } | null = null;
+  readonly inner: PromptPilot;
+
+  constructor(
+    private readonly botIndex: number,
+    promptText: string,
+    callModel: CallModel,
+    private readonly ctx: {
+      cadenceSec: number;
+      log: MatchLog;
+      stats: SideStats;
+      inflight: Set<Promise<unknown>>;
+      asks: { count: number };
+      currentTick: () => number;
+      currentClock: () => number;
+      totalMs: { value: number };
+    },
+  ) {
+    this.inner = new PromptPilot(promptText, callModel, (_prompt, reply, action) => {
+      this.lastTrace = { reply, action };
+    });
+  }
+
+  decide(obs: Observation): Promise<Action> {
+    const { ctx } = this;
+    const tick = ctx.currentTick();
+    ctx.asks.count += 1;
+
+    if (ctx.currentClock() < this.nextCallAt) {
+      ctx.stats.cached += 1;
+      ctx.log.decisions.push({ tick, bot: this.botIndex, action: this.last, cached: true });
+      return Promise.resolve(this.last);
+    }
+    this.nextCallAt = ctx.currentClock() + ctx.cadenceSec;
+
+    const started = Date.now();
+    const p = this.inner.decide(obs).then((action) => {
+      const ms = Date.now() - started;
+      const trace = this.lastTrace ?? { reply: '', action: null };
+      this.lastTrace = null;
+      ctx.stats.calls += 1;
+      ctx.totalMs.value += ms;
+      if (trace.action === null) {
+        if (trace.reply.startsWith('[pilot error:')) ctx.stats.callErrors += 1;
+        else ctx.stats.parseErrors += 1;
+      }
+      this.last = action;
+      ctx.log.decisions.push({ tick, bot: this.botIndex, reply: trace.reply, action: trace.action, ms });
+      return action;
+    });
+    ctx.inflight.add(p);
+    p.finally(() => ctx.inflight.delete(p)).catch(() => undefined);
+    return p;
+  }
+}
+
+export async function runMatch(opts: RunOptions): Promise<MatchLog> {
+  const cadenceSec = opts.cadenceSec ?? 0.5;
+  const flush = opts.flush ?? defaultFlush;
+  const stats: Record<Team, SideStats> = { violet: emptyStats(), green: emptyStats() };
+  const totalMs: Record<Team, { value: number }> = { violet: { value: 0 }, green: { value: 0 } };
+
+  const log: MatchLog = {
+    schema: MATCH_LOG_SCHEMA,
+    createdAt: new Date().toISOString(),
+    seed: opts.seed,
+    tickDt: TICK_DT,
+    cadenceSec,
+    idBase: 0,
+    backend: opts.backend,
+    sides: opts.sides,
+    decisions: [],
+    checkpoints: [],
+    result: { winner: null, endReason: null, durationSec: 0, ticks: 0, deaths: [], stats },
+  };
+
+  const inflight = new Set<Promise<unknown>>();
+  const asks = { count: 0 };
+  let match: Match | null = null;
+  const currentTick = () => (match ? tickOf(match) : 0);
+  const currentClock = () => match?.clockSec ?? 0;
+
+  const roster: RosterSlot[] = JAM_ROSTER.map((slot, i) => ({
+    ...slot,
+    pilotKind: 'prompt-http',
+    makePilot: () =>
+      new RecordingPilot(i, opts.sides[slot.team].promptText, opts.callModelFor(i), {
+        cadenceSec,
+        log,
+        stats: stats[slot.team],
+        inflight,
+        asks,
+        currentTick,
+        currentClock,
+        totalMs: totalMs[slot.team],
+      }),
+  }));
+
+  match = new Match(opts.seed, roster);
+  log.idBase = idNumber(match.nexuses[0].id);
+
+  const startedMs = Date.now();
+  let nextProgressAt = 60;
+  const aliveBefore = match.bearbots.map((b) => b.alive);
+  const towersBefore = match.towers.map((t) => t.alive);
+
+  for (let tick = 0; tick < MAX_TICKS && !match.ended; tick++) {
+    asks.count = 0;
+    step(match);
+    if (asks.count > 0) {
+      while (inflight.size > 0) await Promise.all([...inflight]);
+      await flush();
+    }
+    const t = tickOf(match);
+    match.bearbots.forEach((b, i) => {
+      if (aliveBefore[i] && !b.alive) {
+        log.result.deaths.push({ tick: t, bot: i });
+        stats[b.team].deaths += 1;
+        aliveBefore[i] = false;
+      }
+    });
+    match.towers.forEach((tw, i) => {
+      if (towersBefore[i] && !tw.alive) {
+        stats[tw.team].towersLost += 1;
+        towersBefore[i] = false;
+      }
+    });
+    if (t % CHECKPOINT_EVERY_TICKS === 0) log.checkpoints.push({ tick: t, state: checkpointOf(match) });
+    if (match.clockSec >= nextProgressAt) {
+      nextProgressAt += 60;
+      opts.onProgress?.({
+        clockSec: match.clockSec,
+        calls: stats.violet.calls + stats.green.calls,
+        elapsedMs: Date.now() - startedMs,
+      });
+    }
+  }
+
+  for (const team of ['violet', 'green'] as Team[]) {
+    stats[team].avgMs = stats[team].calls ? Math.round(totalMs[team].value / stats[team].calls) : 0;
+  }
+  log.result.winner = match.winner;
+  log.result.endReason = match.endReason;
+  log.result.durationSec = Math.round(match.clockSec * 100) / 100;
+  log.result.ticks = tickOf(match);
+  return log;
+}
+
+export interface VerifyResult {
+  ok: boolean;
+  ticks: number;
+  checkpointsCompared: number;
+  firstDivergenceTick: number | null;
+  winner: Team | null;
+  endReason: 'nexus' | 'timeout' | null;
+}
+
+/** Re-simulate a log with `ReplayPilot`s and compare every checkpoint and the final result. */
+export async function verifyReplay(log: MatchLog, flush: () => Promise<void> = defaultFlush): Promise<VerifyResult> {
+  const byBot = decisionsByBot(log);
+  let match: Match | null = null;
+  let asked = 0;
+  const roster: RosterSlot[] = JAM_ROSTER.map((slot, i) => ({
+    ...slot,
+    pilotKind: 'prompt-http',
+    makePilot: () =>
+      new ReplayPilot({
+        decisions: byBot[i],
+        idOffset: () => idNumber(match!.nexuses[0].id) - log.idBase,
+        onDecision: () => {
+          asked += 1;
+        },
+      }),
+  }));
+  match = new Match(log.seed, roster);
+
+  const expected = new Map(log.checkpoints.map((c) => [c.tick, c.state]));
+  let compared = 0;
+  let firstDivergenceTick: number | null = null;
+  for (let tick = 0; tick < MAX_TICKS && !match.ended; tick++) {
+    asked = 0;
+    step(match);
+    if (asked > 0) await flush();
+    const t = tickOf(match);
+    const want = expected.get(t);
+    if (want !== undefined) {
+      compared += 1;
+      if (want !== checkpointOf(match) && firstDivergenceTick === null) firstDivergenceTick = t;
+    }
+  }
+  const sameResult =
+    match.winner === log.result.winner && match.endReason === log.result.endReason && tickOf(match) === log.result.ticks;
+  return {
+    ok: firstDivergenceTick === null && sameResult,
+    ticks: tickOf(match),
+    checkpointsCompared: compared,
+    firstDivergenceTick,
+    winner: match.winner,
+    endReason: match.endReason,
+  };
+}
+
+export type { LogDecision, MatchLog };
