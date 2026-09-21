@@ -58,8 +58,19 @@ on black.
 
 ## Status
 
-Pre-game. The repo holds the prompt, the design notes and the mascot. The first build session is
-the teaser recording; its output lands here as the first code commit.
+First build session landed. `npm run dev` boots a playable 3v3: diamond map (river, three lanes,
+jungle, two towers/lane/side, one nexus/side), fixed-timestep sim (20 tps, seeded RNG), and all
+three shipped instruments (drums/keytar/violin) with their two abilities each. `ScriptedPilot` is
+the always-works baseline; `PromptPilot` builds a prompt from `prompts/pilots/<instrument>.md` +
+the live `Observation` and can run on a deterministic key-free mock (`prompt-mock`) or a real
+endpoint via `VITE_PILOT_ENDPOINT` (`prompt-http`, unwired this session — no key configured, and
+none should ever live in a prompt or this codebase). The one page has the arena, a clock/score top
+bar, a Start/Restart button, a per-bearbot pilot dropdown (Scripted / Prompt-mock / Prompt-HTTP),
+and a side panel showing the selected bearbot's last prompt and reply live.
+
+Known simplification: a nexus can be damaged directly once in range — it isn't gated behind its
+lane's towers falling first. Left that way for jam-session scope; flagging it rather than quietly
+calling it "done."
 
 ## License
 
