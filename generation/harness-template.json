@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "run_id": "REPLACE",
+  "model_id": "REPLACE",
+  "provider_route": "REPLACE",
+  "effort": "REPLACE",
+  "client": {
+    "name": "REPLACE",
+    "version": "unknown",
+    "model_revision_if_exposed": "unknown"
+  },
+  "environment": {
+    "os": "REPLACE",
+    "hardware": "unknown",
+    "node": "REPLACE",
+    "npm": "REPLACE",
+    "python": "REPLACE",
+    "browser": "unknown"
+  },
+  "context": {
+    "fresh_conversation": true,
+    "attached_projects": ["REPLACE with only exported workspace"],
+    "memory": "unknown",
+    "persona_and_system_instruction_references": [],
+    "skills_and_hooks": [],
+    "unobservable_context": "unknown"
+  },
+  "tools": {
+    "available": [],
+    "permission_mode": "REPLACE",
+    "network_policy": "REPLACE",
+    "isolation": "input-only-workspace",
+    "os_sandbox": false
+  },
+  "timing": {
+    "budget_active_seconds": 3600,
+    "enforcement": "operator-enforced"
+  },
+  "evaluation_revision": "REPLACE before start",
+  "transcript_reference": "REPLACE; redact credentials before sharing",
+  "interventions_and_deviations": [],
+  "usage": {
+    "billing": "subscription",
+    "measured_cost": null,
+    "tokens": null,
+    "unavailable_reason": "provider does not expose per-run measurements"
+  }
+}

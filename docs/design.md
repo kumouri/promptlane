@@ -1,7 +1,8 @@
 # promptlane — design notes
 
-Working notes, kept short on purpose. The game is built from `prompts/initial_prompt.md`; this file is
-what the prompt assumes and what it must not contradict.
+Working notes for the Jam fixture. Each game version is generated from a complete prompt and
+explicitly pinned supporting inputs. These current notes do not retroactively change old inputs:
+v1 refers to the historical design document in its generation manifest.
 
 ## Canon
 
@@ -52,18 +53,36 @@ prompt that wasn't written down (see above). A bug in the game is fixed by writi
 prompt, not by patching the output.
 
 That makes the git history of `prompts/` the project's real history: each diff is *what we
-learned to ask for*. The first known lesson, kept as the worked example: v1's recall is instant —
-a bearbot under 25% hp teleports home the moment it decides to, with no channel, no delay, no hp
-floor below which it can't escape. Both bears cross that threshold at roughly the same time, so
-both recall, so nobody ever dies — no first blood, no winnable match. v2's prompt has to say so
-explicitly: give recall a channel time (or a delay) or an hp floor it can't be cancelled below.
-The v1 bug stays in the teaser on purpose — it's the honest demonstration of what fifteen minutes
-and a short prompt buys, and a warning to the audience that they have to be as careful with their
-prompts as we're asking them to be.
+learned to ask for*. The first reported lesson is low-health retreat preventing first blood in
+the teaser. The original diagnosis described an instant teleport, but the checked-in specimen's
+`src/sim/match.ts` moves recalling bearbots toward base at increased speed and heals them on
+arrival. Neither the cause of a stalemate nor the claim that no match can be won is independently
+established yet. Preserve the specimen and evaluate those claims rather than changing its code.
+A later prompt may specify a channel, delay, or another recall rule after that investigation.
+The original behavior stays in the teaser: an honest example of what a short build session buys,
+not a requirement that other models reproduce the same failure.
 
 **Versioning convention:** `prompts/initial_prompt.md` stays the v1 artifact, untouched, forever.
 Later versions are `prompts/v2.md`, `prompts/v3.md`, and so on — each one opens with a
 one-paragraph changelog of what it asks for that the previous version didn't.
+
+### Generation and comparison rules
+
+- This is a reusable fixture for the Jam, not itself a disposable Jam project.
+- Every version is a complete specification, not a patch applied to an earlier game.
+- Each scored run requires a fresh input-only workspace and new conversation; prior implementation
+  and historical conversations must not be supplied. Record harness memory/context limitations,
+  rather than claiming the workspace proves absence of every prior model exposure. Supporting
+  inputs are pinned to exact revisions; frozen v1's pins are outside its unchanged prompt.
+- Implementation, self-testing, and repair are allowed within a generation run. Bugs found
+  afterward become upstream prompt changes and independent regression tests, followed by a new
+  generation. An evaluator-assisted repair of an old version is labeled a separate experiment.
+- The next deliverable compares clean v1 builds on Astra, Sol, Fable, and Opus, before writing v2.
+  Keep all outcomes, not only successes; different harnesses are declared comparison variables.
+- Independent acceptance tests run after submission, without feedback during the scored initial
+  run. A build can fail game acceptance while remaining a valid generation experiment.
+- See [the protocol](../generation/protocol.md) for input boundaries, timing, questions, and evidence.
+  Neither this updated document nor the evaluator is supplied as an undeclared input to v1.
 
 ## Palette
 
