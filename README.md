@@ -72,6 +72,14 @@ Known simplification: a nexus can be damaged directly once in range — it isn't
 lane's towers falling first. Left that way for jam-session scope; flagging it rather than quietly
 calling it "done."
 
+See ["The prompt is the source"](docs/design.md#the-prompt-is-the-source) for what versioning by
+prompt means here, and why a bug gets fixed by writing the next prompt instead of patching the
+code.
+
+**Known bugs, on purpose:** v1's recall is instant, so both bearbots retreat at the same hp
+threshold and nobody ever dies — no first blood, no winnable match. It's left in deliberately; see
+the design doc above for why.
+
 ## License
 
 [MIT](LICENSE).
