@@ -54,12 +54,72 @@ un-hear.
 prompts/             versioned build prompts; initial_prompt.md is frozen v1
 generation/          pinned-input preparation, run recorder, cross-client protocol
 acceptance/          independent, post-submission evaluation and evidence requirements
-runs/                operator records (individual runs are local/ignored until reviewed)
+tools/               jam tooling: headless match runner (tools/match/) and the model server
+runs/                operator records and match logs (per-run directories are local/ignored)
 artifacts/           exported workspaces and frozen submissions (local/ignored)
 src/                 original generated game specimen; not maintained game source
+                     (src/replay.ts is jam tooling that drives the unchanged sim from outside)
 docs/                current design notes and historical recordings; not implicit run inputs
 assets/logo/         Jamobair, the mascot (PNG on black, on near-black, and transparent)
 ```
+
+## Run a jam match
+
+Jam entrants submit one prompt each to the private
+[`jamobair-entrants`](https://github.com/kumouri/jamobair-entrants) repo (`entrants/<handle>/pilot.md`).
+A match is two entrant prompts head to head on the unchanged v1 specimen: each prompt drives all
+three bearbots on its side (drums top, keytar mid, violin bottom) through the game's own
+`PromptPilot`, talking to a real model through the game's HTTP adapter contract. Nothing in
+`src/sim/` changes; the runner drives the sim from outside, tick by tick.
+
+**1. Start the model side** (standard-library Python; keep it running):
+
+```sh
+python tools/model_server.py                                   # Ollama, model qwen3.5:9b, port 8787
+python tools/model_server.py --model gemma4:12b                # any model `ollama list` shows
+python tools/model_server.py --backend claude                  # `claude -p` on Haiku 4.5; ~10 s/decision
+```
+
+Ollama is the default because latency and cost matter for a room of people. The Ollama URL comes
+from `--ollama-url`, else `$OLLAMA_HOST`, else `http://127.0.0.1:11434`. The Claude backend shells
+out to the `claude` CLI on the subscription; no key is read or stored anywhere. `GET /health`
+reports the backend and model, and the match log records it.
+
+**2. Run the match** (side A is violet, side B is green):
+
+```sh
+npm run match -- --a entrants/alice/pilot.md --b entrants/bob/pilot.md --seed 7 --out runs/alice-vs-bob.json
+```
+
+It prints one `RESULT` line — winner, nexus-kill or timeout, sim duration, decisions and parse
+errors per side, deaths, backend — and writes a replayable log. A reply that is not one valid
+action JSON counts as `hold` for that decision; a failed call does too. Nothing crashes a match.
+`--model mock` uses the game's key-free deterministic mock instead of a server (this is what CI
+runs), and `npm run match -- --verify runs/alice-vs-bob.json` re-simulates a log and checks every
+checkpoint, which is how we know a log replays faithfully.
+
+**Cadence.** The runner is lockstep: the sim does not advance while a model is thinking, so a
+match depends only on the seed and the replies, never on GPU speed. The game polls each pilot every
+0.5 sim-seconds, which is 1,200 rounds of six model calls for a full 10-minute match. Measured on
+the host with `qwen3.5:9b`, Ollama serialises the six callers at roughly 0.9 s per call, so a full
+match at `--cadence 0.5` is about 100 minutes; the default `--cadence 2` is about 25 minutes and
+`--cadence 4` about 13. Between real calls a bearbot keeps its last action, exactly as the game does
+while a reply is in flight. (In the browser's live Prompt-HTTP mode the same model would refresh
+each bearbot only every ~5 real seconds, so 2 s lockstep is sharper than live play.)
+
+**3. Watch it.** `npm run dev`, then open `http://localhost:5173/?replay=runs/alice-vs-bob.json`,
+or press **Replay…** in the top bar and pick the log. A real one is checked in:
+`?replay=runs/jam-sample-drums-vs-violin.json` (the drums pilot vs the violin pilot, seed 7,
+`qwen3.5:9b`, cadence 2 — a timeout draw in which all six bearbots died and no tower fell). The replay re-runs the seeded sim with each
+bearbot answering from the log; the scoreboard shows the entrants' names, the roster shows who
+pilots each bearbot, and the side panel shows the selected bearbot's prompt and its last reply.
+Checkpoints from the log are checked as the clock passes them; a mismatch shows as
+`REPLAY DIVERGED` instead of playing on quietly. A screen share of this page is the round-one
+viewer. Bracket, leaderboard and a hosted arena are phase 2.
+
+**Known v1 behaviour.** Low-health retreats can prevent first blood
+([`runs/historical-v1.md`](runs/historical-v1.md)). The runner does not patch that; a match that
+times out with no deaths is reported as exactly that. The fix, if wanted, is a v2 prompt.
 
 ## Generate and compare
 
@@ -90,6 +150,11 @@ endpoint via `VITE_PILOT_ENDPOINT` (`prompt-http`, unwired this session — no k
 none should ever live in a prompt or this codebase). The one page has the arena, a clock/score top
 bar, a Start/Restart button, a per-bearbot pilot dropdown (Scripted / Prompt-mock / Prompt-HTTP),
 and a side panel showing the selected bearbot's last prompt and reply live.
+
+Jam phase 1 (2026-09-21) added, without touching the sim: a headless entrant-vs-entrant runner
+(`npm run match`), a standard-library model server for Ollama or `claude -p`
+(`tools/model_server.py`), and log replay in the one page (`?replay=` or the **Replay…** picker).
+See ["Run a jam match"](#run-a-jam-match).
 
 Known simplification: a nexus can be damaged directly once in range — it isn't gated behind its
 lane's towers falling first. Left that way for jam-session scope; flagging it rather than quietly

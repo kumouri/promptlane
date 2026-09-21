@@ -18,8 +18,12 @@ jobs:
           node-version: '20'
           cache: 'npm'
       - run: npm ci
-      - run: npx tsc --noEmit
-      - run: npx vite build
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Jam match smoke (mock model) + replay verify
+        run: |
+          npm run match -- --a prompts/pilots/drums.md --b prompts/pilots/keytar.md --model mock --seed 7 --out artifacts/ci-smoke.json --quiet
+          npm run match -- --verify artifacts/ci-smoke.json
   fixture:
     name: Fixture protocol (${{ matrix.os }})
     strategy:
@@ -36,3 +40,4 @@ jobs:
           python-version: '3.11'
       - run: python -m unittest discover -s generation -p "test_*.py"
       - run: python -m unittest discover -s acceptance/tests -p "test_*.py"
+      - run: python -m unittest discover -s tools -p "test_*.py"
