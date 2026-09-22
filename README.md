@@ -59,9 +59,9 @@ tools/               jam tooling: headless match runner (tools/match/), the mode
 runs/                operator records and match logs (per-run directories are local/ignored)
 artifacts/           exported workspaces and frozen submissions (local/ignored)
 src/                 original generated game specimen; not maintained game source
-                     (src/replay.ts is jam tooling that drives the unchanged sim from outside)
+                     (src/replay.ts and src/live.ts are jam tooling that drive the unchanged sim from outside)
 docs/                current design notes and historical recordings; not implicit run inputs
-                     (docs/arena-site-spec.md: the arena spec, Phase A built; arena-runbook.md: how to run it)
+                     (docs/arena-site-spec.md: the arena spec, Phases A+B built; arena-runbook.md: how to run it)
 assets/logo/         Jamobair, the mascot (PNG on black, on near-black, and transparent)
 ```
 
@@ -120,16 +120,23 @@ or press **Replay…** in the top bar and pick the log. A real one is checked in
 bearbot answering from the log; the scoreboard shows the entrants' names, the roster shows who
 pilots each bearbot, and the side panel shows the selected bearbot's prompt and its last reply.
 Checkpoints from the log are checked as the clock passes them; a mismatch shows as
-`REPLAY DIVERGED` instead of playing on quietly. A screen share of this page is the round-one
+`REPLAY DIVERGED` instead of playing on quietly. `&speed=4` (or the top-bar control: 1×/4×/16×)
+plays it faster than real time. The same page watches a match the arena is *still running*:
+`?live=<matchId>` (served by the arena as `/play/?live=…`) streams the log as it is written and
+steps the sim only up to the last completed round, so the clock runs at the model's pace and a
+late joiner catches up in seconds (`src/live.ts`). A screen share of this page is the round-one
 viewer.
 
-**Elysium, the arena.** `npm run arena` (`tools/arena/server.mjs`) is the pre-jam ladder: entrants paste a
-prompt and run a quick test against the house bot, merged prompts in `jamobair-entrants` are
-placed automatically on three seeds, and an Elo ladder is folded from an append-only ledger with
-every match re-verified before it counts. Start it, expose it behind Cloudflare Access, and operate
-it per [`docs/arena-runbook.md`](docs/arena-runbook.md); the design, rulings and what is still
-Phase B (live view, bracket) are in [`docs/arena-site-spec.md`](docs/arena-site-spec.md).
-`npm run test:arena` runs its suite on the mock model (no GPU; CI runs it).
+**Elysium, the arena.** `npm run arena` (`tools/arena/server.mjs`) is the pre-jam ladder and the
+jam-day bracket: entrants paste a prompt and run a quick test against the house bot, merged
+prompts in `jamobair-entrants` are placed automatically on three seeds, an Elo ladder is folded
+from an append-only ledger with every match re-verified before it counts, every match can be
+watched live (`/play/?live=<id>`), and the organizer seeds a single-elimination bracket from the
+ladder, pre-runs the early rounds, and plays the semis and final live. Start it, expose it behind
+Cloudflare Access, and operate it — including the jam-day sequence — per
+[`docs/arena-runbook.md`](docs/arena-runbook.md); the design and rulings are in
+[`docs/arena-site-spec.md`](docs/arena-site-spec.md). `npm run test:arena` runs its suite on the
+mock model (no GPU; CI runs it).
 
 **Known v1 behaviour.** Low-health retreats can prevent first blood
 ([`runs/historical-v1.md`](runs/historical-v1.md)). The runner does not patch that; a match that

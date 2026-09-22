@@ -7,12 +7,16 @@
  *
  * The queue is the ledger: `queued`/`started`/terminal rows. On restart anything `queued` or
  * `started` without a terminal row runs again; only wall time is lost.
+ *
+ * Phase B: every running job also feeds a `LiveStream` (`live.mjs`) from the runner's callbacks,
+ * which is what `GET /api/matches/<id>/events` fans out.
  */
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { flush, httpCallModel, probeBackend, backendLabel } from '../match/load.mjs';
 import { nextMatchId, queued as queuedJobs } from './ledger.mjs';
 import { houseTextForSide } from './house.mjs';
+import { metaOf } from './live.mjs';
 import { shortHash } from './prompts.mjs';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -43,10 +47,11 @@ export class Queue {
    * @param opts.dataDir     runs/arena
    * @param opts.promptStore PromptStore
    * @param opts.house       { handle, hash, file }
+   * @param opts.live        LiveHub (optional) — running jobs stream their events into it
    * @param opts.hooks       test seams: `afterRun(log, job)` may replace the log before verify;
    *                         `callModelFor(job)` replaces the adapter; `wallCapMs` overrides the cap
    */
-  constructor({ ledger, backends, headless, dataDir, promptStore, house, log = console, hooks = {} }) {
+  constructor({ ledger, backends, headless, dataDir, promptStore, house, live = null, log = console, hooks = {} }) {
     this.ledger = ledger;
     this.backends = backends;
     this.headless = headless;
@@ -55,6 +60,7 @@ export class Queue {
     this.scratchDir = path.join(dataDir, 'scratch');
     this.promptStore = promptStore;
     this.house = house;
+    this.live = live;
     this.log = log;
     this.hooks = hooks;
     /** id → { startedAt, progress } for jobs in flight */
@@ -205,8 +211,10 @@ export class Queue {
     const startedAt = Date.now();
     this.running.set(id, { startedAt, progress: null });
     this.ledger.append({ type: 'started', id, attempt });
+    const stream = this.live?.open(id) ?? null;
     const ac = new AbortController();
     let timer = null;
+    let ended = null;
     try {
       const sides = { violet: this.resolveSide(job.sides.violet, id, 'violet'), green: this.resolveSide(job.sides.green, id, 'green') };
       let callModelFor;
@@ -238,15 +246,24 @@ export class Queue {
         onProgress: (p) => {
           const r = this.running.get(id);
           if (r) r.progress = p;
+          stream?.push('progress', p);
         },
+        onStart: (l) => stream?.push('meta', metaOf(l)),
+        onDecision: (d) => stream?.push('decision', d),
+        onRound: (r) => stream?.push('round', r),
+        onCheckpoint: (c) => stream?.push('checkpoint', c),
+        onDeath: (d) => stream?.push('death', d),
       });
       clearTimeout(timer);
       const wallMs = Date.now() - startedAt;
       if (this.hooks.afterRun) log = (await this.hooks.afterRun(log, job)) ?? log;
+      stream?.push('result', log.result);
       mkdirSync(this.logsDir, { recursive: true });
       if (ac.signal.aborted) {
         writeFileSync(path.join(this.logsDir, `${id}.json`), JSON.stringify(log) + '\n');
-        this.ledger.append({ type: 'timed-out', id, wallMs, reason: `wall-clock cap ${Math.round(capMs / 1000)}s` });
+        const reason = `wall-clock cap ${Math.round(capMs / 1000)}s`;
+        this.ledger.append({ type: 'timed-out', id, wallMs, reason });
+        ended = { status: 'timed-out', reason };
         this.log.warn(`arena: ${id} timed out after ${Math.round(wallMs / 1000)}s`);
         return;
       }
@@ -262,6 +279,7 @@ export class Queue {
           verify: v,
         });
         this.log.warn(`arena: ${id} REPLAY DIVERGED (tick ${v.firstDivergenceTick}); voided`);
+        ended = { status: 'void', reason: `replay diverged at tick ${v.firstDivergenceTick ?? 'end'}` };
         if (!job.retryOf) {
           const { id: _id, status, attempt: _a, createdAt, startedAt: _s, ...copy } = job;
           const scratchSide = [job.sides.violet, job.sides.green].find((s) => s.scratch);
@@ -290,14 +308,20 @@ export class Queue {
         verify: { checkpointsCompared: v.checkpointsCompared, ticks: v.ticks },
         wallMs,
       });
+      ended = { status: 'finished', verify: { checkpointsCompared: v.checkpointsCompared, ticks: v.ticks } };
       this.log.info(`arena: ${id} done winner=${log.result.winner ?? 'draw'} by=${log.result.endReason ?? 'unfinished'} wall=${Math.round(wallMs / 1000)}s verified=${v.checkpointsCompared} checkpoints`);
     } catch (err) {
       if (timer) clearTimeout(timer);
       this.ledger.append({ type: 'failed', id, error: String(err?.message ?? err) });
+      ended = { status: 'failed', reason: String(err?.message ?? err) };
       this.log.error(`arena: ${id} failed: ${err?.stack ?? err}`);
     } finally {
       this.running.delete(id);
       this.forgetScratch(id);
+      if (stream) {
+        stream.end(ended ?? { status: 'failed', reason: 'no terminal row' });
+        this.live.close(id);
+      }
     }
   }
 }

@@ -206,3 +206,41 @@ body {
   font-size: 11px;
   color: #888;
 }
+
+/* Phase B: live badge and replay speed in the top bar (src/live.ts) */
+.topbar .live-badge {
+  color: var(--green);
+  border: 2px solid var(--green);
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.topbar .live-badge.on {
+  background: var(--violet);
+  color: #fff;
+  border-color: var(--violet);
+  animation: live-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes live-pulse {
+  50% { border-color: var(--green); }
+}
+
+.topbar .speed-pick {
+  color: var(--green);
+  font-size: 12px;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.topbar .speed-pick select {
+  background: #000;
+  color: var(--green);
+  border: 2px solid var(--violet);
+  font-family: inherit;
+  font-weight: bold;
+  padding: 4px 6px;
+}

@@ -1,11 +1,12 @@
 # Elysium — the promptlane arena — website spec
 
-**Status: PHASE A BUILT — 2026-09-22.** Markdown is canonical. Written 2026-09-21 for the
+**Status: PHASE B BUILT — 2026-09-22.** Markdown is canonical. Written 2026-09-21 for the
 InRhythm AI Jam round one (Fri 2026-10-02, IR-only; entrant cutoff Thu 2026-10-01 17:00 CT).
-Phase A (§6, the ladder) is checked in under `tools/arena/` and runs on the mock in CI; how to
-start it, expose it and operate it is [`arena-runbook.md`](arena-runbook.md). Phases B and C
-are still proposals: in §3 every path marked *new* that is not in the §6 "Phase A — as built"
-list does not exist yet.
+Phase A (§6, the ladder) and Phase B (the live view and the jam-day bracket) are checked in under
+`tools/arena/` + `src/live.ts` and run on the mock in CI; how to start it, expose it and operate
+it — including the jam-day sequence — is [`arena-runbook.md`](arena-runbook.md). Phase C is
+still a proposal. The "as built" lists under §6 say where the code departs from or fills in this
+text; where they disagree, the as-built list is the rule.
 
 Read with: [`../README.md`](../README.md) ("Run a jam match"), [`design.md`](design.md),
 [`../tools/match/`](../tools/match/), [`../tools/model_server.py`](../tools/model_server.py),
@@ -409,26 +410,27 @@ wall time, so it is a button, not the default. Ladder (Elo) draws are simply dra
 
 | Path | Status | Role in the arena |
 |---|---|---|
-| `tools/match/headless.ts` | **reused, additive change (A: done)** | `runMatch` + `verifyReplay`; Phase A added `maxSimSec` and `signal` (wall cap) to `RunOptions`, and `verifyReplay` stops at the logged tick count for an unfinished log. `onDecision`/`onRound` are Phase B |
+| `tools/match/headless.ts` | **reused, additive change (A, B: done)** | `runMatch` + `verifyReplay`; Phase A added `maxSimSec` and `signal` (wall cap) to `RunOptions`, and `verifyReplay` stops at the logged tick count for an unfinished log. Phase B added `onStart` (the in-progress log), `onDecision`, `onRound`, `onCheckpoint`, `onDeath` — callbacks only, the log is unchanged |
 | `tools/match/cli.mjs` | **reused, small change (A: done)** | `loadHeadless()` and the HTTP/result helpers moved to `tools/match/load.mjs`; CLI behaviour unchanged |
 | `tools/match/load.mjs` | *built (A)* | the esbuild loader (bundled once per process), `httpCallModel`, `probeBackend`, `resultLine` |
 | `tools/model_server.py` | **reused unchanged** (Phase A/B) | one process per backend; `/health` recorded in every log. Phase C option: `--backend openai` (OpenAI-compatible hosted endpoint, key from env) |
 | `src/replay.ts` | **reused unchanged** | `MatchLog`, `ReplayPilot`, `checkpointOf`, `JAM_ROSTER`, `decisionsByBot` |
-| `src/main.ts` | **reused, additive change** | `?live=<id>` mode and replay speed control |
-| `src/live.ts` | *new* | external-tick driver for live and fast replay; SSE client |
-| `src/style.css` | reused, tiny change | speed control and live badge |
+| `src/main.ts` | **reused, additive change (B: done)** | `?live=<id>` beside `?replay=`; both on the one external-tick driver; `?speed=1|4|16` and the speed control; LIVE badge |
+| `src/live.ts` | *built (B)* | `LiveFeed` (events → decision buffers), `Ticker` (steps the private `tick()` from outside: only up to the last completed round, yields after asking ticks, paces replay by speed), `DivergenceCheck`, `openLive` (`EventSource`) |
+| `src/style.css` | reused, tiny change (B: done) | speed control and live badge |
 | `src/sim/*`, `src/rng.ts`, `src/pilots/*`, `src/types.ts`, `src/render.ts` | **frozen, untouched** | the specimen |
 | `prompts/pilots/house-violet.md`, `house-green.md` | **exists** (Q13) | the house bot, one file per side; `tools/arena/house.mjs` bundles the pair under one hash and hands each side its own half; `house.md`, then `drums.md`, are the fallbacks |
 | `runs/` (`/runs/*/` ignored) | **reused layout** | `runs/arena/{ledger.jsonl,logs/,entrants/}` |
-| `tools/arena/server.mjs` | *built (A)* | HTTP API, static pages, Access JWT check, entrants poller, serves Vite `dist/` at `/play/` and logs at `/logs/`. SSE is Phase B |
-| `tools/arena/queue.mjs` | *built (A)* | priority queue, one worker per backend, wall cap, verify-then-commit, crash recovery |
-| `tools/arena/ledger.mjs` | *built (A)* | append + fold (claims, prompt index, queue state, quota, standings). Bracket fold is Phase B |
-| `tools/arena/rating.mjs` | *built (A: Elo + placements)* | Elo, placement scheduling. Single-elim bracket + tie order are Phase B |
+| `tools/arena/server.mjs` | *built (A, B)* | HTTP API, static pages, Access JWT check, entrants poller, serves Vite `dist/` at `/play/` and logs at `/logs/`. B: `GET /api/matches/<id>/events` (SSE), `/bracket`, `/api/brackets/…`, the held-round visibility rules |
+| `tools/arena/live.mjs` | *built (B)* | `LiveHub`/`LiveStream` — the in-memory backlog of a running match (ids = positions, so `Last-Event-ID` is an offset), SSE framing, `eventsFromLog()` (the identical sequence from a finished log) |
+| `tools/arena/queue.mjs` | *built (A, B)* | priority queue, one worker per backend, wall cap, verify-then-commit, crash recovery. B: feeds the runner's callbacks into the match's `LiveStream`, ends it with the terminal row |
+| `tools/arena/ledger.mjs` | *built (A, B)* | append + fold (claims, prompt index, queue state, quota, standings). B: `bracket`, `bracket-reveal`, `ruling` rows; `bracketView()`; `isHeld()` |
+| `tools/arena/rating.mjs` | *built (A, B)* | Elo, placement scheduling. B: `seedOrder`/`bracketPlan` (single elim, byes to top seeds), `bracketWinner` (Q7 tie order), `towerHpByTeam`, `bracketMatchSeed` |
 | `tools/arena/prompts.mjs` | *built (A)* | entrants sync by `gh api` (tree walk on `main`, blobs fetched once), content-addressed cache under `runs/arena/prompts/`, scratch validation (port of `validate_entry.py` rules) |
 | `tools/arena/auth.mjs` | *built (A)* | Cloudflare Access JWT verification (`node:crypto`, JWKS from `<team>.cloudflareaccess.com/cdn-cgi/access/certs`); the claim table is `claim` ledger rows |
-| `tools/arena/pages/*.mjs` | *built (A)* | server-rendered HTML: home/explainer, `/test`, `/ladder`, `/matches`, `/matches/<id>`, `/admin`. `/bracket` is Phase B |
+| `tools/arena/pages/*.mjs` | *built (A, B)* | server-rendered HTML: home/explainer, `/test`, `/ladder`, `/matches` (running + recent, "Watch live"), `/matches/<id>`, `/admin` (B: create a bracket from the ladder), `/bracket` (B: columns per round, organizer controls per round and slot) |
 | `tools/arena/config.example.json` | *built (A)* | tournament (backend, cadence, quick shape, seeds, quota), backends, entrants source, house files, organizer email. Access AUD/team are environment variables |
-| `tools/arena/test_*.mjs` | *built (A)* | `node --test`: Elo + placements, ledger folds, validator port, JWT refusal, verify gate + wall cap, headless end-to-end on the mock. Bracket tests are Phase B |
+| `tools/arena/test_*.mjs` | *built (A, B)* | `node --test`: Elo + placements, ledger folds, validator port, JWT refusal, verify gate + wall cap, house pair, headless end-to-end on the mock. B: `test_bracket` (seeding, byes, tie order, fold), `test_live` (stream units; SSE e2e; bracket e2e with held/reveal/rule/re-run), `test_browser` (`src/live.ts` bundled and driven in Node against a real log). `testkit.mjs` holds the shared fixtures |
 | `.github/workflows/ci.yml` | **reused, additive (A: done)** | `npm run test:arena` after the match smoke |
 | `jamobair-entrants` `tools/validate_entry.py` | **reused unchanged** | remains the CI gate for merged prompts |
 | `cloudflared` config | ops, not in repo | ingress `elysium.<zone>` → `http://127.0.0.1:8790`, nothing else; `arena.<zone>` is a Cloudflare redirect rule (Q16) |
@@ -623,7 +625,8 @@ Where this document was silent, the smallest thing was chosen and is now the rul
   in dev mode (`--dev-user`, organizer) — there is no `--tunnel` flag to guard against because the
   listener is `127.0.0.1` in every mode; the tunnel is the only way in, and Access is the only role.
 - **The logo is the one path served without identity** (`/assets/logo/*`), so the 401 page can show it.
-- **Pages do not auto-refresh.** A match page says "reload for progress"; the live view is Phase B.
+- **Pages do not auto-refresh.** A match page says "reload for progress"; the live view (Phase B) is
+  the page that does.
 
 ### Phase B — live spectator + bracket (jam day)
 
@@ -643,6 +646,62 @@ Q15 side assignment, Q18 spectator gating, Q19 organizer list.
 `/admin` appears live on `/play/?live=` for two browsers at once, both showing the same clock
 within one round; a Thursday-night log replays at 4× with no divergence; pause/resume and a
 ruling row all round-trip on the bracket page.
+
+#### Phase B — as built (2026-09-22)
+
+Checklist against the file list above:
+
+- [x] `headless.ts` `onStart`/`onDecision`/`onRound`/`onCheckpoint`/`onDeath` (additive; `verifyReplay` and the log unchanged)
+- [x] `tools/arena/live.mjs` + `server.mjs` `GET /api/matches/<id>/events`: backlog then tail, `Last-Event-ID`, a queued match holds the socket and attaches when it starts, a finished match streams `eventsFromLog()`
+- [x] `src/live.ts` + `src/main.ts` `?live=<id>`, `?speed=`, speed control 1×/4×/16×, LIVE badge, `REPLAY DIVERGED` on a checkpoint mismatch in either arrival order
+- [x] `rating.mjs` single-elim seeding, byes, Q7 tie order; `ledger.mjs` bracket fold; `server.mjs` create / run round / reveal / re-run / rule; `pages/bracket.mjs`; `/admin` create-bracket card
+- [x] `test_bracket.mjs`, `test_live.mjs`, `test_browser.mjs` — 59 tests in `npm run test:arena` (CI, mock model, no GPU)
+- [x] README and runbook (§5 jam-day sequence)
+- [x] **Proof on the host** (2026-09-22 00:58 CT): one scratch quick test, `ceryce (scratch)` vs house on
+  `qwen3.5:9b` through `model_server.py`, watched over `/api/matches/<id>/events` from the queue:
+  161 s wall, 231 calls, 1 parse error, 0 call errors, 36 checkpoints verified. The captured live
+  stream (2,218 events: 1,832 decisions, 342 rounds, 36 checkpoints, 2 deaths, 3 progress,
+  result, end) is **identical** to `eventsFromLog()` of the written log, and `src/live.ts` driven
+  over that stream in Node reaches tick 3600/3600 with 36/36 checkpoints equal and never a tick
+  ahead of the server. The model was unloaded afterwards (`keep_alive: 0`).
+- [x] Two browsers on one live match, and the live page mid-match, were exercised on a slow fake
+  model server (headless Edge screenshots: `LIVE · 2 s cadence`, clock and last reply moving).
+- [ ] **Dress rehearsal on the projector** (Thursday pre-run of two rounds, Friday replay at 4×, one
+  live semi) — **Ceryce, with the real entrants** (runbook §5)
+
+Where this document was silent, the smallest thing was chosen and is now the rule:
+
+- **The stream is the log.** Events are exactly the log's own content in arrival order — per tick
+  `decision…` → `round {tick, asks}` → `death` → `checkpoint` — plus `meta` first, `progress` once
+  per sim-minute, `result` when `runMatch` returns and `end {status, verify|reason}` once the
+  ledger has the terminal row. A finished match has no stream in memory; the same sequence is
+  derived from its log file (`meta.finished: true` tells the browser to play at the chosen speed
+  rather than catch up). So `?live=<id>` works for any match id: queued (waits), running, finished.
+- **Cached decisions are streamed too.** The browser's `ReplayPilot`s need every ask answered in
+  order; a full match at cadence 2 is ~7,200 decision events, ~2–3 MB in memory per running match.
+- **The browser steps only to the last completed round** and yields after any asking tick, as the
+  runner does; a late joiner catches up to the server's frontier as fast as it can, then follows at
+  the model's pace. Reconnects use `Last-Event-ID`. If the *arena* restarts mid-match the match
+  re-runs under the same id with a fresh stream — reload the page then.
+- **Bracket seeds are pinned at creation**: handle, merged hash and Elo, from the ladder's current
+  standings (optionally the top N). A merge after that changes nothing in the bracket. The
+  tournament's backend, cadence and match length are fixed at creation, recorded in the `bracket`
+  row, in every `queued`/`finished` row, and in every match log (`backend.arenaBackend`).
+- **Bracket matches are `ranked: false`** — the ladder froze when it seeded; bracket results are the
+  bracket's, not Elo's.
+- **The higher seed is violet.** Q15 (alternate) is about placements against the house; a bracket
+  pairing has a natural order and a deterministic side keeps the tie order's "higher seed" legible.
+- **Runner seeds** are `seedBase + round × 100 + slot + rerun × 10,000` — distinct per slot and
+  per re-run, and printed on the match page like any seed.
+- **Held means invisible** (Q9). While a pre-run round (`preRunRounds`, default 2) is unrevealed,
+  non-organizers cannot see its results *or its matches at all* — `/matches`, `/matches/<id>`,
+  `/api/matches`, `/logs/<id>.json` and the stream all refuse or omit them — and every later
+  round shows no pairings, because "who plays in round 2" is round 1's result. `Reveal` is a
+  ledger row per round; later rounds are never held.
+- **Slot state is a fold.** The latest not-cancelled job for a slot is *current*; `void`,
+  `timed-out` and `failed` leave the slot *needs re-run*; a `ruling` row wins over everything; a
+  `Run round` only queues slots that are *ready* (both players known, no current job).
+- **`Re-run` is a new match id on a new seed**, never a replacement, like the ladder's `retryOf`.
 
 ### Phase C — public
 

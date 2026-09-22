@@ -1,4 +1,4 @@
-# Elysium — the promptlane arena — runbook (Phase A)
+# Elysium — the promptlane arena — runbook (Phases A + B)
 
 The arena is **Elysium** (ruling Q16; the *Hades* stadium where the dead fight for glory forever).
 The code paths keep the word `arena` (`tools/arena/`, `runs/arena/`, `npm run arena`) — paths are
@@ -148,7 +148,32 @@ The house bot is a fixed Elo 1000 that never moves and does not appear on the la
 
 ---
 
-## 5. Jam-day operator (Phase A tools; the bracket is Phase B)
+## 5. Jam day
+
+### 5.1 The sequence (rulings Q6/Q8/Q9)
+
+Everything below is a button on `/bracket` or `/admin` as the organizer; every press is a ledger
+row, so a wrong press is undone by the next one, never by editing history.
+
+| When | Do | What happens |
+|---|---|---|
+| **Thu 10-01, after the 17:00 CT cutoff** | `/admin` → *Sync now* (so the last merges are in), wait for the placements to finish (`/matches` shows an empty queue), then `/admin` → *Jam-day bracket* → **Create bracket from the ladder** (id `jam`, backend `qwen9b`, cadence **2**, 600 s, pre-run rounds **2**) | A `bracket` row pins every entrant's handle, merged hash and Elo in ladder order; byes go to the top seeds. Nothing runs yet. |
+| **Thu night** | `/bracket` → **Run round 1**. When its matches are finished (`done` on the page; ~25 min each, one at a time), **Run round 2** | Round-1/2 matches queue at `bracket` priority and are verified before they count. Both rounds are **held**: only you can see results, match pages, logs or streams; spectators see "held until jam day" and no pairings for later rounds. |
+| **Fri, before the room fills** | `npm run build` if `src/` changed since the last build; `/matches` should be idle; have `/bracket` open on the projector as a spectator (a second browser without the organizer identity, or a phone) | — |
+| **Fri, opening** | `/bracket` → **Reveal results** on round 1, then on round 2 | Results, pairings and replays appear for everyone. |
+| **Fri, replays** | On each revealed slot press **Replay 4×** (`/play/?replay=/logs/<id>.json&speed=4`; the speed control in the top bar also has 1× and 16×) | A 10-minute match plays in 2½; the page re-checks every checkpoint and says `REPLAY DIVERGED` rather than lie. |
+| **Fri, semis** | `/bracket` → **Run semi-finals**. Press **Watch live** on the slot (or open `/matches`) — `/play/?live=<id>` | The page shows `QUEUED #n` until the match starts, then `LIVE · 2 s cadence`; the clock runs at the model's pace (~2.5× slower than real time on the 9b model). Any number of browsers can watch; a late joiner catches up in seconds. |
+| **Fri, final** | **Run final**, same | The champion line appears on `/bracket` when the final is verified. |
+| A full draw | nothing to press | deaths → tower hp → errors → higher seed decides (Q7); the slot says which. |
+| A match you do not trust | `/admin` → *Void* it, then the slot's **Re-run (new seed)**; or **Rule** the slot with a reason | Void, re-run and ruling are rows; the bracket re-derives. A re-run is a new match id on a new seed. |
+| The model server died mid-match | restart `model_server.py`; the runner holds through call errors and the log still verifies; if the result is silly, void + re-run | — |
+| **After** | stop the arena, move `runs/arena/` aside (`runs/jam-2026-10-02/`) — the ledger and logs are the record | The next start is a clean ladder (§5.2 *Reset*). |
+
+Rehearse this once on the mock before Thursday: `npm run arena -- --dev-user you@x --backend mock
+--entrants-dir <a tree with two or three entrants>` and click through it; a mock match takes
+seconds.
+
+### 5.2 Everyday operator table
 
 | Want | Do |
 |---|---|
@@ -160,19 +185,34 @@ The house bot is a fixed Elo 1000 that never moves and does not appear on the la
 | Change the model | edit `runs/arena/config.json` `tournament.backend`, start that model server, restart the arena. The new setting is a new `tournament` row; old matches keep their recorded backend. |
 | **Reset for a fresh ladder** | stop the arena, move `runs/arena/` aside (e.g. `runs/arena-pre-jam-<date>/`), start again. The next start has an empty ledger, re-loads the house bot, re-syncs the entrants repo and re-places everyone. Never edit `ledger.jsonl`. |
 | Re-verify any log by hand | `npm run match -- --verify runs/arena/logs/<id>.json` |
-| Watch a match | `/matches/<id>` → *Watch the replay* (`/play/?replay=/logs/<id>.json`, the game's own page; needs `npm run build`). |
+| Watch a match **live** | `/matches` → *Watch … live*, or `/matches/<id>` → *Watch live* (`/play/?live=<id>`, the game's own page; needs `npm run build`). Works for a queued match (it waits), a running one, and a finished one (plays at the chosen speed). |
+| Watch a finished match | `/matches/<id>` → *Watch the replay* (`/play/?replay=/logs/<id>.json`) or *at 4×* (`&speed=4`; the top-bar control has 1×/4×/16×). |
 
 The API the pages use is plain JSON if you want it from a script: `GET /api/me`, `/api/ladder`,
-`/api/matches`, `/api/matches/<id>`; `POST /api/tests {handle, source: scratch|merged, prompt?,
+`/api/matches`, `/api/matches/<id>`, `/api/brackets`, `/api/brackets/<id>`;
+`GET /api/matches/<id>/events` is the live stream (`text/event-stream`: `meta`, `decision`,
+`round`, `checkpoint`, `death`, `progress`, `result`, `end`; `waiting` first for a queued match;
+`Last-Event-ID` resumes); `POST /api/tests {handle, source: scratch|merged, prompt?,
 opponent: house|<handle>, kind: quick|full}` → `202 {id, position}`; organizer-only `POST
 /api/queue/pause|resume`, `/api/sync`, `/api/void {id, reason}`, `/api/claims {email, handle}`,
-`/api/matches/<id>/cancel`. All of it is behind Access.
+`/api/matches/<id>/cancel`, `/api/brackets {id, name, backend, cadenceSec, maxSimSec,
+preRunRounds, seedBase, top?}`, `/api/brackets/<id>/rounds/<r>/run|reveal`,
+`/api/brackets/<id>/slots/<r>/<k>/rerun|ruling {winner: seedNo, reason}`. All of it is behind
+Access; a held pre-run match answers 403 to anyone but the organizer.
+
+`curl -N` on the events URL is the quickest way to see a match happen from a terminal.
 
 ---
 
 ## 6. Tests
 
-`npm run test:arena` — `node --test` over `tools/arena/test_*.mjs`: Elo and placements, ledger
-folds (quota, standings, recovery), the ported validator, Access JWT refusal, the verify gate
-and wall cap, and a headless end-to-end that boots the arena on the mock model, places an
-entrant, runs a quick test over HTTP and reads the ladder. No GPU; it is what CI runs.
+`npm run test:arena` — `node --test` over `tools/arena/test_*.mjs` (59 tests): the `arena.` →
+`elysium.` redirect, Elo and placements, ledger folds (quota, standings, recovery), the ported
+validator, Access JWT refusal, the verify gate and wall cap, the house pair, the bracket (seeding,
+byes, the Q7 tie order, the fold through void/re-run/ruling/reveal), the live stream (backlog,
+`Last-Event-ID`, a match watched from the queue by two browsers and a late joiner, the live
+stream being identical to the one synthesized from the log), the browser driver (`src/live.ts`
+bundled and run in Node against a real mock log: never ahead of the server, lands on the log,
+stops on a tampered checkpoint, 16× replay paces itself), and headless end-to-ends that boot the
+arena on the mock model — ladder, quota, Access refusal, and a whole bracket over HTTP with a
+held round hidden from a spectator. No GPU; it is what CI runs.
