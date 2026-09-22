@@ -1,9 +1,11 @@
 # promptlane ARENA — website spec
 
-**Status: UNBUILT — spec.** Markdown is canonical. Written 2026-09-21 for the InRhythm AI Jam
-round one (Fri 2026-10-02, IR-only; entrant cutoff Thu 2026-10-01 17:00 CT). Nothing in this
-document exists yet; every path marked *new* is a proposal, every path marked *reused* is checked in
-today.
+**Status: PHASE A BUILT — 2026-09-22.** Markdown is canonical. Written 2026-09-21 for the
+InRhythm AI Jam round one (Fri 2026-10-02, IR-only; entrant cutoff Thu 2026-10-01 17:00 CT).
+Phase A (§6, the ladder) is checked in under `tools/arena/` and runs on the mock in CI; how to
+start it, expose it and operate it is [`arena-runbook.md`](arena-runbook.md). Phases B and C
+are still proposals: in §3 every path marked *new* that is not in the §6 "Phase A — as built"
+list does not exist yet.
 
 Read with: [`../README.md`](../README.md) ("Run a jam match"), [`design.md`](design.md),
 [`../tools/match/`](../tools/match/), [`../tools/model_server.py`](../tools/model_server.py),
@@ -222,8 +224,8 @@ flowchart LR
   deliberately. The only listener the tunnel points at is `:8790`. The model servers, Ollama, and
   the Vite dev server are never tunnelled. Consequence the code must respect: once tunnelled, a
   request arriving from loopback is *not* trusted as the organizer — `cloudflared` itself connects
-  from loopback. Role comes from the Access JWT only (§4), with an explicit `--dev-no-auth` flag for
-  local development that refuses to start if `--tunnel` is also set.
+  from loopback. Role comes from the Access JWT only (§4), with an explicit `--dev-user <email>`
+  flag for local development that is refused whenever `ARENA_ACCESS_AUD` is set (as built).
 
 Why not Python for the arena (the model server is Python)? The runner is TypeScript bundled by
 esbuild and the live stream needs per-decision callbacks *in-process*; spawning `cli.mjs` per match
@@ -404,9 +406,9 @@ wall time, so it is a button, not the default. Ladder (Elo) draws are simply dra
 
 | Path | Status | Role in the arena |
 |---|---|---|
-| `tools/match/headless.ts` | **reused, additive change** | `runMatch` + `verifyReplay`; add `onDecision`, `onRound`, `maxSimSec` to `RunOptions` |
-| `tools/match/cli.mjs` | **reused, small change** | `loadHeadless()` moves to `tools/match/load.mjs` so the arena and CLI share it; CLI behaviour unchanged |
-| `tools/match/load.mjs` | *new* | the esbuild loader, extracted |
+| `tools/match/headless.ts` | **reused, additive change (A: done)** | `runMatch` + `verifyReplay`; Phase A added `maxSimSec` and `signal` (wall cap) to `RunOptions`, and `verifyReplay` stops at the logged tick count for an unfinished log. `onDecision`/`onRound` are Phase B |
+| `tools/match/cli.mjs` | **reused, small change (A: done)** | `loadHeadless()` and the HTTP/result helpers moved to `tools/match/load.mjs`; CLI behaviour unchanged |
+| `tools/match/load.mjs` | *built (A)* | the esbuild loader (bundled once per process), `httpCallModel`, `probeBackend`, `resultLine` |
 | `tools/model_server.py` | **reused unchanged** (Phase A/B) | one process per backend; `/health` recorded in every log. Phase C option: `--backend openai` (OpenAI-compatible hosted endpoint, key from env) |
 | `src/replay.ts` | **reused unchanged** | `MatchLog`, `ReplayPilot`, `checkpointOf`, `JAM_ROSTER`, `decisionsByBot` |
 | `src/main.ts` | **reused, additive change** | `?live=<id>` mode and replay speed control |
@@ -415,16 +417,16 @@ wall time, so it is a button, not the default. Ladder (Elo) draws are simply dra
 | `src/sim/*`, `src/rng.ts`, `src/pilots/*`, `src/types.ts`, `src/render.ts` | **frozen, untouched** | the specimen |
 | `prompts/pilots/drums.md` | **reused unchanged** | the house bot |
 | `runs/` (`/runs/*/` ignored) | **reused layout** | `runs/arena/{ledger.jsonl,logs/,entrants/}` |
-| `tools/arena/server.mjs` | *new* | HTTP API, SSE, static pages, Access JWT check, serves Vite `dist/` at `/play/` |
-| `tools/arena/queue.mjs` | *new* | priority queue, one worker per backend, wall cap, verify-then-commit |
-| `tools/arena/ledger.mjs` | *new* | append + fold (standings, bracket, queue state) |
-| `tools/arena/rating.mjs` | *new* | Elo, placement scheduling, single-elim bracket + tie order |
-| `tools/arena/prompts.mjs` | *new* | entrants clone sync, hash index, scratch validation (port of `validate_entry.py` rules — 20 lines) |
-| `tools/arena/auth.mjs` | *new* | Cloudflare Access JWT verification (`node:crypto`, JWKS from `<team>.cloudflareaccess.com/cdn-cgi/access/certs`), handle ↔ email claim table |
-| `tools/arena/pages/*.mjs` | *new* | server-rendered HTML: home/explainer, `/test`, `/ladder`, `/bracket`, `/matches`, `/admin` |
-| `tools/arena/config.example.json` | *new* | backends, tournaments, budgets, quotas, Access team + audience |
-| `tools/arena/test_*.mjs` | *new* | `node --test`: ledger fold, Elo, bracket seeding + byes, tie order, quota, JWT verify against a fixture key |
-| `.github/workflows/ci.yml` | **reused, additive** | run `node --test tools/arena` and a queue smoke with `--model mock` |
+| `tools/arena/server.mjs` | *built (A)* | HTTP API, static pages, Access JWT check, entrants poller, serves Vite `dist/` at `/play/` and logs at `/logs/`. SSE is Phase B |
+| `tools/arena/queue.mjs` | *built (A)* | priority queue, one worker per backend, wall cap, verify-then-commit, crash recovery |
+| `tools/arena/ledger.mjs` | *built (A)* | append + fold (claims, prompt index, queue state, quota, standings). Bracket fold is Phase B |
+| `tools/arena/rating.mjs` | *built (A: Elo + placements)* | Elo, placement scheduling. Single-elim bracket + tie order are Phase B |
+| `tools/arena/prompts.mjs` | *built (A)* | entrants sync by `gh api` (tree walk on `main`, blobs fetched once), content-addressed cache under `runs/arena/prompts/`, scratch validation (port of `validate_entry.py` rules) |
+| `tools/arena/auth.mjs` | *built (A)* | Cloudflare Access JWT verification (`node:crypto`, JWKS from `<team>.cloudflareaccess.com/cdn-cgi/access/certs`); the claim table is `claim` ledger rows |
+| `tools/arena/pages/*.mjs` | *built (A)* | server-rendered HTML: home/explainer, `/test`, `/ladder`, `/matches`, `/matches/<id>`, `/admin`. `/bracket` is Phase B |
+| `tools/arena/config.example.json` | *built (A)* | tournament (backend, cadence, quick shape, seeds, quota), backends, entrants source, house files, organizer email. Access AUD/team are environment variables |
+| `tools/arena/test_*.mjs` | *built (A)* | `node --test`: Elo + placements, ledger folds, validator port, JWT refusal, verify gate + wall cap, headless end-to-end on the mock. Bracket tests are Phase B |
+| `.github/workflows/ci.yml` | **reused, additive (A: done)** | `npm run test:arena` after the match smoke |
 | `jamobair-entrants` `tools/validate_entry.py` | **reused unchanged** | remains the CI gate for merged prompts |
 | `cloudflared` config | ops, not in repo | ingress `arena.<zone>` → `http://127.0.0.1:8790`, nothing else |
 
@@ -450,8 +452,9 @@ what changes for Phase C (add `Everyone` on the read-only paths). The organizer 
 `/api/queue`, `/api/matches/*/{void,rerun,ruling}` route require it. If IR already uses Google
 Workspace, switching the Access login method from OTP to Google later is a policy change, not code.
 
-Local development: `--dev-no-auth` treats every request as organizer *and* refuses to start when a
-tunnel is configured, so the trust-loopback mistake cannot ship (§3.0).
+Local development: `--dev-user <email>` treats every request as that organizer *and* is refused
+when `ARENA_ACCESS_AUD` is set, so the trust-loopback mistake cannot ship (§3.0). There is no
+third mode: unset AUD is dev, set AUD verifies every request.
 
 ---
 
@@ -512,8 +515,8 @@ backend per day, so the estimate can be corrected after the first real day.
 
 ### 5.6 Operational
 
-- Everything binds `127.0.0.1`; only `:8790` is tunnelled; `--dev-no-auth` cannot coexist with
-  `--tunnel` (§3.0, §4).
+- Everything binds `127.0.0.1`; only `:8790` is tunnelled; `--dev-user` cannot coexist with
+  `ARENA_ACCESS_AUD` (§3.0, §4).
 - The arena never reads or stores a model API key. A hosted backend's key lives in the model
   server's process environment (as today for the Claude CLI's subscription), and `/health` reports
   the backend and model, never a key.
@@ -550,6 +553,49 @@ seeds, Q16 zone/hostname.
 **Done when:** an IR coworker can open the link on their phone, get an OTP, paste a prompt, see a
 result line and a replay link within ~5 minutes, merge a PR and see themselves on the ladder within
 ~2 hours (three placements), all with the arena running unattended on the workstation overnight.
+
+#### Phase A — as built (2026-09-22)
+
+Checklist against the file list above:
+
+- [x] `tools/match/load.mjs` extracted; `headless.ts` gained `maxSimSec` + `signal`; `verifyReplay` handles unfinished logs
+- [x] `tools/arena/{server,queue,ledger,rating,prompts,auth}.mjs`
+- [x] `tools/arena/pages/{layout,home,test,ladder,matches,admin}.mjs`
+- [x] `tools/arena/config.example.json`
+- [x] `tools/arena/test_{rating,ledger,prompts,auth,queue,e2e}.mjs` — 37 tests; CI step `npm run test:arena`
+- [x] README "Arena" pointer (Layout row) and `docs/arena-runbook.md`
+- [x] Real path proven on the host: scratch quick test on `qwen3.5:9b` through `model_server.py`, verified and replayable
+- [ ] Access application, tunnel ingress `arena.<zone>`, first smoke with a real IR account — **by hand, Ceryce** (runbook §2)
+
+Where this document was silent, the smallest thing was chosen and is now the rule:
+
+- **Prompt store is a cache, not a clone.** `prompts.mjs` walks the entrants repo's tree on `main`
+  with `gh api` and fetches each `pilot.md` blob once; texts are cached content-addressed under
+  `runs/arena/prompts/<handle>/<sha256>.md`. No git clone, no deploy key — the host's `gh` auth.
+- **Scratch text lives in `runs/arena/scratch/<matchId>.md` until its match ends**, then is
+  deleted; the ledger's `queued` row never carries it (§2.1 "never persisted"). A restart mid-match
+  re-runs the job from the side file.
+- **Ranked = full length and both sides merged** (house counts as merged, pinned at 1000). So a
+  placement, a full test of "my merged prompt" vs the house, and a full challenge vs another
+  entrant's merged prompt all count; anything scratch or quick never does.
+- **Tests put the requester on violet**; placements alternate per Q15. Quick tests use seed 7
+  (`tournament.quick.seed`); full tests use the first placement seed.
+- **Wall cap** is `3 × (maxSimSec / cadenceSec) × 6 × backend.avgSecPerCall`, 60 s floor; a job
+  past it is written `unfinished`, marked `timed-out`, and not re-queued (§3.1). `avgSecPerCall`
+  is config because a shared GPU doubles it.
+- **A diverged replay is re-queued once as a *new* match id** with `retryOf` pointing at the void
+  one, so an id never maps to two logs.
+- **A new hash cancels that handle's not-yet-started placements** before queuing the new three,
+  so a fast revision does not cost the GPU six matches.
+- **Match ids** are `<tournament>-<yyyymmdd CT>-<seq>`; the sequence is folded from the ledger, so
+  it survives a restart.
+- **Config vs environment:** the tournament and backends are `runs/arena/config.json`; the Access
+  AUD, team and organizer email are `ARENA_ACCESS_AUD`, `ARENA_ACCESS_TEAM`,
+  `ARENA_ORGANIZER_EMAIL` (organizer email also accepted in config). With the AUD unset the arena is
+  in dev mode (`--dev-user`, organizer) — there is no `--tunnel` flag to guard against because the
+  listener is `127.0.0.1` in every mode; the tunnel is the only way in, and Access is the only role.
+- **The logo is the one path served without identity** (`/assets/logo/*`), so the 401 page can show it.
+- **Pages do not auto-refresh.** A match page says "reload for progress"; the live view is Phase B.
 
 ### Phase B — live spectator + bracket (jam day)
 

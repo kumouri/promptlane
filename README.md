@@ -54,13 +54,14 @@ un-hear.
 prompts/             versioned build prompts; initial_prompt.md is frozen v1
 generation/          pinned-input preparation, run recorder, cross-client protocol
 acceptance/          independent, post-submission evaluation and evidence requirements
-tools/               jam tooling: headless match runner (tools/match/) and the model server
+tools/               jam tooling: headless match runner (tools/match/), the model server, and
+                     the arena (tools/arena/ — the pre-jam ladder site; docs/arena-runbook.md)
 runs/                operator records and match logs (per-run directories are local/ignored)
 artifacts/           exported workspaces and frozen submissions (local/ignored)
 src/                 original generated game specimen; not maintained game source
                      (src/replay.ts is jam tooling that drives the unchanged sim from outside)
 docs/                current design notes and historical recordings; not implicit run inputs
-                     (docs/arena-site-spec.md is the UNBUILT spec for the hosted arena site)
+                     (docs/arena-site-spec.md: the arena spec, Phase A built; arena-runbook.md: how to run it)
 assets/logo/         Jamobair, the mascot (PNG on black, on near-black, and transparent)
 ```
 
@@ -118,8 +119,15 @@ bearbot answering from the log; the scoreboard shows the entrants' names, the ro
 pilots each bearbot, and the side panel shows the selected bearbot's prompt and its last reply.
 Checkpoints from the log are checked as the clock passes them; a mismatch shows as
 `REPLAY DIVERGED` instead of playing on quietly. A screen share of this page is the round-one
-viewer. Bracket, leaderboard and a hosted arena are phase 2 — specified, not built, in
-[`docs/arena-site-spec.md`](docs/arena-site-spec.md).
+viewer.
+
+**The arena.** `npm run arena` (`tools/arena/server.mjs`) is the pre-jam ladder: entrants paste a
+prompt and run a quick test against the house bot, merged prompts in `jamobair-entrants` are
+placed automatically on three seeds, and an Elo ladder is folded from an append-only ledger with
+every match re-verified before it counts. Start it, expose it behind Cloudflare Access, and operate
+it per [`docs/arena-runbook.md`](docs/arena-runbook.md); the design, rulings and what is still
+Phase B (live view, bracket) are in [`docs/arena-site-spec.md`](docs/arena-site-spec.md).
+`npm run test:arena` runs its suite on the mock model (no GPU; CI runs it).
 
 **Known v1 behaviour.** Low-health retreats can prevent first blood
 ([`runs/historical-v1.md`](runs/historical-v1.md)). The runner does not patch that; a match that
