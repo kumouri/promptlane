@@ -60,6 +60,7 @@ artifacts/           exported workspaces and frozen submissions (local/ignored)
 src/                 original generated game specimen; not maintained game source
                      (src/replay.ts is jam tooling that drives the unchanged sim from outside)
 docs/                current design notes and historical recordings; not implicit run inputs
+                     (docs/arena-site-spec.md is the UNBUILT spec for the hosted arena site)
 assets/logo/         Jamobair, the mascot (PNG on black, on near-black, and transparent)
 ```
 
@@ -115,7 +116,8 @@ bearbot answering from the log; the scoreboard shows the entrants' names, the ro
 pilots each bearbot, and the side panel shows the selected bearbot's prompt and its last reply.
 Checkpoints from the log are checked as the clock passes them; a mismatch shows as
 `REPLAY DIVERGED` instead of playing on quietly. A screen share of this page is the round-one
-viewer. Bracket, leaderboard and a hosted arena are phase 2.
+viewer. Bracket, leaderboard and a hosted arena are phase 2 — specified, not built, in
+[`docs/arena-site-spec.md`](docs/arena-site-spec.md).
 
 **Known v1 behaviour.** Low-health retreats can prevent first blood
 ([`runs/historical-v1.md`](runs/historical-v1.md)). The runner does not patch that; a match that
