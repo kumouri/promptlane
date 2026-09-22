@@ -20,7 +20,7 @@ ${rows
 </table>`
     : '<p class="dim">Nobody has merged a prompt yet. Yours could be first.</p>';
   const body = `
-<h1>Ladder</h1>
+<h1>Elysium ladder</h1>
 <p class="dim">Elo from 1000, K 32, draw ½. Only full matches between merged prompts count (placements and
 challenges); the house bot (<code>${esc(house.file)}</code>) is a fixed 1000. "Current prompt" is the record of the
 hash that is merged now; a revision keeps the rating and re-places on seeds 7, 11, 42.</p>

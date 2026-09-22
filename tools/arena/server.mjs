@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 /**
- * promptlane arena — Phase A, the pre-jam ladder (docs/arena-site-spec.md §6, docs/arena-runbook.md).
+ * Elysium — the promptlane arena. Phase A, the pre-jam ladder (docs/arena-site-spec.md §6, docs/arena-runbook.md).
+ *
+ * Canonical host is `elysium.<zone>` (ruling Q16); a request arriving with Host `arena.<zone>` is
+ * answered 301 → `https://elysium.<zone>` before anything else (`hostRedirect`). Paths and code
+ * identifiers (`tools/arena/`, `runs/arena/`) keep the old word — paths are not the name.
  *
  *   node tools/arena/server.mjs --dev-user you@example.com            # local, no Access, organizer
  *   ARENA_ACCESS_AUD=… ARENA_ACCESS_TEAM=… node tools/arena/server.mjs  # behind Cloudflare Access
@@ -105,6 +109,18 @@ function sendJson(res, obj, status = 200) {
 function redirect(res, to) {
   res.writeHead(303, { Location: to });
   res.end();
+}
+
+/**
+ * Ruling Q16: `elysium.<zone>` is canonical and `arena.<zone>` redirects to it. The Cloudflare-side
+ * redirect rule (runbook §2) normally answers first; this is the same answer from the origin in
+ * case a request on the old host reaches it (a tunnel ingress still pointing here). Returns the
+ * absolute URL to send a 301 to, or null when the host is already right.
+ */
+export function hostRedirect(host, url) {
+  const m = /^arena\.([^:/]+)(:\d+)?$/i.exec(String(host ?? '').trim());
+  if (!m) return null;
+  return `https://elysium.${m[1].toLowerCase()}${url.startsWith('/') ? url : `/${url}`}`;
 }
 
 /** Under `root` and no `..` — the only path check static serving needs. */
@@ -279,6 +295,11 @@ export async function createArena({
 
   // --- router -------------------------------------------------------------------------------
   async function handle(req, res) {
+    const to = hostRedirect(req.headers.host, req.url);
+    if (to) {
+      res.writeHead(301, { Location: to, 'Cache-Control': 'public, max-age=86400' });
+      return res.end();
+    }
     const url = new URL(req.url, 'http://arena');
     const p = url.pathname;
     const method = req.method;

@@ -1,4 +1,4 @@
-# promptlane ARENA — website spec
+# Elysium — the promptlane arena — website spec
 
 **Status: PHASE A BUILT — 2026-09-22.** Markdown is canonical. Written 2026-09-21 for the
 InRhythm AI Jam round one (Fri 2026-10-02, IR-only; entrant cutoff Thu 2026-10-01 17:00 CT).
@@ -187,7 +187,7 @@ flowchart LR
     end
     subgraph cf["Cloudflare (edge)"]
         ACC[Access policy<br/>IR emails only]
-        TUN[Tunnel<br/>arena.&lt;zone&gt;]
+        TUN[Tunnel<br/>elysium.&lt;zone&gt;<br/>(arena. → 301)]
     end
     subgraph host["Ceryce's workstation — everything binds 127.0.0.1"]
         CFD[cloudflared]
@@ -428,7 +428,7 @@ wall time, so it is a button, not the default. Ladder (Elo) draws are simply dra
 | `tools/arena/test_*.mjs` | *built (A)* | `node --test`: Elo + placements, ledger folds, validator port, JWT refusal, verify gate + wall cap, headless end-to-end on the mock. Bracket tests are Phase B |
 | `.github/workflows/ci.yml` | **reused, additive (A: done)** | `npm run test:arena` after the match smoke |
 | `jamobair-entrants` `tools/validate_entry.py` | **reused unchanged** | remains the CI gate for merged prompts |
-| `cloudflared` config | ops, not in repo | ingress `arena.<zone>` → `http://127.0.0.1:8790`, nothing else |
+| `cloudflared` config | ops, not in repo | ingress `elysium.<zone>` → `http://127.0.0.1:8790`, nothing else; `arena.<zone>` is a Cloudflare redirect rule (Q16) |
 
 ---
 
@@ -440,7 +440,7 @@ least: the link.
 
 | Option | How | Identity you get | Effort | Cost | Against |
 |---|---|---|---|---|---|
-| **A. Cloudflare Access, one-time PIN to email, domain rule** | Access application on `arena.<zone>`; policy `emails ending in @<IR domain>` + Ceryce's address; Access emails a 6-digit code; the arena verifies the `Cf-Access-Jwt-Assertion` JWT on every request | verified email → handle claimed once from the unclaimed list (first-come; organizer can reassign) | ~1–2 job-hours (Access app + JWT check + claim table) | $0 (Zero Trust free tier covers 50 users) | needs the IR email domain confirmed; handle ↔ email is a self-claim (fine for 20 coworkers) |
+| **A. Cloudflare Access, one-time PIN to email, domain rule** | Access application on `elysium.<zone>`; policy `emails ending in @<IR domain>` + Ceryce's address; Access emails a 6-digit code; the arena verifies the `Cf-Access-Jwt-Assertion` JWT on every request | verified email → handle claimed once from the unclaimed list (first-come; organizer can reassign) | ~1–2 job-hours (Access app + JWT check + claim table) | $0 (Zero Trust free tier covers 50 users) | needs the IR email domain confirmed; handle ↔ email is a self-claim (fine for 20 coworkers) |
 | B. GitHub OAuth gated on entrants-repo collaborator | OAuth app; callback on the tunnel hostname; after login, `gh api /repos/kumouri/jamobair-entrants/collaborators/<login>` | GitHub login → handle via the merged PR's author | ~4–6 job-hours (OAuth flow, sessions, CSRF, collaborator check, PR-author mapping) | $0 | handles are *Slack* handles per the entrants README, so a mapping table is needed anyway; spectators who are not collaborators are locked out; more code on the trust boundary |
 | C. Shared link + token | one bearer token in the URL / a cookie, posted in Slack | none — entrants pick a handle from a dropdown | ~1 job-hour | $0 | the token is in Slack forever; quotas are honour-system; no way to lock the organizer page except a second token |
 
@@ -565,7 +565,11 @@ Checklist against the file list above:
 - [x] `tools/arena/test_{rating,ledger,prompts,auth,queue,e2e}.mjs` — 37 tests; CI step `npm run test:arena`
 - [x] README "Arena" pointer (Layout row) and `docs/arena-runbook.md`
 - [x] Real path proven on the host: scratch quick test on `qwen3.5:9b` through `model_server.py`, verified and replayable
-- [ ] Access application, tunnel ingress `arena.<zone>`, first smoke with a real IR account — **by hand, Ceryce** (runbook §2)
+- [x] **The arena is Elysium** (Q16, 2026-09-22): page titles, the brand in the header, the home and
+  standings headers, README and runbook say *Elysium*; `arena.<zone>` → 301 `elysium.<zone>` at the
+  edge (runbook §2 step 5) and again at the origin on the `Host` header (`hostRedirect`, tested).
+  Code paths keep the word `arena` — paths are not the name.
+- [ ] Access application, tunnel ingress `elysium.<zone>`, the `arena.` redirect rule, first smoke with a real IR account — **by hand, Ceryce** (runbook §2)
 
 Where this document was silent, the smallest thing was chosen and is now the rule:
 

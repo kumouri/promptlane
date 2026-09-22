@@ -1,6 +1,8 @@
-# promptlane ARENA — runbook (Phase A)
+# Elysium — the promptlane arena — runbook (Phase A)
 
-How to run the pre-jam ladder on the workstation, what has to be done by hand on the Cloudflare
+The arena is **Elysium** (ruling Q16; the *Hades* stadium where the dead fight for glory forever).
+The code paths keep the word `arena` (`tools/arena/`, `runs/arena/`, `npm run arena`) — paths are
+not the name. How to run the pre-jam ladder on the workstation, what has to be done by hand on the Cloudflare
 side, and what a jam-day operator does. The design is [`arena-site-spec.md`](arena-site-spec.md);
 this is the *doing*. Markdown is canonical.
 
@@ -64,19 +66,30 @@ Changing the tournament block appends a new `tournament` row; nothing already pl
 
 ## 2. Expose it to InRhythm (Access + tunnel) — by hand, once
 
-Rulings: Cloudflare Access one-time PIN (Q1), `inrhythm.com` (Q2), hostname `arena.` on the cockpit
-tunnel's zone (Q16), spectators behind Access too (Q18), organizer = Ceryce only (Q19). **None of
+Rulings: Cloudflare Access one-time PIN (Q1), `inrhythm.com` (Q2), hostname **`elysium.`** on the
+cockpit tunnel's zone is canonical and `arena.` on the same zone 301-redirects to it (Q16),
+spectators behind Access too (Q18), organizer = Ceryce only (Q19). **None of
 this is created by code**; the steps below are the deployment note.
 
 1. **Access application.** Zero Trust → Access → Applications → *Add* → Self-hosted. Application
-   domain `arena.<zone>`. Session duration: 24 h is fine. Identity providers: *One-time PIN* only.
+   domain `elysium.<zone>`. Session duration: 24 h is fine. Identity providers: *One-time PIN* only.
 2. **Policy.** Allow → include *Emails ending in* `@inrhythm.com`, and *Emails* = your address
    if it is not on that domain. No bypass rules, no `Everyone` (that is Phase C).
 3. **Copy the AUD.** On the application's overview: *Application Audience (AUD) Tag* — a 64-hex
    string. Team name is the `<team>` in `https://<team>.cloudflareaccess.com`.
 4. **Tunnel ingress** (the cockpit's `cloudflared` config): add
-   `arena.<zone>` → `http://127.0.0.1:8790`. Nothing else on this host is ever an ingress target.
-5. **Start the arena in Access mode:**
+   `elysium.<zone>` → `http://127.0.0.1:8790`. Nothing else on this host is ever an ingress target.
+5. **The `arena.` redirect** (Q16: `arena.<zone>` → `elysium.<zone>`). Two layers, both cheap:
+   - *Cloudflare, the one that normally answers.* DNS: a proxied `AAAA arena 100::` (or `A 192.0.2.1`)
+     record so the name resolves at the edge. Rules → *Redirect Rules* → *Create rule*: when
+     `Hostname equals arena.<zone>`, then *Dynamic* redirect to
+     `concat("https://elysium.<zone>", http.request.uri.path, http.request.uri.query != "" ? concat("?", http.request.uri.query) : "")`,
+     status **301**, *Preserve query string* on. The redirect fires at the edge; no Access app is
+     needed on `arena.` because nothing on it ever reaches an origin.
+   - *The origin, belt and braces.* The arena itself answers `301 https://elysium.<zone><path>` to any
+     request whose `Host` header is `arena.<anything>` before it looks at identity, so if `arena.`
+     is (or was) a tunnel ingress the answer is the same. `npm run test:arena` covers it.
+6. **Start the arena in Access mode:**
 
    ```sh
    set ARENA_ACCESS_AUD=<64 hex>          # PowerShell: $env:ARENA_ACCESS_AUD = '…'
@@ -90,7 +103,7 @@ this is created by code**; the steps below are the deployment note.
    401, `/admin` and the organizer API return 403 for anyone whose email is not the organizer, and
    the JWKS is fetched from `https://<team>.cloudflareaccess.com/cdn-cgi/access/certs` (cached six
    hours, re-fetched on an unknown key id).
-6. **Smoke it from a phone:** open `https://arena.<zone>/`, get the PIN by email, paste a prompt on
+7. **Smoke it from a phone:** open `https://elysium.<zone>/`, get the PIN by email, paste a prompt on
    *Test*, watch the result page fill in, press *Watch the replay*.
 
 Identity is the Access email; the **handle** (GitHub login = `entrants/<handle>` folder) is typed
