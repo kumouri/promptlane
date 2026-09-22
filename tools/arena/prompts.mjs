@@ -14,8 +14,6 @@ import { promisify } from 'node:util';
 
 const execFileP = promisify(execFile);
 
-export const MAX_LINES = 40;
-export const MAX_BYTES = 4 * 1024;
 export const HANDLE_RE = /^[A-Za-z0-9_][A-Za-z0-9._-]*$/;
 const FENCE_RE = /^\s*(```|~~~)/m;
 const URL_RE = /(https?:\/\/|www\.)/i;
@@ -24,18 +22,18 @@ export function isHandle(s) {
   return typeof s === 'string' && s.length <= 39 && HANDLE_RE.test(s);
 }
 
-/** Same rules, same messages as `validate_text` in the entrants validator. Empty list = valid. */
+/**
+ * Same rules, same messages as `validate_text` in the entrants validator: non-empty, no code
+ * fences, no URLs. There is no line or byte cap (ruling 2026-09-22: "one file, no code fences, no
+ * URLs"); what bounds an oversized prompt is the model's context window — see
+ * docs/arena-site-spec.md §5.1. Empty list = valid.
+ */
 export function validatePromptText(text) {
   const problems = [];
   if (typeof text !== 'string' || !text.trim()) {
     problems.push('file is empty');
     return problems;
   }
-  const lines = text.split(/\r\n|\r|\n/);
-  if (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
-  if (lines.length > MAX_LINES) problems.push(`${lines.length} lines; the limit is ${MAX_LINES}`);
-  const rawLen = Buffer.byteLength(text, 'utf8');
-  if (rawLen > MAX_BYTES) problems.push(`${rawLen} bytes; the limit is ${MAX_BYTES} (4 KB)`);
   if (FENCE_RE.test(text)) problems.push('contains a code fence (``` or ~~~)');
   if (text.includes('```') && !FENCE_RE.test(text)) problems.push('contains ``` (code fences are not allowed)');
   if (URL_RE.test(text)) problems.push('contains a URL');

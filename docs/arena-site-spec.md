@@ -82,7 +82,7 @@ sequenceDiagram
 
     E->>W: open /test, paste prompt (or pick "my merged prompt")
     W->>A: POST /api/tests {prompt, opponent: house|<handle>, quick: true}
-    A->>A: validate (40 lines, 4 KB, no fences/URLs) · check quota · estimate cost
+    A->>A: validate (non-empty, no fences/URLs) · check quota · estimate cost
     A-->>W: 202 {matchId, position in queue, eta}
     A->>Q: enqueue (priority: test)
     Q->>R: runMatch(seed, sides, backend, cadence, maxSimSec)
@@ -278,8 +278,8 @@ it is an extra deploy for nothing. Revisit in Phase C.
 `kumouri/jamobair-entrants` at `runs/arena/entrants/` and syncs `main` every 60 s (or on a GitHub
 webhook — the tunnel makes that possible, but polling is simpler and 60 s is fine).
 
-- For: one source of truth; the validator CI (`tools/validate_entry.py`: 40 lines, 4 KB, no
-  fences, no URLs, handle pattern) already gates it; "merged by cutoff plays" is already the rule in
+- For: one source of truth; the validator CI (`tools/validate_entry.py`: one file, no fences, no
+  URLs, handle pattern) already gates it; "merged by cutoff plays" is already the rule in
   the entrants README; every prompt revision is a commit with an author, so identity and audit come
   free; the jam-day roster is `git ls-tree`, not a database export.
 - Against: iteration goes through a PR (minutes, plus a reviewer if branch protection requires
@@ -465,11 +465,32 @@ third mode: unset AUD is dev, set AUD verifies every request.
 
 ### 5.1 Prompt size and content
 
-Scratch prompts are held to exactly the entrants validator's rules — **40 lines, 4 KB, no code
-fences, no URLs, non-empty UTF-8** — ported verbatim into `prompts.mjs` and cross-checked in
-`test_prompts.mjs` against the same fixtures the Python validator uses. A prompt is text handed to
-a local model and never executed, so the risk is cost and nuisance, not code execution; the size cap
-is what bounds the per-call token count (~1–1.5 k tokens including the observation).
+Scratch prompts are held to exactly the entrants validator's rules — **one file, no code fences,
+no URLs, non-empty UTF-8** — ported verbatim into `prompts.mjs` and cross-checked in
+`test_prompts.mjs` against the same fixtures the Python validator uses. There is **no line or byte
+cap** (ruling 2026-09-22: the 40-line / 4 KB limits were invented by the phase-1 build, not by the
+organizer). A prompt is text handed to a local model and never executed, so the risk is cost and
+nuisance, not code execution.
+
+What happens to a very long prompt is a *behaviour of the runner*, not an entry rule:
+
+- Nothing in promptlane trims it. `PromptPilot.buildPrompt` (`src/pilots/promptPilot.ts`) sends
+  the whole file (whitespace-trimmed at both ends only), then the reply contract line, then the
+  `OBSERVATION:` JSON, in that order; `tools/model_server.py` forwards that text to the backend
+  unchanged and sets no `num_ctx`.
+- The model's context window is the only ceiling. On the host (Ollama 0.34.2, `qwen3.5:9b`, no
+  `OLLAMA_CONTEXT_LENGTH`) that is **32 768 tokens** — roughly 100 KB of English — measured
+  2026-09-22: a 28 933-token prompt went through with both its first and last words intact. Past
+  the window, llama.cpp keeps the first `n_keep = 4` tokens and the **tail** and discards from the
+  **head** — so an oversized prompt loses the *start of `pilot.md`*, while the contract line and
+  the observation at the end survive. Real match prompts run ~0.8–1.2 k tokens.
+- The arena's `POST /api/tests` body is capped at 64 KB (`readBody` in `server.mjs`, transport
+  protection for every route, not a prompt rule); a scratch prompt larger than that after form
+  encoding is refused with `413 body too large`. Merged prompts arrive via git and are not subject
+  to it.
+
+The homepage "Rules in one breath" and the `/test` scratch label state the rules only; the trimming
+behaviour above is documented here and in the entrants README.
 
 ### 5.2 Per-entrant queue quota (defaults; per-tournament config)
 

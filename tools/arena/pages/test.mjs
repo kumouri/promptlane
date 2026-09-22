@@ -23,7 +23,7 @@ time; the <a href="/matches">queue</a> shows where yours is.</p>
 
   <label>Prompt to play</label>
   <div class="card">
-    <label style="margin-top:0"><input type="radio" name="source" value="scratch" ${draft?.source !== 'merged' ? 'checked' : ''}> Scratch — paste text below. Same rules as the validator: 40 lines, 4 KB, no code fences, no URLs. Never ranked, never stored past the match log.</label>
+    <label style="margin-top:0"><input type="radio" name="source" value="scratch" ${draft?.source !== 'merged' ? 'checked' : ''}> Scratch — paste text below. Same rules as the validator: one file, no code fences, no URLs. Never ranked, never stored past the match log.</label>
     <textarea name="prompt" placeholder="You are a bearbot on the drums…">${esc(draft?.prompt ?? '')}</textarea>
     <label><input type="radio" name="source" value="merged" ${draft?.source === 'merged' ? 'checked' : ''} ${myPrompt ? '' : 'disabled'}> My merged prompt${
       myPrompt ? ` <span class="dim">(${esc(myPrompt.hash.slice(0, 8))}, seen ${esc(myPrompt.seenAt.slice(0, 10))})</span>` : ' <span class="dim">— none merged yet for this handle</span>'

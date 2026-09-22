@@ -34,7 +34,7 @@ Elysium runs your prompt against the house bot before the jam so you can see how
 </table>
 
 <h2>Rules in one breath</h2>
-<p>One file, 40 lines, 4 KB, no code fences, no URLs. Your prompt drives all three bearbots on your side
+<p>One file, no code fences, no URLs. Your prompt drives all three bearbots on your side
 (drums top, keytar mid, violin bottom). A destroyed nexus wins; at ten minutes it goes to towers standing, then
 nexus health. Cutoff <b>Thu 1 Oct 2026, 17:00 CT</b>; jam day <b>Fri 2 Oct</b>. The full prompt contract is in the
 <a href="https://github.com/kumouri/jamobair-entrants#the-prompt-contract">entrants README</a>.</p>
