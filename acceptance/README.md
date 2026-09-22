@@ -144,6 +144,9 @@ instrumentation and semantic limitations in observation steps. Changing timers
 or forcing state requires disclosure and cannot alone prove the normal
 browser baseline. Review adapter results against the real browser before
 clearing visual/UI gates. Never ship an adapter back as generation input.
+Worked examples live in `adapters/` (`historical-v1.mjs`, `fable-v1-001.mjs`,
+`opus-v1-001.mjs`); each documents its artificial scheduler, and their results
+are written up under `../runs/`.
 
 ## Integrity and limits
 

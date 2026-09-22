@@ -172,7 +172,9 @@ generation is not required to reproduce that failure.
 
 An [independent headless diagnostic](runs/historical-v1.md) observed timeout draws with no bearbot
 deaths for seeds 1 (twice) and 42. It documents its artificial scheduler and does not claim browser
-verification or a universal cause.
+verification or a universal cause. The same method applied to the two cleanroom Claude submissions
+([comparison](runs/v1-comparison.md)) observed nexus kills on every seed, so the failure is a
+property of this specimen rather than of the v1 prompt.
 
 ## License
 
