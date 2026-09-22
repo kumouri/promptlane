@@ -12,6 +12,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import path from 'node:path';
 import { flush, httpCallModel, probeBackend, backendLabel } from '../match/load.mjs';
 import { nextMatchId, queued as queuedJobs } from './ledger.mjs';
+import { houseTextForSide } from './house.mjs';
 import { shortHash } from './prompts.mjs';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -180,13 +181,15 @@ export class Queue {
     }
   }
 
-  resolveSide(ref, id) {
+  resolveSide(ref, id, side) {
     if (ref.scratch) {
       const f = path.join(this.scratchDir, `${id}.md`);
       if (!existsSync(f)) throw new Error('scratch prompt text is gone (arena restarted?) — submit it again');
       return { name: `${ref.handle} (scratch)`, promptFile: 'scratch', promptText: readFileSync(f, 'utf8') };
     }
-    const promptText = this.promptStore.read(ref.handle, ref.hash);
+    const stored = this.promptStore.read(ref.handle, ref.hash);
+    // The house may be a per-side pair stored as one bundle; the side plays its own half.
+    const promptText = ref.house ? houseTextForSide(stored, side) : stored;
     const promptFile = ref.house ? this.house.file : `entrants/${ref.handle}/pilot.md@${shortHash(ref.hash)}`;
     return { name: ref.handle, promptFile, promptText };
   }
@@ -205,7 +208,7 @@ export class Queue {
     const ac = new AbortController();
     let timer = null;
     try {
-      const sides = { violet: this.resolveSide(job.sides.violet, id), green: this.resolveSide(job.sides.green, id) };
+      const sides = { violet: this.resolveSide(job.sides.violet, id, 'violet'), green: this.resolveSide(job.sides.green, id, 'green') };
       let callModelFor;
       let logBackend;
       if (backend.kind === 'mock') {
