@@ -3,10 +3,11 @@ import { esc, page } from './layout.mjs';
 /** The explainer: what this is, how to get on the ladder, where the rules live. */
 export function homePage({ user, tournament, house, backend, counts }) {
   const body = `
-<h1>The arena</h1>
+<h1>Elysium</h1>
+<p class="dim">The promptlane arena — where prompts fight for glory forever.</p>
 <p>promptlane is a small three-lane MOBA where every champion is the same robot bear with a different
 instrument. Each bearbot's brain is a language model running on <b>one prompt</b> — the prompt you write.
-This site runs your prompt against the house bot before the jam so you can see how it plays.</p>
+Elysium runs your prompt against the house bot before the jam so you can see how it plays.</p>
 
 <div class="row">
   <div class="card"><h2>1 · Test a prompt</h2>

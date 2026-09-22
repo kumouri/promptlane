@@ -85,13 +85,26 @@ test('e2e: merged prompt → placements → scratch quick test over HTTP → lad
       const res = await fetch(`${base}${p}`);
       assert.equal(res.status, 200, p);
       const html = await res.text();
-      assert.ok(html.includes('promptlane arena'), p);
+      assert.ok(html.includes('· Elysium</title>'), p);
       if (p === 'ladder') assert.ok(html.includes('alice'));
       if (p.startsWith('matches/')) assert.ok(html.includes(`?replay=/logs/${sub.body.id}.json`), 'match page links the replay');
     }
     assert.equal((await fetch(`${base}assets/logo/jamobair-logo-transparent.png`)).status, 200);
     assert.equal((await fetch(`${base}logs/../ledger.jsonl`)).status, 404);
     assert.equal((await fetch(`${base}nope`)).status, 404);
+
+    // Q16: `arena.<zone>` is a 301 to `elysium.<zone>`, same path and query, before identity.
+    const { request } = await import('node:http');
+    const onOldHost = (pathname) =>
+      new Promise((resolve, reject) => {
+        const u = new URL(base);
+        request({ host: u.hostname, port: u.port, path: pathname, headers: { host: 'arena.example.com' } }, (r) => {
+          r.resume();
+          resolve({ status: r.statusCode, location: r.headers.location });
+        }).on('error', reject).end();
+      });
+    assert.deepEqual(await onOldHost('/ladder?x=1'), { status: 301, location: 'https://elysium.example.com/ladder?x=1' });
+    assert.deepEqual(await onOldHost('/'), { status: 301, location: 'https://elysium.example.com/' });
 
     // Form post works too and redirects to the match page.
     const form = await fetch(`${base}test`, { method: 'POST', redirect: 'manual', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ handle: 'bob', source: 'scratch', prompt: 'Hold. Reply with JSON.', opponent: 'house', kind: 'quick' }) });

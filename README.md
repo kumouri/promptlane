@@ -55,7 +55,7 @@ prompts/             versioned build prompts; initial_prompt.md is frozen v1
 generation/          pinned-input preparation, run recorder, cross-client protocol
 acceptance/          independent, post-submission evaluation and evidence requirements
 tools/               jam tooling: headless match runner (tools/match/), the model server, and
-                     the arena (tools/arena/ — the pre-jam ladder site; docs/arena-runbook.md)
+                     Elysium, the arena (tools/arena/ — the pre-jam ladder site; docs/arena-runbook.md)
 runs/                operator records and match logs (per-run directories are local/ignored)
 artifacts/           exported workspaces and frozen submissions (local/ignored)
 src/                 original generated game specimen; not maintained game source
@@ -121,7 +121,7 @@ Checkpoints from the log are checked as the clock passes them; a mismatch shows 
 `REPLAY DIVERGED` instead of playing on quietly. A screen share of this page is the round-one
 viewer.
 
-**The arena.** `npm run arena` (`tools/arena/server.mjs`) is the pre-jam ladder: entrants paste a
+**Elysium, the arena.** `npm run arena` (`tools/arena/server.mjs`) is the pre-jam ladder: entrants paste a
 prompt and run a quick test against the house bot, merged prompts in `jamobair-entrants` are
 placed automatically on three seeds, and an Elo ladder is folded from an append-only ledger with
 every match re-verified before it counts. Start it, expose it behind Cloudflare Access, and operate

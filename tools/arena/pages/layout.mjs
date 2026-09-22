@@ -1,5 +1,5 @@
 /**
- * Server-rendered HTML shell for every arena page: brand palette (#8e00ff / #00ff0f on black),
+ * Server-rendered HTML shell for every Elysium page: brand palette (#8e00ff / #00ff0f on black),
  * the Jamobair logo, one nav bar, no framework, no client script. Pages are plain forms and
  * tables so they work on a phone behind Access.
  */
@@ -58,9 +58,9 @@ export function page({ title, path, user, body, flash }) {
   const flashHtml = flash ? `<div class="flash ${flash.ok ? '' : 'bad'}">${esc(flash.text)}</div>` : '';
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${esc(title)} · promptlane arena</title><style>${CSS}</style></head>
+<title>${esc(title)} · Elysium</title><style>${CSS}</style></head>
 <body><header><a href="/"><img src="/assets/logo/jamobair-logo-transparent.png" alt="Jamobair"></a>
-<span class="brand">promptlane arena</span><nav>${nav}</nav><span class="who">${who}</span></header>
+<span class="brand" title="the promptlane arena">Elysium</span><nav>${nav}</nav><span class="who">${who}</span></header>
 <main>${flashHtml}${body}</main>
 <footer>InRhythm AI Jam · round one · <a href="https://github.com/kumouri/promptlane">promptlane</a> · <a href="https://github.com/kumouri/jamobair-entrants">jamobair-entrants</a></footer>
 </body></html>`;
