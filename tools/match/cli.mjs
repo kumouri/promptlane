@@ -29,6 +29,7 @@ options:
   --cadence SEC       sim-seconds between real model calls per bearbot (default 2; the game's own
                       polling rate is 0.5 — see README "Run a jam match" for the cost trade-off)
   --timeout SEC       per-call HTTP timeout; a timed-out call counts as hold (default 60)
+  --max-sim-sec SEC   stop early at this sim clock (quick test: 180); the log says "unfinished"
   --name-a / --name-b display names (default: entrant folder or file stem)
   --quiet             no progress lines`;
 
@@ -49,6 +50,7 @@ function parseArgs(argv) {
       case '--model': args.model = next(); break;
       case '--cadence': args.cadence = Number(next()); break;
       case '--timeout': args.timeout = Number(next()); break;
+      case '--max-sim-sec': args.maxSimSec = Number(next()); break;
       case '--name-a': args.nameA = next(); break;
       case '--name-b': args.nameB = next(); break;
       case '--verify': args.verify = next(); break;
@@ -95,6 +97,7 @@ async function main() {
   }
   if (!Number.isFinite(args.seed)) throw new Error('--seed must be a number');
   if (!(args.cadence >= 0.5)) throw new Error('--cadence must be >= 0.5 (the game asks every 0.5 s)');
+  if (args.maxSimSec !== undefined && !(args.maxSimSec > 0)) throw new Error('--max-sim-sec must be a positive number');
 
   const sides = {
     violet: { name: args.nameA ?? nameFromPath(args.a), promptFile: args.a, promptText: await readFile(args.a, 'utf8') },
@@ -125,6 +128,7 @@ async function main() {
     sides,
     callModelFor,
     cadenceSec: args.cadence,
+    maxSimSec: args.maxSimSec,
     backend,
     flush,
     onProgress: args.quiet

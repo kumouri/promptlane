@@ -20,6 +20,13 @@
     "mock": { "kind": "mock", "model": "mock", "avgSecPerCall": 0.001 }
   },
   "entrants": { "kind": "gh", "repo": "kumouri/jamobair-entrants", "ref": "main", "syncIntervalSec": 60 },
-  "house": { "handle": "house", "files": ["prompts/pilots/house.md", "prompts/pilots/drums.md"] },
+  "house": {
+    "handle": "house",
+    "files": [
+      { "violet": "prompts/pilots/house-violet.md", "green": "prompts/pilots/house-green.md" },
+      "prompts/pilots/house.md",
+      "prompts/pilots/drums.md"
+    ]
+  },
   "organizerEmail": "CHANGE-ME@inrhythm.com"
 }

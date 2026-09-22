@@ -100,7 +100,9 @@ errors per side, deaths, backend — and writes a replayable log. A reply that i
 action JSON counts as `hold` for that decision; a failed call does too. Nothing crashes a match.
 `--model mock` uses the game's key-free deterministic mock instead of a server (this is what CI
 runs), and `npm run match -- --verify runs/alice-vs-bob.json` re-simulates a log and checks every
-checkpoint, which is how we know a log replays faithfully.
+checkpoint, which is how we know a log replays faithfully. `--max-sim-sec 180` stops a match at
+the sim clock (the arena's quick test: 3 sim-minutes at `--cadence 4`); such a log says
+`unfinished`, has no winner, and `--verify` replays it exactly as far as it ran.
 
 **Cadence.** The runner is lockstep: the sim does not advance while a model is thinking, so a
 match depends only on the seed and the replies, never on GPU speed. The game polls each pilot every
@@ -132,6 +134,11 @@ Phase B (live view, bracket) are in [`docs/arena-site-spec.md`](docs/arena-site-
 **Known v1 behaviour.** Low-health retreats can prevent first blood
 ([`runs/historical-v1.md`](runs/historical-v1.md)). The runner does not patch that; a match that
 times out with no deaths is reported as exactly that. The fix, if wanted, is a v2 prompt.
+
+**The house bot.** `prompts/pilots/house-violet.md` / `house-green.md` is the arena's placement
+opponent, written for `qwen3.5:9b` specifically (one file per side, a worksheet inside the reply);
+what it does and how it measured against `drums.md` is in
+[`runs/house-prompt-2026-09-21.md`](runs/house-prompt-2026-09-21.md).
 
 ## Generate and compare
 

@@ -21,6 +21,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ROOT, loadHeadless, resultLine } from '../match/load.mjs';
 import { AuthError, makeAuth } from './auth.mjs';
+import { DEFAULT_HOUSE_FILES, bundleHouse, candidateLabel, pickHouse } from './house.mjs';
 import { Ledger, dayCT, pendingPlacements, queued as queuedJobs, quotaUsed, standings } from './ledger.mjs';
 import { PromptStore, hashPrompt, isHandle, makeEntrantsSource, validatePromptText } from './prompts.mjs';
 import { Queue } from './queue.mjs';
@@ -153,11 +154,13 @@ export async function createArena({
   const tournament = config.tournament;
   const backends = config.backends;
 
-  // House bot: the first file that exists (Q13: house.md is being written; drums.md until then).
+  // House bot (Q13): the first candidate whose files exist — a {violet, green} pair (house-*.md,
+  // one prompt per side) or a single file (house.md, then drums.md). See house.mjs.
   const houseHandle = config.house?.handle ?? 'house';
-  const houseFile = (config.house?.files ?? ['prompts/pilots/house.md', 'prompts/pilots/drums.md']).find((f) => existsSync(path.join(ROOT, f)));
-  if (!houseFile) throw new Error('no house prompt found (config.house.files)');
-  const houseText = readFileSync(path.join(ROOT, houseFile), 'utf8');
+  const houseCandidate = pickHouse(config.house?.files ?? DEFAULT_HOUSE_FILES, ROOT);
+  if (!houseCandidate) throw new Error('no house prompt found (config.house.files)');
+  const houseFile = candidateLabel(houseCandidate);
+  const houseText = bundleHouse(houseCandidate, ROOT);
   const houseHash = promptStore.save(houseHandle, houseText);
   if (ledger.state().house?.hash !== houseHash || ledger.state().house?.file !== houseFile) {
     ledger.append({ type: 'house', handle: houseHandle, hash: houseHash, file: houseFile });

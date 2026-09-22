@@ -28,7 +28,7 @@ npm run arena -- --config runs/arena/config.json --dev-user you@inrhythm.com   #
 Open <http://127.0.0.1:8790/>. Startup log lines to look for:
 
 ```
-arena: house bot loaded from prompts/pilots/house.md (…)      ← or drums.md if house.md is not merged yet
+arena: house bot loaded from prompts/pilots/house-violet.md + prompts/pilots/house-green.md (…)
 arena: listening on http://127.0.0.1:8790/ (dev mode — every request is you@… (organizer))
 arena: tournament ladder backend=qwen9b data=…/runs/arena
 ```
@@ -57,7 +57,7 @@ The entrants poller shells out to `gh api` for `kumouri/jamobair-entrants` (`mai
 | `tournament.quota` | `{quick: 6, full: 2}` per handle per Central-Time day (Q11); organizer exempt |
 | `backends.<id>` | `{kind: http, endpoint, model, avgSecPerCall, timeoutSec}` or `{kind: mock}`; `avgSecPerCall` sizes the wall-clock cap (3× expected) — raise it when the GPU is shared |
 | `entrants` | `{kind: gh, repo, ref, syncIntervalSec}` or `{kind: dir, path}` |
-| `house` | `{handle, files}` — first file that exists wins; `house.md` then `drums.md` |
+| `house` | `{handle, files}` — ordered candidates; a candidate is a `{violet, green}` pair (one prompt per side) or one file; the first whose files all exist wins: the `house-*.md` pair, then `house.md`, then `drums.md` |
 | `organizerEmail` | the one organizer (Q19); refused if left as `CHANGE-ME` in Access mode; `ARENA_ORGANIZER_EMAIL` overrides |
 
 Changing the tournament block appends a new `tournament` row; nothing already played is altered.
@@ -114,12 +114,16 @@ reassigns on `/admin`.
 
 ## 3. Seed the house bot
 
-The house bot is `prompts/pilots/house.md` when that file exists (ruling Q13: a stronger house
-prompt, PR pending as this was written), else `prompts/pilots/drums.md`. It is loaded at startup,
-hashed, cached like any merged prompt under handle `house`, and a `house` ledger row records which
-file and hash are in play. Every match row names the house hash it was played against, so a
-house change is visible in the record; nothing is re-run automatically. To change the house:
-merge the file, restart the arena, read the startup line.
+The house bot is the pair `prompts/pilots/house-violet.md` / `house-green.md` (ruling Q13; one
+prompt per side because the 9B model cannot compare a field against its own team — evidence in
+[`runs/house-prompt-2026-09-21.md`](../runs/house-prompt-2026-09-21.md)), else `house.md`, else
+`prompts/pilots/drums.md` (`config.house.files`, `tools/arena/house.mjs`). It is loaded at
+startup, hashed as one text (a pair is stored behind side markers, so the hash changes when either
+side changes), cached like any merged prompt under handle `house`, and a `house` ledger row records
+which file(s) and hash are in play. The queue hands each side its own half; a match log's
+`promptText` is the side's prompt, never the bundle. Every match row names the house hash it was
+played against, so a house change is visible in the record; nothing is re-run automatically. To
+change the house: merge the file(s), restart the arena, read the startup line.
 
 The house bot is a fixed Elo 1000 that never moves and does not appear on the ladder.
 

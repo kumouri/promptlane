@@ -33,7 +33,7 @@ test('e2e: merged prompt → placements → scratch quick test over HTTP → lad
   const arena = await createArena({ config: f.config, dataDir: f.data, devUser: 'dev@example.com', log: quiet, sync: true });
   try {
     const base = await arena.listen(0);
-    assert.equal(arena.house.file, arena.house.file.includes('house.md') ? 'prompts/pilots/house.md' : 'prompts/pilots/drums.md');
+    assert.equal(arena.house.file, 'prompts/pilots/house-violet.md + prompts/pilots/house-green.md', 'the per-side house pair is the first candidate');
 
     // The startup sync saw alice and queued three placements; wait for them.
     await arena.queue.waitForIdle(60000);
@@ -76,6 +76,8 @@ test('e2e: merged prompt → placements → scratch quick test over HTTP → lad
     assert.equal(log.schema, 'promptlane-match-log-1');
     assert.equal(log.sides.violet.name, 'bob (scratch)');
     assert.equal(log.sides.green.name, 'house');
+    assert.ok(log.sides.green.promptText.startsWith('You are a GREEN bearbot'), 'the house on green plays house-green.md');
+    assert.ok(!log.sides.green.promptText.includes('<!-- house side:'), 'the log holds one side, not the bundle');
 
     ladder = (await json(`${base}api/ladder`)).body;
     assert.equal(ladder.rows.length, 1, 'scratch never reaches the ladder');
