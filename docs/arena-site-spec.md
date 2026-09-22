@@ -608,7 +608,7 @@ original wording is kept beneath for the record. **One departure from the recomm
 | 13 | **Write a stronger house prompt FIRST** — not the drums pilot as-is (the one non-recommended pick) |
 | 14 | **Three** placement matches per merged prompt, seeds 7 / 11 / 42 |
 | 15 | Placement sides **alternate** violet/green |
-| 16 | Hostname **`arena.`** on the cockpit tunnel's zone — **and the arena's NAME is "Elysium"** (Ceryce, 2026-09-21 23:52 CT, one word: *"Elysium"* — the stadium in *Hades* where the dead fight for glory forever; the title on the door, the standings page and the README; the hostname stays `arena.` unless she says `elysium.`) |
+| 16 | **Hostname `elysium.` on the cockpit tunnel's zone is CANONICAL; `arena.` on the same zone 301-redirects to it.** Ceryce, 2026-09-21 23:52 CT: *"Elysium"*; 23:53: *"elysium is canonical, have arena redirect there."* The name — the title on the door, the standings page and the README — is **Elysium** (the stadium in *Hades* where the dead fight for glory forever). Supersedes the 23:43 tap (`arena.`). |
 | 17 | Phase C public **after the jam** |
 | 18 | Spectators **behind Access too** (round one) |
 | 19 | Organizer: **Ceryce only** |
