@@ -54,6 +54,13 @@ export interface RunOptions {
   flush?: () => Promise<void>;
   /** Progress callback, once per sim-minute. */
   onProgress?: (info: { clockSec: number; calls: number; elapsedMs: number }) => void;
+  /**
+   * Stop the sim once its clock reaches this many seconds (quick tests: 180). The log is written
+   * with `endReason: null`, which `resultLine` prints as `unfinished`. Default: the full match.
+   */
+  maxSimSec?: number;
+  /** Aborting stops the loop at the next tick (wall-clock cap); the log is left `unfinished`. */
+  signal?: AbortSignal;
 }
 
 const defaultFlush = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
@@ -172,7 +179,9 @@ export async function runMatch(opts: RunOptions): Promise<MatchLog> {
   const aliveBefore = match.bearbots.map((b) => b.alive);
   const towersBefore = match.towers.map((t) => t.alive);
 
+  const maxSimSec = opts.maxSimSec ?? Infinity;
   for (let tick = 0; tick < MAX_TICKS && !match.ended; tick++) {
+    if (match.clockSec >= maxSimSec || opts.signal?.aborted) break;
     asks.count = 0;
     step(match);
     if (asks.count > 0) {
@@ -223,7 +232,11 @@ export interface VerifyResult {
   endReason: 'nexus' | 'timeout' | null;
 }
 
-/** Re-simulate a log with `ReplayPilot`s and compare every checkpoint and the final result. */
+/**
+ * Re-simulate a log with `ReplayPilot`s and compare every checkpoint and the final result. A log
+ * stopped early (`maxSimSec`, or an aborted run) has `endReason: null`; the replay then stops at
+ * the same tick count and must reach it in the same state.
+ */
 export async function verifyReplay(log: MatchLog, flush: () => Promise<void> = defaultFlush): Promise<VerifyResult> {
   const byBot = decisionsByBot(log);
   let match: Match | null = null;
@@ -246,6 +259,7 @@ export async function verifyReplay(log: MatchLog, flush: () => Promise<void> = d
   let compared = 0;
   let firstDivergenceTick: number | null = null;
   for (let tick = 0; tick < MAX_TICKS && !match.ended; tick++) {
+    if (log.result.endReason === null && tickOf(match) >= log.result.ticks) break;
     asked = 0;
     step(match);
     if (asked > 0) await flush();

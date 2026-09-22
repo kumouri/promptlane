@@ -11,13 +11,10 @@
  * through the game's HTTP adapter contract (`POST {prompt}` → `{reply}`), served by
  * `tools/model_server.py`. The sim in `src/` is bundled unchanged; see headless.ts for lockstep.
  */
-import { build } from 'esbuild';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { backendLabel, flush, httpCallModel, loadHeadless, probeBackend, resultLine } from './load.mjs';
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(HERE, '..', '..');
 const DEFAULT_ENDPOINT = process.env.PILOT_ENDPOINT ?? 'http://127.0.0.1:8787/';
 
 const USAGE = `usage: npm run match -- --a <pilot.md> --b <pilot.md> [options]
@@ -67,80 +64,6 @@ function parseArgs(argv) {
 function nameFromPath(file) {
   const parsed = path.parse(path.resolve(file));
   return parsed.name === 'pilot' ? path.basename(parsed.dir) : parsed.name;
-}
-
-async function loadHeadless() {
-  const bundle = await build({
-    entryPoints: [path.join(HERE, 'headless.ts')],
-    absWorkingDir: ROOT,
-    bundle: true,
-    write: false,
-    format: 'esm',
-    platform: 'node',
-    target: 'node20',
-    logLevel: 'silent',
-  });
-  const code = Buffer.from(bundle.outputFiles[0].contents).toString('base64');
-  return import(`data:text/javascript;base64,${code}`);
-}
-
-const flush = () => new Promise((resolve) => setImmediate(resolve));
-
-/** Node-side twin of the game's `httpCallModel`: same request, same reply extraction. */
-function httpCallModel(endpoint, timeoutSec) {
-  return async (prompt) => {
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt }),
-      signal: AbortSignal.timeout(timeoutSec * 1000),
-    });
-    if (!res.ok) throw new Error(`pilot endpoint responded ${res.status}`);
-    const data = await res.json();
-    return typeof data === 'string' ? data : data.reply ?? JSON.stringify(data);
-  };
-}
-
-async function probeBackend(endpoint) {
-  const healthUrl = new URL('/health', endpoint).toString();
-  let res;
-  try {
-    res = await fetch(healthUrl, { signal: AbortSignal.timeout(5000) });
-  } catch (err) {
-    throw new Error(
-      `model server not reachable at ${endpoint} (${err.cause?.code ?? err.message}). ` +
-        `Start it first: python tools/model_server.py`,
-    );
-  }
-  if (!res.ok) return { kind: 'http', endpoint, health: null };
-  try {
-    return { kind: 'http', endpoint, health: await res.json() };
-  } catch {
-    return { kind: 'http', endpoint, health: null };
-  }
-}
-
-function backendLabel(backend) {
-  if (backend.kind === 'mock') return 'mock';
-  const h = backend.health;
-  return h?.backend ? `${h.backend}/${h.model ?? '?'}` : `http:${backend.endpoint}`;
-}
-
-function resultLine(log, outFile) {
-  const r = log.result;
-  const s = r.stats;
-  const pe = (t) => s[t].parseErrors + (s[t].callErrors ? `(+${s[t].callErrors} call errors)` : '');
-  return [
-    `RESULT winner=${r.winner ?? 'draw'}`,
-    `by=${r.endReason === 'nexus' ? 'nexus-kill' : r.endReason ?? 'unfinished'}`,
-    `duration=${r.durationSec}s`,
-    `decisions ${log.sides.violet.name}=${s.violet.calls} ${log.sides.green.name}=${s.green.calls}`,
-    `parse-errors ${log.sides.violet.name}=${pe('violet')} ${log.sides.green.name}=${pe('green')}`,
-    `deaths violet=${s.violet.deaths} green=${s.green.deaths}`,
-    `towers-lost violet=${s.violet.towersLost} green=${s.green.towersLost}`,
-    `backend=${backendLabel(log.backend)}`,
-    `log=${outFile}`,
-  ].join(' ');
 }
 
 async function verify(args, headless) {
