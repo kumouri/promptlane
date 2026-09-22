@@ -84,7 +84,9 @@ python tools/model_server.py --backend claude                  # `claude -p` on 
 Ollama is the default because latency and cost matter for a room of people. The Ollama URL comes
 from `--ollama-url`, else `$OLLAMA_HOST`, else `http://127.0.0.1:11434`. The Claude backend shells
 out to the `claude` CLI on the subscription; no key is read or stored anywhere. `GET /health`
-reports the backend and model, and the match log records it.
+reports the backend and model, and the match log records it. What a hosted 30–40B model would cost
+and how much faster it would run is worked out in
+[`docs/hosted-model-options.md`](docs/hosted-model-options.md).
 
 **2. Run the match** (side A is violet, side B is green):
 
