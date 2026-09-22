@@ -42,7 +42,8 @@ export class Queue {
    * @param opts.dataDir     runs/arena
    * @param opts.promptStore PromptStore
    * @param opts.house       { handle, hash, file }
-   * @param opts.hooks       test seams: `afterRun(log, job)` may tamper with the log before verify
+   * @param opts.hooks       test seams: `afterRun(log, job)` may replace the log before verify;
+   *                         `callModelFor(job)` replaces the adapter; `wallCapMs` overrides the cap
    */
   constructor({ ledger, backends, headless, dataDir, promptStore, house, log = console, hooks = {} }) {
     this.ledger = ledger;
@@ -215,7 +216,8 @@ export class Queue {
         const call = httpCallModel(backend.endpoint, backend.timeoutSec ?? 60);
         callModelFor = () => call;
       }
-      const capMs = wallCapMs({ maxSimSec: job.maxSimSec, cadenceSec: job.cadenceSec, avgSecPerCall: backend.avgSecPerCall });
+      if (this.hooks.callModelFor) callModelFor = this.hooks.callModelFor(job);
+      const capMs = this.hooks.wallCapMs ?? wallCapMs({ maxSimSec: job.maxSimSec, cadenceSec: job.cadenceSec, avgSecPerCall: backend.avgSecPerCall });
       timer = setTimeout(() => ac.abort(), capMs);
       this.log.info(
         `arena: ${id} start ${sides.violet.name} vs ${sides.green.name} seed=${job.seed} cadence=${job.cadenceSec} ` +

@@ -24,6 +24,8 @@ jobs:
         run: |
           npm run match -- --a prompts/pilots/drums.md --b prompts/pilots/keytar.md --model mock --seed 7 --out artifacts/ci-smoke.json --quiet
           npm run match -- --verify artifacts/ci-smoke.json
+      - name: Arena unit + headless end-to-end (mock model)
+        run: npm run test:arena
   fixture:
     name: Fixture protocol (${{ matrix.os }})
     strategy:
