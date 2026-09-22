@@ -257,8 +257,9 @@ it is an extra deploy for nothing. Revisit in Phase C.
   arena import it). `runMatch` gains three **additive** options in `RunOptions`:
   `onDecision(decision)`, `onRound({tick, asks})` (fired when a tick's asks have all settled — the
   point where `inflight` empties), and `maxSimSec` (quick tests; a log stopped early keeps
-  `endReason: null`, which `resultLine` already prints as `unfinished`). Nothing about the sim or
-  the log schema changes.
+  `endReason: null`, which `resultLine` already prints as `unfinished`). `maxSimSec` **exists**
+  (`--max-sim-sec` on the CLI; `verifyReplay` replays an unfinished log as far as it ran). Nothing
+  about the sim or the log schema changes.
 - **Wall-clock cap** per job: `3 × expected` where expected = rounds × asks × backend `avgSec`
   (from `/health`). Past the cap the worker aborts the call adapter (the `AbortSignal` in
   `httpCallModel`), the log is written with `endReason: null`, and the job is marked `timed-out`;
@@ -365,9 +366,11 @@ handles a match whenever it happens and a roster that changes.
 
 - Start 1000, K = 32, draw = 0.5. Both sides of every non-scratch match update.
 - **Placement.** When a merged prompt's hash first appears, the arena queues it against the house
-  bot (`prompts/pilots/drums.md`, *reused*, rated as a fixed 1000 that never updates) on three
-  fixed seeds (7, 11, 42), alternating sides (violet, green, violet). Everyone gets the same three
-  placements, so the ladder is comparable even before anyone plays anyone.
+  bot (`prompts/pilots/house-violet.md` when the house plays violet, `house-green.md` when it plays
+  green — Q13 ruled "stronger prompt first"; evidence in `runs/house-prompt-2026-09-21.md`; rated
+  as a fixed 1000 that never updates) on three fixed seeds (7, 11, 42), alternating sides (violet,
+  green, violet). Everyone gets the same three placements, so the ladder is comparable even before
+  anyone plays anyone.
 - **Challenges.** An entrant's test "vs `<handle>`" using *their own merged prompt* (not scratch)
   counts for Elo. Scratch tests never count. Placement and challenge matches both use the
   tournament's backend and cadence (default: `qwen3.5:9b`, cadence 2, full 10 minutes) — the
@@ -415,7 +418,7 @@ wall time, so it is a button, not the default. Ladder (Elo) draws are simply dra
 | `src/live.ts` | *new* | external-tick driver for live and fast replay; SSE client |
 | `src/style.css` | reused, tiny change | speed control and live badge |
 | `src/sim/*`, `src/rng.ts`, `src/pilots/*`, `src/types.ts`, `src/render.ts` | **frozen, untouched** | the specimen |
-| `prompts/pilots/drums.md` | **reused unchanged** | the house bot |
+| `prompts/pilots/house-violet.md`, `house-green.md` | **exists** (Q13) | the house bot, one file per side; `tools/arena/house.mjs` bundles the pair under one hash and hands each side its own half; `house.md`, then `drums.md`, are the fallbacks |
 | `runs/` (`/runs/*/` ignored) | **reused layout** | `runs/arena/{ledger.jsonl,logs/,entrants/}` |
 | `tools/arena/server.mjs` | *built (A)* | HTTP API, static pages, Access JWT check, entrants poller, serves Vite `dist/` at `/play/` and logs at `/logs/`. SSE is Phase B |
 | `tools/arena/queue.mjs` | *built (A)* | priority queue, one worker per backend, wall cap, verify-then-commit, crash recovery |
@@ -655,7 +658,7 @@ original wording is kept beneath for the record. **One departure from the recomm
 | 10 | Quick test = **3 sim-minutes at cadence 4** |
 | 11 | Daily quota per handle: **6 quick + 2 full** |
 | 12 | Hosted-model budget for tests: **$0 — Ollama only** (jam day itself is priced separately in `hosted-model-options.md`) |
-| 13 | **Write a stronger house prompt FIRST** — not the drums pilot as-is (the one non-recommended pick) |
+| 13 | **Write a stronger house prompt FIRST** — not the drums pilot as-is (the one non-recommended pick). Delivered: `prompts/pilots/house-violet.md` / `house-green.md`, evidence in `runs/house-prompt-2026-09-21.md` |
 | 14 | **Three** placement matches per merged prompt, seeds 7 / 11 / 42 |
 | 15 | Placement sides **alternate** violet/green |
 | 16 | **Hostname `elysium.` on the cockpit tunnel's zone is CANONICAL; `arena.` on the same zone 301-redirects to it.** Ceryce, 2026-09-21 23:52 CT: *"Elysium"*; 23:53: *"elysium is canonical, have arena redirect there."* The name — the title on the door, the standings page and the README — is **Elysium** (the stadium in *Hades* where the dead fight for glory forever). Supersedes the 23:43 tap (`arena.`). |
