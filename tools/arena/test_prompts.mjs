@@ -3,17 +3,15 @@ import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { MAX_BYTES, MAX_LINES, PromptStore, fetchEntrantsFromDir, fetchEntrantsFromGitHub, hashPrompt, isHandle, makeEntrantsSource, validatePromptText } from './prompts.mjs';
+import { PromptStore, fetchEntrantsFromDir, fetchEntrantsFromGitHub, hashPrompt, isHandle, makeEntrantsSource, validatePromptText } from './prompts.mjs';
 
 // The same cases the entrants validator's own tests cover (tools/validate_entry.py).
 test('validatePromptText: the entrants validator rules, verbatim', () => {
   assert.deepEqual(validatePromptText('You are a bearbot.\nReply with JSON.\n'), []);
   assert.deepEqual(validatePromptText(''), ['file is empty']);
   assert.deepEqual(validatePromptText('   \n\n'), ['file is empty']);
-  assert.deepEqual(validatePromptText(Array(MAX_LINES).fill('x').join('\n') + '\n'), [], 'exactly 40 lines is fine');
-  assert.deepEqual(validatePromptText(Array(MAX_LINES + 1).fill('x').join('\n')), [`${MAX_LINES + 1} lines; the limit is ${MAX_LINES}`]);
-  assert.deepEqual(validatePromptText('y'.repeat(MAX_BYTES + 1)), [`${MAX_BYTES + 1} bytes; the limit is ${MAX_BYTES} (4 KB)`]);
-  assert.deepEqual(validatePromptText('é'.repeat(MAX_BYTES / 2 + 1)), [`${MAX_BYTES + 2} bytes; the limit is ${MAX_BYTES} (4 KB)`], 'bytes, not characters');
+  assert.deepEqual(validatePromptText(Array(200).fill('x').join('\n') + '\n'), [], 'no line cap');
+  assert.deepEqual(validatePromptText('y'.repeat(64 * 1024)), [], 'no byte cap');
   assert.deepEqual(validatePromptText('a\n```json\n{}\n```'), ['contains a code fence (``` or ~~~)']);
   assert.deepEqual(validatePromptText('a\n  ~~~\nb'), ['contains a code fence (``` or ~~~)']);
   assert.deepEqual(validatePromptText('inline ``` here'), ['contains ``` (code fences are not allowed)']);
