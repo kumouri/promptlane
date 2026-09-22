@@ -585,7 +585,35 @@ choice from the benchmark job.
 
 ---
 
-## 7. Open questions for Ceryce
+## 7. Open questions for Ceryce — ANSWERED 2026-09-21 23:39–23:44 CT
+
+Every question below was put to Ceryce as a Telegram picker (decisions topic, one per question,
+recommendation marked) and answered by tap the same evening. The answers are the rulings; the
+original wording is kept beneath for the record. **One departure from the recommendations: Q13.**
+
+| # | Ruling |
+|---|---|
+| 1 | **Cloudflare Access one-time PIN** |
+| 2 | IR email domain **`inrhythm.com`** (settled by Margo — Ceryce's own work address) |
+| 3 | **Git-backed + scratch tests** — the entrants repo is the record; the paste-to-test lane is never ranked or persisted |
+| 4 | **Elo** (1000 start, K = 32, draw = 0.5) |
+| 5 | A revised prompt **keeps its Elo and re-places** |
+| 6 | Jam day: **single elimination seeded by the ladder** |
+| 7 | Full-draw tie order: **deaths → tower HP → errors → seed** |
+| 8 | Jam-day cadence **2** (≈25 min/match) |
+| 9 | **Yes** — pre-run rounds 1–2 Thursday night, replay at 4× on the day |
+| 10 | Quick test = **3 sim-minutes at cadence 4** |
+| 11 | Daily quota per handle: **6 quick + 2 full** |
+| 12 | Hosted-model budget for tests: **$0 — Ollama only** (jam day itself is priced separately in `hosted-model-options.md`) |
+| 13 | **Write a stronger house prompt FIRST** — not the drums pilot as-is (the one non-recommended pick) |
+| 14 | **Three** placement matches per merged prompt, seeds 7 / 11 / 42 |
+| 15 | Placement sides **alternate** violet/green |
+| 16 | Hostname **`arena.`** on the cockpit tunnel's zone |
+| 17 | Phase C public **after the jam** |
+| 18 | Spectators **behind Access too** (round one) |
+| 19 | Organizer: **Ceryce only** |
+
+### Original questions (as asked)
 
 Each is answerable with one word or a pick. Recommendations are marked.
 
