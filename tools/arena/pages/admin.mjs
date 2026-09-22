@@ -1,0 +1,53 @@
+import { esc, fmtDate, page } from './layout.mjs';
+
+/** Organizer page: queue controls, entrants sync, claims, void. Every button is a ledger row. */
+export function adminPage({ user, paused, sync, claims, prompts, queue, running, backends, flash }) {
+  const btn = (action, label, extra = '') =>
+    `<form method="post" action="${action}" style="display:inline">${extra}<button class="secondary" type="submit">${label}</button></form>`;
+  const body = `
+<h1>Admin</h1>
+<div class="card"><h2>Queue</h2>
+<p>${paused ? '<span class="warn">paused</span>' : '<span class="ok">running</span>'} · ${running.length} running · ${queue.length} queued</p>
+<p>${paused ? btn('/api/queue/resume', 'Resume') : btn('/api/queue/pause', 'Pause (in-flight match finishes)')}</p>
+${
+  queue.length
+    ? `<table>${queue
+        .map(
+          (j) => `<tr><td><a href="/matches/${esc(j.id)}">${esc(j.id)}</a></td><td class="dim">${esc(j.kind)} · ${esc(j.priority)} · ${esc(j.backendId)}</td>
+<td>${btn(`/api/matches/${esc(j.id)}/cancel`, 'Cancel')}</td></tr>`,
+        )
+        .join('')}</table>`
+    : ''
+}
+</div>
+<div class="card"><h2>Backends</h2>
+<table>${Object.entries(backends)
+    .map(([id, b]) => `<tr><td><code>${esc(id)}</code></td><td>${esc(b.kind)} ${esc(b.model ?? '')} ${esc(b.endpoint ?? '')}</td><td class="dim">avg ${b.avgSecPerCall ?? 0.9} s/call</td></tr>`)
+    .join('')}</table>
+</div>
+<div class="card"><h2>Entrants sync</h2>
+<p>Source: <code>${esc(sync.describe)}</code> · last sync ${fmtDate(sync.lastAt)} ${sync.lastError ? `<span class="bad">— ${esc(sync.lastError)}</span>` : `<span class="ok">ok</span>`} · every ${sync.intervalSec} s</p>
+<p>${btn('/api/sync', 'Sync now')}</p>
+<table><tr><th>Handle</th><th>Hash</th><th>Commit</th><th>Seen</th></tr>
+${[...prompts.entries()].map(([h, p]) => `<tr><td>${esc(h)}</td><td><code>${esc(p.hash.slice(0, 8))}</code></td><td><code>${esc(String(p.commit).slice(0, 8))}</code></td><td class="dim">${fmtDate(p.seenAt)}</td></tr>`).join('')}
+</table></div>
+<div class="card"><h2>Handle claims</h2>
+<table><tr><th>Email</th><th>Handle</th><th></th></tr>
+${[...claims.entries()]
+    .map(
+      ([email, handle]) => `<tr><td>${esc(email)}</td><td>${esc(handle)}</td><td>${btn(
+        '/api/claims',
+        'Reassign',
+        `<input type="hidden" name="email" value="${esc(email)}"><input type="text" name="handle" value="${esc(handle)}" style="width:12em;display:inline">`,
+      )}</td></tr>`,
+    )
+    .join('')}
+</table></div>
+<div class="card"><h2>Void a match</h2>
+<form method="post" action="/api/void"><input type="text" name="id" placeholder="ladder-20260925-003" style="width:20em;display:inline">
+<input type="text" name="reason" placeholder="reason" style="width:20em;display:inline"> <button type="submit">Void</button></form>
+<p class="dim">Voiding appends a row; the ladder re-derives without that match. It cannot be un-voided except by re-running.</p>
+</div>
+`;
+  return page({ title: 'Admin', path: '/admin', user, body, flash });
+}

@@ -1,0 +1,25 @@
+{
+  "tournament": {
+    "id": "ladder",
+    "name": "Pre-jam ladder",
+    "backend": "qwen9b",
+    "cadenceSec": 2,
+    "maxSimSec": 600,
+    "quick": { "maxSimSec": 180, "cadenceSec": 4, "seed": 7 },
+    "placementSeeds": [7, 11, 42],
+    "quota": { "quick": 6, "full": 2 }
+  },
+  "backends": {
+    "qwen9b": {
+      "kind": "http",
+      "endpoint": "http://127.0.0.1:8787/",
+      "model": "qwen3.5:9b",
+      "avgSecPerCall": 0.9,
+      "timeoutSec": 60
+    },
+    "mock": { "kind": "mock", "model": "mock", "avgSecPerCall": 0.001 }
+  },
+  "entrants": { "kind": "gh", "repo": "kumouri/jamobair-entrants", "ref": "main", "syncIntervalSec": 60 },
+  "house": { "handle": "house", "files": ["prompts/pilots/house.md", "prompts/pilots/drums.md"] },
+  "organizerEmail": "CHANGE-ME@inrhythm.com"
+}
