@@ -44,6 +44,7 @@ footer { color: var(--dim); font-size: 12px; text-align: center; padding: 16px; 
 
 const NAV = [
   ['/', 'Home'],
+  ['/contract', 'Contract'],
   ['/test', 'Test'],
   ['/ladder', 'Ladder'],
   ['/matches', 'Matches'],
@@ -63,7 +64,8 @@ export function page({ title, path, user, body, flash }) {
 <body><header><a href="/"><img src="/assets/logo/jamobair-logo-transparent.png" alt="Jamobair"></a>
 <span class="brand" title="the promptlane arena">Elysium</span><nav>${nav}</nav><span class="who">${who}</span></header>
 <main>${flashHtml}${body}</main>
-<footer>InRhythm AI Jam · round one · <a href="https://github.com/kumouri/promptlane">promptlane</a> · <a href="https://github.com/kumouri/jamobair-entrants">jamobair-entrants</a></footer>
+<footer>InRhythm AI Jam · round one · <a href="https://github.com/kumouri/promptlane">promptlane</a> ·
+<a href="https://github.com/kumouri/jamobair-entrants" title="private — ask Ceryce in Slack for access">jamobair-entrants (needs access)</a></footer>
 </body></html>`;
 }
 

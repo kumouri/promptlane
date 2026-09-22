@@ -703,6 +703,29 @@ Where this document was silent, the smallest thing was chosen and is now the rul
   `Run round` only queues slots that are *ready* (both players known, no current job).
 - **`Re-run` is a new match id on a new seed**, never a replacement, like the ladder's `retryOf`.
 
+#### Fix: the prompt contract, on-site (2026-09-22)
+
+The home, test and footer links to `jamobair-entrants#the-prompt-contract` 404 for anyone not yet
+a collaborator on that private repo — indistinguishable from a dead link, and every entrant who
+looks before asking for access hit it. `tools/arena/pages/contract.mjs` (`GET /contract`) now
+serves the contract itself — behind the same Access the rest of the site uses, so it needs no
+GitHub access at all.
+
+**Single source of truth, as built:** the contract's real source isn't the entrants README, it's
+this repo — `src/types.ts` (`Observation`) and `src/pilots/promptPilot.ts` (`buildPrompt`,
+`parseAction`) are the frozen v1 specimen that actually builds the prompt and parses the reply
+(`runs/historical-v1.md`; never patched — see the generation protocol). Those are TypeScript,
+`contract.mjs` is plain JS rendered per-request, and there's no existing bridge between the two, so
+the page's prose is a hand-kept copy rather than an import. `tools/arena/test_contract.mjs` reads
+both frozen files at test time (read-only) and fails if the page's reply-instruction literal,
+Observation fields or reply-schema fields drift from them. The entry rules (one file, no fences, no
+URLs, the `entrants/<handle>/pilot.md` path) are the genuine article — imported straight from
+`prompts.mjs`, not copied. A live `gh api` fetch of the entrants README was considered and rejected:
+CI and most dev checkouts have no auth to that private repo, and the "Prove it" bar for this fix is
+a page that needs no GitHub fetch, authenticated or not, to render.
+- [x] `tools/arena/pages/contract.mjs`, `test_contract.mjs`; home/test/footer links repointed;
+  home page reordered to contract → ask for access → fork, in that order (was fork-first)
+
 ### Phase C — public
 
 **Files.** Access policy change (read-only paths → Everyone, or a separate public hostname);

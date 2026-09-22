@@ -31,6 +31,7 @@ import { Queue } from './queue.mjs';
 import { bracketMatchSeed, bracketPlan, placementPlan } from './rating.mjs';
 import { adminPage } from './pages/admin.mjs';
 import { bracketPage } from './pages/bracket.mjs';
+import { contractPage } from './pages/contract.mjs';
 import { homePage } from './pages/home.mjs';
 import { ladderPage } from './pages/ladder.mjs';
 import { esc, page } from './pages/layout.mjs';
@@ -415,6 +416,9 @@ export async function createArena({
         backend: { id: tournament.backend, ...backends[tournament.backend] },
         counts: { entrants: state.prompts.size, finished: state.finished.length, queued: q.length, running: queue.running.size },
       }));
+    }
+    if (p === '/contract' && method === 'GET') {
+      return sendHtml(res, contractPage({ user }));
     }
     if (p === '/test' && method === 'GET') {
       const state = ledger.state();
