@@ -3,6 +3,15 @@
 *Research note, 2026-09-21. No provider account was created or charged; every price below is a public
 list price fetched that day, with its source. Nothing here changes code.*
 
+**Update, 2026-09-22 — §9's recommendation is built and proven.** `tools/model_server.py --backend
+openrouter` is real: an `OPENROUTER_API_KEY` was already present as a Windows user environment
+variable on this host (a prior job's "no provider credentials configured" finding was wrong — it
+came from a detached process that didn't inherit the user env, not from a missing key). One real
+match on `qwen/qwen3-32b` (the top recommendation below) ran to completion against the live key;
+results, spend and a comparison against the `qwen3.5:9b` baseline are in
+[`../runs/openrouter-phase-c-proof-2026-09-22.md`](../runs/openrouter-phase-c-proof-2026-09-22.md).
+The wiring note at the end of §2 is superseded by that build.
+
 The question: instead of the host's local `qwen3.5:9b` through Ollama, could jam matches run on a
 hosted 30–40B open model (OpenRouter, Hugging Face, or a rented GPU), and what would that cost?
 
@@ -94,10 +103,13 @@ drift between matches is tolerable, but for fairness a bracket should pin one pr
 the pilot's regex-extract parser see clean objects. Quantisation varies by endpoint (fp4 / fp8 / bf16
 above) — pin it, and record it in the match log's `backend` block.
 
-**Wiring.** `tools/model_server.py` has `ollama`, `claude` and `echo` backends. An OpenRouter
-backend is one more `Backend` subclass posting to `/api/v1/chat/completions` with a key from the
-environment (`tools/` is not the frozen specimen; `src/` is). `ThreadingHTTPServer` already runs the
-six callers concurrently, so the parallelism comes for free.
+**Wiring — built 2026-09-22.** `tools/model_server.py` gained `--backend openrouter` (and the
+generic `--backend openai` for any other OpenAI-compatible host): one `OpenAIBackend` class posting
+to `/chat/completions` with a key from the environment (`tools/` is not the frozen specimen; `src/`
+is), `response_format: json_object`, provider pinning, reasoning off by default, a bounded
+`Semaphore` on concurrent outbound calls, retry-with-backoff on 429/5xx, and usage/cost accounting
+exposed on `/health`. `ThreadingHTTPServer` already runs the six callers concurrently, so the
+parallelism came for free, same as predicted here.
 
 ## 3. Option B — Hugging Face
 

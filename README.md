@@ -80,14 +80,21 @@ three bearbots on its side (drums top, keytar mid, violin bottom) through the ga
 python tools/model_server.py                                   # Ollama, model qwen3.5:9b, port 8787
 python tools/model_server.py --model gemma4:12b                # any model `ollama list` shows
 python tools/model_server.py --backend claude                  # `claude -p` on Haiku 4.5; ~10 s/decision
+python tools/model_server.py --backend openrouter --model qwen/qwen3-32b --port 8789 \
+    --provider DeepInfra --price-in-per-m 0.08 --price-out-per-m 0.28 --daily-budget-usd 5
 ```
 
 Ollama is the default because latency and cost matter for a room of people. The Ollama URL comes
 from `--ollama-url`, else `$OLLAMA_HOST`, else `http://127.0.0.1:11434`. The Claude backend shells
-out to the `claude` CLI on the subscription; no key is read or stored anywhere. `GET /health`
-reports the backend and model, and the match log records it. What a hosted 30–40B model would cost
-and how much faster it would run is worked out in
-[`docs/hosted-model-options.md`](docs/hosted-model-options.md).
+out to the `claude` CLI on the subscription; no key is read or stored anywhere. The `openrouter`
+backend (and the generic `openai` preset for any other OpenAI-compatible host, via `--base-url` and
+`--api-key-env`) answers all six pilots in parallel instead of serialising them, at the cost of a
+real per-token bill — key from `$OPENROUTER_API_KEY` (never hardcoded, never logged, refuses to
+start without it, never falls back to Ollama); what it costs and how much faster it runs is worked
+out in [`docs/hosted-model-options.md`](docs/hosted-model-options.md) and proven on a real match in
+[`runs/openrouter-phase-c-proof-2026-09-22.md`](runs/openrouter-phase-c-proof-2026-09-22.md).
+`GET /health` reports the backend, model and (for a hosted backend) cumulative tokens and cost —
+never a key — and the match log records it.
 
 **2. Run the match** (side A is violet, side B is green):
 
