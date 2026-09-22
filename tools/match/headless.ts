@@ -61,6 +61,18 @@ export interface RunOptions {
   maxSimSec?: number;
   /** Aborting stops the loop at the next tick (wall-clock cap); the log is left `unfinished`. */
   signal?: AbortSignal;
+  /**
+   * Live-stream hooks (Phase B, spec §3.4). All optional and additive; the log is unchanged.
+   * `onStart` hands over the in-progress log once its header (`idBase`) is known — it *is* the
+   * log being built, so a late joiner's backlog is just its contents so far.
+   */
+  onStart?: (log: MatchLog) => void;
+  /** Every decision as it is pushed into `log.decisions` (cached ones included — a replay needs them). */
+  onDecision?: (decision: LogDecision) => void;
+  /** A tick's asks have all been answered (`inflight` is empty): the sim can be stepped to `tick`. */
+  onRound?: (round: { tick: number; asks: number }) => void;
+  onCheckpoint?: (checkpoint: { tick: number; state: string }) => void;
+  onDeath?: (death: { tick: number; bot: number }) => void;
 }
 
 const defaultFlush = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
@@ -89,6 +101,7 @@ class RecordingPilot implements Pilot {
       currentTick: () => number;
       currentClock: () => number;
       totalMs: { value: number };
+      onDecision?: (decision: LogDecision) => void;
     },
   ) {
     this.inner = new PromptPilot(promptText, callModel, (_prompt, reply, action) => {
@@ -103,7 +116,9 @@ class RecordingPilot implements Pilot {
 
     if (ctx.currentClock() < this.nextCallAt) {
       ctx.stats.cached += 1;
-      ctx.log.decisions.push({ tick, bot: this.botIndex, action: this.last, cached: true });
+      const cached: LogDecision = { tick, bot: this.botIndex, action: this.last, cached: true };
+      ctx.log.decisions.push(cached);
+      ctx.onDecision?.(cached);
       return Promise.resolve(this.last);
     }
     this.nextCallAt = ctx.currentClock() + ctx.cadenceSec;
@@ -120,7 +135,9 @@ class RecordingPilot implements Pilot {
         else ctx.stats.parseErrors += 1;
       }
       this.last = action;
-      ctx.log.decisions.push({ tick, bot: this.botIndex, reply: trace.reply, action: trace.action, ms });
+      const decision: LogDecision = { tick, bot: this.botIndex, reply: trace.reply, action: trace.action, ms };
+      ctx.log.decisions.push(decision);
+      ctx.onDecision?.(decision);
       return action;
     });
     ctx.inflight.add(p);
@@ -168,11 +185,13 @@ export async function runMatch(opts: RunOptions): Promise<MatchLog> {
         currentTick,
         currentClock,
         totalMs: totalMs[slot.team],
+        onDecision: opts.onDecision,
       }),
   }));
 
   match = new Match(opts.seed, roster);
   log.idBase = idNumber(match.nexuses[0].id);
+  opts.onStart?.(log);
 
   const startedMs = Date.now();
   let nextProgressAt = 60;
@@ -189,11 +208,14 @@ export async function runMatch(opts: RunOptions): Promise<MatchLog> {
       await flush();
     }
     const t = tickOf(match);
+    if (asks.count > 0) opts.onRound?.({ tick: t, asks: asks.count });
     match.bearbots.forEach((b, i) => {
       if (aliveBefore[i] && !b.alive) {
-        log.result.deaths.push({ tick: t, bot: i });
+        const death = { tick: t, bot: i };
+        log.result.deaths.push(death);
         stats[b.team].deaths += 1;
         aliveBefore[i] = false;
+        opts.onDeath?.(death);
       }
     });
     match.towers.forEach((tw, i) => {
@@ -202,7 +224,11 @@ export async function runMatch(opts: RunOptions): Promise<MatchLog> {
         towersBefore[i] = false;
       }
     });
-    if (t % CHECKPOINT_EVERY_TICKS === 0) log.checkpoints.push({ tick: t, state: checkpointOf(match) });
+    if (t % CHECKPOINT_EVERY_TICKS === 0) {
+      const checkpoint = { tick: t, state: checkpointOf(match) };
+      log.checkpoints.push(checkpoint);
+      opts.onCheckpoint?.(checkpoint);
+    }
     if (match.clockSec >= nextProgressAt) {
       nextProgressAt += 60;
       opts.onProgress?.({

@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 /**
- * Elysium — the promptlane arena. Phase A, the pre-jam ladder (docs/arena-site-spec.md §6, docs/arena-runbook.md).
+ * Elysium — the promptlane arena (docs/arena-site-spec.md §6, docs/arena-runbook.md). Phase A: the
+ * pre-jam ladder. Phase B: the live view (`GET /api/matches/<id>/events`, SSE) and the jam-day
+ * bracket (`/bracket`, `/api/brackets/…`).
  *
  * Canonical host is `elysium.<zone>` (ruling Q16); a request arriving with Host `arena.<zone>` is
  * answered 301 → `https://elysium.<zone>` before anything else (`hostRedirect`). Paths and code
@@ -22,11 +24,13 @@ import { fileURLToPath } from 'node:url';
 import { ROOT, loadHeadless, resultLine } from '../match/load.mjs';
 import { AuthError, makeAuth } from './auth.mjs';
 import { DEFAULT_HOUSE_FILES, bundleHouse, candidateLabel, pickHouse } from './house.mjs';
-import { Ledger, dayCT, pendingPlacements, queued as queuedJobs, quotaUsed, standings } from './ledger.mjs';
+import { Ledger, bracketIds, bracketView, dayCT, isHeld, pendingPlacements, queued as queuedJobs, quotaUsed, standings } from './ledger.mjs';
+import { LiveHub, eventsFromLog, serveSse, sseFollow, sseFrame, sseHead } from './live.mjs';
 import { PromptStore, hashPrompt, isHandle, makeEntrantsSource, validatePromptText } from './prompts.mjs';
 import { Queue } from './queue.mjs';
-import { placementPlan } from './rating.mjs';
+import { bracketMatchSeed, bracketPlan, placementPlan } from './rating.mjs';
 import { adminPage } from './pages/admin.mjs';
+import { bracketPage } from './pages/bracket.mjs';
 import { homePage } from './pages/home.mjs';
 import { ladderPage } from './pages/ladder.mjs';
 import { esc, page } from './pages/layout.mjs';
@@ -172,7 +176,8 @@ export async function createArena({
   if (JSON.stringify(ledger.state().tournament) !== JSON.stringify(tournament)) ledger.append({ type: 'tournament', tournament });
 
   const headless = await loadHeadless();
-  const queue = new Queue({ ledger, backends, headless, dataDir, promptStore, house, log, hooks });
+  const live = new LiveHub();
+  const queue = new Queue({ ledger, backends, headless, dataDir, promptStore, house, live, log, hooks });
 
   // --- entrants sync ------------------------------------------------------------------------
   const source = makeEntrantsSource(config.entrants);
@@ -296,6 +301,85 @@ export async function createArena({
     return { ...identity, handle: ledger.state().claims.get(identity.email) ?? null };
   }
 
+  /**
+   * Q9: a pre-run bracket round is held — its matches are invisible to everyone but the organizer
+   * until the round is revealed, because even "who plays in round 2" gives away round 1.
+   */
+  function heldFrom(state, job, user) {
+    return !user.organizer && isHeld(state, job);
+  }
+  function visibleJobs(state, user) {
+    return [...state.jobs.values()].filter((j) => !heldFrom(state, j, user));
+  }
+  function heldCount(state, user) {
+    return user.organizer ? 0 : [...state.jobs.values()].filter((j) => isHeld(state, j)).length;
+  }
+  function requireVisible(state, job, user) {
+    if (!job) throw new HttpError(404, 'no such match');
+    if (heldFrom(state, job, user)) throw new HttpError(403, 'this match is a pre-run bracket match, held until the organizer reveals the round on jam day');
+    return job;
+  }
+  /** The bracket as a non-organizer may see it: held rounds lose their results, later rounds their names. */
+  function publicBracket(view, user) {
+    if (!view || user.organizer) return view;
+    const firstHeld = view.rounds.find((r) => r.held)?.round ?? Infinity;
+    const rounds = view.rounds.map((r) => ({
+      ...r,
+      slots: r.slots.map((slot) => {
+        if (r.round > firstHeld) return { ...slot, a: null, b: null, seedA: null, seedB: null, jobs: [], current: null, ruling: null, winner: null, by: null, status: 'hidden' };
+        if (r.held && slot.status !== 'bye' && slot.status !== 'waiting') return { ...slot, jobs: [], current: null, ruling: null, winner: null, by: null, status: slot.status === 'ready' ? 'ready' : 'held' };
+        return slot;
+      }),
+    }));
+    return { ...view, rounds, champion: firstHeld === Infinity ? view.champion : null };
+  }
+
+  function enqueueSlot(view, slot, user, rerun = 0) {
+    return queue.enqueue({
+      tournamentId: view.tournamentId,
+      kind: 'bracket',
+      priority: 'bracket',
+      sides: { violet: { handle: slot.seedA.handle, hash: slot.seedA.hash }, green: { handle: slot.seedB.handle, hash: slot.seedB.hash } },
+      seed: bracketMatchSeed(view.seedBase, slot.round, slot.slot, rerun),
+      backendId: view.backend,
+      cadenceSec: view.cadenceSec,
+      maxSimSec: view.maxSimSec,
+      quick: false,
+      ranked: false,
+      requestedBy: { email: user.email, handle: null },
+      bracket: { tournamentId: view.tournamentId, round: slot.round, slot: slot.slot, seeds: { violet: slot.a, green: slot.b }, rerun },
+    });
+  }
+
+  function createBracket(user, body) {
+    const state = ledger.state();
+    const id = String(body.id ?? '').trim();
+    if (!/^[a-z0-9][a-z0-9-]{0,30}$/.test(id)) throw new HttpError(400, 'tournament id: lowercase letters, digits, dashes');
+    if (id === tournament.id || state.brackets.has(id)) throw new HttpError(409, `tournament ${id} already exists`);
+    const backend = String(body.backend ?? tournament.backend);
+    if (!backends[backend]) throw new HttpError(400, `unknown backend ${backend}`);
+    const num = (k, dflt, min) => {
+      const v = body[k] === undefined || body[k] === '' ? dflt : Number(body[k]);
+      if (!Number.isFinite(v) || v < min) throw new HttpError(400, `${k} must be a number ≥ ${min}`);
+      return v;
+    };
+    const cadenceSec = num('cadenceSec', 2, 0.5);
+    const maxSimSec = num('maxSimSec', 600, 30);
+    const preRunRounds = num('preRunRounds', 2, 0);
+    const seedBase = num('seedBase', 2026, 0);
+    const top = body.top === undefined || body.top === '' ? Infinity : num('top', Infinity, 2);
+    const rows = standings(state).filter((r) => r.hash).slice(0, top);
+    let plan;
+    try {
+      plan = bracketPlan(rows.map((r) => ({ handle: r.handle, hash: r.hash, elo: r.elo })));
+    } catch (err) {
+      throw new HttpError(400, err.message);
+    }
+    ledger.append({ type: 'bracket', tournamentId: id, name: String(body.name ?? '').trim() || id, backend, cadenceSec, maxSimSec, preRunRounds, seedBase, size: plan.size, seeds: plan.seeds, rounds: plan.rounds, by: user.email });
+    log.info(`arena: bracket ${id} created: ${plan.seeds.length} seeds in a field of ${plan.size}, backend=${backend} cadence=${cadenceSec}`);
+    return bracketView(ledger.state(), id);
+  }
+
   // --- router -------------------------------------------------------------------------------
   async function handle(req, res) {
     const to = hostRedirect(req.headers.host, req.url);
@@ -376,19 +460,54 @@ export async function createArena({
     if (p === '/api/ladder' && method === 'GET') return sendJson(res, { tournament: tournament.id, house, rows: standings(ledger.state()) });
     if (p === '/matches' && method === 'GET') {
       const state = ledger.state();
-      const q = queuedJobs(state, queue.running);
-      const running = [...queue.running.keys()].map((id) => state.jobs.get(id)).filter(Boolean);
-      const recent = [...state.jobs.values()].filter((j) => j.status !== 'queued' && !queue.running.has(j.id)).sort((a, b) => (b.finishedAt ?? b.createdAt).localeCompare(a.finishedAt ?? a.createdAt)).slice(0, 50);
-      return sendHtml(res, matchesPage({ user, queue: q, running, recent, paused: state.paused }));
+      const visible = (j) => !heldFrom(state, j, user);
+      const q = queuedJobs(state, queue.running).filter(visible);
+      const running = [...queue.running.keys()].map((id) => state.jobs.get(id)).filter((j) => j && visible(j)).map((j) => ({ ...j, progress: queue.running.get(j.id)?.progress ?? null }));
+      const recent = visibleJobs(state, user).filter((j) => j.status !== 'queued' && !queue.running.has(j.id)).sort((a, b) => (b.finishedAt ?? b.createdAt).localeCompare(a.finishedAt ?? a.createdAt)).slice(0, 50);
+      return sendHtml(res, matchesPage({ user, queue: q, running, recent, paused: state.paused, held: heldCount(state, user) }));
     }
     if (p === '/api/matches' && method === 'GET') {
       const state = ledger.state();
-      return sendJson(res, { paused: state.paused, running: [...queue.running.keys()], queued: queuedJobs(state, queue.running).map((j) => j.id), jobs: [...state.jobs.values()].map(jobView) });
+      const visible = (j) => !heldFrom(state, j, user);
+      return sendJson(res, {
+        paused: state.paused,
+        running: [...queue.running.keys()].filter((id) => visible(state.jobs.get(id))),
+        queued: queuedJobs(state, queue.running).filter(visible).map((j) => j.id),
+        held: heldCount(state, user),
+        jobs: visibleJobs(state, user).map(jobView),
+      });
     }
-    let m = /^\/(api\/)?matches\/([A-Za-z0-9._-]+)$/.exec(p);
+    let m = /^\/api\/matches\/([A-Za-z0-9._-]+)\/events$/.exec(p);
     if (m && method === 'GET') {
-      const job = ledger.state().jobs.get(m[2]);
-      if (!job) throw new HttpError(404, 'no such match');
+      const state = ledger.state();
+      const job = requireVisible(state, state.jobs.get(m[1]), user);
+      const stream = live.get(job.id);
+      if (stream) return serveSse(req, res, stream);
+      if (job.status === 'queued' || job.status === 'started') {
+        // not started yet (or waiting to re-run after a restart): hold the socket, attach when it opens
+        sseHead(res);
+        res.write(sseFrame({ id: 0, event: 'waiting', data: { status: job.status, position: positionOf(job.id) } }));
+        const ka = setInterval(() => !res.writableEnded && res.write(': keep-alive\n\n'), 15000);
+        ka.unref?.();
+        const cancel = live.whenOpen(job.id, (s) => {
+          clearInterval(ka);
+          sseFollow(req, res, s);
+        });
+        res.on('close', () => {
+          clearInterval(ka);
+          cancel();
+        });
+        return;
+      }
+      const f = [path.join(queue.logsDir, `${job.id}.json`), path.join(queue.logsDir, `${job.id}.diverged.json`)].find((x) => existsSync(x));
+      if (!f) throw new HttpError(404, `no log for ${job.id} (${job.status})`);
+      const logObj = JSON.parse(readFileSync(f, 'utf8'));
+      return serveSse(req, res, eventsFromLog(logObj, { status: job.status, reason: job.reason ?? null, verify: job.verify ?? null }));
+    }
+    m = /^\/(api\/)?matches\/([A-Za-z0-9._-]+)$/.exec(p);
+    if (m && method === 'GET') {
+      const state = ledger.state();
+      const job = requireVisible(state, state.jobs.get(m[2]), user);
       if (m[1]) return sendJson(res, { ...jobView(job), live: queue.running.get(job.id) ?? null });
       let resultText = '';
       if (job.status === 'finished') {
@@ -399,6 +518,8 @@ export async function createArena({
     }
     m = /^\/logs\/([A-Za-z0-9._-]+\.json)$/.exec(p);
     if (m && method === 'GET') {
+      const state = ledger.state();
+      requireVisible(state, state.jobs.get(m[1].replace(/(\.diverged)?\.json$/, '')), user);
       const f = safeJoin(queue.logsDir, m[1]);
       if (!f || !existsSync(f)) throw new HttpError(404, 'no such log');
       return sendFile(res, f, { cache: 'public, max-age=3600' });
@@ -412,8 +533,29 @@ export async function createArena({
       return sendFile(res, index);
     }
 
+    // --- bracket (Phase B) ---------------------------------------------------------------------
+    m = /^\/bracket(?:\/([a-z0-9-]+))?$/.exec(p);
+    if (m && method === 'GET') {
+      const state = ledger.state();
+      const ids = bracketIds(state);
+      const id = m[1] ?? ids[0];
+      if (m[1] && !state.brackets.has(m[1])) throw new HttpError(404, 'no such bracket');
+      const view = id ? publicBracket(bracketView(state, id), user) : null;
+      return sendHtml(res, bracketPage({ user, view, others: ids.filter((x) => x !== id), flash: url.searchParams.get('msg') ? { ok: true, text: url.searchParams.get('msg') } : null }));
+    }
+    if (p === '/api/brackets' && method === 'GET') {
+      const state = ledger.state();
+      return sendJson(res, { brackets: bracketIds(state).map((id) => publicBracket(bracketView(state, id), user)) });
+    }
+    m = /^\/api\/brackets\/([a-z0-9-]+)$/.exec(p);
+    if (m && method === 'GET') {
+      const view = bracketView(ledger.state(), m[1]);
+      if (!view) throw new HttpError(404, 'no such bracket');
+      return sendJson(res, publicBracket(view, user));
+    }
+
     // --- organizer ---------------------------------------------------------------------------
-    if (p === '/admin' || p.startsWith('/api/queue/') || p === '/api/sync' || p === '/api/void' || p === '/api/claims' || /^\/api\/matches\/[^/]+\/cancel$/.test(p)) {
+    if (p === '/admin' || p.startsWith('/api/queue/') || p === '/api/sync' || p === '/api/void' || p === '/api/claims' || /^\/api\/matches\/[^/]+\/cancel$/.test(p) || p.startsWith('/api/brackets')) {
       if (!user.organizer) throw new HttpError(403, 'organizer only');
       const state = ledger.state();
       if (p === '/admin' && method === 'GET') {
@@ -426,13 +568,51 @@ export async function createArena({
           queue: queuedJobs(state, queue.running),
           running: [...queue.running.keys()],
           backends,
+          ladder: standings(state).filter((r) => r.hash),
+          brackets: bracketIds(state),
+          tournament,
           flash: url.searchParams.get('msg') ? { ok: true, text: url.searchParams.get('msg') } : null,
         }));
       }
       if (method !== 'POST') throw new HttpError(405, 'method not allowed');
       const body = await readBody(req);
       const wantsJson = (req.headers.accept ?? '').includes('application/json') || (req.headers['content-type'] ?? '').includes('json');
-      const done = (msg) => (wantsJson ? sendJson(res, { ok: true, msg }) : redirect(res, `/admin?msg=${encodeURIComponent(msg)}`));
+      const done = (msg, to = '/admin', extra = {}) => (wantsJson ? sendJson(res, { ok: true, msg, ...extra }) : redirect(res, `${to}?msg=${encodeURIComponent(msg)}`));
+      if (p === '/api/brackets') {
+        const view = createBracket(user, body);
+        return done(`bracket ${view.tournamentId} created: ${view.seeds.length} seeds, ${view.rounds.length} rounds`, `/bracket/${view.tournamentId}`, { bracket: view });
+      }
+      const br = /^\/api\/brackets\/([a-z0-9-]+)\/(rounds\/(\d+)\/(run|reveal)|slots\/(\d+)\/(\d+)\/(rerun|ruling))$/.exec(p);
+      if (br) {
+        const view = bracketView(state, br[1]);
+        if (!view) throw new HttpError(404, 'no such bracket');
+        const to = `/bracket/${view.tournamentId}`;
+        if (br[3]) {
+          const round = view.rounds[Number(br[3]) - 1];
+          if (!round) throw new HttpError(404, 'no such round');
+          if (br[4] === 'run') {
+            const ids = round.slots.filter((s) => s.status === 'ready').map((s) => enqueueSlot(view, s, user));
+            const waiting = round.slots.filter((s) => s.status === 'waiting').length;
+            return done(`${round.name}: ${ids.length} match${ids.length === 1 ? '' : 'es'} queued${waiting ? `, ${waiting} slot${waiting === 1 ? '' : 's'} still waiting on the previous round` : ''}`, to, { ids });
+          }
+          if (round.round > view.preRunRounds) throw new HttpError(400, 'only pre-run rounds are held');
+          if (!round.held) return done(`${round.name} is already revealed`, to);
+          ledger.append({ type: 'bracket-reveal', tournamentId: view.tournamentId, round: round.round, by: user.email });
+          return done(`${round.name} revealed`, to);
+        }
+        const slot = view.rounds[Number(br[5]) - 1]?.slots[Number(br[6])];
+        if (!slot) throw new HttpError(404, 'no such slot');
+        if (slot.a === null || slot.b === null) throw new HttpError(400, 'that slot has no two players yet');
+        if (br[7] === 'rerun') {
+          if (!['done', 'needs-rerun', 'ruled', 'ready'].includes(slot.status)) throw new HttpError(400, `slot is ${slot.status}; cancel or wait first`);
+          const id = enqueueSlot(view, slot, user, slot.jobs.length);
+          return done(`${id} queued as a re-run of round ${slot.round} slot ${slot.slot + 1}`, to, { id });
+        }
+        const winner = Number(body.winner);
+        if (winner !== slot.a && winner !== slot.b) throw new HttpError(400, "winner must be one of the slot's two seeds");
+        ledger.append({ type: 'ruling', tournamentId: view.tournamentId, round: slot.round, slot: slot.slot, winner, reason: String(body.reason ?? 'organizer ruling'), by: user.email });
+        return done(`round ${slot.round} slot ${slot.slot + 1}: seed #${winner} advances by ruling`, to);
+      }
       if (p === '/api/queue/pause') { queue.pause(user.email); return done('queue paused'); }
       if (p === '/api/queue/resume') { queue.resume(user.email); return done('queue resumed'); }
       if (p === '/api/sync') { await sync(); return done(syncInfo.lastError ? `sync failed: ${syncInfo.lastError}` : 'synced'); }
@@ -475,6 +655,7 @@ export async function createArena({
     server,
     queue,
     ledger,
+    live,
     house,
     sync,
     auth,

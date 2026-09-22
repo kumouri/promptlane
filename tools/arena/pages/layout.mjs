@@ -47,6 +47,7 @@ const NAV = [
   ['/test', 'Test'],
   ['/ladder', 'Ladder'],
   ['/matches', 'Matches'],
+  ['/bracket', 'Bracket'],
 ];
 
 /** Wrap a page body. `flash` is `{ok, text}` from a redirect after a form post. */
