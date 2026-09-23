@@ -2,9 +2,10 @@
 
 The arena is **Elysium** (ruling Q16; the *Hades* stadium where the dead fight for glory forever).
 The code paths keep the word `arena` (`tools/arena/`, `runs/arena/`, `npm run arena`) — paths are
-not the name. How to run the pre-jam ladder on the workstation, what has to be done by hand on the Cloudflare
-side, and what a jam-day operator does. The design is [`arena-site-spec.md`](arena-site-spec.md);
-this is the *doing*. Markdown is canonical.
+not the name. How to run the pre-jam ladder on the workstation, how it stays up unattended
+(section 3 — two scheduled tasks; this is the deployment of record), what has to be done by hand
+on the Cloudflare side, and what a jam-day operator does. The design is
+[`arena-site-spec.md`](arena-site-spec.md); this is the *doing*. Markdown is canonical.
 
 Everything the arena writes lives under `runs/arena/` (gitignored): `ledger.jsonl` (append-only,
 the whole truth), `logs/<matchId>.json` (one replayable match log per match), `prompts/<handle>/`
@@ -112,7 +113,84 @@ reassigns on `/admin`.
 
 ---
 
-## 3. Seed the house bot
+## 3. Persistent on the workstation (scheduled tasks)
+
+Sections 1 and 2 are how you bring it up **by hand**. This is how it actually runs on the
+workstation: **two Windows scheduled tasks**, no terminal held open, no `jobs.py` job, surviving
+logoff and reboot. Set up 2026-09-22; both previously lived as long-running jobs, which meant a
+warm-session restart or a cancelled job took the site down.
+
+| Task | Runs | Listens |
+|---|---|---|
+| `margo-elysium-arena` | `run_arena_task.cmd` → `run_arena.ps1` → `npm run build` + `npm run arena -- --config runs/arena/config.json` | `127.0.0.1:8790` |
+| `margo-elysium-model` | `run_model_server_task.cmd` → `run_model_server.ps1` → `python tools/model_server.py` | `127.0.0.1:8787` |
+
+The launcher scripts live **outside the repo**, in the host scratchpad
+(`%USERPROFILE%\workspace\_scratch\promptlane-next\`), deliberately: they are host-specific
+absolute paths, and an untracked file inside a working tree blocks a fast-forward pull. They are not
+secret — Access credentials come from `runs/arena/arena.env` (gitignored), which `run_arena.ps1`
+loads into the process environment. Each `.cmd` is a one-line wrapper that appends stdout+stderr to
+`runs/arena/arena-task.log` / `runs/arena/model-server-task.log`.
+
+### Both tasks have the same shape
+
+- **Two triggers.** `AtLogOn` for the user, **plus** a `Once` trigger repeating every **5 minutes**
+  with an explicit finite duration (`P3650D`).
+- `MultipleInstances = IgnoreNew`, `ExecutionTimeLimit = PT0S` (none), `RunLevel = Limited`,
+  `LogonType = S4U`, priority 7.
+- Each `.ps1` **also guards its own port** and aborts with exit 3 if the port is already held.
+
+**The 5-minute repeat is the keepalive, and it is not belt-and-braces — it is the only thing that
+works.** `RestartCount 999` / `RestartInterval PT1M` are set on both tasks and **never fire**: when
+the server process dies, the `.cmd`/pwsh wrapper still exits **0**, so Task Scheduler records success
+and leaves the task `Ready` with the port dead. Verified by killing each server on 2026-09-22 —
+`LastTaskResult 0`, no restart. With the repeat, a tick while the server is alive is dropped by
+`IgnoreNew`, and a tick while it is dead brings it back: measured recovery was the next tick, ≤5 min,
+rebuild included.
+
+A repetition also needs an **explicit** duration. A repetition attached to the logon trigger with an
+empty `Duration` registers without complaint and then silently never fires (first attempt did exactly
+that); `[TimeSpan]::MaxValue` is rejected by the task XML schema as out of range.
+
+### The orphan-port trap
+
+`Stop-ScheduledTask` kills the wrapper, **not the tree** — the arena's `node` child outlives it and
+keeps holding `:8790`. The task then reads `Ready` while the port is still occupied, so the next
+keepalive tick hits the port guard and aborts (exit 3) forever. Seen on the first re-registration.
+So: after stopping either task, check the port and kill the tree if it is still held.
+
+```powershell
+Get-NetTCPConnection -LocalPort 8790 -State Listen   # or 8787
+taskkill /PID <OwningProcess> /T /F                  # /T — the tree, not just the parent
+```
+
+### Operating them
+
+```powershell
+Get-ScheduledTask -TaskName 'margo-elysium-*' | Select-Object TaskName, State
+Get-ScheduledTaskInfo -TaskName 'margo-elysium-arena' | Select-Object LastRunTime, LastTaskResult, NextRunTime
+Start-ScheduledTask -TaskName 'margo-elysium-arena'   # don't wait for the next tick
+Stop-ScheduledTask  -TaskName 'margo-elysium-arena'   # then check the port, above
+Get-Content .\runs\arena\arena-task.log -Tail 20            # from the repo root
+```
+
+`LastTaskResult 267009` (`0x41301`) means *currently running*, not an error.
+
+Health checks: `:8787/health` returns `{"ok": true, backend, model, …}`. A bare `GET :8790/` in Access
+mode returns **401** to an unauthenticated local request — that is Access working, not a fault; the
+startup line in `arena-task.log` is the real confirmation.
+
+**To rebuild after a machine wipe:** recreate the two `.cmd` wrappers and re-run the two
+registration scripts (`register-elysium-arena-task.ps1`, `register-elysium-model-task.ps1`, same
+scratchpad — idempotent: each unregisters any prior copy first, and the arena's also kills a
+process still holding :8790). They
+are the executable form of everything in this section; if they are gone, this section is the spec.
+`runs/arena/arena.env` and `runs/arena/config.json` are gitignored and host-only — restore them from
+section 2 before starting the arena.
+
+---
+
+## 4. Seed the house bot
 
 The house bot is the pair `prompts/pilots/house-violet.md` / `house-green.md` (ruling Q13; one
 prompt per side because the 9B model cannot compare a field against its own team — evidence in
@@ -129,7 +207,7 @@ The house bot is a fixed Elo 1000 that never moves and does not appear on the la
 
 ---
 
-## 4. What runs unattended
+## 5. What runs unattended
 
 - **Sync**: every 60 s the poller lists `entrants/*/pilot.md` on `main`, validates each with the
   entrants validator's rules, and for any *new* content hash writes a `prompt-seen` row, cancels
@@ -148,7 +226,7 @@ The house bot is a fixed Elo 1000 that never moves and does not appear on the la
 
 ---
 
-## 5. Jam day
+## 6. Jam day
 
 ### 5.1 The sequence (rulings Q6/Q8/Q9)
 
@@ -204,7 +282,7 @@ Access; a held pre-run match answers 403 to anyone but the organizer.
 
 ---
 
-## 6. Tests
+## 7. Tests
 
 `npm run test:arena` — `node --test` over `tools/arena/test_*.mjs` (59 tests): the `arena.` →
 `elysium.` redirect, Elo and placements, ledger folds (quota, standings, recovery), the ported
