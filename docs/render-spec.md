@@ -1,13 +1,19 @@
 # Elysium viewer — isometric 2.5D render spec
 
-**Status: SPEC ONLY — nothing in this document is built.** Written 2026-09-22 in response to Ceryce's
+**Status: PHASE 1 BUILT — 2026-09-22** (branch `feat/render-phase1`). §14's phase 1 — entity/pilot
+silhouettes (§6/§7), hit/death/ability feedback (§8, feedback bullets), the live-view motion-pacing
+fix (§8, mechanism), and the HUD legibility pass (§9) — is built, on the unchanged top-down camera.
+**Phase 2 (§4, the isometric transform) is still spec only, not built.** §16 records what actually
+shipped, where it deviates from what this document imagined, and why. Originally written 2026-09-22
+in response to Ceryce's
 one-line brief (Telegram, 2026-09-22 20:46 CT): *"spec out making the game look decent in elysium. I'm
 thinking like fixed perspective isometric 2.5D or something, so we can see creeps vs bearbots and the
 drum bot vs the violin bot, etc. I'm not tied to anything other than 'enough to make it fun to watch'."*
-This is a design document and a set of decisions, not an implementation. No renderer code was written
-or prototyped for it.
+Sections 1-15 below are that original design document, left as written (design intent, not a
+build log) except where a phase 1 footnote marks a spot where the build deviated. §16 is the build
+log.
 
-Read with: [`../src/render.ts`](../src/render.ts) (the renderer this replaces), [`../src/sim/map.ts`](../src/sim/map.ts),
+Read with: [`../src/render.ts`](../src/render.ts) (the renderer phase 1 rewrote), [`../src/sim/map.ts`](../src/sim/map.ts),
 [`../src/sim/entities.ts`](../src/sim/entities.ts), [`../src/sim/match.ts`](../src/sim/match.ts),
 [`../src/live.ts`](../src/live.ts), [`arena-site-spec.md`](arena-site-spec.md) §3.4 (live stream) and
 §6 (jam-day sequence, round-one remote viewing), [`design.md`](design.md) (presentation-layer ethos).
@@ -402,10 +408,10 @@ the freeze-then-teleport away as normal.
 
 ## 14. Phasing
 
-**Phase 1** (recommended before the jam — see Open Decision 1): entity silhouettes (§6/§7) on the
-current top-down camera, hit/death feedback (§8, feedback bullets), the live-motion pacing fix (§8,
-mechanism), and the HUD legibility pass (§9). Shippable and testable against acceptance criteria 1, 2,
-3, 4, 5, 6 without touching the camera at all.
+**Phase 1 — BUILT 2026-09-22, see §16.** (recommended before the jam — see Open Decision 1): entity
+silhouettes (§6/§7) on the current top-down camera, hit/death feedback (§8, feedback bullets), the
+live-motion pacing fix (§8, mechanism), and the HUD legibility pass (§9). Shippable and testable
+against acceptance criteria 1, 2, 3, 4, 5, 6 without touching the camera at all.
 
 **Phase 2** (recommended after the jam — see Open Decision 1): the isometric transform (§4) — camera, lane/river geometry, draw-order-by-depth (§5),
 elevation (`h(entity)`). Answers acceptance criterion 7 more strongly (the base-color contrast becomes
@@ -433,3 +439,96 @@ concerns — a spectator broadcast is and should stay omniscient, matching today
   matchups whose decision logic doesn't actually vary by prompt file** — it's a real measurement of the
   sim's *mechanics* (which don't vary by model), but not a survey of real model behavior. Cheap to
   close before treating it as final: run one real `qwen3.5:9b` log and check the same checkpoint field.
+
+## 16. Phase 1 — as built (2026-09-22, branch `feat/render-phase1`)
+
+Entity/pilot silhouettes (§6/§7), hit/death/cast feedback (§8), the live-motion pacing fix (§8), and
+an HUD/viewport legibility pass (§9) are built, on the unchanged top-down camera and world/lane
+geometry. `src/sim/*`, `src/rng.ts`, `src/pilots/*`, `src/types.ts` are untouched, per `npm run
+test:arena`'s replay/verify tests staying green throughout. Where this section says the build
+deviates from §1-§15 above, that text is left as originally written (design intent), not edited to
+match.
+
+**§6/§7 shapes, built largely as specced**, with one addition and one honest deviation:
+
+- Nexus: a pulsing glow (outer ring + bright core) instead of a flat fill, giving it the "the thing
+  you're defending" read §6 asked for without the elevation §4 would have given it (elevation is
+  phase 2). Not specced explicitly; a reasonable reading of "height/glow" that doesn't require §4.
+- Tower: drawn as a square rotated to the lane's own tangent direction (`nearestSegmentAngle` in
+  `render.ts`) plus an inset "turret" square, so it visibly "stands" and is "oriented along the
+  lane" per §6 without elevation. **Deviation**: the rotation is lane-angle + 45°, which produces a
+  diamond for the top/bottom lanes' near-axis-aligned segments but cancels back to a plain
+  axis-aligned square for the mid lane (whose segment is already ~45°/-45°) — mid-lane towers render
+  as a square, same silhouette as before phase 1. Cosmetic, not a functional gap (§6 explicitly
+  allows "today's square works as a footprint"); a future pass could pick an offset that never
+  cancels, but that wasn't worth a special case for phase 1.
+- Bearbot chassis: circle body + two small ear-bump circles, as §6 asked. Instrument markers
+  (§7) are procedural strokes as specced — drums a double ring, violin a narrow oval with two
+  f-hole-style notches. **Deviation from the first draft, corrected during the build**: keytar's
+  three "key" notches were first drawn *parallel* to the diagonal bar (per a literal reading of "a
+  long diagonal bar with 2-3 small notches"), which at bearbot scale just thickened the bar instead
+  of reading as separate keys (confirmed by rendering it in isolation and inspecting the pixels —
+  see the PR description's acceptance-criterion-3 verification). Redrawn with the notches
+  *perpendicular* to the bar instead, which reads clearly at both debug and true in-game scale.
+
+**§8 hit/death/cast feedback, built as a `RenderFx` class** (`src/render.ts`) holding the previous
+frame's hp/alive/cooldown/position per entity id, keyed off wall-clock timestamps so every effect's
+remaining life is `now() - startedAt` rather than a growing queue (§8's own forward-looking
+constraint, for a possible future replay scrub). Two deviations, both forced by "pure read of
+`Match` state, don't touch the sim":
+
+- **Cast-pulse origin.** §8 says the radial pulse for `fill`/`chord` should be "at the cast point."
+  `fill`'s effect genuinely *is* centered on the caster (`sim/match.ts` `applySlowAround(bot.team,
+  bot.pos, ...)`), so that one is exact. `chord` (`aoe-burst`) resolves its actual detonation point
+  from the ability's target inside the sim and never writes it back onto the `Bearbot`, so
+  `render.ts` has no way to recover it without either touching `sim/match.ts` (not allowed) or
+  reaching into the `Action` the pilot returned (not available to the renderer either — it only sees
+  `Match` state). Both pulses draw at the caster's current position instead; for `chord` specifically
+  this can visibly differ from where the burst actually landed (up to 180 units away, its range).
+  Flagging this plainly rather than smoothing it over, per the brief.
+- **Cooldown-transition cast detection**, not an actual "ability used" event. `RenderFx.trackBot`
+  infers a cast from `cooldowns[name]` going from 0 to non-zero between two *rendered* frames. At
+  1× (live or replay) this is exact — the sim can't recast an ability faster than one render frame.
+  At high replay speed (16×) or during live catch-up, `Ticker` can step many sim ticks between two
+  rendered frames; a bearbot that used and off-cooldown-recast the same ability within that window
+  would show one pulse instead of two. Not exercised by anything in `test:arena` today (kick/fill's
+  shortest cooldown is 6s, chord/glissando 7-9s — all far longer than one render frame even at 16×),
+  but worth knowing if a future ability has a sub-second cooldown.
+- **Minions get no death-fade.** `sim/match.ts` `updateMinions` splices a dead minion out of
+  `match.minions` the same tick it dies, so no state survives into the next render call to animate a
+  fade for — `RenderFx` would have to invent a "ghost minion" from nothing, which isn't a read of
+  `Match` state anymore. §8's death bullet says this "reinforces criterion 6 for bearbots and towers
+  especially," and §6 already frames minions as the deliberately unornamented "background unit," so
+  minions keep the pre-phase-1 instant-disappear behavior. Towers, the nexus and bearbots all persist
+  with `alive: false` after death and get the full fade-then-permanent-dim-husk treatment.
+
+**§8 live-motion pacing fix, built as `LivePacer`** (`src/live.ts`), wired into `src/main.ts`'s
+`attachMatch`. Confirms the trace in §8 exactly: the bug was `catchUp` being computed once and never
+re-evaluated, making `Ticker.speed()` return `Infinity` for an entire live match instead of only the
+initial catch-up. `LivePacer` still returns `Infinity` while more than one round's worth of ticks are
+confirmed-but-unrendered (a fresh load or a reconnect — real catch-up, not prediction); once within
+one round of the frontier, it releases ticks at a speed held constant between round arrivals and
+recomputed only when a round actually lands, seeded conservatively (a full cadence) before any real
+arrival-timing exists, and refusing to fold backlog-burst arrivals into its moving-average estimate
+(see `render.ts`'s and `live.ts`'s own doc comments for why a *continuously* time-varying `speed()`
+would have starved `Ticker`'s own stepping loop instead of fixing it). Tested directly in
+`tools/arena/test_browser.mjs` (three new cases); not something a screenshot can show, per the
+brief's own framing of this as logic, not drawing.
+
+**§9 HUD/viewport legibility, built as a CSS-only pass** (`src/style.css`) plus a small render-side
+contrast bump (lane/river borders): responsive topbar type via `clamp()`, a `flex-wrap` topbar so
+buttons don't force horizontal overflow, and — found only by actually screenshotting a narrow
+viewport, not by inspection — the sidepanel's fixed 340px width made the roster/prompt panel
+completely unreachable below about 720px wide (`overflow: hidden` on `body` meant there was no way
+to scroll to it). Fixed with a `max-width: 720px` media query that stacks `.main` into a column
+(canvas on top, roster below, independently scrollable). Left as `render-spec.md` §4 already flagged:
+a short/wide landscape phone viewport (e.g. 667×320) still needs a scroll to reach the roster below
+the square canvas — nothing is unreachable, but it isn't one screenful. A canvas-aspect cap (e.g.
+`min(vw, vh*k)`) would fix that too; out of scope for a "CSS-only pass."
+
+**Verified, not just written** — see the PR description for the acceptance-criteria-by-criteria
+detail: a real (non-mock) desktop screenshot, a phone-portrait (375×667) and short-landscape
+(667×320) screenshot, isolated synthetic scenes for the instrument markers and for every §8 effect
+(hit flash, death fade → husk, cast pulse, cast streak) rendered through the real `render()` function
+in an actual browser via Playwright (installed ad hoc into the gitignored `artifacts/` directory for
+this verification, not added as a project dependency), and the full `test:arena` + `test:tools` gates.
