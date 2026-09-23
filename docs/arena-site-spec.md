@@ -14,7 +14,9 @@ this text; where they disagree, the as-built list is the rule.
 Read with: [`../README.md`](../README.md) ("Run a jam match"), [`design.md`](design.md),
 [`../tools/match/`](../tools/match/), [`../tools/model_server.py`](../tools/model_server.py),
 [`../src/replay.ts`](../src/replay.ts), the private
-[`jamobair-entrants`](https://github.com/kumouri/jamobair-entrants) README.
+[`jamobair-entrants`](https://github.com/kumouri/jamobair-entrants) README. The canvas viewer itself
+(`src/render.ts`, `src/live.ts`) has its own spec: [`render-spec.md`](render-spec.md) — an isometric
+2.5D rework, not yet built.
 
 ---
 
@@ -361,6 +363,10 @@ Two consequences worth stating on the page: the live clock runs at the model's p
 slower than real time on the 9b model at cadence 2 — an honest "live"), and a replay of a finished
 log can run faster than real time (a `speed` control: 1×/4×/16×, stepping N ticks per frame — the
 same external-tick driver, so this is one function, not two).
+
+How the field itself should look — projection, entity silhouettes, and a live-mode motion pacing fix
+for the every-~2s update batches — is specced separately in [`render-spec.md`](render-spec.md); it is
+not built yet and does not change anything in this section's contract.
 
 ### 3.5 Bracket and leaderboard
 
