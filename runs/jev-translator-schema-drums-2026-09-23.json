@@ -1,0 +1,56 @@
+{
+  "pilot_file": "prompts/pilots/drums.md",
+  "instrument": "drums",
+  "rules": [
+    {
+      "id": "critical_health_retreat",
+      "condition": "is this bot's hp below a quarter of its max?",
+      "criteria_true": "bot hp < 25% of max hp",
+      "criteria_false": "bot hp >= 25% of max hp",
+      "action_kind": "recall",
+      "action_ability": null,
+      "action_target_selector": "home"
+    },
+    {
+      "id": "threatened_ally_taunt",
+      "condition": "is an enemy bearbot within melee range of an ally?",
+      "criteria_true": "enemy bearbot is close to an ally",
+      "criteria_false": "no enemy bearbot is close to an ally",
+      "action_kind": "attack",
+      "action_ability": null,
+      "action_target_selector": "threatened_ally_enemy"
+    },
+    {
+      "id": "grouped_enemies_fill",
+      "condition": "are multiple enemy bearbots bunched up near this bot?",
+      "criteria_true": "more than one enemy bearbot nearby",
+      "criteria_false": "only one or no enemy bearbots nearby",
+      "action_kind": "ability",
+      "action_ability": "fill",
+      "action_target_selector": "densest_cluster_enemy"
+    },
+    {
+      "id": "close_enemy_kick",
+      "condition": "is an enemy bearbot within melee range?",
+      "criteria_true": "enemy bearbot is close enough to touch",
+      "criteria_false": "no enemy bearbot is in melee range",
+      "action_kind": "ability",
+      "action_ability": "kick",
+      "action_target_selector": "nearest_enemy"
+    },
+    {
+      "id": "general_attack_nearest",
+      "condition": "is there a visible enemy bearbot?",
+      "criteria_true": "at least one enemy bearbot is visible",
+      "criteria_false": "no enemy bearbots are visible",
+      "action_kind": "attack",
+      "action_ability": null,
+      "action_target_selector": "nearest_enemy"
+    }
+  ],
+  "default_action": {
+    "kind": "move",
+    "ability": null,
+    "target_selector": "push_lane"
+  }
+}

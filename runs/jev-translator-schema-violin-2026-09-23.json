@@ -1,0 +1,56 @@
+{
+  "pilot_file": "prompts/pilots/violin.md",
+  "instrument": "violin",
+  "rules": [
+    {
+      "id": "low_hp_recall",
+      "condition": "is this bot's hp below a quarter of its max?",
+      "criteria_true": "hp is less than 25% of max hp",
+      "criteria_false": "hp is 25% or more of max hp",
+      "action_kind": "recall",
+      "action_ability": null,
+      "action_target_selector": "none"
+    },
+    {
+      "id": "engage_isolated",
+      "condition": "is there exactly one isolated enemy visible?",
+      "criteria_true": "one enemy exists that is farthest from any other enemy",
+      "criteria_false": "no single isolated enemy exists or multiple are grouped",
+      "action_kind": "move",
+      "action_ability": null,
+      "action_target_selector": "isolated_enemy"
+    },
+    {
+      "id": "use_staccato",
+      "condition": "is the selected target within staccato range and is staccato off cooldown?",
+      "criteria_true": "target is in range and ability is ready",
+      "criteria_false": "target is out of range or ability is on cooldown",
+      "action_kind": "ability",
+      "action_ability": "staccato",
+      "action_target_selector": "nearest_enemy"
+    },
+    {
+      "id": "use_solo_chase",
+      "condition": "is a target about to escape and is solo off cooldown?",
+      "criteria_true": "a target is retreating and ability is ready",
+      "criteria_false": "no target is escaping or ability is on cooldown",
+      "action_kind": "ability",
+      "action_ability": "solo",
+      "action_target_selector": "nearest_enemy"
+    },
+    {
+      "id": "reposition_for_next",
+      "condition": "is there no immediate fight opportunity?",
+      "criteria_true": "no isolated enemy is currently available to engage",
+      "criteria_false": "an isolated enemy is available",
+      "action_kind": "move",
+      "action_ability": null,
+      "action_target_selector": "isolated_enemy"
+    }
+  ],
+  "default_action": {
+    "kind": "move",
+    "ability": null,
+    "target_selector": "push_lane"
+  }
+}
