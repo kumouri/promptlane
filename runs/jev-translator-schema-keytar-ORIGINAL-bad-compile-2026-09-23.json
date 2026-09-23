@@ -1,0 +1,48 @@
+{
+  "rules": [
+    {
+      "id": "recall_low_hp",
+      "condition": "is this bot's current health below 25% of its maximum health?",
+      "criteria_true": "health is less than one quarter of max health",
+      "criteria_false": "health is greater than or equal to one quarter of max health",
+      "kind": "recall",
+      "ability": null,
+      "selector": "home"
+    },
+    {
+      "id": "panic_dash",
+      "condition": "is there a visible enemy inside melee range of this bot?",
+      "criteria_true": "an enemy is within melee distance",
+      "criteria_false": "no enemy is within melee distance",
+      "kind": "ability",
+      "ability": "glissando",
+      "selector": "none"
+    },
+    {
+      "id": "aoe_burst",
+      "condition": "is the cooldown of 'chord' ready?",
+      "criteria_true": "'chord' is off cooldown",
+      "criteria_false": "'chord' is on cooldown",
+      "kind": "ability",
+      "ability": "chord",
+      "selector": "densest_cluster_enemy"
+    },
+    {
+      "id": "lane_push",
+      "condition": "is there no immediate threat requiring retreat or engagement?",
+      "criteria_true": "no enemy is in melee range and 'chord' is not ready",
+      "criteria_false": "an enemy is in melee range or 'chord' is ready",
+      "kind": "move",
+      "ability": null,
+      "selector": "push_lane"
+    }
+  ],
+  "default": {
+    "kind": "move",
+    "ability": null,
+    "selector": "push_lane"
+  },
+  "validation_notes": [
+    "priority guard: promoted rule(s) recall_low_hp to the top of the cascade -- the prose uses unconditional-override language for them (no exceptions) but the translator placed them lower, where an earlier rule could pre-empt them."
+  ]
+}

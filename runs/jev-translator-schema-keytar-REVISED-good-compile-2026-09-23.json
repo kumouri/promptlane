@@ -1,0 +1,64 @@
+{
+  "rules": [
+    {
+      "id": "low_health_recall",
+      "condition": "is this bot's hp below a quarter of its max?",
+      "criteria_true": "hp < 0.25 * max_hp",
+      "criteria_false": "hp >= 0.25 * max_hp",
+      "kind": "recall",
+      "ability": null,
+      "selector": null
+    },
+    {
+      "id": "danger_melee_escape",
+      "condition": "is a visible enemy bearbot within melee range?",
+      "criteria_true": "distance to nearest enemy bearbot < melee_range",
+      "criteria_false": "distance to nearest enemy bearbot >= melee_range",
+      "kind": "move",
+      "ability": null,
+      "selector": "home"
+    },
+    {
+      "id": "danger_close_escape",
+      "condition": "is a visible enemy inside attack range?",
+      "criteria_true": "distance to nearest enemy < attack_range",
+      "criteria_false": "distance to nearest enemy >= attack_range",
+      "kind": "move",
+      "ability": null,
+      "selector": "push_lane"
+    },
+    {
+      "id": "chord_available_use",
+      "condition": "is Chord off cooldown AND is at least one enemy or minion visible?",
+      "criteria_true": "cooldown_chord == 0 AND visible_targets_count > 0",
+      "criteria_false": "cooldown_chord > 0 OR visible_targets_count == 0",
+      "kind": "ability",
+      "ability": "chord",
+      "selector": "densest_cluster_enemy"
+    },
+    {
+      "id": "glissando_dash_out",
+      "condition": "is a visible enemy approaching or close?",
+      "criteria_true": "enemy is getting closer OR enemy is at medium range but threatening",
+      "criteria_false": "no immediate threat from enemies",
+      "kind": "ability",
+      "ability": "glissando",
+      "selector": null
+    },
+    {
+      "id": "poke_wave_basic",
+      "condition": "is there no immediate threat and no cooldowns ready?",
+      "criteria_true": "no enemies in danger zone AND all abilities on cooldown",
+      "criteria_false": "abilities available OR enemies in danger zone",
+      "kind": "attack",
+      "ability": null,
+      "selector": "nearby_minion"
+    }
+  ],
+  "default": {
+    "kind": "move",
+    "ability": null,
+    "selector": "push_lane"
+  },
+  "validation_notes": []
+}
