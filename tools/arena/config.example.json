@@ -17,6 +17,16 @@
       "avgSecPerCall": 0.9,
       "timeoutSec": 60
     },
+    "openrouter-qwen32b": {
+      "kind": "http",
+      "endpoint": "http://127.0.0.1:8789/",
+      "model": "qwen/qwen3-32b",
+      "avgSecPerCall": 1.4,
+      "timeoutSec": 60,
+      "concurrency": 6,
+      "usdPerMToken": { "in": 0.08, "out": 0.28 },
+      "dailyBudgetUsd": 5
+    },
     "mock": { "kind": "mock", "model": "mock", "avgSecPerCall": 0.001 }
   },
   "entrants": { "kind": "gh", "repo": "kumouri/jamobair-entrants", "ref": "main", "syncIntervalSec": 60 },

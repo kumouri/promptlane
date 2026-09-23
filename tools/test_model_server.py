@@ -1,13 +1,16 @@
 """Tests for tools/model_server.py: the HTTP contract with a fake backend, plus request shapes.
-No network beyond loopback, no Ollama, no `claude` binary."""
+No network beyond loopback, no Ollama, no `claude` binary, no real OpenRouter/OpenAI call."""
 from __future__ import annotations
 
 import http.client
+import io
 import json
 import os
 import sys
 import threading
 import unittest
+import urllib.error
+from unittest import mock
 
 sys.path.insert(0, os.path.dirname(__file__))
 
@@ -149,6 +152,153 @@ class BackendShapeTests(unittest.TestCase):
         self.assertEqual(ms.make_backend(args).model, ms.DEFAULT_OLLAMA_MODEL)
         self.assertEqual(ms.make_backend(ms.parse_args(["--backend", "claude"])).model, ms.DEFAULT_CLAUDE_MODEL)
         self.assertIsInstance(ms.make_backend(ms.parse_args(["--backend", "echo"])), ms.EchoBackend)
+
+
+class OpenAIBackendTests(unittest.TestCase):
+    def make(self, kind="openrouter", **kw):
+        return ms.OpenAIBackend(kind, "https://openrouter.ai/api/v1", "qwen/qwen3-32b", "sk-test", **kw)
+
+    def test_build_body_openrouter_pins_provider_and_disables_reasoning(self):
+        body = self.make(provider_order=["DeepInfra"]).build_body("hi")
+        self.assertEqual(body["model"], "qwen/qwen3-32b")
+        self.assertEqual(body["messages"], [{"role": "user", "content": "hi"}])
+        self.assertEqual(body["response_format"], {"type": "json_object"})
+        self.assertEqual(body["provider"], {"order": ["DeepInfra"], "allow_fallbacks": False})
+        self.assertEqual(body["reasoning"], {"enabled": False})
+
+    def test_build_body_think_true_omits_reasoning_override(self):
+        self.assertNotIn("reasoning", self.make(think=True).build_body("hi"))
+
+    def test_build_body_without_provider_omits_provider_key(self):
+        self.assertNotIn("provider", self.make().build_body("hi"))
+
+    def test_build_body_openai_kind_never_sends_openrouter_only_fields(self):
+        b = ms.OpenAIBackend("openai", "https://api.example.com/v1", "some-model", "sk-test", provider_order=["X"])
+        body = b.build_body("hi")
+        self.assertNotIn("provider", body)
+        self.assertNotIn("reasoning", body)
+
+    def test_complete_returns_message_content_and_records_usage(self):
+        b = self.make()
+        b._post = lambda body: {
+            "choices": [{"message": {"content": '{"kind": "hold"}'}}],
+            "usage": {"prompt_tokens": 10, "completion_tokens": 5, "cost": 0.001},
+        }
+        self.assertEqual(b.complete("hi"), '{"kind": "hold"}')
+        info = b.describe()
+        self.assertEqual(info["tokens_in"], 10)
+        self.assertEqual(info["tokens_out"], 5)
+        self.assertEqual(info["cost_usd"], 0.001)
+
+    def test_complete_falls_back_to_price_table_when_usage_has_no_cost(self):
+        b = self.make(price_in_per_m=1.0, price_out_per_m=2.0)
+        b._post = lambda body: {
+            "choices": [{"message": {"content": "x"}}],
+            "usage": {"prompt_tokens": 1_000_000, "completion_tokens": 500_000},
+        }
+        b.complete("hi")
+        self.assertAlmostEqual(b.cost_usd, 2.0)
+
+    def test_complete_no_choices_raises(self):
+        b = self.make()
+        b._post = lambda body: {"choices": []}
+        with self.assertRaises(RuntimeError):
+            b.complete("hi")
+
+    def test_daily_budget_refuses_once_reached(self):
+        b = self.make(daily_budget_usd=0.0005)
+        b._post = lambda body: {
+            "choices": [{"message": {"content": "x"}}],
+            "usage": {"prompt_tokens": 100, "completion_tokens": 0, "cost": 0.001},
+        }
+        b.complete("hi")  # pushes cumulative cost past the budget
+        with self.assertRaises(RuntimeError):
+            b.complete("hi")
+
+    def test_complete_retries_on_429_then_succeeds(self):
+        b = self.make(retries=2)
+        calls = {"n": 0}
+
+        def fake_post(body):
+            calls["n"] += 1
+            if calls["n"] < 2:
+                raise urllib.error.HTTPError("url", 429, "rate limited", {}, io.BytesIO(b"slow down"))
+            return {"choices": [{"message": {"content": "ok"}}], "usage": {}}
+
+        b._post = fake_post
+        with mock.patch("model_server.time.sleep"):
+            self.assertEqual(b.complete("hi"), "ok")
+        self.assertEqual(calls["n"], 2)
+
+    def test_complete_raises_after_exhausting_retries(self):
+        b = self.make(retries=1)
+        b._post = lambda body: (_ for _ in ()).throw(
+            urllib.error.HTTPError("url", 500, "server error", {}, io.BytesIO(b"boom"))
+        )
+        with mock.patch("model_server.time.sleep"):
+            with self.assertRaises(RuntimeError):
+                b.complete("hi")
+
+    def test_complete_does_not_retry_non_retryable_status(self):
+        b = self.make(retries=3)
+        calls = {"n": 0}
+
+        def fake_post(body):
+            calls["n"] += 1
+            raise urllib.error.HTTPError("url", 401, "bad key", {}, io.BytesIO(b"nope"))
+
+        b._post = fake_post
+        with self.assertRaises(RuntimeError):
+            b.complete("hi")
+        self.assertEqual(calls["n"], 1)
+
+    def test_describe_never_includes_the_api_key(self):
+        info = self.make().describe()
+        self.assertNotIn("api_key", info)
+        self.assertNotIn("sk-test", json.dumps(info))
+        self.assertEqual(info["base_url"], "https://openrouter.ai/api/v1")
+
+
+class MakeBackendOpenRouterTests(unittest.TestCase):
+    def test_missing_key_refuses_to_start_not_falls_back(self):
+        env = {k: v for k, v in os.environ.items() if k != "OPENROUTER_API_KEY"}
+        with mock.patch.dict(os.environ, env, clear=True):
+            with self.assertRaises(SystemExit) as cm:
+                ms.make_backend(ms.parse_args(["--backend", "openrouter"]))
+        self.assertIn("OPENROUTER_API_KEY", str(cm.exception))
+
+    def test_openrouter_preset_defaults(self):
+        with mock.patch.dict(os.environ, {"OPENROUTER_API_KEY": "sk-test"}):
+            b = ms.make_backend(ms.parse_args(["--backend", "openrouter"]))
+        self.assertEqual(b.model, ms.DEFAULT_OPENROUTER_MODEL)
+        self.assertEqual(b.base_url, ms.DEFAULT_OPENROUTER_BASE_URL)
+        self.assertEqual(b.kind, "openrouter")
+
+    def test_openai_backend_requires_explicit_model(self):
+        with mock.patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test"}):
+            with self.assertRaises(SystemExit):
+                ms.make_backend(ms.parse_args(["--backend", "openai"]))
+
+    def test_openai_backend_uses_its_own_default_base_url_and_key_env(self):
+        with mock.patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test"}):
+            b = ms.make_backend(ms.parse_args(["--backend", "openai", "--model", "gpt-x"]))
+        self.assertEqual(b.base_url, ms.DEFAULT_OPENAI_BASE_URL)
+        self.assertEqual(b.kind, "openai")
+
+    def test_provider_flag_is_split_and_trimmed(self):
+        with mock.patch.dict(os.environ, {"OPENROUTER_API_KEY": "sk-test"}):
+            b = ms.make_backend(ms.parse_args(["--backend", "openrouter", "--provider", "DeepInfra, SiliconFlow"]))
+        self.assertEqual(b.provider_order, ["DeepInfra", "SiliconFlow"])
+
+    def test_api_key_env_flag_names_a_different_variable(self):
+        with mock.patch.dict(os.environ, {"MY_KEY": "sk-test"}):
+            b = ms.make_backend(ms.parse_args(["--backend", "openrouter", "--api-key-env", "MY_KEY"]))
+        self.assertEqual(b.api_key, "sk-test")
+
+    def test_concurrency_must_be_positive(self):
+        with mock.patch.dict(os.environ, {"OPENROUTER_API_KEY": "sk-test"}):
+            with self.assertRaises(SystemExit):
+                ms.make_backend(ms.parse_args(["--backend", "openrouter", "--concurrency", "0"]))
 
 
 if __name__ == "__main__":

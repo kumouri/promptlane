@@ -56,12 +56,61 @@ The entrants poller shells out to `gh api` for `kumouri/jamobair-entrants` (`mai
 | `tournament.quick` | quick tests: 3 sim-min at cadence 4 (ruling Q10) |
 | `tournament.placementSeeds` | `[7, 11, 42]` (Q14); sides alternate violet/green/violet (Q15) |
 | `tournament.quota` | `{quick: 6, full: 2}` per handle per Central-Time day (Q11); organizer exempt |
-| `backends.<id>` | `{kind: http, endpoint, model, avgSecPerCall, timeoutSec}` or `{kind: mock}`; `avgSecPerCall` sizes the wall-clock cap (3× expected) — raise it when the GPU is shared |
+| `backends.<id>` | `{kind: http, endpoint, model, avgSecPerCall, timeoutSec}` or `{kind: mock}`; `avgSecPerCall` sizes the wall-clock cap (3× expected) — raise it when the GPU is shared. A hosted backend (§1a) also carries `concurrency`, `usdPerMToken`, `dailyBudgetUsd` in the shape `docs/arena-site-spec.md` §5.4 wants; the arena doesn't read those three yet (§1a "not built") — they document the backend for now, the same way `runs/arena/config.json` has always been the record of what a tournament ran on |
 | `entrants` | `{kind: gh, repo, ref, syncIntervalSec}` or `{kind: dir, path}` |
 | `house` | `{handle, files}` — ordered candidates; a candidate is a `{violet, green}` pair (one prompt per side) or one file; the first whose files all exist wins: the `house-*.md` pair, then `house.md`, then `drums.md` |
 | `organizerEmail` | the one organizer (Q19); refused if left as `CHANGE-ME` in Access mode; `ARENA_ORGANIZER_EMAIL` overrides |
 
 Changing the tournament block appends a new `tournament` row; nothing already played is altered.
+
+---
+
+## 1a. Hosted backend (OpenRouter) — for jam day, not the everyday ladder
+
+The everyday ladder stays on `qwen9b` (Ollama, $0). A hosted backend is a per-tournament choice
+(§5.4) for when wall-clock matters more than the fraction-of-a-cent cost — the jam bracket itself,
+or a rehearsal of it. Full cost/latency reasoning is
+[`hosted-model-options.md`](hosted-model-options.md); a real proof run (spend, latency, a
+side-by-side against the `qwen9b` baseline on the same seed) is
+[`../runs/openrouter-phase-c-proof-2026-09-22.md`](../runs/openrouter-phase-c-proof-2026-09-22.md).
+
+**The key.** `OPENROUTER_API_KEY` is a Windows *user* environment variable on this host, not a repo
+secret — it is never read from a file, never logged, never put in a commit, a PR body or a match
+log (`/health` shows `base_url`, `model`, token/cost counters, never the key). A process that is
+launched detached may not inherit a user env var; if `model_server.py` refuses to start with
+`OPENROUTER_API_KEY is not set`, that is the symptom — check the launcher, not the key.
+
+**1. Start the hosted model server** (a second `model_server.py`, its own port — :8789 is the slot
+the architecture picture in `arena-site-spec.md` §3.0 already reserves for a hosted/budgeted
+backend; :8787's Ollama `qwen9b` keeps running for everything else):
+
+```sh
+python tools/model_server.py --backend openrouter --model qwen/qwen3-32b --port 8789 \
+    --provider DeepInfra --concurrency 6 --price-in-per-m 0.08 --price-out-per-m 0.28 \
+    --daily-budget-usd 5
+```
+
+`--provider DeepInfra` pins the endpoint so a bracket doesn't drift providers (and therefore
+quantisation/latency) mid-event; drop it to let OpenRouter route freely. `--daily-budget-usd`
+refuses new calls once this *process's* cumulative estimated cost reaches it — restart the server
+to reset the counter for a new day. Confirm it's up: `curl http://127.0.0.1:8789/health` should
+show `"backend": "openrouter"`, the model, `base_url`, and `tokens_in`/`tokens_out`/`cost_usd`
+starting at 0.
+
+**2. Point a tournament at it.** In `runs/arena/config.json`, add a `backends` entry (there's a
+template in `tools/arena/config.example.json`'s `openrouter-qwen32b`) pointing at `:8789`, then set
+`tournament.backend` to that id and restart the arena — this is the same "change the model" step as
+§5.2's table row, it just names the hosted entry instead of `qwen9b`. **Do this deliberately**: it
+is a tournament-wide setting (§5.4), so it changes every match from that point on, not just one.
+
+**3. What a jam-day rehearsal looks like.** Run one real match on the hosted backend the same way
+`runs/openrouter-phase-c-proof-2026-09-22.md` did — `node tools/match/cli.mjs --a <a> --b <b>
+--seed <n> --cadence 2 --endpoint http://127.0.0.1:8789/` — before trusting it for the bracket
+itself, and read the result line for parse/call errors and the wall time, not just whether it
+finished. The 6-pilot lockstep round now runs genuinely in parallel (mean ≈1.4 s/call in the proof
+run, vs. Ollama's serial queue), so a full 600-second match finishes in low single-digit minutes
+instead of the 25+ the everyday ladder takes — budget the rehearsal slot accordingly, and re-check
+`/health`'s `cost_usd` afterward against the day's budget before running the real bracket.
 
 ---
 

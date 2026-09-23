@@ -1,12 +1,15 @@
 # Elysium — the promptlane arena — website spec
 
-**Status: PHASE B BUILT — 2026-09-22.** Markdown is canonical. Written 2026-09-21 for the
-InRhythm AI Jam round one (Fri 2026-10-02, IR-only; entrant cutoff Thu 2026-10-01 17:00 CT).
-Phase A (§6, the ladder) and Phase B (the live view and the jam-day bracket) are checked in under
-`tools/arena/` + `src/live.ts` and run on the mock in CI; how to start it, expose it and operate
-it — including the jam-day sequence — is [`arena-runbook.md`](arena-runbook.md). Phase C is
-still a proposal. The "as built" lists under §6 say where the code departs from or fills in this
-text; where they disagree, the as-built list is the rule.
+**Status: PHASE B BUILT — 2026-09-22; PHASE C HOSTED BACKEND WIRED — 2026-09-22.** Markdown is
+canonical. Written 2026-09-21 for the InRhythm AI Jam round one (Fri 2026-10-02, IR-only; entrant
+cutoff Thu 2026-10-01 17:00 CT). Phase A (§6, the ladder) and Phase B (the live view and the
+jam-day bracket) are checked in under `tools/arena/` + `src/live.ts` and run on the mock in CI; how
+to start it, expose it and operate it — including the jam-day sequence — is
+[`arena-runbook.md`](arena-runbook.md). Phase C's *public* half (Access policy change, public rate
+limits, a Worker/R2 mirror) is still a proposal, but its hosted-model backend
+(`tools/model_server.py --backend openrouter`) is built and proven on OpenRouter — see the Phase C
+as-built list under §6. The "as built" lists under §6 say where the code departs from or fills in
+this text; where they disagree, the as-built list is the rule.
 
 Read with: [`../README.md`](../README.md) ("Run a jam match"), [`design.md`](design.md),
 [`../tools/match/`](../tools/match/), [`../tools/model_server.py`](../tools/model_server.py),
@@ -413,7 +416,7 @@ wall time, so it is a button, not the default. Ladder (Elo) draws are simply dra
 | `tools/match/headless.ts` | **reused, additive change (A, B: done)** | `runMatch` + `verifyReplay`; Phase A added `maxSimSec` and `signal` (wall cap) to `RunOptions`, and `verifyReplay` stops at the logged tick count for an unfinished log. Phase B added `onStart` (the in-progress log), `onDecision`, `onRound`, `onCheckpoint`, `onDeath` — callbacks only, the log is unchanged |
 | `tools/match/cli.mjs` | **reused, small change (A: done)** | `loadHeadless()` and the HTTP/result helpers moved to `tools/match/load.mjs`; CLI behaviour unchanged |
 | `tools/match/load.mjs` | *built (A)* | the esbuild loader (bundled once per process), `httpCallModel`, `probeBackend`, `resultLine` |
-| `tools/model_server.py` | **reused unchanged** (Phase A/B) | one process per backend; `/health` recorded in every log. Phase C option: `--backend openai` (OpenAI-compatible hosted endpoint, key from env) |
+| `tools/model_server.py` | **reused unchanged (A/B); additive (Phase C: built)** | one process per backend; `/health` recorded in every log. Phase C: `--backend openrouter` — a general OpenAI-compatible `/chat/completions` client (`--base-url`, `--model`, `--api-key-env` also work as `--backend openai` against any other such host), preset to OpenRouter, key from `$OPENROUTER_API_KEY`, JSON mode, provider pinning (`--provider`), reasoning off by default, bounded concurrency and retry-with-backoff on 429/5xx, per-process token/cost tracking and an optional `--daily-budget-usd` cap, all on `/health` |
 | `src/replay.ts` | **reused unchanged** | `MatchLog`, `ReplayPilot`, `checkpointOf`, `JAM_ROSTER`, `decisionsByBot` |
 | `src/main.ts` | **reused, additive change (B: done)** | `?live=<id>` beside `?replay=`; both on the one external-tick driver; `?speed=1|4|16` and the speed control; LIVE badge |
 | `src/live.ts` | *built (B)* | `LiveFeed` (events → decision buffers), `Ticker` (steps the private `tick()` from outside: only up to the last completed round, yields after asking ticks, paces replay by speed), `DivergenceCheck`, `openLive` (`EventSource`) |
@@ -706,15 +709,57 @@ Where this document was silent, the smallest thing was chosen and is now the rul
 ### Phase C — public
 
 **Files.** Access policy change (read-only paths → Everyone, or a separate public hostname);
-`tools/model_server.py` `--backend openai` if a hosted 30–40B model is chosen; rate limits on
-`/api/tests` per Access identity (Q17 decides whether the public can *test* or only *watch*);
-optional Cloudflare Worker/R2 mirror of `runs/arena/logs/` and the ladder JSON so the workstation
-is not the origin for a public replay page; home-page explainer with the teaser video.
+`tools/model_server.py` `--backend openrouter`/`openai` if a hosted 30–40B model is chosen; rate
+limits on `/api/tests` per Access identity (Q17 decides whether the public can *test* or only
+*watch*); optional Cloudflare Worker/R2 mirror of `runs/arena/logs/` and the ladder JSON so the
+workstation is not the origin for a public replay page; home-page explainer with the teaser video.
 
-**Effort.** 6–8 job-hours, most of it the hosted-backend adapter and the public rate limits.
+**Effort.** 6–8 job-hours, most of it (now built) was the hosted-backend adapter; what remains is
+the public rate limits and the Access/Worker work below.
 
-**Needs from Ceryce:** Q17 when/whether, Q12 budget (again, at public scale), the hosted model
-choice from the benchmark job.
+**Needs from Ceryce:** Q17 when/whether, Q12 budget (again, at public scale — the hosted-model
+choice is made, §9 below).
+
+#### Phase C — hosted backend as built (2026-09-22)
+
+Checklist against the file list above — **the backend adapter only**; the public-access half
+(Access policy, rate limits, Worker/R2 mirror, explainer) is still the proposal above, untouched:
+
+- [x] `tools/model_server.py` `--backend openrouter` — a general OpenAI-compatible `/chat/completions`
+  client (`OpenAIBackend`), shared with `--backend openai` for any other such host via `--base-url`
+  and `--api-key-env`; `--backend openrouter` is the preset that defaults the base URL to
+  `https://openrouter.ai/api/v1` and the key env var to `OPENROUTER_API_KEY`
+- [x] refuses to start if the key env var is unset — never falls back to Ollama (`resolve_api_key`)
+- [x] JSON mode (`response_format: {type: json_object}`); on the OpenRouter preset, reasoning is
+  disabled by default (`reasoning: {enabled: false}`) so a hybrid-thinking model like `qwen/qwen3-32b`
+  doesn't spend the whole `--max-tokens` budget on hidden reasoning; `--think` re-enables it
+- [x] provider pinning (`--provider`, comma-separated → `provider.order` + `allow_fallbacks: false`),
+  OpenRouter-only — a generic `--backend openai` host never receives `provider` or `reasoning`
+- [x] bounded concurrency (`--concurrency`, default 6, one `Semaphore` per backend process) and
+  retry-with-exponential-backoff on 429/5xx (`--retries`, default 3) — `ThreadingHTTPServer` already
+  runs one Python thread per inbound pilot request, so the six pilots answer in parallel instead of
+  the Ollama path's serial queue
+- [x] usage/cost accounting: `usage.cost` from the OpenRouter response is used when present (the
+  real upstream figure), else `--price-in-per-m`/`--price-out-per-m` estimate it; cumulative
+  `tokens_in`, `tokens_out`, `cost_usd` are on `/health` alongside the unchanged `requests`,
+  `errors`, `avg_seconds` counters; `--daily-budget-usd` refuses new calls once the process's
+  cumulative cost reaches it (§5.4's cap, enforced here — see "not done" below for the arena side)
+- [x] `tools/arena/config.example.json` gained an `openrouter-qwen32b` backend entry (port 8789, the
+  slot the architecture picture in §3.0 already reserved for a hosted/budgeted backend) with
+  `concurrency`, `usdPerMToken`, `dailyBudgetUsd` in the shape §5.4 asks for. **`tournament.backend`
+  is untouched** — the running ladder stays on `qwen9b`; switching a tournament to the hosted
+  backend is an organizer action (`arena-runbook.md` §1 config table), not something this change did
+- [x] real proof run on the host's live `OPENROUTER_API_KEY`: `runs/openrouter-phase-c-proof-2026-09-22.md`
+  (full write-up) and `runs/openrouter-phase-c-proof-2026-09-22-drums-vs-violin-seed7.json` (the
+  log; `--verify` passes, 120/120 checkpoints, no divergence)
+- [ ] **`tools/arena/queue.mjs` does not yet read `usdPerMToken`/`dailyBudgetUsd`/`concurrency`
+  from a backend entry** — the per-process `--daily-budget-usd` on `model_server.py` is a real cap,
+  but the arena doesn't estimate a job's cost before enqueueing it against a backend's daily budget,
+  and `Queue`'s "one worker per backend" is unconditional (it doesn't yet fan a hosted backend's
+  jobs out to use its `concurrency`). Both are §5.4/§3.1 gaps this change deliberately leaves for
+  the arena-side follow-up named there — **not built by this change**.
+- [ ] Access policy change, public rate limits, Worker/R2 mirror, explainer — unstarted, per the
+  proposal above
 
 ---
 
