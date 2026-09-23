@@ -11,41 +11,41 @@
     {
       "pilot": "drums",
       "n_scenarios": 12,
-      "kind_agreement_rate": 0.5,
+      "kind_agreement_rate": 0.3333333333333333,
       "ability_agreement_rate": null,
       "ability_agreement_n": 0,
-      "target_id_agreement_rate": 0.8,
+      "target_id_agreement_rate": 1.0,
       "target_id_agreement_n": 5,
-      "total_input_tokens": 7898,
-      "mean_latency_sec": 0.6033277416718192
+      "total_input_tokens": 7670,
+      "mean_latency_sec": 0.7362477666853616
     },
     {
       "pilot": "keytar",
       "n_scenarios": 12,
-      "kind_agreement_rate": 0.08333333333333333,
-      "ability_agreement_rate": 0.0,
+      "kind_agreement_rate": 0.5,
+      "ability_agreement_rate": 1.0,
       "ability_agreement_n": 1,
       "target_id_agreement_rate": null,
       "target_id_agreement_n": 0,
-      "total_input_tokens": 7910,
-      "mean_latency_sec": 0.5635642416697616
+      "total_input_tokens": 8114,
+      "mean_latency_sec": 0.7415003416244872
     },
     {
       "pilot": "violin",
       "n_scenarios": 12,
-      "kind_agreement_rate": 0.5833333333333334,
+      "kind_agreement_rate": 0.3333333333333333,
       "ability_agreement_rate": null,
       "ability_agreement_n": 0,
       "target_id_agreement_rate": 1.0,
       "target_id_agreement_n": 2,
-      "total_input_tokens": 7934,
-      "mean_latency_sec": 0.7851908250013366
+      "total_input_tokens": 7634,
+      "mean_latency_sec": 0.7792030500131659
     }
   ],
   "overall_kind_agreement_rate": 0.3888888888888889,
   "overall_n": 36,
-  "total_input_tokens": 23742,
-  "estimated_cost_usd": 0.000997164,
+  "total_input_tokens": 23418,
+  "estimated_cost_usd": 0.000983556,
   "detail": [
     {
       "pilot": "drums",
@@ -56,11 +56,11 @@
           "ground_truth": {
             "kind": "move",
             "target": {
-              "x": 310,
-              "y": 500
+              "x": 305,
+              "y": 495
             },
             "ability": null,
-            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":310,\"y\":500}}"
+            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":305,\"y\":495}}"
           },
           "predicted": {
             "kind": "move",
@@ -74,8 +74,8 @@
           "kind_match": true,
           "ability_match": null,
           "target_id_match": null,
-          "input_tokens": 658,
-          "latency_sec": 0.6049941999372095
+          "input_tokens": 639,
+          "latency_sec": 0.4852730999700725
         },
         {
           "scenario": "low_hp_recall_under_pressure",
@@ -88,18 +88,15 @@
           },
           "predicted": {
             "kind": "recall",
-            "target": {
-              "x": 100,
-              "y": 900
-            },
+            "target": null,
             "ability": null,
             "fired_rule": "critical_health_retreat"
           },
           "kind_match": false,
           "ability_match": null,
           "target_id_match": null,
-          "input_tokens": 639,
-          "latency_sec": 0.8366191999521106
+          "input_tokens": 620,
+          "latency_sec": 0.33558510011062026
         },
         {
           "scenario": "melee_range_enemy_ability_ready",
@@ -114,13 +111,13 @@
             "kind": "ability",
             "target": "enemy-adjacent",
             "ability": "kick",
-            "fired_rule": "close_enemy_kick"
+            "fired_rule": "melee_range_kick"
           },
           "kind_match": false,
           "ability_match": null,
           "target_id_match": true,
-          "input_tokens": 641,
-          "latency_sec": 0.46581520000472665
+          "input_tokens": 622,
+          "latency_sec": 0.48928600014187396
         },
         {
           "scenario": "ranged_enemy_far",
@@ -143,8 +140,8 @@
           "kind_match": false,
           "ability_match": null,
           "target_id_match": null,
-          "input_tokens": 640,
-          "latency_sec": 0.37929619988426566
+          "input_tokens": 621,
+          "latency_sec": 0.49033550010062754
         },
         {
           "scenario": "clustered_enemies",
@@ -152,8 +149,8 @@
           "ground_truth": {
             "kind": "attack",
             "target": "enemy-clusterA",
-            "ability": null,
-            "raw_reply": "{\"kind\":\"attack\",\"target\":\"enemy-clusterA\"}"
+            "ability": "kick",
+            "raw_reply": "{\"kind\":\"attack\",\"target\":\"enemy-clusterA\",\"ability\":\"kick\"}"
           },
           "predicted": {
             "kind": "ability",
@@ -164,8 +161,8 @@
           "kind_match": false,
           "ability_match": null,
           "target_id_match": true,
-          "input_tokens": 690,
-          "latency_sec": 0.9734386999625713
+          "input_tokens": 671,
+          "latency_sec": 0.36990009993314743
         },
         {
           "scenario": "ability_on_cooldown_enemy_present",
@@ -185,8 +182,8 @@
           "kind_match": true,
           "ability_match": null,
           "target_id_match": true,
-          "input_tokens": 640,
-          "latency_sec": 0.4160271999426186
+          "input_tokens": 621,
+          "latency_sec": 1.9779155000578612
         },
         {
           "scenario": "ally_under_threat",
@@ -206,17 +203,20 @@
           "kind_match": true,
           "ability_match": null,
           "target_id_match": true,
-          "input_tokens": 687,
-          "latency_sec": 0.39579720003530383
+          "input_tokens": 668,
+          "latency_sec": 0.4034504999872297
         },
         {
           "scenario": "isolated_vs_grouped_enemy",
           "description": "One enemy bearbot alone far away; two enemy bearbots grouped together at similar distance. Tests violin.md's isolated-target preference.",
           "ground_truth": {
-            "kind": "attack",
-            "target": "enemy-isolated",
+            "kind": "move",
+            "target": {
+              "x": 640,
+              "y": 520
+            },
             "ability": null,
-            "raw_reply": "{\"kind\":\"attack\",\"target\":\"enemy-isolated\"}"
+            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":640,\"y\":520}}"
           },
           "predicted": {
             "kind": "ability",
@@ -226,9 +226,9 @@
           },
           "kind_match": false,
           "ability_match": null,
-          "target_id_match": false,
-          "input_tokens": 700,
-          "latency_sec": 0.3766072001308203
+          "target_id_match": null,
+          "input_tokens": 681,
+          "latency_sec": 0.37162450002506375
         },
         {
           "scenario": "enemy_tower_only",
@@ -236,26 +236,23 @@
           "ground_truth": {
             "kind": "move",
             "target": {
-              "x": 350,
+              "x": 400,
               "y": 500
             },
             "ability": null,
-            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":350,\"y\":500}}"
+            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":400,\"y\":500}}"
           },
           "predicted": {
-            "kind": "move",
-            "target": {
-              "x": 900,
-              "y": 100
-            },
+            "kind": "attack",
+            "target": "tower-enemy",
             "ability": null,
-            "fired_rule": null
+            "fired_rule": "general_attack_nearest"
           },
-          "kind_match": true,
+          "kind_match": false,
           "ability_match": null,
           "target_id_match": null,
-          "input_tokens": 639,
-          "latency_sec": 0.5303623999934644
+          "input_tokens": 620,
+          "latency_sec": 0.40433720010332763
         },
         {
           "scenario": "hp_exactly_at_threshold",
@@ -278,8 +275,8 @@
           "kind_match": false,
           "ability_match": null,
           "target_id_match": null,
-          "input_tokens": 640,
-          "latency_sec": 0.45559140015393496
+          "input_tokens": 621,
+          "latency_sec": 0.41675519989803433
         },
         {
           "scenario": "minion_wave_poke",
@@ -305,8 +302,8 @@
           "kind_match": true,
           "ability_match": null,
           "target_id_match": null,
-          "input_tokens": 652,
-          "latency_sec": 1.2801622999832034
+          "input_tokens": 633,
+          "latency_sec": 1.250383999897167
         },
         {
           "scenario": "softest_target_selection",
@@ -318,16 +315,16 @@
             "raw_reply": "{\"kind\":\"attack\",\"target\":\"enemy-close-healthy\",\"ability\":\"kick\"}"
           },
           "predicted": {
-            "kind": "attack",
-            "target": null,
-            "ability": null,
-            "fired_rule": "threatened_ally_taunt"
+            "kind": "ability",
+            "target": "enemy-close-healthy",
+            "ability": "kick",
+            "fired_rule": "melee_range_kick"
           },
-          "kind_match": true,
+          "kind_match": false,
           "ability_match": null,
-          "target_id_match": null,
-          "input_tokens": 672,
-          "latency_sec": 0.5252217000816017
+          "target_id_match": true,
+          "input_tokens": 653,
+          "latency_sec": 1.8401264999993145
         }
       ]
     },
@@ -347,16 +344,16 @@
             "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":300,\"y\":500}}"
           },
           "predicted": {
-            "kind": "ability",
+            "kind": "attack",
             "target": null,
-            "ability": "chord",
-            "fired_rule": "cast_chord_aoe"
+            "ability": null,
+            "fired_rule": "poke_lane"
           },
           "kind_match": false,
           "ability_match": null,
           "target_id_match": null,
-          "input_tokens": 659,
-          "latency_sec": 0.3545327000319958
+          "input_tokens": 676,
+          "latency_sec": 0.39330060011707246
         },
         {
           "scenario": "low_hp_recall_under_pressure",
@@ -364,23 +361,23 @@
           "ground_truth": {
             "kind": "move",
             "target": {
-              "x": 290,
+              "x": 280,
               "y": 490
             },
             "ability": null,
-            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":290,\"y\":490}}"
+            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":280,\"y\":490}}"
           },
           "predicted": {
-            "kind": "ability",
+            "kind": "recall",
             "target": null,
-            "ability": "glissando",
-            "fired_rule": "panic_dash_out"
+            "ability": null,
+            "fired_rule": "recall_low_hp"
           },
           "kind_match": false,
           "ability_match": null,
           "target_id_match": null,
-          "input_tokens": 640,
-          "latency_sec": 0.7283165999688208
+          "input_tokens": 657,
+          "latency_sec": 0.7786143999546766
         },
         {
           "scenario": "melee_range_enemy_ability_ready",
@@ -403,8 +400,8 @@
           "kind_match": false,
           "ability_match": null,
           "target_id_match": null,
-          "input_tokens": 642,
-          "latency_sec": 0.617965100100264
+          "input_tokens": 659,
+          "latency_sec": 0.8536675998475403
         },
         {
           "scenario": "ranged_enemy_far",
@@ -412,23 +409,26 @@
           "ground_truth": {
             "kind": "move",
             "target": {
-              "x": 350,
+              "x": 300,
               "y": 500
             },
             "ability": null,
-            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":350,\"y\":500}}"
+            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":300,\"y\":500}}"
           },
           "predicted": {
-            "kind": "ability",
-            "target": null,
-            "ability": "glissando",
-            "fired_rule": "dash_for_angle"
+            "kind": "move",
+            "target": {
+              "x": 900,
+              "y": 100
+            },
+            "ability": null,
+            "fired_rule": "advance_lane"
           },
-          "kind_match": false,
+          "kind_match": true,
           "ability_match": null,
           "target_id_match": null,
-          "input_tokens": 641,
-          "latency_sec": 0.4421300000976771
+          "input_tokens": 658,
+          "latency_sec": 0.41843019984662533
         },
         {
           "scenario": "clustered_enemies",
@@ -444,15 +444,15 @@
           },
           "predicted": {
             "kind": "ability",
-            "target": null,
-            "ability": "glissando",
-            "fired_rule": "dash_for_angle"
+            "target": "enemy-clusterA",
+            "ability": "chord",
+            "fired_rule": "engage_cluster"
           },
           "kind_match": true,
-          "ability_match": false,
+          "ability_match": true,
           "target_id_match": null,
-          "input_tokens": 691,
-          "latency_sec": 0.3792862999252975
+          "input_tokens": 708,
+          "latency_sec": 1.7251920001581311
         },
         {
           "scenario": "ability_on_cooldown_enemy_present",
@@ -467,16 +467,19 @@
             "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":350,\"y\":500}}"
           },
           "predicted": {
-            "kind": "ability",
-            "target": null,
-            "ability": "glissando",
-            "fired_rule": "dash_for_angle"
+            "kind": "move",
+            "target": {
+              "x": 900,
+              "y": 100
+            },
+            "ability": null,
+            "fired_rule": null
           },
-          "kind_match": false,
+          "kind_match": true,
           "ability_match": null,
           "target_id_match": null,
-          "input_tokens": 641,
-          "latency_sec": 0.5008821999654174
+          "input_tokens": 658,
+          "latency_sec": 0.4094495000317693
         },
         {
           "scenario": "ally_under_threat",
@@ -485,22 +488,25 @@
             "kind": "move",
             "target": {
               "x": 300,
-              "y": 500
+              "y": 490
             },
             "ability": null,
-            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":300,\"y\":500}}"
+            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":300,\"y\":490}}"
           },
           "predicted": {
-            "kind": "ability",
-            "target": "enemy-near-ally",
-            "ability": "chord",
-            "fired_rule": "cast_chord_aoe"
+            "kind": "move",
+            "target": {
+              "x": 900,
+              "y": 100
+            },
+            "ability": null,
+            "fired_rule": "advance_lane"
           },
-          "kind_match": false,
+          "kind_match": true,
           "ability_match": null,
           "target_id_match": null,
-          "input_tokens": 688,
-          "latency_sec": 0.41436309996061027
+          "input_tokens": 705,
+          "latency_sec": 1.8179396998602897
         },
         {
           "scenario": "isolated_vs_grouped_enemy",
@@ -516,15 +522,15 @@
           },
           "predicted": {
             "kind": "ability",
-            "target": null,
-            "ability": "glissando",
-            "fired_rule": "dash_for_angle"
+            "target": "enemy-groupA",
+            "ability": "chord",
+            "fired_rule": "engage_cluster"
           },
           "kind_match": false,
           "ability_match": null,
           "target_id_match": null,
-          "input_tokens": 701,
-          "latency_sec": 0.3742047999985516
+          "input_tokens": 718,
+          "latency_sec": 0.7496680999174714
         },
         {
           "scenario": "enemy_tower_only",
@@ -532,23 +538,26 @@
           "ground_truth": {
             "kind": "move",
             "target": {
-              "x": 400,
-              "y": 500
+              "x": 300,
+              "y": 480
             },
             "ability": null,
-            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":400,\"y\":500}}"
+            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":300,\"y\":480}}"
           },
           "predicted": {
-            "kind": "ability",
-            "target": null,
-            "ability": "glissando",
-            "fired_rule": "dash_for_angle"
+            "kind": "move",
+            "target": {
+              "x": 900,
+              "y": 100
+            },
+            "ability": null,
+            "fired_rule": null
           },
-          "kind_match": false,
+          "kind_match": true,
           "ability_match": null,
           "target_id_match": null,
-          "input_tokens": 640,
-          "latency_sec": 0.5111010998953134
+          "input_tokens": 657,
+          "latency_sec": 0.3580662999302149
         },
         {
           "scenario": "hp_exactly_at_threshold",
@@ -563,40 +572,46 @@
             "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":350,\"y\":500}}"
           },
           "predicted": {
-            "kind": "ability",
-            "target": null,
-            "ability": "glissando",
-            "fired_rule": "dash_for_angle"
+            "kind": "move",
+            "target": {
+              "x": 900,
+              "y": 100
+            },
+            "ability": null,
+            "fired_rule": null
           },
-          "kind_match": false,
+          "kind_match": true,
           "ability_match": null,
           "target_id_match": null,
-          "input_tokens": 641,
-          "latency_sec": 1.0183483001310378
+          "input_tokens": 658,
+          "latency_sec": 0.46633390011265874
         },
         {
           "scenario": "minion_wave_poke",
           "description": "Several allied minions nearby, no visible enemies. Tests lane-push / poke-the-wave baseline, distinguished from empty_lane_push by minion presence.",
           "ground_truth": {
+            "kind": "move",
+            "target": {
+              "x": 340,
+              "y": 520
+            },
+            "ability": null,
+            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":340,\"y\":520}}"
+          },
+          "predicted": {
             "kind": "attack",
             "target": {
               "x": 340,
               "y": 520
             },
             "ability": null,
-            "raw_reply": "{\"kind\":\"attack\",\"target\":{\"x\":340,\"y\":520}}"
-          },
-          "predicted": {
-            "kind": "ability",
-            "target": null,
-            "ability": "chord",
-            "fired_rule": "cast_chord_aoe"
+            "fired_rule": "poke_lane"
           },
           "kind_match": false,
           "ability_match": null,
           "target_id_match": null,
-          "input_tokens": 653,
-          "latency_sec": 0.9307194000575691
+          "input_tokens": 670,
+          "latency_sec": 0.5288435998372734
         },
         {
           "scenario": "softest_target_selection",
@@ -604,11 +619,11 @@
           "ground_truth": {
             "kind": "move",
             "target": {
-              "x": 290,
-              "y": 490
+              "x": 295,
+              "y": 495
             },
             "ability": null,
-            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":290,\"y\":490}}"
+            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":295,\"y\":495}}"
           },
           "predicted": {
             "kind": "ability",
@@ -619,8 +634,8 @@
           "kind_match": false,
           "ability_match": null,
           "target_id_match": null,
-          "input_tokens": 673,
-          "latency_sec": 0.4909212999045849
+          "input_tokens": 690,
+          "latency_sec": 0.39849819988012314
         }
       ]
     },
@@ -633,23 +648,26 @@
           "ground_truth": {
             "kind": "move",
             "target": {
-              "x": 350,
+              "x": 360,
               "y": 500
             },
             "ability": null,
-            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":350,\"y\":500}}"
+            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":360,\"y\":500}}"
           },
           "predicted": {
             "kind": "move",
-            "target": null,
+            "target": {
+              "x": 900,
+              "y": 100
+            },
             "ability": null,
-            "fired_rule": "reposition_for_next"
+            "fired_rule": null
           },
           "kind_match": true,
           "ability_match": null,
           "target_id_match": null,
-          "input_tokens": 661,
-          "latency_sec": 0.4445722000673413
+          "input_tokens": 636,
+          "latency_sec": 0.3977693000342697
         },
         {
           "scenario": "low_hp_recall_under_pressure",
@@ -669,8 +687,8 @@
           "kind_match": false,
           "ability_match": null,
           "target_id_match": null,
-          "input_tokens": 642,
-          "latency_sec": 1.540840399917215
+          "input_tokens": 617,
+          "latency_sec": 0.3940099000465125
         },
         {
           "scenario": "melee_range_enemy_ability_ready",
@@ -682,16 +700,16 @@
             "raw_reply": "{\"kind\":\"attack\",\"target\":\"enemy-adjacent\",\"ability\":\"staccato\"}"
           },
           "predicted": {
-            "kind": "move",
+            "kind": "ability",
             "target": "enemy-adjacent",
-            "ability": null,
+            "ability": "staccato",
             "fired_rule": "engage_isolated"
           },
           "kind_match": false,
           "ability_match": null,
           "target_id_match": true,
-          "input_tokens": 644,
-          "latency_sec": 0.9447426998522133
+          "input_tokens": 619,
+          "latency_sec": 0.3575138000305742
         },
         {
           "scenario": "ranged_enemy_far",
@@ -709,13 +727,13 @@
             "kind": "move",
             "target": "enemy-far",
             "ability": null,
-            "fired_rule": "engage_isolated"
+            "fired_rule": "move_to_target"
           },
           "kind_match": true,
           "ability_match": null,
           "target_id_match": null,
-          "input_tokens": 643,
-          "latency_sec": 1.1584644000977278
+          "input_tokens": 618,
+          "latency_sec": 0.9678706999402493
         },
         {
           "scenario": "clustered_enemies",
@@ -723,23 +741,23 @@
           "ground_truth": {
             "kind": "move",
             "target": {
-              "x": 390,
-              "y": 465
+              "x": 435,
+              "y": 470
             },
             "ability": null,
-            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":390,\"y\":465}}"
+            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":435,\"y\":470}}"
           },
           "predicted": {
-            "kind": "ability",
+            "kind": "attack",
             "target": "enemy-clusterA",
-            "ability": "staccato",
-            "fired_rule": "use_staccato"
+            "ability": null,
+            "fired_rule": "attack_in_range"
           },
           "kind_match": false,
           "ability_match": null,
           "target_id_match": null,
-          "input_tokens": 693,
-          "latency_sec": 0.42416599998250604
+          "input_tokens": 668,
+          "latency_sec": 2.0408477999735624
         },
         {
           "scenario": "ability_on_cooldown_enemy_present",
@@ -754,16 +772,16 @@
             "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":480,\"y\":480}}"
           },
           "predicted": {
-            "kind": "move",
+            "kind": "ability",
             "target": "enemy-mid",
-            "ability": null,
+            "ability": "staccato",
             "fired_rule": "engage_isolated"
           },
-          "kind_match": true,
+          "kind_match": false,
           "ability_match": null,
           "target_id_match": null,
-          "input_tokens": 643,
-          "latency_sec": 0.39320529997348785
+          "input_tokens": 618,
+          "latency_sec": 2.638905799947679
         },
         {
           "scenario": "ally_under_threat",
@@ -781,13 +799,13 @@
             "kind": "move",
             "target": "enemy-near-ally",
             "ability": null,
-            "fired_rule": "engage_isolated"
+            "fired_rule": "move_to_target"
           },
           "kind_match": true,
           "ability_match": null,
           "target_id_match": null,
-          "input_tokens": 690,
-          "latency_sec": 0.33832859992980957
+          "input_tokens": 665,
+          "latency_sec": 0.4236858000513166
         },
         {
           "scenario": "isolated_vs_grouped_enemy",
@@ -799,16 +817,16 @@
             "raw_reply": "{\"kind\":\"attack\",\"target\":\"enemy-isolated\",\"ability\":\"staccato\"}"
           },
           "predicted": {
-            "kind": "move",
+            "kind": "ability",
             "target": "enemy-isolated",
-            "ability": null,
+            "ability": "staccato",
             "fired_rule": "engage_isolated"
           },
           "kind_match": false,
           "ability_match": null,
           "target_id_match": true,
-          "input_tokens": 703,
-          "latency_sec": 0.6855241998564452
+          "input_tokens": 678,
+          "latency_sec": 0.4197647001128644
         },
         {
           "scenario": "enemy_tower_only",
@@ -816,23 +834,23 @@
           "ground_truth": {
             "kind": "move",
             "target": {
-              "x": 400,
-              "y": 500
+              "x": 300,
+              "y": 400
             },
             "ability": null,
-            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":400,\"y\":500}}"
+            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":300,\"y\":400}}"
           },
           "predicted": {
-            "kind": "move",
+            "kind": "attack",
             "target": "tower-enemy",
             "ability": null,
-            "fired_rule": "engage_isolated"
+            "fired_rule": "attack_in_range"
           },
-          "kind_match": true,
+          "kind_match": false,
           "ability_match": null,
           "target_id_match": null,
-          "input_tokens": 642,
-          "latency_sec": 0.3885773001238704
+          "input_tokens": 617,
+          "latency_sec": 0.30748870014213026
         },
         {
           "scenario": "hp_exactly_at_threshold",
@@ -847,16 +865,16 @@
             "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":420,\"y\":480}}"
           },
           "predicted": {
-            "kind": "move",
+            "kind": "ability",
             "target": "enemy-boundary",
-            "ability": null,
+            "ability": "staccato",
             "fired_rule": "engage_isolated"
           },
-          "kind_match": true,
+          "kind_match": false,
           "ability_match": null,
           "target_id_match": null,
-          "input_tokens": 643,
-          "latency_sec": 1.0131230000406504
+          "input_tokens": 618,
+          "latency_sec": 0.5090036999899894
         },
         {
           "scenario": "minion_wave_poke",
@@ -871,16 +889,19 @@
             "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":340,\"y\":520}}"
           },
           "predicted": {
-            "kind": "ability",
-            "target": null,
-            "ability": "staccato",
-            "fired_rule": "use_staccato"
+            "kind": "move",
+            "target": {
+              "x": 900,
+              "y": 100
+            },
+            "ability": null,
+            "fired_rule": null
           },
-          "kind_match": false,
+          "kind_match": true,
           "ability_match": null,
           "target_id_match": null,
-          "input_tokens": 655,
-          "latency_sec": 0.3676487000193447
+          "input_tokens": 630,
+          "latency_sec": 0.47281279996968806
         },
         {
           "scenario": "softest_target_selection",
@@ -895,16 +916,16 @@
             "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":780,\"y\":160}}"
           },
           "predicted": {
-            "kind": "move",
+            "kind": "ability",
             "target": "enemy-close-healthy",
-            "ability": null,
+            "ability": "staccato",
             "fired_rule": "engage_isolated"
           },
-          "kind_match": true,
+          "kind_match": false,
           "ability_match": null,
           "target_id_match": null,
-          "input_tokens": 675,
-          "latency_sec": 1.723097100155428
+          "input_tokens": 650,
+          "latency_sec": 0.42076359991915524
         }
       ]
     }

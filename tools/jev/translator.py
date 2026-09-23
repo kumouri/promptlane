@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 from dataclasses import dataclass, field
 
@@ -79,6 +80,7 @@ class TranslatedSchema:
     default_ability: str | None
     default_target_selector: str | None
     raw_model_output: str
+    validation_notes: tuple[str, ...] = ()
 
 
 def _extract_json_object(text: str) -> dict:
@@ -181,6 +183,114 @@ def parse_schema(raw_json: dict, pilot_file: str, instrument: str, raw_text: str
     )
 
 
+class SchemaValidationError(ValueError):
+    """Raised by `enforce_absolute_priority` when the prose names an override rule ("no exceptions",
+    "no matter", ...) that the translated schema doesn't contain at all -- a worse failure than
+    misordering, because there is no rule left to promote. `translate_pilot` treats this the same as
+    a JSON-parse failure: retry with the model, don't silently ship a schema missing the override."""
+
+
+# Phrases that mark a sentence as an unconditional override, not just emphasis. Deliberately
+# NOT "always"/"never": both real pilots' ability paragraphs use "always"/routine-habit framing for
+# ordinary ability usage (e.g. drums.md's Kick -- "on cooldown, always, no hesitation") that has
+# nothing to do with priority-overriding another rule; treating those as override markers would
+# promote the wrong rule (repro'd below). These five phrases only ever showed up, in this repo's
+# three pilots, attached to the one sentence per file that truly means "this beats everything else":
+# `keytar.md` ("no exceptions") and `violin.md` ("no matter how close the kill looked").
+ABSOLUTE_OVERRIDE_PHRASES = ("no exceptions", "without exception", "no matter", "regardless of", "unconditionally")
+
+_STOPWORDS = frozenset(
+    "a an the is are be being been this that these those it its own of to in on at as by for with "
+    "and or not no near you your yourself their them off out under over above below within into onto "
+    "if none any all one two some more most least than then so do does did just still yet when while "
+    "there here what which who whom whose".split()
+)
+
+
+def _tokenize(text: str) -> set[str]:
+    return {t for t in re.findall(r"[a-z0-9]+", text.lower()) if t not in _STOPWORDS}
+
+
+def _find_absolute_paragraphs(pilot_text: str) -> list[str]:
+    """Paragraph-level, not sentence-level: these pilot files use em-dash-joined clauses inside one
+    paragraph rather than short sentences, so splitting on blank lines (the files' own structure --
+    one idea per paragraph) is more reliable than a sentence-boundary regex."""
+    paragraphs = [p.strip() for p in pilot_text.split("\n\n") if p.strip()]
+    return [p for p in paragraphs if any(phrase in p.lower() for phrase in ABSOLUTE_OVERRIDE_PHRASES)]
+
+
+def _rule_tokens(rule: TranslatedRule) -> set[str]:
+    fields = [rule.condition, rule.criteria_true, rule.criteria_false, rule.action_kind, rule.action_ability]
+    return _tokenize(" ".join(f for f in fields if f))
+
+
+def _match_rule_for_paragraph(paragraph: str, rules: list[TranslatedRule], min_overlap: int = 2) -> int | None:
+    """Best-token-overlap match, content-based -- not tied to any pilot's specific wording (no
+    hardcoded "recall"/"hp" check). Requires at least `min_overlap` shared meaningful tokens so an
+    unrelated rule with one coincidental word in common doesn't get promoted by accident."""
+    para_tokens = _tokenize(paragraph)
+    best_idx, best_score = None, min_overlap - 1
+    for i, rule in enumerate(rules):
+        score = len(para_tokens & _rule_tokens(rule))
+        if score > best_score:
+            best_idx, best_score = i, score
+    return best_idx
+
+
+def enforce_absolute_priority(schema: TranslatedSchema, pilot_text: str) -> TranslatedSchema:
+    """Structural guard: a rule cascade is first-match-wins, so if the prose marks one rule as an
+    unconditional override ("no exceptions", "no matter", ...) but the translator placed it anywhere
+    but first, every earlier rule silently pre-empts it -- exactly `keytar.md`'s reproduced bug
+    (recall placed 4th-6th of 5-6 rules, 3/3 runs, because an unrelated ability-cooldown rule with no
+    presence check sat above it). This does not special-case keytar: it scans the ORIGINAL prose for
+    override language, independently of anything the model said about itself, and maps each hit to a
+    rule by plain token overlap (`_match_rule_for_paragraph`) -- so it fires (or doesn't) the same way
+    for any pilot with this shape of prose, not just the three checked into this repo.
+
+    Raises `SchemaValidationError` if an override paragraph doesn't match any rule well enough
+    (the translator dropped the override rule entirely -- reordering can't fix a missing rule).
+    Otherwise returns a schema with the matched rule(s) stably sorted to the front, and a plain-
+    English note recorded in `validation_notes` (surfaced to the entrant via `render_markdown`) when
+    that actually changed the order."""
+    paragraphs = _find_absolute_paragraphs(pilot_text)
+    if not paragraphs:
+        return schema
+
+    matched_indices: set[int] = set()
+    for paragraph in paragraphs:
+        idx = _match_rule_for_paragraph(paragraph, schema.rules)
+        if idx is None:
+            phrase = next(p for p in ABSOLUTE_OVERRIDE_PHRASES if p in paragraph.lower())
+            raise SchemaValidationError(
+                f"the prose uses override language ({phrase!r}) in a paragraph with no matching "
+                f"translated rule -- the schema is missing this override entirely: {paragraph[:160]!r}"
+            )
+        matched_indices.add(idx)
+
+    order = sorted(range(len(schema.rules)), key=lambda i: (i not in matched_indices, i))
+    if order == list(range(len(schema.rules))):
+        return schema
+
+    moved_ids = [schema.rules[i].id for i in order if i in matched_indices]
+    note = (
+        "priority guard: promoted rule(s) "
+        + ", ".join(moved_ids)
+        + " to the top of the cascade -- the prose uses unconditional-override language for them "
+        "(" + ", ".join(sorted({p for p in ABSOLUTE_OVERRIDE_PHRASES if any(p in para.lower() for para in paragraphs)})) + ") "
+        "but the translator placed them lower, where an earlier rule could pre-empt them."
+    )
+    return TranslatedSchema(
+        pilot_file=schema.pilot_file,
+        instrument=schema.instrument,
+        rules=[schema.rules[i] for i in order],
+        default_kind=schema.default_kind,
+        default_ability=schema.default_ability,
+        default_target_selector=schema.default_target_selector,
+        raw_model_output=schema.raw_model_output,
+        validation_notes=schema.validation_notes + (note,),
+    )
+
+
 def translate_pilot(
     pilot_text: str,
     pilot_file: str,
@@ -198,7 +308,8 @@ def translate_pilot(
         reply = _ollama_generate(url, model, prompt, timeout=90.0, max_tokens=1800)
         try:
             raw_json = _extract_json_object(reply)
-            return parse_schema(raw_json, pilot_file, instrument, reply)
+            schema = parse_schema(raw_json, pilot_file, instrument, reply)
+            return enforce_absolute_priority(schema, pilot_text)
         except (ValueError, json.JSONDecodeError) as err:
             last_err = err
             prompt = (
@@ -226,6 +337,9 @@ def render_markdown(schema: TranslatedSchema) -> str:
         lines.append(f"| {i} | {r.condition} | {action_desc} |")
     default_desc = _describe_action(schema.default_kind, schema.default_ability, schema.default_target_selector)
     lines.append(f"| — | *(none of the above)* | {default_desc} |")
+    if schema.validation_notes:
+        lines += ["", "**Automatic priority fixes applied to this schema:**", ""]
+        lines += [f"- {note}" for note in schema.validation_notes]
     return "\n".join(lines) + "\n"
 
 
