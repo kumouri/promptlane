@@ -854,3 +854,32 @@ Each is answerable with one word or a pick. Recommendations are marked.
 17. **Phase C public:** after the jam *(rec)* / never / before?
 18. **Spectators also behind Access?** yes *(rec for round one)* / public read-only during the jam?
 19. **Organizer role:** Ceryce only *(rec)* / an `organizers` list?
+
+---
+
+## 8. Addendum: Jev house bot (shadow, built 2026-09-23)
+
+`docs/jev-decision-model-research.md` §6's option 3 — run Jev only where it doesn't touch the
+entrant contract, the house bot — is now built, per Ceryce's 2026-09-23 13:14 CT ruling: **shadow
+only, live is her call later.** Full detail, the head-to-head numbers, and what's measured vs
+inferred: `runs/jev-house-bot-2026-09-23.md`.
+
+**Files, additive, none of them touch `src/pilots/*`, `src/sim/*`, `src/rng.ts` or `src/types.ts`
+(still frozen, per §3 above):**
+
+| File | What |
+|---|---|
+| `tools/jev/house_server.py` | A second Jev HTTP backend, alongside `tools/model_server.py`, with a different wire contract (worksheet in, `{bucket, rule, answers, ms}` out — not `{prompt} -> {reply}`, per the memo's §4: Jev has no `prompt` field). Reuses `tools/jev/{client,rules,serializer}.py` unchanged. Own spend cap (`--budget-usd`, default $1). |
+| `tools/match/jevPilot.ts` | The Jev house pilot: `Observation` → worksheet (code, mirrors house-violet.md's own self-report rules) → the server above → bucket → `Action`. Lives outside `src/pilots/` on purpose (frozen). Holds on any transport failure, never throws. |
+| `tools/match/headless.ts` | Additive only: `RunOptions.decisionPilotFor`, an optional per-bot pilot override; omitted (the default), a match is byte-for-byte identical to before this addendum — covered by the existing 83-test `test:arena` suite passing unchanged. |
+| `tools/arena/queue.mjs`, `server.mjs` | The one config change to go live: `config.house.backend` (unset by default) naming a `kind: "jev-http"` entry in `config.backends` routes the house-playing side only through Jev; the entrant side is never affected. Validated at config load; covered by `test_queue.mjs`. |
+| `tools/jev/run_house_bench.mjs` | The head-to-head benchmark script (Jev house vs today's qwen3.5:9b house) used for the run report above. |
+
+**Going live is this one change**, in whatever `config.json` the arena actually runs with:
+
+```json
+"house": { "backend": "jev-house" }
+```
+
+with a `"jev-house": { "kind": "jev-http", "endpoint": "http://<host>:8798/" }` entry present under
+`backends` (see `tools/arena/config.example.json`, where it's present but not selected).

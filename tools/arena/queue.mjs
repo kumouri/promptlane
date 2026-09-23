@@ -46,7 +46,9 @@ export class Queue {
    * @param opts.headless    the bundle from `loadHeadless()`
    * @param opts.dataDir     runs/arena
    * @param opts.promptStore PromptStore
-   * @param opts.house       { handle, hash, file }
+   * @param opts.house       { handle, hash, file, backend? } -- `backend` names a `kind: "jev-http"`
+   *                         entry in `opts.backends` that plays the house side only (see
+   *                         `decisionPilotFor` below); unset by default
    * @param opts.live        LiveHub (optional) — running jobs stream their events into it
    * @param opts.hooks       test seams: `afterRun(log, job)` may replace the log before verify;
    *                         `callModelFor(job)` replaces the adapter; `wallCapMs` overrides the cap
@@ -187,6 +189,28 @@ export class Queue {
     }
   }
 
+  /**
+   * SHADOW ONLY as of 2026-09-23 (runs/jev-house-bot-2026-09-23.md): `undefined` unless
+   * `config.house.backend` names a `kind: "jev-http"` backend (validated in `server.mjs::
+   * loadConfig`), in which case the house-playing side of `job` -- and only that side -- decides
+   * through Jev instead of `job.backendId`'s text-prompt model. An entrant never plays Jev: the
+   * other side always keeps its normal `callModelFor`/`PromptPilot` path via `headless.ts`'s
+   * fallback when this returns `undefined` for a bot index.
+   */
+  decisionPilotFor(job) {
+    const backendId = this.house?.backend;
+    const backend = backendId ? this.backends[backendId] : null;
+    if (!backend) return undefined;
+    const houseSide = job.sides.violet?.house ? 'violet' : job.sides.green?.house ? 'green' : null;
+    if (!houseSide) return undefined;
+    let pilot = null;
+    return (botIndex, team, currentTick) => {
+      if (team !== houseSide) return undefined;
+      pilot ??= this.headless.jevTracingPilot({ endpoint: backend.endpoint, timeoutSec: backend.timeoutSec }, currentTick);
+      return pilot;
+    };
+  }
+
   resolveSide(ref, id, side) {
     if (ref.scratch) {
       const f = path.join(this.scratchDir, `${id}.md`);
@@ -228,6 +252,7 @@ export class Queue {
         callModelFor = () => call;
       }
       if (this.hooks.callModelFor) callModelFor = this.hooks.callModelFor(job);
+      const decisionPilotFor = this.hooks.decisionPilotFor ? this.hooks.decisionPilotFor(job) : this.decisionPilotFor(job);
       const capMs = this.hooks.wallCapMs ?? wallCapMs({ maxSimSec: job.maxSimSec, cadenceSec: job.cadenceSec, avgSecPerCall: backend.avgSecPerCall });
       timer = setTimeout(() => ac.abort(), capMs);
       this.log.info(
@@ -238,6 +263,7 @@ export class Queue {
         seed: job.seed,
         sides,
         callModelFor,
+        decisionPilotFor,
         cadenceSec: job.cadenceSec,
         maxSimSec: job.maxSimSec,
         backend: logBackend,

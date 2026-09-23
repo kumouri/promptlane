@@ -16,6 +16,7 @@ import type { Action, Observation, Pilot, Team } from '../../src/types';
 import { Match, TICK_DT, type RosterSlot } from '../../src/sim/match';
 import { PromptPilot } from '../../src/pilots/promptPilot';
 import type { CallModel } from '../../src/pilots/callModel';
+import type { TracingDecision, TracingPilot } from './jevPilot';
 import {
   CHECKPOINT_EVERY_TICKS,
   JAM_ROSTER,
@@ -32,6 +33,7 @@ import {
 } from '../../src/replay';
 
 export { mockCallModel } from '../../src/pilots/callModel';
+export { jevTracingPilot } from './jevPilot';
 
 const MATCH_DURATION_SEC = 600;
 const MAX_TICKS = Math.ceil(MATCH_DURATION_SEC / TICK_DT) + 2;
@@ -47,6 +49,16 @@ export interface RunOptions {
   sides: Record<Team, LogSide>;
   /** One adapter per bearbot index (0..5), so mocks can be seeded per bot. */
   callModelFor: (botIndex: number) => CallModel;
+  /**
+   * Per-bot override of the whole decision pilot, not just the model call -- for a bearbot whose
+   * decision logic isn't a text prompt at all (the Jev house bot, `tools/match/jevPilot.ts`).
+   * Returning `undefined` for a bot index falls back to the default `PromptPilot`/`callModelFor`
+   * pilot exactly as before; omitting this option entirely (the default) makes every bot use the
+   * default pilot, so an existing caller's behaviour is unchanged byte-for-byte. The third
+   * argument is this match's own tick counter, for a pilot (like Jev's) whose wire format wants
+   * "what tick is this" and has no other way to know.
+   */
+  decisionPilotFor?: (botIndex: number, team: Team, currentTick: () => number) => TracingPilot | undefined;
   /** Seconds of sim time between real model calls per bearbot. 0.5 = the game's own polling rate. */
   cadenceSec?: number;
   backend: Record<string, unknown>;
@@ -81,17 +93,35 @@ function emptyStats(): SideStats {
   return { calls: 0, cached: 0, parseErrors: 0, callErrors: 0, avgMs: 0, deaths: 0, towersLost: 0 };
 }
 
-/** Wraps a `PromptPilot`: records every ask into the log, enforces cadence, tracks in-flight calls. */
+/** Adapts a `PromptPilot` (the frozen v1 specimen, `src/pilots/promptPilot.ts`) to the
+ * `TracingPilot` contract `RecordingPilot` below now speaks generically -- the game's only text-
+ * prompt pilot, unchanged, wrapped rather than edited. */
+function promptTracingPilot(promptText: string, callModel: CallModel): TracingPilot {
+  let lastTrace: { reply: string; action: Action | null } | null = null;
+  const inner = new PromptPilot(promptText, callModel, (_prompt, reply, action) => {
+    lastTrace = { reply, action };
+  });
+  return {
+    async decide(obs: Observation): Promise<TracingDecision> {
+      await inner.decide(obs); // PromptPilot's own return already folds null -> hold; the trace has the pre-fallback action
+      const trace = lastTrace ?? { reply: '', action: null };
+      lastTrace = null;
+      return trace;
+    },
+  };
+}
+
+/** Wraps any `TracingPilot` (a prompt bearbot or a Jev one, `tools/match/jevPilot.ts`): records
+ * every ask into the log, enforces cadence, tracks in-flight calls. Identical to every caller that
+ * doesn't pass `decisionPilotFor` -- the only reader of this generalisation, added for the Jev
+ * house bot, is that one new option. */
 class RecordingPilot implements Pilot {
   private last: Action = { kind: 'hold' };
   private nextCallAt = -Infinity;
-  private lastTrace: { reply: string; action: Action | null } | null = null;
-  readonly inner: PromptPilot;
 
   constructor(
     private readonly botIndex: number,
-    promptText: string,
-    callModel: CallModel,
+    private readonly pilot: TracingPilot,
     private readonly ctx: {
       cadenceSec: number;
       log: MatchLog;
@@ -103,11 +133,7 @@ class RecordingPilot implements Pilot {
       totalMs: { value: number };
       onDecision?: (decision: LogDecision) => void;
     },
-  ) {
-    this.inner = new PromptPilot(promptText, callModel, (_prompt, reply, action) => {
-      this.lastTrace = { reply, action };
-    });
-  }
+  ) {}
 
   decide(obs: Observation): Promise<Action> {
     const { ctx } = this;
@@ -124,10 +150,9 @@ class RecordingPilot implements Pilot {
     this.nextCallAt = ctx.currentClock() + ctx.cadenceSec;
 
     const started = Date.now();
-    const p = this.inner.decide(obs).then((action) => {
+    const p = this.pilot.decide(obs).then((trace) => {
       const ms = Date.now() - started;
-      const trace = this.lastTrace ?? { reply: '', action: null };
-      this.lastTrace = null;
+      const action = trace.action ?? { kind: 'hold' as const };
       ctx.stats.calls += 1;
       ctx.totalMs.value += ms;
       if (trace.action === null) {
@@ -175,8 +200,10 @@ export async function runMatch(opts: RunOptions): Promise<MatchLog> {
   const roster: RosterSlot[] = JAM_ROSTER.map((slot, i) => ({
     ...slot,
     pilotKind: 'prompt-http',
-    makePilot: () =>
-      new RecordingPilot(i, opts.sides[slot.team].promptText, opts.callModelFor(i), {
+    makePilot: () => {
+      const pilot =
+        opts.decisionPilotFor?.(i, slot.team, currentTick) ?? promptTracingPilot(opts.sides[slot.team].promptText, opts.callModelFor(i));
+      return new RecordingPilot(i, pilot, {
         cadenceSec,
         log,
         stats: stats[slot.team],
@@ -186,7 +213,8 @@ export async function runMatch(opts: RunOptions): Promise<MatchLog> {
         currentClock,
         totalMs: totalMs[slot.team],
         onDecision: opts.onDecision,
-      }),
+      });
+    },
   }));
 
   match = new Match(opts.seed, roster);
