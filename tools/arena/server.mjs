@@ -63,6 +63,15 @@ export function loadConfig(file, overrides = {}) {
   if (overrides.entrantsDir) cfg.entrants = { kind: 'dir', path: overrides.entrantsDir, syncIntervalSec: cfg.entrants?.syncIntervalSec ?? 60 };
   if (overrides.organizerEmail) cfg.organizerEmail = overrides.organizerEmail;
   if (!cfg.backends[cfg.tournament.backend]) throw new Error(`tournament backend ${cfg.tournament.backend} is not in config.backends`);
+  // Jev house bot (SHADOW ONLY as of 2026-09-23 -- runs/jev-house-bot-2026-09-23.md): unset by
+  // default, so the house bot plays through `tournament.backend` exactly as it always has. Setting
+  // `house.backend` to a `kind: "jev-http"` entry in `config.backends` is the one config change
+  // that makes it live for the house side only -- entrants are never affected either way.
+  if (cfg.house?.backend) {
+    const houseBackend = cfg.backends[cfg.house.backend];
+    if (!houseBackend) throw new Error(`house backend ${cfg.house.backend} is not in config.backends`);
+    if (houseBackend.kind !== 'jev-http') throw new Error(`house backend ${cfg.house.backend} must have kind "jev-http", got ${houseBackend.kind}`);
+  }
   return cfg;
 }
 
@@ -170,7 +179,7 @@ export async function createArena({
   if (ledger.state().house?.hash !== houseHash || ledger.state().house?.file !== houseFile) {
     ledger.append({ type: 'house', handle: houseHandle, hash: houseHash, file: houseFile });
   }
-  const house = { handle: houseHandle, hash: houseHash, file: houseFile };
+  const house = { handle: houseHandle, hash: houseHash, file: houseFile, backend: config.house?.backend };
   const houseRef = { handle: houseHandle, hash: houseHash, house: true };
   log.info(`arena: house bot loaded from ${houseFile} (${houseHash.slice(0, 8)})`);
 

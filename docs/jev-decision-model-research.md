@@ -5,6 +5,12 @@ note. No paid inference was run. Every number below is either a vendor claim (la
 independent third-party claim (labelled), or a measurement already checked into this repo (labelled
 and cited). Where I could not verify something, I say so instead of guessing.*
 
+**Update, 2026-09-23: §6 option 3 (the house bot only, not the entrant contract) is now built and
+tested for real, per Ceryce's 2026-09-23 13:14 CT ruling — shadow only, live is her call later.**
+`docs/arena-site-spec.md` §8 and `runs/jev-house-bot-2026-09-23.md` have the code map and the
+head-to-head numbers (Jev house bot vs today's qwen3.5:9b house bot, real sim matches). Everything
+below is the original research as written, unchanged.
+
 This memo answers a request from Ceryce (Telegram, 2026-09-22 21:29–21:42 CT): identify a model
 category she called "type one models" from a company she recalled, hedged, as "Typesafe AI", and —
 if identified — say what adapting `promptlane`'s jam arena to it would take, what it would cost,

@@ -27,7 +27,15 @@
       "usdPerMToken": { "in": 0.08, "out": 0.28 },
       "dailyBudgetUsd": 5
     },
-    "mock": { "kind": "mock", "model": "mock", "avgSecPerCall": 0.001 }
+    "mock": { "kind": "mock", "model": "mock", "avgSecPerCall": 0.001 },
+    "jev-house": {
+      "kind": "jev-http",
+      "endpoint": "http://127.0.0.1:8798/",
+      "model": "typesafe/jev",
+      "avgSecPerCall": 0.7,
+      "timeoutSec": 30,
+      "_comment": "tools/jev/house_server.py; SHADOW ONLY -- set house.backend below to 'jev-house' to go live (runs/jev-house-bot-2026-09-23.md)"
+    }
   },
   "entrants": { "kind": "gh", "repo": "kumouri/jamobair-entrants", "ref": "main", "syncIntervalSec": 60 },
   "house": {
@@ -36,7 +44,9 @@
       { "violet": "prompts/pilots/house-violet.md", "green": "prompts/pilots/house-green.md" },
       "prompts/pilots/house.md",
       "prompts/pilots/drums.md"
-    ]
+    ],
+    "_comment_backend": "unset = today's default (house plays tournament.backend, like every entrant); set to 'jev-house' to make the house bot play Jev instead -- entrants are never affected either way",
+    "backend": null
   },
   "organizerEmail": "CHANGE-ME@inrhythm.com"
 }
