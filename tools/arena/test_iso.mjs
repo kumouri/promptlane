@@ -15,7 +15,7 @@ async function loadIso() {
 }
 
 const iso = await loadIso();
-const { toIso, fitIso, project, groundMatrixOf, screenAngleOfWorldDir, footprintRadii, depthOf, compareDepth, stableHash, stableOffset, clusterUnits } = iso;
+const { toIso, fitIso, project, groundMatrixOf, screenAngleOfWorldDir, footprintRadii, depthOf, compareDepth, stableHash, stableOffset, clusterUnits, HEIGHT_BY_KIND } = iso;
 
 const VIOLET_BASE = { x: 100, y: 900 };
 const GREEN_BASE = { x: 900, y: 100 };
@@ -45,6 +45,18 @@ test('fitIso: ky is always half of kx (2:1 iso ratio), and both scale down for a
   assert.ok(Math.abs(wide.ky - wide.kx * 0.5) < 1e-9);
   assert.ok(Math.abs(phone.ky - phone.kx * 0.5) < 1e-9);
   assert.ok(phone.kx < wide.kx, 'a narrow phone viewport yields a smaller scale, never a broken/negative one');
+});
+
+test('fitIso: content is vertically centered — equal margin above the tallest lifted point and below the ground plane (regression: an earlier version double-applied ISO_RATIO and left half the canvas empty)', () => {
+  const w = 2000;
+  const h = 1075; // chosen so kxFromWidth (1) and kxFromHeight (1) coincide at the default maxHeight (150)
+  const fit = fitIso(w, h);
+  const topOfContent = fit.originY - HEIGHT_BY_KIND.nexus * fit.kz; // v=0, fully lifted
+  const bottomOfContent = fit.originY + 1000 * fit.ky * 2; // v=2000, ground
+  const topMargin = topOfContent;
+  const bottomMargin = h - bottomOfContent;
+  assert.ok(Math.abs(topMargin - bottomMargin) < 1e-6, `expected symmetric margins, got top=${topMargin} bottom=${bottomMargin}`);
+  assert.ok(topMargin > 0 && topMargin < h * 0.2, `margin should be a small fraction of the canvas, not half of it: ${topMargin}`);
 });
 
 test('project: both bases land at the same screen height (h=0), one at screen-left and one at screen-right', () => {

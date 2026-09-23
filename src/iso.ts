@@ -64,15 +64,15 @@ export function toIso(p: Vec2): { u: number; v: number } {
  */
 export function fitIso(canvasWidth: number, canvasHeight: number, maxHeight: number = HEIGHT_BY_KIND.nexus): IsoFit {
   const MARGIN = 0.92; // leave room for HP bars/glow rings that extend past a unit's own radius
-  const uSpan = 2000;
-  const vSpan = 2000 * ISO_RATIO; // = 1000
+  const uSpan = 2000; // u = x-y ranges over [-1000, 1000]
+  const groundHeightPerKx = 2000 * ISO_RATIO; // v = x+y ranges over [0, 2000]; screen height = v-span * ky = v-span * kx * ISO_RATIO
   const kxFromWidth = canvasWidth / uSpan;
-  const kxFromHeight = canvasHeight / (vSpan + maxHeight * ELEVATION_RATIO);
+  const kxFromHeight = canvasHeight / (groundHeightPerKx + maxHeight * ELEVATION_RATIO);
   const kx = Math.max(0, Math.min(kxFromWidth, kxFromHeight) * MARGIN);
   const ky = kx * ISO_RATIO;
   const kz = kx * ELEVATION_RATIO;
   const topPad = maxHeight * kz; // headroom above the ground plane for the tallest lifted sprite
-  const groundScreenHeight = vSpan * ky; // the v=[0,2000] ground plane's screen-space extent
+  const groundScreenHeight = groundHeightPerKx * kx; // the v=[0,2000] ground plane's screen-space extent
   const originX = canvasWidth / 2;
   const originY = (canvasHeight - groundScreenHeight - topPad) / 2 + topPad;
   return { kx, ky, kz, originX, originY };

@@ -33,6 +33,24 @@ const CLUSTER_BADGE_MIN = 6;
 const JITTER_MAGNITUDE = 9;
 
 /**
+ * §6: "keep that ratio or grow it [the bearbot] slightly under the iso scale so it stays legible
+ * at small scale — a phone, a shrunk browser window." The iso camera maps a 2000-world-unit u-span
+ * onto the canvas (vs. the old top-down renderer's 1000), so at a given canvas size every entity's
+ * raw `radius * kx` is noticeably smaller than it used to be — towers/nexus stay comfortably
+ * readable, but a bearbot's chassis and instrument marker can shrink past the point of reading as
+ * anything but a dot. Floor bearbot/minion pixel radius (not their true world radius, which still
+ * drives depth/jitter/hit-testing) so they stay legible; not applied to towers/nexus, which don't
+ * need it at any viewport this spec targets.
+ */
+const MIN_RADIUS_PX: Partial<Record<DrawableKind, number>> = { bearbot: 11, minion: 4 };
+
+function legibleWorldRadius(worldRadius: number, kind: DrawableKind, kx: number): number {
+  const floorPx = MIN_RADIUS_PX[kind];
+  if (!floorPx || kx <= 0) return worldRadius;
+  return Math.max(worldRadius, floorPx / kx);
+}
+
+/**
  * Ability -> visual treatment (docs/render-spec.md §8): the two AoE abilities get a radial pulse
  * at the cast point, the two dashes (glissando, and violin's staccato lunge) get a directional
  * streak. kick's taunt-slow and fill's aoe-slow both also leave a status ring on whoever they
@@ -184,7 +202,7 @@ export function render(ctx: CanvasRenderingContext2D, match: Match, selectedBotI
   drawables.sort((a, b) => compareDepth(a, b));
 
   for (const d of drawables) {
-    if (d.height > 0) drawFootprintShadow(ctx, project(d.pos, 0, fit), d.worldRadius, fit);
+    if (d.height > 0) drawFootprintShadow(ctx, project(d.pos, 0, fit), legibleWorldRadius(d.worldRadius, d.kind, fit.kx), fit);
     d.draw(ctx, fit);
   }
 
@@ -524,7 +542,7 @@ function minionDrawable(m: Match['minions'][number], fx: RenderFx, t: number): D
       // unornamented "background unit"). So minions disappear instantly, same as before phase 1.
       if (!m.alive) return;
       const screenPos = project(renderPos, 0, fit);
-      const radiusPx = m.radius * fit.kx;
+      const radiusPx = legibleWorldRadius(m.radius, 'minion', fit.kx) * fit.kx;
       ctx.save();
       ctx.fillStyle = teamColor(m.team);
       ctx.beginPath();
@@ -635,7 +653,7 @@ function bearbotDrawable(b: Match['bearbots'][number], selected: boolean, fx: Re
     draw: (ctx, fit) => {
       const bfx = fx.trackBot(b);
       const screenPos = project(renderPos, height, fit);
-      const radiusPx = b.radius * fit.kx;
+      const radiusPx = legibleWorldRadius(b.radius, 'bearbot', fit.kx) * fit.kx;
 
       if (!b.alive) {
         const p = deathProgress(bfx.deathAt, t);
