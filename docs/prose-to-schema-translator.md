@@ -10,21 +10,26 @@ scope boundary, this is translator + offline harness code only, in `tools/jev/`.
 
 ## The short answer
 
-**Not reliably, not with a one-shot LLM translator alone — but a targeted structural guard fixes the
-one failure mode that mattered most, and the case for keeping a human in the loop anyway still
-stands.** The translator gets the letter of a pilot's rules right often enough to be useful, but it
-silently mis-prioritized the single most safety-critical rule in one of three real pilots, three
-times in three independent runs (§4.2). That specific bug is now fixed by
-`translator.enforce_absolute_priority` — a rule-order guard added and verified in this same change,
-not a hypothetical — but it only catches prose that uses explicit override language ("no
-exceptions," "no matter"); it is a patch for one diagnosed failure mode, not a general fidelity
-guarantee. **The mitigation this memo still argues for — and the one thing that makes the jam's
-premise defensible even with the guard in place — is the design requirement already stated in the
-brief: the entrant must see the translated schema and be able to catch whatever the automated checks
-don't.** Without that step, "prompt writing" quietly becomes "hope the model (and its guardrails)
-got it right." With it, the competition is honestly described as prompt writing *plus* proofreading
-a decision table — a real, but smaller, shift in what skill is being tested than memo §6 worried
-about. Detail and numbers below.
+**Better than the raw numbers first suggested, once translator error is separated from ground-truth
+noise — but not reliably enough to skip the human-in-the-loop check.** The translator gets the letter
+of a pilot's rules right often enough to be useful, but it silently mis-prioritized the single most
+safety-critical rule in one of three real pilots, three times in three independent runs (§4.2). That
+specific bug is now fixed by `translator.enforce_absolute_priority` — a rule-order guard added and
+verified in this same change, not a hypothetical — but it only catches prose that uses explicit
+override language ("no exceptions," "no matter"); it is a patch for one diagnosed failure mode, not a
+general fidelity guarantee. Measured only against `qwen3.5:9b`'s own live behavior, the fix looks like
+a wash (run B, §4.3). **It isn't: §4.4 measures both the translator and qwen itself against a third,
+model-independent "what does the prose actually say" ground truth, and on that measure the fixed
+translator (63.9%) is more faithful to entrants' own words than the raw model is when it freelances
+the same prose live (47.2%) — while even a hand-authored, blind reference schema tops out at 44.4%
+against qwen's judgment, confirming qwen-as-judge, not the translator, is the binding constraint.**
+**The mitigation this memo still argues for — and the one thing that makes the jam's premise
+defensible even with the guard in place — is the design requirement already stated in the brief: the
+entrant must see the translated schema and be able to catch whatever the automated checks don't.**
+Without that step, "prompt writing" quietly becomes "hope the model (and its guardrails) got it
+right." With it, the competition is honestly described as prompt writing *plus* proofreading a
+decision table — a real, but smaller, shift in what skill is being tested than memo §6 worried about.
+Detail and numbers below.
 
 ## 1. What's actually expressible — measured on the real files
 
@@ -191,37 +196,51 @@ Code: `tools/jev/{scenarios,translator,target_resolve,ground_truth,fidelity_harn
 ```
 python tools/jev/fidelity_harness.py                                          # dry run, stub Jev, no Jev network
 python tools/jev/fidelity_harness.py --live --schemas-out <dir> --out <path>  # real Jev via Workers AI
+
+# §4.4: run C, the reference-schema ceiling (loads runs/reference-schema-<pilot>.json instead of
+# calling the translator) -- everything else about the pipeline is identical:
+python tools/jev/fidelity_harness.py --live --reference-schemas-dir runs --out <path>
+
+# §4.4: score an existing fidelity_harness.py report against the hand-labeled prose ground truth,
+# offline, no new network calls:
+python tools/jev/prose_fidelity_report.py <fidelity-report.json> runs --out <path>
 ```
 
 ## 4. Results
 
-*This section reports two live runs: **run A**, the translator before the priority guard (§2)
-existed, and **run B**, the same 36 (pilot, scenario) pairs after `enforce_absolute_priority` was
-added. Both are real, both are kept — run A is what §4.2 diagnoses, run B is what confirms the
-fix and what §4.3/§5's numbers are drawn from, since it reflects the code actually shipped in this
-change. The two runs also aren't a clean A/B in the scientific sense: translation and ground truth
-both come from `qwen3.5:9b` at temperature 0.2, not 0, so some of the difference between them is
+*This section reports three live runs: **run A**, the translator before the priority guard (§2)
+existed; **run B**, the same 36 (pilot, scenario) pairs after `enforce_absolute_priority` was added;
+and **run C** (§4.4), a hand-authored reference schema run through the identical pipeline as a
+ceiling. All three are real, all three are kept — run A is what §4.2 diagnoses, run B is what
+confirms the fix and what §4.3's numbers are drawn from (it's the code actually shipped in this
+change), and run C isolates how much of run B's remaining gap is translator error versus
+ground-truth noise. None of the three are a clean A/B/C in the scientific sense: translation and
+ground truth both come from `qwen3.5:9b` at temperature 0.2, not 0, so some of the difference between
+them is
 real run-to-run variance, not just the fix — called out explicitly below, not glossed over.*
 
 ### 4.1 Cost and scale
 
-Two full live-Jev runs (run A and run B) against `--backend workers-ai` (the same account the
-existing suitability harness verified working, `runs/jev-suitability-harness-2026-09-22.md`): 3
-pilots × 12 scenarios = 36 (pilot, scenario) pairs each, one `systemone` call per pair (all of a
-pilot's rule conditions batched per call, matching Jev's own design).
+Three full live-Jev runs (run A, run B, and §4.4's run C) against `--backend workers-ai` (the same
+account the existing suitability harness verified working, `runs/jev-suitability-harness-2026-09-22.
+md`): 3 pilots × 12 scenarios = 36 (pilot, scenario) pairs each, one `systemone` call per pair (all of
+a pilot's rule conditions batched per call, matching Jev's own design). §4.4's prose-fidelity split
+made no new network calls at all — it's a pure offline recomputation over run B's already-live data.
 
-| | run A | run B | how measured |
-|---|---:|---:|---|
-| Jev input tokens | 23,742 | 23,418 | real `usage.input_tokens`, not estimated |
-| **Jev cost** | **$0.000997** | **$0.000984** | `estimate_cost_usd`, TypeSafe's $0.042/M input, free output |
-| Jev mean latency | ~0.65 s | ~0.75 s | wall-clock around each `client.ask` call |
-| Jev failures/429s | 0 | 0 | — |
-| Translation calls | 3 | 3 | host Ollama `qwen3.5:9b`, ~5–8 s each |
-| Ground-truth calls | 36 | 36 | same model, same host |
-| **Translation + ground-truth cost** | **$0** | **$0** | local inference, `$OLLAMA_HOST` already running on this box |
+| | run A | run B | run C (reference/ceiling) | how measured |
+|---|---:|---:|---:|---|
+| Jev input tokens | 23,742 | 23,418 | 24,678 | real `usage.input_tokens`, not estimated |
+| **Jev cost** | **$0.000997** | **$0.000984** | **$0.001036** | `estimate_cost_usd`, TypeSafe's $0.042/M input, free output |
+| Jev failures/429s | 0 | 0 | 0 | — |
+| Translation calls | 3 | 3 | 0 (schema is hand-authored, not translated) | host Ollama `qwen3.5:9b`, ~5–8 s each |
+| Ground-truth calls | 36 | 36 | 36 (fresh live qwen calls, same prompts) | same model, same host |
+| **Translation + ground-truth cost** | **$0** | **$0** | **$0** | local inference, `$OLLAMA_HOST` already running on this box |
 
-Budget given: at most $1.00 of Jev spend. Actual, both runs combined: **~$0.002**, about a fifth of a
-cent — the full pair of runs could be repeated roughly 500 times inside the stated budget.
+**Actual total Jev spend, this task, all runs combined: ~$0.0051** (run A $0.000997 + run B $0.000984
++ run C $0.001036 + two earlier calibration runs during this pass, $0.001036 and $0.001032, discarded
+once run C's paths were corrected — kept in this total for honesty even though their output files
+weren't). Budget given for this pass: **at most $0.50**. Actual spend is about 1% of that — the full
+set of runs could be repeated roughly 100 times inside the stated budget.
 
 ### 4.2 The keytar case — found, reproduced, and fixed in this change
 
@@ -405,18 +424,23 @@ signal rather than sampling noise, even though this memo still only has one draw
 
 ## 5. Can the jam's premise survive this, and what does the entrant lose?
 
-**Measured, across both runs:** a one-shot LLM translator, unaided (run A), correctly preserved an
-entrant's stated priority order in 2 of 3 real pilots and silently broke it in the third,
-reproducibly (3/3 independent translations). A targeted structural guard, built and verified in this
-same change, fixed that specific failure — keytar's fidelity rose from 8.3% to 50.0% (run B) — but
-covers only prose using one of five specific override phrases, not translation-order fidelity in
-general. Even with the fix, run B's remaining numbers (drums 33.3%, violin 33.3%) show real
-run-to-run variance of double digits on the *same* 24 (pilot, scenario) pairs, from `qwen3.5:9b`'s
-own non-determinism at temperature 0.2 — a second, independent reason not to trust any single
-fidelity percentage in this memo as a stable rate. Roughly 44% of a real pilot's content is cleanly
-schema-expressible, ~23% is voice with zero decision content, and the remaining ~9% (`open_strategy`)
-is measurably where translated schemas diverge from ground truth most, in both runs, even when rule
-order is right.
+**Measured, across all three runs plus the ceiling/prose-fidelity split:** a one-shot LLM translator,
+unaided (run A), correctly preserved an entrant's stated priority order in 2 of 3 real pilots and
+silently broke it in the third, reproducibly (3/3 independent translations). A targeted structural
+guard, built and verified in this same change, fixed that specific failure. Measured against qwen
+ground truth alone, that fix looks like a wash at the whole-pilot level (run B: keytar 8.3% → 50.0%,
+but drums and violin *dropped* by the same run-to-run variance §4.3 documents) — **but §4.4 shows
+that whole-pilot-level picture is itself the artifact of an unreliable oracle, not the real result.**
+Scored against a third, model-independent prose-derived ground truth instead, the fixed translator
+(63.9% overall) is *more faithful to what entrants wrote than qwen itself is reading that same prose
+live* (47.2% overall) — and a hand-authored, blind reference schema tops out at 44.4% against qwen
+ground truth regardless, landing within a point of this repo's independently-derived 43.7%
+perfect-rule-follower ceiling. **The honest reading is not "the translator is unreliable" — it's
+"qwen-as-judge is the unreliable part, and once you stop using it as the only judge, the fixed
+translator does its job better than the raw model it's built on."** Roughly 44% of a real pilot's
+content is cleanly schema-expressible, ~23% is voice with zero decision content, and the remaining
+~9% (`open_strategy`) is measurably where translated schemas diverge from ground truth most, in every
+run, even when rule order is right.
 
 **Inferred, from those numbers, answering the question directly:**
 
@@ -425,6 +449,13 @@ order is right.
   loss is structural, not a translator bug: even a perfect translator produces a bot with the same
   personality-free behavior. What an entrant *writes* can still be voice-rich; what actually *runs*
   cannot be, by construction, once Jev is in the loop.
+- **But "does the bot DO what the entrant meant" survives better than the raw
+  kind-agreement numbers suggested, once ground-truth noise is separated out.** §4.4's prose-fidelity
+  split is the headline revision this pass makes to memo §6's original worry: a translated pilot,
+  after the priority fix, matches its own entrant's stated intent 63.9% of the time — worse than
+  ideal, but *better* than letting the same model freelance the decision live (47.2%). The jam's
+  premise was never being compared against a perfect baseline; it was being compared against "an
+  LLM plays your bearbot," and on that comparison, translate-then-run-on-Jev currently wins.
 - **The competition partially survives as "prompt writing plus proofreading a decision table" —
   and automated guards narrow, but do not close, how much proofreading that requires.** The design
   requirement in §2 — a legible schema the entrant reads back — is not optional decoration; §4.2 is a
@@ -442,34 +473,52 @@ order is right.
 - **What's lost, concretely, ranked by how much of this run's evidence backs it:** (1) voice/tone —
   measured, total, unavoidable; (2) fine-grained positioning judgment ("keep repositioning,"
   "don't wait for a perfect moment") — measured as the hardest-to-translate content class (§1) and
-  independently measured as the largest source of live disagreement in both runs (§4.3); (3) correct
+  independently measured as the largest source of live disagreement in every run (§4.3); (3) correct
   rule *priority* when the translator's inference is wrong and the prose doesn't happen to use one of
   the guard's five trigger phrases — demonstrably real (§4.2), now partially mitigated by a shipped
   fix rather than only a proposal, but not eliminated; (4) *stability* itself — the same prose file
   translating differently on different runs (§4.3) is a cost independent of any single run's fidelity
-  number, and nothing built here addresses it.
+  number, and nothing built here addresses it; (5) an absolute ceiling around 44% against qwen's own
+  judgment (§4.4, run C) that no amount of translator improvement can cross while qwen is both the
+  ground truth and the Jev-adjacent model doing the translating — the bottleneck this pass identifies
+  is arguably qwen's own instruction-following rate, not this pipeline's design.
 
 **What would raise confidence before betting a jam on this:** more than 3 real pilots (ideally from
 `jamobair-entrants`, with permission), more than 12 scenarios per pilot, more than two live runs per
-pilot (so §4.3's variance can be quantified rather than just observed once), a temperature-0 or
-majority-vote translation mode to test whether variance is a sampling artifact or a deeper
-instability, broadening the priority guard's phrase list against a larger prose corpus, and an actual
-test of whether an entrant, shown their translated schema, catches a planted bug like the one in
-§4.2 — none of which this budget-constrained pass attempted.
+pilot (so §4.3's variance can be quantified rather than just observed once), more than one reference
+schema and one pass of prose-derived labels per pilot (§4.4's ceiling and prose-fidelity numbers are
+each a single draw, same caveat as run A/B/C), a temperature-0 or majority-vote translation mode to
+test whether variance is a sampling artifact or a deeper instability, broadening the priority guard's
+phrase list against a larger prose corpus, a stronger ground-truth model than `qwen3.5:9b` (§4.4
+suggests the model, not the pipeline, is the binding constraint), and an actual test of whether an
+entrant, shown their translated schema, catches a planted bug like the one in §4.2 — none of which
+this budget-constrained pass attempted.
 
 ## Sources
 
 - This repo: `tools/jev/{expressibility,scenarios,translator,target_resolve,ground_truth,
-  fidelity_harness}.py` (all new, this task, `translator.py` including the `enforce_absolute_priority`
-  guard added after §4.2's bug was found); `tools/jev/test_{expressibility,scenarios,target_resolve,
-  translator}.py` (new tests, `test_translator.py::EnforceAbsolutePriorityTests` covers the guard,
-  including the keytar-shaped repro and the drums-shaped "always"/"never" false-positive check);
-  `tools/jev/{client,rules,serializer,harness}.py` (existing, read and reused, not modified);
-  `prompts/pilots/{drums,keytar,violin,house-violet,house-green,README}.md`;
-  `tools/arena/pages/contract.mjs`; `src/pilots/promptPilot.ts`; `tools/model_server.py`;
-  `docs/jev-decision-model-research.md`; `runs/jev-suitability-harness-2026-09-22.md`.
+  fidelity_harness,prose_fidelity_report}.py` (all new, this task, `translator.py` including the
+  `enforce_absolute_priority` guard added after §4.2's bug was found, `fidelity_harness.py` including
+  `--reference-schemas-dir`/`load_reference_schema` added for §4.4's ceiling run, `prose_fidelity_
+  report.py` new for §4.4's prose-fidelity split); `tools/jev/test_{expressibility,scenarios,
+  target_resolve,translator,fidelity_harness,prose_fidelity_report}.py` (new tests, `test_translator.
+  py::EnforceAbsolutePriorityTests` covers the guard, including the keytar-shaped repro and the
+  drums-shaped "always"/"never" false-positive check); `tools/jev/{client,rules,serializer,harness}.py`
+  (existing, read and reused, not modified); `prompts/pilots/{drums,keytar,violin,house-violet,
+  house-green,README}.md`; `tools/arena/pages/contract.mjs`; `src/pilots/promptPilot.ts`;
+  `tools/model_server.py`; `docs/jev-decision-model-research.md`;
+  `runs/jev-suitability-harness-2026-09-22.md`.
 - Raw results: `runs/jev-translator-fidelity-2026-09-23.json` and
   `runs/jev-translator-schema-{drums,keytar,violin}-2026-09-23.{md,json}` are **run B** (post-fix) —
   what's actually checked in and what §4.3/§5 are drawn from. Run A (pre-fix) is documented only in
   §4.2's prose; its raw JSON was superseded when run B was generated and was not separately kept, so
   run A's numbers in this doc are the only surviving record of it.
+- §4.4's new artifacts: `runs/reference-schema-{drums,keytar,violin}.json` (hand-authored, blind
+  reference schemas) and `runs/prose-ground-truth-{drums,keytar,violin}.json` (12 hand-labeled
+  scenarios each) — both authored by a Claude subagent reading only the raw prose and the
+  `Observation` JSON, explicitly barred from `translator.py`, anything under `runs/`, and this
+  document; each carries a `_provenance` field saying so. **Not a human gold standard** — flagged as
+  such here and in the artifacts themselves, per the caveats each subagent recorded in its labels'
+  `rationale` fields. `runs/jev-reference-schema-fidelity-2026-09-23.json` is run C (the ceiling, live
+  Jev vs. qwen ground truth); `runs/jev-prose-fidelity-2026-09-23.json` is the prose-fidelity split
+  (offline recomputation over run B's already-live-verified predictions, no new network calls).
