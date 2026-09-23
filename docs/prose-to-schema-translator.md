@@ -111,6 +111,11 @@ touching a JSON schema. **Whether they reliably *would* is untested** — this m
 user study; it only establishes that the artifact exists and is legible, and shows one concrete case
 (§4.2) where a careful read of exactly this kind of table would catch a real bug.
 
+**Follow-up, `docs/translator-transparency.md`:** adds per-rule provenance (which prose sentence a
+rule came from), an explicit "what was dropped" view, and a working prose-revision loop built on the
+keytar bug diagnosed in §4.2 below — read that memo for the full transparency design and the jam-rule
+options it lays out.
+
 **Model: host Ollama's `qwen3.5:9b`** (`$OLLAMA_HOST`, `tools/model_server.py`'s own
 `DEFAULT_OLLAMA_MODEL`) — already configured in this repo, confirmed reachable on this host, and
 free (local inference). Not Jev: Jev has no free-text output primitive at all
