@@ -113,7 +113,9 @@ cheap, concrete test rather than a recommendation to switch.
 
 ## 3. Q1 — Is there a public preview we could actually run?
 
-**Yes, no waitlist, self-serve, API-only, closed weights.** All labelled by source and date:
+**Direct sign-up is PAUSED as of 2026-09-22 — the rest of this section describes access as published before that.** API-only, closed weights. All labelled by source and date:
+
+- **CORRECTION 2026-09-23 (after this memo was written):** Ceryce tried to sign up on 09-23 and signups are closed. TypeSafe's pinned post on X, dated 2026-09-22: *"We have seen such an immense swell of demand that we have to temporarily pause signups for Jev. We need to ensure quality of service for our existing signups, which will continue to function."* The website still said "no waitlist" on 09-23, which is what this research read — the page and the post disagree, and the post is the one that matches what actually happened at the sign-up form. **Consequence for §5:** the harness can't get a first-party key until signups reopen. Cloudflare Workers AI (below) re-exposes the model under its own account and is the one untested route around the pause.
 
 - **Access (published):** early access opened 2026-09-15; the waitlist was **removed 2026-09-20**
   — TypeSafe's own note: *"Jev is now available to everyone. No waitlist."* Sign-up is self-serve at
