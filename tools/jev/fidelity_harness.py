@@ -49,7 +49,7 @@ from client import (  # noqa: E402
 from ground_truth import ground_truth_action  # noqa: E402
 from scenarios import all_scenarios, build_observation, ABILITIES  # noqa: E402
 from target_resolve import resolve_target  # noqa: E402
-from translator import TranslatedSchema, render_markdown, translate_pilot  # noqa: E402
+from translator import TranslatedSchema, parse_schema, render_markdown, translate_pilot  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PILOTS = {
@@ -249,6 +249,16 @@ def summarize(pilot_report: dict) -> dict:
     }
 
 
+def load_reference_schema(path: Path, pilot_file: str, instrument: str) -> TranslatedSchema:
+    """Loads a hand-authored schema (same JSON shape `translate_pilot` produces -- see
+    `parse_schema`) instead of calling the translator, so the SAME downstream pipeline (rule
+    cascade, target resolution, live Jev call, comparison against qwen ground truth) can measure a
+    human(-equivalent) reading of the prose -- the ceiling the translator is judged against. An
+    optional top-level `_provenance` string is ignored by `parse_schema` (not one of its fields)."""
+    raw_json = json.loads(path.read_text(encoding="utf-8"))
+    return parse_schema(raw_json, pilot_file, instrument, raw_text=f"reference schema loaded from {path}")
+
+
 def parse_args(argv=None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     p.add_argument("--live", action="store_true", help="call real Jev via Cloudflare Workers AI; default is a stub Jev (Ollama half is always real)")
@@ -257,6 +267,13 @@ def parse_args(argv=None) -> argparse.Namespace:
     p.add_argument("--ollama-model", default="qwen3.5:9b", help="model for both translation and ground truth")
     p.add_argument("--pilots", nargs="*", default=list(PILOTS), choices=list(PILOTS))
     p.add_argument("--schemas-out", default=None, help="directory to write translated schemas (markdown + json) to")
+    p.add_argument(
+        "--reference-schemas-dir",
+        default=None,
+        help="directory containing hand-authored reference-schema-<pilot>.json files -- if given, "
+        "these are used INSTEAD OF calling the translator (no Ollama translation call), to measure "
+        "the ceiling a correct translation can score against qwen ground truth",
+    )
     p.add_argument("--out", default=None, help="write the full JSON report here")
     return p.parse_args(argv)
 
@@ -274,15 +291,22 @@ def main(argv=None) -> int:
     if schemas_dir:
         schemas_dir.mkdir(parents=True, exist_ok=True)
 
+    reference_dir = Path(args.reference_schemas_dir) if args.reference_schemas_dir else None
+
     pilot_reports = []
     for name in args.pilots:
         pilot_path = PILOTS[name]
         pilot_text = pilot_path.read_text(encoding="utf-8")
         primary, ultimate = ABILITIES[name]
-        print(f"translating {name}.md ...", file=sys.stderr)
-        schema = translate_pilot(
-            pilot_text, f"prompts/pilots/{name}.md", name, primary, ultimate, model=args.ollama_model
-        )
+        if reference_dir:
+            ref_path = reference_dir / f"reference-schema-{name}.json"
+            print(f"loading reference schema for {name} from {ref_path} ...", file=sys.stderr)
+            schema = load_reference_schema(ref_path, f"prompts/pilots/{name}.md", name)
+        else:
+            print(f"translating {name}.md ...", file=sys.stderr)
+            schema = translate_pilot(
+                pilot_text, f"prompts/pilots/{name}.md", name, primary, ultimate, model=args.ollama_model
+            )
         print(f"  -> {len(schema.rules)} rules", file=sys.stderr)
         if schemas_dir:
             (schemas_dir / f"{name}.md").write_text(render_markdown(schema), encoding="utf-8")
@@ -315,6 +339,7 @@ def main(argv=None) -> int:
 
     out = {
         "mode": f"live (workers-ai, model={args.model})" if args.live else "dry-run (stub Jev, no network)",
+        "schema_source": f"reference ({args.reference_schemas_dir})" if reference_dir else "translator",
         "ollama_model": args.ollama_model,
         "pilots": args.pilots,
         "n_scenarios_per_pilot": len(all_scenarios()),
