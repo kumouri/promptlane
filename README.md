@@ -61,7 +61,8 @@ artifacts/           exported workspaces and frozen submissions (local/ignored)
 src/                 original generated game specimen; not maintained game source
                      (src/replay.ts and src/live.ts are jam tooling that drive the unchanged sim from outside)
 docs/                current design notes and historical recordings; not implicit run inputs
-                     (docs/arena-site-spec.md: the arena spec, Phases A+B built; arena-runbook.md: how to run it)
+                     (docs/arena-site-spec.md: the arena spec, Phases A+B built; arena-runbook.md: how to run it;
+                     render-spec.md: isometric viewer spec, not yet built)
 assets/logo/         Jamobair, the mascot (PNG on black, on near-black, and transparent)
 ```
 
@@ -143,7 +144,9 @@ ladder, pre-runs the early rounds, and plays the semis and final live. Start it,
 Cloudflare Access, and operate it — including the jam-day sequence — per
 [`docs/arena-runbook.md`](docs/arena-runbook.md); the design and rulings are in
 [`docs/arena-site-spec.md`](docs/arena-site-spec.md). `npm run test:arena` runs its suite on the
-mock model (no GPU; CI runs it).
+mock model (no GPU; CI runs it). Making the canvas viewer itself look better — isometric 2.5D,
+readable creeps vs. bearbots vs. instruments — is specced in
+[`docs/render-spec.md`](docs/render-spec.md); not built yet.
 
 **Known v1 behaviour.** Low-health retreats can prevent first blood
 ([`runs/historical-v1.md`](runs/historical-v1.md)). The runner does not patch that; a match that
