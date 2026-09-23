@@ -322,6 +322,87 @@ target-resolution step (§2) tracks the prose's intent (nearest/lowest-hp/cluste
 reliably — the fidelity loss measured in this section is concentrated in *which rule fires and what
 kind of action it produces*, not in *which entity gets picked once a rule fires*.
 
+### 4.4 Separating translator error from ground-truth noise: a reference-schema ceiling and a prose-derived ground truth
+
+**The problem with every number above.** Every fidelity figure in §4.2/§4.3 is *translator vs.
+qwen's own live behavior*. That behavior is not a reliable oracle: `runs/house-prompt-2026-09-21.md`
+independently measured `qwen3.5:9b` following its own pilot's low-hp recall rule only ~46% of the
+time, and this section reproduces that instability directly — asked live, `think:false`, against
+`low_hp_recall_under_pressure` (self at 20% hp, every one of the three pilots' prose says recall
+"no exceptions" / "no matter" / "only when really hurt"), qwen answered `move` for keytar, `attack`
+for drums, and `attack` for violin — **zero of three pilots' own ground truth recalled at the exact
+boundary their own prose names.** A low translator-vs-qwen score is therefore ambiguous: it cannot
+tell you whether the translator is wrong or whether qwen is wrong, and §4.3's numbers already show a
+translator that places recall correctly (both drums and violin, both runs) still gets marked wrong
+against qwen on that exact scenario. This section measures both sides against a THIRD, model-
+independent source instead, to answer the question this memo is actually about: does the translated
+pilot do what the entrant *wrote*, not what one non-deterministic model happens to do that run.
+
+**Two new artifacts, both hand-authored and explicitly not a human gold standard.** Per this task's
+own instruction, both were produced by a Claude subagent — not a human, and the doc says so plainly
+— that read only the three pilots' raw prose (pasted inline) and the exact `Observation` JSON for
+all 36 (pilot, scenario) pairs (`scenarios.py`, generated fresh and handed over, containing no
+translator output), and was explicitly barred from reading `translator.py`, anything under `runs/`,
+or this document, so its output is blind to both the translator's schemas and to qwen's answers:
+
+- **A reference schema per pilot** (`runs/reference-schema-{drums,keytar,violin}.json`, same JSON
+  shape `translate_pilot` produces): one careful reading of each pilot's prose into a rule cascade,
+  written before looking at any translator output. Each carries a `_provenance` field naming exactly
+  this. `fidelity_harness.py --reference-schemas-dir` (new in this change, `load_reference_schema`)
+  runs it through the *identical* downstream pipeline as the translator's own schema — same rule
+  cascade, same target resolution, same live Jev `systemone` call, same qwen ground truth — so it
+  measures a ceiling: how well a *correct* translation can score against qwen, isolating "the
+  translator is wrong" from "qwen is an unreliable judge."
+- **Prose-derived ground-truth labels**, 12 per pilot (`runs/prose-ground-truth-{drums,keytar,
+  violin}.json`): for each scenario, what the prose itself says to do, judged fresh against the
+  Observation each time (not just replayed from the reference schema above, and before seeing any
+  model's answer). The subagent flagged its own genuinely ambiguous calls in each label's
+  `rationale` field (edge cases neither pilot's prose resolves cleanly: towers, exactly-25%-hp,
+  "has a fight started" at medium range) — read those before trusting any single label at face
+  value.
+
+**Run C — the ceiling** (reference schema vs. live qwen ground truth, same 36 pairs, live Jev):
+`kind_agreement` **drums 50.0% (6/12), keytar 25.0% (3/12), violin 58.3% (7/12), overall 44.4%
+(16/36)**. This lands almost exactly on the *independently derived* 43.7% "perfect-rule-follower"
+ceiling this repo already measured by a completely different method
+(`docs/jev-decision-model-research.md`'s companion memo, commit `1cd44ee`, a different dataset and
+harness entirely) — two unrelated methodologies landing within one percentage point of each other is
+a real cross-check, not a coincidence worth ignoring. **Read together with run B's 38.9%, this is
+the headline finding of this section: even a hand-authored, blind, "correct" translation cannot beat
+~44% against qwen ground truth, because qwen itself is the bottleneck, not translation quality.**
+
+**Prose-fidelity — scoring run B (the checked-in, post-fix translator run) and qwen-on-prose against
+the prose-derived labels instead of against each other** (`tools/jev/prose_fidelity_report.py`, pure
+offline comparison, no new Jev/Ollama calls — reuses run B's stored predictions and ground-truth
+replies):
+
+| pilot | translator vs. prose (n=12) | qwen-on-prose vs. prose (n=12) |
+|---|---:|---:|
+| drums | **75.0%** (9/12) | 41.7% (5/12) |
+| keytar | **58.3%** (7/12) | 41.7% (5/12) |
+| violin | **58.3%** (7/12) | 58.3% (7/12) |
+| **all three** | **63.9%** (23/36) | **47.2%** (17/36) |
+
+**This is the number that actually answers the research question, and it says something run B's raw
+`kind_agreement` badly understated: the fixed translator (63.9%) is *more* faithful to what entrants
+wrote than qwen itself is when reading that same prose live and unconstrained (47.2%) — by 16.7
+points overall, more than 6 scenarios' worth of swing at this sample size (below).** Keytar
+specifically: run B's raw `kind_agreement` (50.0%) made the post-fix translator look merely
+"average, same as the others" — but scored against what keytar's prose actually says, the fixed
+schema is *right more often than qwen is* (58.3% vs. 41.7%), including on `low_hp_recall_under_pressure`
+itself, where the translator (now correctly prioritized, §4.2) says recall and qwen does not.
+
+**n and what a swing is worth, stated plainly per-figure, not just once at the top.** Every per-pilot
+rate above is n=12 — one scenario is **8.3 percentage points**. Every "all three" rate is n=36 — one
+scenario is **2.8 percentage points**. Concretely: drums' 75.0% vs. keytar/violin's 58.3% is a
+2-scenario (16.7-point) gap, inside the range a single re-sample of `qwen3.5:9b` at temperature 0.2
+could plausibly produce on its own (§4.3 already showed drums and violin move by double digits
+between run A and run B on identical prose) — **not** read as "the translator understands drums
+better," just noted as the honest size of the gap. The 63.9% vs. 47.2% *overall* translator-vs-qwen
+prose-fidelity gap, by contrast, is 6 scenarios' worth on n=36 — large enough, and consistent enough
+across all three pilots individually (translator ≥ qwen in every row above), to treat as a real
+signal rather than sampling noise, even though this memo still only has one draw of it.
+
 ## 5. Can the jam's premise survive this, and what does the entrant lose?
 
 **Measured, across both runs:** a one-shot LLM translator, unaided (run A), correctly preserved an

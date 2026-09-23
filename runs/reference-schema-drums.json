@@ -1,0 +1,51 @@
+{
+  "_provenance": "Hand-authored by a Claude subagent from the pilot prose alone, blind to any translator output, 2026-09-23.",
+  "rules": [
+    {
+      "id": "recall_low_hp",
+      "condition": "Is self's hp below 25% of max hp?",
+      "criteria": {
+        "true": "critically hurt, retreat is the whole point of existing",
+        "false": "healthy enough to keep tanking"
+      },
+      "action": {"kind": "recall", "ability": null, "target_selector": "home"}
+    },
+    {
+      "id": "kick_on_touch",
+      "condition": "Is an enemy bearbot close enough to touch (short/melee range) with Kick off cooldown?",
+      "criteria": {
+        "true": "reflex taunt/knockback, no hesitation, no overthinking",
+        "false": "nothing in touch range yet"
+      },
+      "action": {"kind": "ability", "ability": "kick", "target_selector": "nearest_enemy"}
+    },
+    {
+      "id": "shield_threatened_ally",
+      "condition": "Is an enemy bearbot near one of my allies (not necessarily near me)?",
+      "criteria": {
+        "true": "that enemy is now my problem",
+        "false": "no ally currently threatened"
+      },
+      "action": {"kind": "move", "ability": null, "target_selector": "threatened_ally_enemy"}
+    },
+    {
+      "id": "fill_the_cluster",
+      "condition": "Are two or more enemies bunched together near me, with Fill off cooldown?",
+      "criteria": {
+        "true": "drop the AoE slow under their feet, not mine",
+        "false": "no cluster near me worth an AoE"
+      },
+      "action": {"kind": "ability", "ability": "fill", "target_selector": "densest_cluster_enemy"}
+    },
+    {
+      "id": "engage_nearest_in_a_fight",
+      "condition": "Is an enemy bearbot close enough that a fight is actually happening (not merely visible far across the map)?",
+      "criteria": {
+        "true": "the fight is the lane now — attack the nearest enemy bearbot",
+        "false": "nothing close enough to count as engaged"
+      },
+      "action": {"kind": "attack", "ability": null, "target_selector": "nearest_enemy"}
+    }
+  ],
+  "default_action": {"kind": "move", "ability": null, "target_selector": "push_lane"}
+}

@@ -1,0 +1,65 @@
+{
+  "_provenance": "Hand-labeled by a Claude subagent from the prose and the Observation alone, before seeing any model's answer, blind to any translator or ground-truth-model output, 2026-09-23.",
+  "labels": [
+    {
+      "scenario": "empty_lane_push",
+      "action": {"kind": "move", "target": {"x": 900, "y": 100}, "ability": null},
+      "rationale": "Nothing visible and no minion wave to poke — no directive says to hold still, so advance cautiously down the lane."
+    },
+    {
+      "scenario": "low_hp_recall_under_pressure",
+      "action": {"kind": "recall", "target": null, "ability": null},
+      "rationale": "hp 34/170 (20%) is below the quarter-health line — 'recall the moment you're below a quarter health, no exceptions.'"
+    },
+    {
+      "scenario": "melee_range_enemy_ability_ready",
+      "action": {"kind": "ability", "target": null, "ability": "glissando"},
+      "rationale": "Enemy is inside melee range (~23 units) — 'you are already losing and should be leaving'; Glissando is the panic-button dash out."
+    },
+    {
+      "scenario": "ranged_enemy_far",
+      "action": {"kind": "move", "target": {"x": 900, "y": 100}, "ability": null},
+      "rationale": "Single enemy ~630 units away, no cluster and no minions — too far for Chord's long range to plausibly reach, and nothing about being 'too close' applies; default to advancing. The exact edge of Chord's range is not given, so this distance judgment is an assumption."
+    },
+    {
+      "scenario": "clustered_enemies",
+      "action": {"kind": "ability", "target": {"x": 422, "y": 462}, "ability": "chord"},
+      "rationale": "Two enemies plus a minion bunched near self, Chord off cooldown — 'throw it at the densest cluster... the instant it's off cooldown, don't wait for a perfect moment.'"
+    },
+    {
+      "scenario": "ability_on_cooldown_enemy_present",
+      "action": {"kind": "attack", "target": "enemy-mid", "ability": null},
+      "rationale": "Chord is on cooldown and the enemy isn't in melee range — 'Chord first, basic-attack second, never melee'; with Chord unavailable, basic-attack the visible enemy."
+    },
+    {
+      "scenario": "ally_under_threat",
+      "action": {"kind": "move", "target": {"x": 900, "y": 100}, "ability": null},
+      "rationale": "Keytar's prose gives no ally-protection directive at all (unlike drums) and the threat is far across the map — no basis to divert from normal lane behavior; flagged as a place where the prose is simply silent, not just ambiguous."
+    },
+    {
+      "scenario": "isolated_vs_grouped_enemy",
+      "action": {"kind": "ability", "target": {"x": 307, "y": 855}, "ability": "chord"},
+      "rationale": "Chord goes to the densest visible cluster, not the lone enemy — the grouped pair outweighs isolation preference, which is violin's concern, not keytar's."
+    },
+    {
+      "scenario": "enemy_tower_only",
+      "action": {"kind": "attack", "target": "tower-enemy", "ability": null},
+      "rationale": "No bearbot present; poking the tower from range fits the free-damage, no-risk poke ethos, though prose never actually mentions towers — a judgment call."
+    },
+    {
+      "scenario": "hp_exactly_at_threshold",
+      "action": {"kind": "ability", "target": "enemy-boundary", "ability": "chord"},
+      "rationale": "hp is exactly 25% (42.5/170); 'below a quarter health' read as strictly less-than, so no recall yet at exactly the threshold (ambiguous edge case) — Chord is off cooldown with a visible target, so throw it rather than wait."
+    },
+    {
+      "scenario": "minion_wave_poke",
+      "action": {"kind": "move", "target": {"x": 900, "y": 100}, "ability": null},
+      "rationale": "The visible minions are own-team wave minions, not an enemy wave to poke, and no enemies are present — continue advancing alongside them."
+    },
+    {
+      "scenario": "softest_target_selection",
+      "action": {"kind": "ability", "target": null, "ability": "glissando"},
+      "rationale": "enemy-close-healthy (~32 units) puts an enemy inside attack/melee range — 'never be the closest thing to an enemy... already losing and should be leaving' — positioning safety takes priority over sniping the far, nearly-dead enemy."
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "_provenance": "Hand-authored by a Claude subagent from the pilot prose alone, blind to any translator output, 2026-09-23.",
+  "rules": [
+    {
+      "id": "recall_low_hp",
+      "condition": "Is self's hp below 25% of max hp?",
+      "criteria": {
+        "true": "no way to survive a follow-up hit, a dead mage is a silent one, no exceptions",
+        "false": "still viable at range"
+      },
+      "action": {"kind": "recall", "ability": null, "target_selector": "home"}
+    },
+    {
+      "id": "flee_proximity",
+      "condition": "Is any visible enemy bearbot inside melee/attack range of me — i.e. am I the closest thing to them?",
+      "criteria": {
+        "true": "already losing this exchange, leave immediately",
+        "false": "still holding safe distance, nothing crowding me"
+      },
+      "action": {"kind": "ability", "ability": "glissando", "target_selector": null}
+    },
+    {
+      "id": "chord_the_cluster",
+      "condition": "Is Chord off cooldown with a visible enemy or minion cluster within its long range?",
+      "criteria": {
+        "true": "throw it now at the densest cluster, don't wait for a perfect moment",
+        "false": "nothing in range yet, or already on cooldown"
+      },
+      "action": {"kind": "ability", "ability": "chord", "target_selector": "densest_cluster_enemy"}
+    },
+    {
+      "id": "basic_attack_fallback",
+      "condition": "Is a visible enemy bearbot within basic-attack range, with Chord on cooldown, and I'm not in melee with it?",
+      "criteria": {
+        "true": "Chord is down — basic attack is the second option, never melee",
+        "false": "no safe in-range target for a basic attack"
+      },
+      "action": {"kind": "attack", "ability": null, "target_selector": "nearest_enemy"}
+    }
+  ],
+  "default_action": {"kind": "move", "ability": null, "target_selector": "push_lane"}
+}
