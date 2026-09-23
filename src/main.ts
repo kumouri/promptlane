@@ -4,9 +4,9 @@ import { Match, RosterSlot } from './sim/match';
 import { ScriptedPilot } from './pilots/scriptedPilot';
 import { PromptPilot } from './pilots/promptPilot';
 import { mockCallModel, httpCallModel } from './pilots/callModel';
-import { render } from './render';
+import { RenderFx, render } from './render';
 import { CHECKPOINT_EVERY_TICKS, isMatchLog, tickOf, type MatchLog } from './replay';
-import { DivergenceCheck, LiveFeed, Ticker, buildMatch, openLive } from './live';
+import { DivergenceCheck, LiveFeed, LivePacer, Ticker, buildMatch, openLive } from './live';
 
 import drumsPrompt from '../prompts/pilots/drums.md?raw';
 import keytarPrompt from '../prompts/pilots/keytar.md?raw';
@@ -82,6 +82,8 @@ const speedEl = document.querySelector<HTMLSelectElement>('#speed')!;
 
 let match: Match | null = null;
 let selectedBotId: string | null = null;
+/** One shared instance: `prune()` clears out a prior match's entries as soon as a new one is touched. */
+const renderFx = new RenderFx();
 
 /**
  * Set while replaying or watching live (`?replay=`, `?live=`, the file picker); null for a local
@@ -319,19 +321,24 @@ function attachMatch(v: View): void {
   const check = new DivergenceCheck(feed, CHECKPOINT_EVERY_TICKS);
   feed.onCheckpoint = (tick, state) => check.onCheckpoint(tick, state);
   v.check = check;
-  // live: catch up to the server's frontier as fast as the browser can, then follow at its pace;
-  // replay (a finished log, or a stream the server synthesized from one): the chosen speed
-  const catchUp = v.mode === 'live' && !feed.meta?.finished;
+  // live (genuinely unfinished): meter ticks at the observed round-arrival pace instead of
+  // bursting to the frontier the instant each round confirms (docs/render-spec.md §8) — Infinity
+  // only while more than one round behind (a fresh load or reconnect catching up for real).
+  // replay (a finished log, or a stream the server synthesized from one): the chosen speed.
+  const live = v.mode === 'live' && !feed.meta?.finished;
+  const builtMatch = built.match;
+  const pacer = live ? new LivePacer({ cadenceSec: feed.meta!.cadenceSec, getCurrentTick: () => tickOf(builtMatch) }) : null;
+  feed.onRound = pacer ? (tick) => pacer.onRound(tick) : null;
   v.ticker = new Ticker(match, built.asks, {
     limit: () => feed.limitTick,
-    speed: () => (catchUp ? Infinity : speed),
+    speed: () => (pacer ? pacer.speed() : speed),
     finished: () => v.mode === 'replay' || !!feed.end,
     onTick: () => {
       check.afterTick(built.match);
       return check.divergedAt === null;
     },
   });
-  speedPickEl.hidden = catchUp;
+  speedPickEl.hidden = live;
   liveBadgeEl.hidden = false;
   startBtn.textContent = 'Local match';
   renderRoster();
@@ -431,7 +438,7 @@ if (liveParam) {
 }
 
 function loop(): void {
-  if (match) render(ctx, match, selectedBotId);
+  if (match) render(ctx, match, selectedBotId, renderFx);
   if (view) refreshHud();
   requestAnimationFrame(loop);
 }

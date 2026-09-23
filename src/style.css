@@ -29,6 +29,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  row-gap: 6px;
   padding: 8px 16px;
   border-bottom: 3px solid var(--violet);
   background: #000;
@@ -36,14 +38,14 @@ body {
 }
 
 .topbar .clock {
-  font-size: 20px;
+  font-size: clamp(14px, 4vw, 20px);
   font-weight: bold;
   color: var(--green);
 }
 
 .topbar .score {
-  font-size: 18px;
-  letter-spacing: 2px;
+  font-size: clamp(12px, 3.2vw, 18px);
+  letter-spacing: clamp(0.5px, 0.4vw, 2px);
 }
 
 .topbar .score .violet-team {
@@ -69,6 +71,7 @@ body {
 .topbar .actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -243,4 +246,31 @@ body {
   font-family: inherit;
   font-weight: bold;
   padding: 4px 6px;
+}
+
+/*
+ * Phase 1 legibility pass (docs/render-spec.md §9): every spectator is alone in their own tab, on
+ * whatever device they opened it with — including a phone. Below this width the row layout (a
+ * fixed 340px sidepanel next to the canvas) leaves no room for the canvas and pushes the roster
+ * off past the viewport's right edge with no way to scroll to it, since html/body are
+ * `overflow: hidden`. Stack instead: canvas on top, roster below, scrollable within `.main`
+ * (its own scroll container, independent of body's overflow:hidden).
+ */
+@media (max-width: 720px) {
+  .main {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  #arena {
+    flex: 0 0 auto;
+  }
+
+  .sidepanel {
+    width: 100%;
+    flex: 0 0 auto;
+    max-height: 42vh;
+    border-left: none;
+    border-top: 3px solid var(--violet);
+  }
 }

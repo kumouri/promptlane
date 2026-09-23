@@ -82,6 +82,8 @@ export class LiveFeed {
   decisions = 0;
   /** A checkpoint may arrive after the sim passed its tick; the divergence check wants to know. */
   onCheckpoint: ((tick: number, state: string) => void) | null = null;
+  /** Fires when `lastRoundTick` advances — the live pacer's only signal of real round-arrival timing. */
+  onRound: ((tick: number) => void) | null = null;
 
   apply(e: LiveEvent): void {
     switch (e.event) {
@@ -97,7 +99,10 @@ export class LiveFeed {
         this.decisions += 1;
         break;
       case 'round':
-        this.lastRoundTick = Math.max(this.lastRoundTick, e.data.tick);
+        if (e.data.tick > this.lastRoundTick) {
+          this.lastRoundTick = e.data.tick;
+          this.onRound?.(e.data.tick);
+        }
         break;
       case 'checkpoint':
         this.checkpoints.set(e.data.tick, e.data.state);
@@ -307,5 +312,76 @@ export class DivergenceCheck {
     if (mine === undefined) return;
     this.compared += 1;
     if (mine !== state) this.divergedAt = tick;
+  }
+}
+
+export interface LivePacerOptions {
+  /** Decision cadence, from the stream's `meta` event. */
+  cadenceSec: number;
+  /** The sim tick the browser has actually reached right now. */
+  getCurrentTick: () => number;
+  now?: () => number;
+  /** EMA smoothing factor for the round-arrival gap, 0..1 (higher = reacts faster). */
+  alpha?: number;
+}
+
+/**
+ * Meters ticks released to the browser between confirmed decision rounds, instead of bursting
+ * every newly-unlocked tick the instant it's confirmed — the live "freeze then teleport" bug
+ * fixed here (docs/render-spec.md §8, §15). `Ticker.speed()` wants a *stable* sim-seconds-per-
+ * real-second number that only changes occasionally: recomputing it from continuously-elapsing
+ * wall time every call would make it differ from `lastSpeed` on almost every poll, which resets
+ * `Ticker`'s `baseTick`/`baseNow` to "now" each time and starves it of any elapsed time to step
+ * with. So this only recomputes `currentSpeed` at discrete points — when a round actually
+ * arrives — and holds it steady in between, exactly like the fixed 1×/4×/16× replay speeds
+ * `Ticker` already handles well.
+ *
+ * Genuinely behind (more than one round's worth of confirmed-but-unrendered ticks — a fresh
+ * page load or a reconnect) still gets `Infinity`: real, unmetered catch-up, not prediction.
+ * Once caught up, `currentSpeed` releases the previous round's ticks over a real-time estimate
+ * of how long the *next* round will take to arrive — a simple moving average of recent
+ * round-to-round gaps, seeded conservatively (assume a full cadence of real time) so nothing
+ * bursts before any real arrival timing exists. Gaps observed while still catching up (a
+ * backlog of past rounds arriving in one network burst) are not real pacing signal and are
+ * excluded from the average, or it would collapse toward zero.
+ */
+export class LivePacer {
+  private readonly roundTicks: number;
+  private readonly now: () => number;
+  private readonly alpha: number;
+  private gapEstimateSec: number;
+  private lastRoundAt: number | null = null;
+  private observedRoundTick = -1;
+  private currentSpeed: number;
+
+  constructor(private readonly opts: LivePacerOptions) {
+    this.roundTicks = Math.max(1, Math.round(opts.cadenceSec / TICK_DT));
+    this.now = opts.now ?? (() => performance.now());
+    this.alpha = opts.alpha ?? 0.3;
+    this.gapEstimateSec = opts.cadenceSec;
+    this.currentSpeed = (this.roundTicks * TICK_DT) / this.gapEstimateSec;
+  }
+
+  /** Call whenever `feed.lastRoundTick` advances (wire to `LiveFeed.onRound`). */
+  onRound(tick: number): void {
+    if (tick <= this.observedRoundTick) return;
+    this.observedRoundTick = tick;
+    const nowMs = this.now();
+    const wasCaughtUp = tick - this.opts.getCurrentTick() <= this.roundTicks;
+    if (wasCaughtUp) {
+      if (this.lastRoundAt !== null) {
+        const gapSec = (nowMs - this.lastRoundAt) / 1000;
+        if (gapSec > 0.01) {
+          this.gapEstimateSec = this.alpha * gapSec + (1 - this.alpha) * this.gapEstimateSec;
+          this.currentSpeed = (this.roundTicks * TICK_DT) / Math.max(0.25, this.gapEstimateSec);
+        }
+      }
+      this.lastRoundAt = nowMs;
+    }
+  }
+
+  /** Sim-seconds per real-second `Ticker` should run at right now. */
+  speed(): number {
+    return this.observedRoundTick - this.opts.getCurrentTick() > this.roundTicks ? Infinity : this.currentSpeed;
   }
 }
