@@ -108,11 +108,18 @@ speedEl.addEventListener('change', () => {
   speed = Number(speedEl.value);
 });
 
+/**
+ * The isometric diamond (docs/render-spec.md §4) is wider than it is tall, unlike the old top-down
+ * square, and it has to fit whatever box the flex layout hands it — full desktop width, or a short
+ * stacked strip above the roster on a phone (§15/§9's media query in style.css). So the canvas is
+ * given a plain CSS box (`width/height: 100%` in style.css) instead of relying on its own
+ * attribute-derived aspect ratio to size itself, and the backing bitmap is resized to match that
+ * box exactly; `render()`'s `fitIso()` does the rest for whatever aspect ratio results.
+ */
 function resizeCanvas(): void {
-  const rect = canvas.parentElement!.getBoundingClientRect();
-  const size = Math.min(rect.width, rect.height);
-  canvas.width = size;
-  canvas.height = size;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = Math.max(1, Math.round(rect.width));
+  canvas.height = Math.max(1, Math.round(rect.height));
 }
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
