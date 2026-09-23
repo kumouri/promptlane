@@ -37,7 +37,8 @@ it is:
        for small/decision models generally.
     3. Structured `state` (a JSON object, which the docs also accept) instead of prose, to see
        whether Jev's own internal handling of an explicit field beats a paragraph's use of English
-       comparison words ("below", "at or above") for the same numbers.
+       comparison words ("below", "at or above") for the same numbers. Implemented below as
+       `state_object()` -- the harness's second live run uses it (`--state-encoding json`).
 
 Each snapshot's paragraph is built by `state_paragraph()` alone, decoupled from HTTP/question
 plumbing, specifically so any of the above is a one-function edit, not a harness rewrite.
@@ -98,3 +99,25 @@ def state_paragraph(ws: Worksheet) -> str:
             _cd_clause(ws.cd),
         ]
     )
+
+
+def state_object(ws: Worksheet) -> dict:
+    """Option 3 from the module docstring: the same worksheet fields as a structured JSON object
+    instead of a prose paragraph, with the raw numbers alongside their fixed thresholds but none of
+    `state_paragraph`'s interpretive English ("below", "at or above") -- the direct comparison this
+    harness's second live run makes: does Jev do better with an explicit field than with English
+    comparison words for the same numbers (Simon Willison's "not great with numbers" caveat, see
+    module docstring)."""
+    return {
+        "team": ws.team,
+        "instrument": ws.instrument,
+        "tick": ws.tick,
+        "clock_sec": ws.clock_sec,
+        "hp": ws.hp,
+        "hp_recall_threshold": 75,
+        "wave": ws.wave,
+        "tower": ws.tower,
+        "foe": ws.foe,
+        "cd": ws.cd,
+        "cd_ready_threshold": 0,
+    }

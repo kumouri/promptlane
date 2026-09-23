@@ -31,8 +31,13 @@ plainly rather than assumed.
 
 Run it:
 
-    python tools/jev/harness.py                    # dry run, stub client, no network
-    TYPESAFE_API_KEY=... python tools/jev/harness.py --live   # the real thing, once a key exists
+    python tools/jev/harness.py                                  # dry run, stub client, no network
+    TYPESAFE_API_KEY=... python tools/jev/harness.py --live       # TypeSafe direct, once a key exists
+    python tools/jev/harness.py --live --backend workers-ai       # via Cloudflare Workers AI (see
+                                                                   # client.py -- this is the backend
+                                                                   # actually usable today; reads a
+                                                                   # token from $CLOUDFLARE_API_TOKEN
+                                                                   # or wrangler's own OAuth token)
 """
 from __future__ import annotations
 
@@ -41,17 +46,21 @@ import json
 import os
 import statistics
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from client import (  # noqa: E402
     DEFAULT_MODEL,
+    WORKERS_AI_MODEL,
     StubSystemOneClient,
     SystemOneClient,
+    WorkersAIClient,
     estimate_cost_usd,
     estimate_request_tokens,
     resolve_api_key,
+    resolve_workers_ai_token,
 )
 from rules import (  # noqa: E402
     ActionBucket,
@@ -61,7 +70,7 @@ from rules import (  # noqa: E402
     bucket_for_rule,
     first_match,
 )
-from serializer import state_paragraph  # noqa: E402
+from serializer import state_object, state_paragraph  # noqa: E402
 
 HOUSE_VIOLET_PROMPT_FILE = "prompts/pilots/house-violet.md"
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -144,15 +153,22 @@ class Prediction:
     predicted_bucket: ActionBucket
     per_question: dict  # id -> {"rule_number", "noul", "answered", "correct", "confidence"}
     input_tokens: int
+    latency_sec: float
 
 
-def run_snapshot(client, snapshot: Snapshot) -> Prediction:
+def run_snapshot(client, snapshot: Snapshot, encoding: str = "prose") -> Prediction:
     """One systemone call (all six questions batched, matching how Jev actually answers -- in
-    parallel, in one call) plus the rule-cascade and scoring that turn it into a `Prediction`."""
+    parallel, in one call) plus the rule-cascade and scoring that turn it into a `Prediction`.
+    `encoding` picks the `state` shape: `"prose"` (default, `serializer.state_paragraph`) or
+    `"json"` (`serializer.state_object`) -- see `serializer.py`'s module docstring for why both
+    exist. Wall-clock latency around the single `client.ask` call is measured here, not estimated
+    -- the report's mean/p50/p90 come from this, not a guess."""
     ws = snapshot.worksheet
     bound = bind_questions(ws.instrument, ws)
-    state = state_paragraph(ws)
+    state = state_paragraph(ws) if encoding == "prose" else state_object(ws)
+    start = time.perf_counter()
     response = client.ask(state, bound)
+    latency_sec = time.perf_counter() - start
     answers = response.get("answers", {})
     usage = response.get("usage", {})
     yes_no: dict[str, bool] = {}
@@ -173,7 +189,19 @@ def run_snapshot(client, snapshot: Snapshot) -> Prediction:
         }
     predicted_bucket = bucket_for_rule(first_match(yes_no))
     input_tokens = usage.get("input_tokens") or estimate_request_tokens(state, bound)
-    return Prediction(snapshot, predicted_bucket, per_question, input_tokens)
+    return Prediction(snapshot, predicted_bucket, per_question, input_tokens, latency_sec)
+
+
+def _percentile(sorted_values: list[float], pct: float) -> float | None:
+    """Linear-interpolation percentile over an already-sorted list -- no numpy dependency for two
+    numbers. `pct` is a fraction (0.5 for p50, 0.9 for p90)."""
+    if not sorted_values:
+        return None
+    k = (len(sorted_values) - 1) * pct
+    lo, hi = int(k), min(int(k) + 1, len(sorted_values) - 1)
+    if lo == hi:
+        return sorted_values[lo]
+    return sorted_values[lo] + (sorted_values[hi] - sorted_values[lo]) * (k - lo)
 
 
 def build_report(predictions: list[Prediction]) -> dict:
@@ -209,6 +237,12 @@ def build_report(predictions: list[Prediction]) -> dict:
         for qid, row in per_rule.items()
     }
     total_input_tokens = sum(p.input_tokens for p in predictions)
+    latencies = sorted(p.latency_sec for p in predictions)
+    latency_stats = {
+        "mean_sec": statistics.mean(latencies) if latencies else None,
+        "p50_sec": _percentile(latencies, 0.5),
+        "p90_sec": _percentile(latencies, 0.9),
+    }
     return {
         "snapshot_count": total,
         "overall_agreement_rate": agree / total if total else None,
@@ -216,17 +250,29 @@ def build_report(predictions: list[Prediction]) -> dict:
         "disagreements": disagreements,
         "total_input_tokens": total_input_tokens,
         "estimated_cost_usd": estimate_cost_usd(total_input_tokens),
+        "latency": latency_stats,
     }
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    p.add_argument("--live", action="store_true", help="call the real TypeSafe API (requires TYPESAFE_API_KEY); default is a dry run against a stub client")
-    p.add_argument("--model", default=DEFAULT_MODEL, help=f"Jev model id (default {DEFAULT_MODEL!r} -- inferred, not confirmed by TypeSafe's own docs; see client.py)")
-    p.add_argument("--api-key-env", default="TYPESAFE_API_KEY")
+    p.add_argument("--live", action="store_true", help="call a real Jev backend; default is a dry run against a stub client")
+    p.add_argument(
+        "--backend",
+        choices=["typesafe", "workers-ai"],
+        default="workers-ai",
+        help="which live backend to use (ignored without --live): 'typesafe' calls TypeSafe's own API directly "
+        "(needs $TYPESAFE_API_KEY, paused since 2026-09-22, see client.py); 'workers-ai' (default) calls the same "
+        "Jev model through Cloudflare Workers AI, using a token from $CLOUDFLARE_API_TOKEN or wrangler's own login",
+    )
+    p.add_argument("--model", default=None, help=f"Jev model id (default: backend-specific -- {DEFAULT_MODEL!r} for typesafe, {WORKERS_AI_MODEL!r} for workers-ai; see client.py)")
+    p.add_argument("--api-key-env", default="TYPESAFE_API_KEY", help="env var holding the TypeSafe API key (--backend typesafe only)")
+    p.add_argument("--cloudflare-token-env", default="CLOUDFLARE_API_TOKEN", help="env var holding the Cloudflare API token (--backend workers-ai only)")
+    p.add_argument("--state-encoding", choices=["prose", "json"], default="prose", help="how the worksheet is serialized into Jev's `state` field -- see serializer.py")
     p.add_argument("--runs", nargs="*", default=None, help="run log paths (default: the four checked-in house-prompt-2026-09-21 logs)")
     p.add_argument("--error-rate", type=float, default=0.1, help="stub client's induced error rate; ignored by --live")
     p.add_argument("--out", default=None, help="also write the JSON report to this path")
+    p.add_argument("--limit", type=int, default=None, help="only run the first N snapshots -- for a cheap smoke test before a full --live run")
     return p.parse_args(argv)
 
 
@@ -234,19 +280,26 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     run_paths = [Path(p) for p in args.runs] if args.runs else default_run_paths()
     snapshots = load_house_violet_snapshots(run_paths)
+    if args.limit is not None:
+        snapshots = snapshots[: args.limit]
     if not snapshots:
         print("no house-violet.md snapshots found in the given run logs", file=sys.stderr)
         return 1
 
     if args.live:
-        api_key = resolve_api_key(args.api_key_env)
-        client = SystemOneClient(api_key, model=args.model)
+        if args.backend == "workers-ai":
+            token = resolve_workers_ai_token(args.cloudflare_token_env)
+            client = WorkersAIClient(token, model=args.model or WORKERS_AI_MODEL)
+        else:
+            api_key = resolve_api_key(args.api_key_env)
+            client = SystemOneClient(api_key, model=args.model or DEFAULT_MODEL)
     else:
         client = StubSystemOneClient(error_rate=args.error_rate)
 
-    predictions = [run_snapshot(client, s) for s in snapshots]
+    predictions = [run_snapshot(client, s, encoding=args.state_encoding) for s in snapshots]
     report = build_report(predictions)
-    report["mode"] = "live" if args.live else "dry-run (stub client, no network)"
+    report["mode"] = f"live ({args.backend})" if args.live else "dry-run (stub client, no network)"
+    report["state_encoding"] = args.state_encoding
     report["run_paths"] = [str(p) for p in run_paths]
 
     text = json.dumps(report, indent=2)

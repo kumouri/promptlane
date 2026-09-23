@@ -1,22 +1,33 @@
-# Jev suitability harness — everything but the paid call, 2026-09-22
+# Jev suitability harness, 2026-09-22 (built) / 2026-09-23 (run live)
 
 Builds the test `docs/jev-decision-model-research.md` (memo, PR #20, branch
 `docs/jev-preview-research`) proposes: replay `prompts/pilots/house-violet.md`'s seven-rule decision
 table against real logged decisions in `runs/house-prompt-2026-09-21-r*.json`, as Jev `questions`,
 and compare Jev's answers to what the ruled `qwen3.5:9b` backend actually did. Code:
-`tools/jev/{client,rules,serializer,harness}.py` + `tools/jev/test_*.py`. **No paid call was made —
-there is no `TYPESAFE_API_KEY` on this host, and none was obtained, per the brief.**
+`tools/jev/{client,rules,serializer,harness}.py` + `tools/jev/test_*.py`.
+
+**Update, 2026-09-23: this harness has now been run live.** TypeSafe paused direct Jev signups on
+2026-09-22, so there is still no `TYPESAFE_API_KEY` on this host and `SystemOneClient` has never
+been exercised for real. Cloudflare Workers AI resells the same Jev model through its
+account-scoped `/ai/run` endpoint, so `WorkersAIClient` (`tools/jev/client.py`) was added and used
+instead — see the **Live results** section at the end of this doc for what came back. Everything
+above this update describes the pre-live build and its dry-run (stub-client) numbers; both remain
+accurate as a description of the harness's plumbing.
 
 ## Run it
 
 ```
-python tools/jev/harness.py                                # dry run, stub client, no network (default)
-TYPESAFE_API_KEY=... python tools/jev/harness.py --live     # the real thing, once a key exists
+python tools/jev/harness.py                                      # dry run, stub client, no network (default)
+python tools/jev/harness.py --live                                # Workers AI (default backend) -- see below
+TYPESAFE_API_KEY=... python tools/jev/harness.py --live --backend typesafe   # TypeSafe direct, once a key exists
 ```
 
-The key is read from `$TYPESAFE_API_KEY` only (`tools/jev/client.py::resolve_api_key`, mirrors
-`tools/model_server.py`'s posture exactly). No key, no file, nothing to gitignore beyond what
-`.gitignore` already covers (`.env*`) — this harness never writes one.
+`--backend workers-ai` (the default for `--live`) reads a Cloudflare API token from
+`$CLOUDFLARE_API_TOKEN`, falling back to wrangler's own OAuth token on disk
+(`tools/jev/client.py::resolve_workers_ai_token`). `--backend typesafe` reads
+`$TYPESAFE_API_KEY` only (`resolve_api_key`, mirrors `tools/model_server.py`'s posture exactly).
+Neither backend writes a key or token to a file — nothing to gitignore beyond what `.gitignore`
+already covers (`.env*`).
 
 ## What "Observation snapshot" actually turned out to mean
 
@@ -129,7 +140,7 @@ it should. A perfect rule-follower disagrees with that ground truth exactly wher
 broke its own rules, which is real signal about the baseline this test is measuring against, not a
 flaw in the harness.
 
-## Cost estimate for the real run
+## Cost estimate for the real run (pre-live)
 
 263 snapshots × 6 questions/snapshot, ~438 estimated input tokens/snapshot (state paragraph +
 every question's instructions + criteria text, ~4 chars/token, `tools/jev/client.py::
@@ -139,7 +150,11 @@ estimate_request_tokens`) = **~115,200 input tokens total**, at $0.042/M input, 
 Phase C OpenRouter proof spent $0.0143 for 138 calls
 (`runs/openrouter-phase-c-proof-2026-09-22.md`); this is fewer dollars for roughly double the
 calls, mostly because Jev's output is free and each call here is small (one short paragraph, six
-short questions). Comfortably inside "a few cents, not a few dollars."
+short questions). Comfortably inside "a few cents, not a few dollars." **The estimate undershot
+the real usage-reported total by about 2x — see Live results below**, most likely because this
+estimate (and `estimate_request_tokens`'s ~4 chars/token rule) doesn't account for whatever
+system/tool-schema overhead Jev's own `noul` question format adds server-side; the real `usage`
+numbers from Workers AI are authoritative over this estimate.
 
 ## Where the memo and the checked-in data disagree
 
@@ -165,3 +180,84 @@ Flagged, not smoothed over, per the brief:
 - **No ToS, no confirmed free-tier/card requirement.** Neither the memo nor anything fetched for
   this harness found a TypeSafe terms-of-service document or said whether a card is required to get
   a key. Unverified, not assumed.
+
+## Live results — Cloudflare Workers AI, 2026-09-23
+
+Two full runs against `--backend workers-ai` (Cloudflare account `fd8ba3abbeadc6dcca7774a1a4a9a8d0`),
+all 263 house-violet.md snapshots each, sequential, no parameter sweeps. Raw reports:
+`runs/jev-live-workers-ai-prose-2026-09-23.json` (prose, the harness default) and
+`runs/jev-live-workers-ai-json-2026-09-23.json` (`--state-encoding json`, the structured-object
+alternative added for this run — `serializer.state_object`). `--backend typesafe` remains untested
+live: there is still no `TYPESAFE_API_KEY`.
+
+| | prose (default) | structured JSON |
+|---|---:|---:|
+| overall bucket agreement | **43.7%** (115/263) | **40.7%** (107/263) |
+| q1 `low_hp_recall` accuracy | 100% | 100% |
+| q2 `tower_no_wave` accuracy | 100% | 98.1% |
+| q3 `ability_ready` accuracy | 100% | 100% |
+| q4 `foe_present` accuracy | 95.1% | 100% |
+| q5 `tower_present` accuracy | 100% | 100% |
+| q6 `wave_present` accuracy | 100% | 95.1% |
+| avg confidence when a question was wrong | 0.083 (q4) | 0.064 (q2), 0.183 (q6) |
+| input tokens (real `usage`, not estimated) | 219,451 | 213,072 |
+| estimated cost | $0.0092 | $0.0089 |
+| latency mean / p50 / p90 (sec, measured) | 0.639 / 0.423 / 0.786 | 0.607 / 0.418 / 0.746 |
+| failures / 429s | 0 / 0 | 0 / 0 |
+
+**The single most important finding: per-condition accuracy was high (95–100%) and well-calibrated
+(low confidence specifically on the questions it got wrong) in both encodings.** The numbers-risk
+this whole harness exists to probe (Simon Willison: Jev is "not great with numbers, dates") did not
+show up here — five of six conditions were answered with 100% accuracy in both runs, and the one
+condition each run got wrong (q4 in prose, q2 and q6 in JSON) was wrong with low confidence (noul
+close to 0.5), not confidently wrong. That is the calibration behavior a "noul" score is supposed to
+have, and it held.
+
+**What the 41–44% overall-bucket number does NOT show: "Jev is right less than half the time."**
+This harness's own pre-live dry run already proved that a hypothetically *perfect* rule-follower —
+the `error_rate=0` stub, which answers every condition exactly as the rules say — does not reach
+high overall agreement either (`test_harness.py::test_zero_error_stub_answers_every_condition_correctly`).
+Ground truth here is *what `qwen3.5:9b` actually did*, and `runs/house-prompt-2026-09-21.md`'s own
+compliance measurement already shows that model disobeying its own worksheet in a large minority of
+cases. A model with 95–100% per-condition accuracy landing at ~42% overall bucket agreement against
+noncompliant ground truth is consistent with that known confound, not new evidence of a Jev
+weakness — but this harness does not build a "corrected" agreement number against a hypothetical
+fully-compliant ground truth, so that's an inference from the pattern, not a re-measurement. Stated
+plainly: **the per-condition numbers are what this run actually measures about Jev's judgment; the
+overall-bucket number is confounded by ground-truth noncompliance and should not be read on its own
+as a suitability verdict.**
+
+**Prose vs JSON: close, not conclusive.** 43.7% vs 40.7% overall, and each encoding missed exactly
+one condition out of six (a different one each time). One run per encoding is a single data point,
+not a repeated-trial comparison — this does not establish that either encoding is reliably better.
+Directionally, prose (the harness's default, per TypeSafe's own "short, dense, detailed paragraph"
+guidance) narrowly outperformed the structured-JSON alternative on both the overall number and in
+having zero rather than two imperfect conditions; that's *consistent with* the vendor's guidance, not
+proof of it.
+
+**A real bug this run surfaced.** The first live attempt at the prose run died partway through on an
+unhandled `TimeoutError` from a response-read timeout — `urllib` only wraps a *request-send* failure
+in `URLError`; a timeout while reading the response propagates as a bare `TimeoutError`/`OSError`
+instead, which the original `except HTTPError / URLError` clauses didn't catch. Fixed with
+`client.py::_open_with_retry`, a shared retry-with-backoff wrapper (429s honor `Retry-After`;
+transient connection/timeout errors get exponential backoff, 5 attempts) used by both live clients,
+covered by `test_client.py`'s retry tests. The numbers above are from the successful run after this
+fix; neither final run needed to exhaust a retry.
+
+**The pre-live token estimate undershot real usage by roughly 2x.** `estimate_request_tokens`'s
+~4-chars/token heuristic predicted ~438 input tokens/snapshot (~115,200 total); real `usage.
+input_tokens` averaged ~834/snapshot (219,451 total on the prose run). The cost/latency numbers
+above are the real measured ones, not the estimate — the estimate is now known to be a rough
+lower bound, not a close prediction, most likely because it doesn't account for whatever
+system/schema overhead Jev's `noul`-question format adds server-side. Also: `usage.output_tokens`
+was nonzero per call (spot-checked at 132 tokens for one snapshot) despite `PRICE_OUT_PER_M = 0.0`
+— cost is unaffected (TypeSafe's own pricing still bills $0/M for output), but "a noul answer has no
+output-token footprint at all" was not literally true, only "free to bill."
+
+**Scope note.** A small number of extra live calls happened during development beyond the two full
+runs counted above: one 101-snapshot file was called live twice by mistake (a single-snapshot smoke
+test that should have stayed at 1 snapshot), and one further single-snapshot debug call confirmed
+real `usage.input_tokens` was being read rather than the fallback estimate. None of those calls feed
+the numbers in this section, which come only from the two saved full-run JSON files; combined, the
+extra calls are on the order of ~250 additional snapshot-questions, well under a cent at this price
+point.

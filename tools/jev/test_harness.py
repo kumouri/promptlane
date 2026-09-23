@@ -4,6 +4,9 @@ the brief -- these are the "does the pipeline actually run clean" and "does the 
 do the right thing" tests, not a live-API test (there is no key on this host)."""
 from __future__ import annotations
 
+import contextlib
+import io
+import json
 import os
 import sys
 import unittest
@@ -76,6 +79,18 @@ class DryRunEndToEndTests(unittest.TestCase):
         self.assertEqual(len(report["per_rule"]), 6)
         self.assertGreater(report["total_input_tokens"], 0)
         self.assertGreater(report["estimated_cost_usd"], 0)
+        self.assertGreaterEqual(report["latency"]["mean_sec"], 0.0)
+        self.assertGreaterEqual(report["latency"]["p90_sec"], report["latency"]["p50_sec"])
+
+    def test_runs_clean_with_json_state_encoding(self):
+        """`encoding="json"` swaps `state` for a dict (`serializer.state_object`) -- the stub, the
+        token estimate, and the report all have to tolerate that, not just prose strings."""
+        snapshots = H.load_house_violet_snapshots(H.default_run_paths())[:10]
+        client = C.StubSystemOneClient(error_rate=0.1, seed=20260922)
+        predictions = [H.run_snapshot(client, s, encoding="json") for s in snapshots]
+        report = H.build_report(predictions)
+        self.assertEqual(report["snapshot_count"], 10)
+        self.assertGreater(report["total_input_tokens"], 0)
 
     def test_zero_error_stub_answers_every_condition_correctly(self):
         """error_rate=0 means the stub's answer to each question always equals that question's
@@ -107,7 +122,7 @@ class BuildReportTests(unittest.TestCase):
     def _prediction(self, predicted_bucket, actual_bucket, per_question):
         ws = R.Worksheet(hp=200, wave=1, tower=None, foe=None, cd=0.0, instrument="keytar", team="violet", tick=1, clock_sec=0.05)
         snap = H.Snapshot("fake.json", ws, "attack", "bb-1", actual_bucket)
-        return H.Prediction(snap, predicted_bucket, per_question, input_tokens=100)
+        return H.Prediction(snap, predicted_bucket, per_question, input_tokens=100, latency_sec=0.1)
 
     def test_agreement_rate_and_disagreement_listing(self):
         agree_q = {"q1_low_hp_recall": {"rule_number": 1, "noul": 0.9, "answered": True, "correct": True, "confidence": 0.8}}
@@ -134,6 +149,30 @@ class BuildReportTests(unittest.TestCase):
         row = report["per_rule"]["q1_low_hp_recall"]
         self.assertEqual(row["accuracy"], 0.0)
         self.assertAlmostEqual(row["avg_confidence_when_wrong"], (0.98 + 0.1) / 2)
+
+
+class ParseArgsTests(unittest.TestCase):
+    def test_defaults_to_workers_ai_backend_and_prose_encoding(self):
+        args = H.parse_args([])
+        self.assertFalse(args.live)
+        self.assertEqual(args.backend, "workers-ai")
+        self.assertEqual(args.state_encoding, "prose")
+        self.assertIsNone(args.model)
+
+    def test_accepts_typesafe_backend_and_json_encoding(self):
+        args = H.parse_args(["--live", "--backend", "typesafe", "--state-encoding", "json"])
+        self.assertEqual(args.backend, "typesafe")
+        self.assertEqual(args.state_encoding, "json")
+
+
+class LimitFlagTests(unittest.TestCase):
+    def test_main_with_limit_only_runs_the_first_n_snapshots(self):
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = H.main(["--limit", "1"])
+        self.assertEqual(rc, 0)
+        report = json.loads(buf.getvalue())
+        self.assertEqual(report["snapshot_count"], 1)
 
 
 if __name__ == "__main__":

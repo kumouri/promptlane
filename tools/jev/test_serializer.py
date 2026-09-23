@@ -63,5 +63,35 @@ class StateParagraphTests(unittest.TestCase):
         self.assertLess(len(text), 700)  # short and dense, not a wall of text
 
 
+class StateObjectTests(unittest.TestCase):
+    def test_is_a_plain_dict_not_prose(self):
+        obj = S.state_object(ws(hp=48, tower="tw-7", foe="bb-3", cd=1.5, wave=2))
+        self.assertIsInstance(obj, dict)
+
+    def test_carries_the_raw_worksheet_fields(self):
+        obj = S.state_object(ws(hp=48, wave=2, tower="tw-7", foe="bb-3", cd=1.5, instrument="drums", team="green", tick=99, clock_sec=12.3))
+        self.assertEqual(obj["hp"], 48)
+        self.assertEqual(obj["wave"], 2)
+        self.assertEqual(obj["tower"], "tw-7")
+        self.assertEqual(obj["foe"], "bb-3")
+        self.assertEqual(obj["cd"], 1.5)
+        self.assertEqual(obj["instrument"], "drums")
+        self.assertEqual(obj["team"], "green")
+        self.assertEqual(obj["tick"], 99)
+        self.assertEqual(obj["clock_sec"], 12.3)
+
+    def test_carries_no_interpretive_clauses(self):
+        obj = S.state_object(ws(hp=48))
+        for value in obj.values():
+            if isinstance(value, str):
+                self.assertNotIn("threshold", value)
+                self.assertNotIn("below", value)
+
+    def test_absence_is_none_not_a_sentinel_string(self):
+        obj = S.state_object(ws(tower=None, foe=None))
+        self.assertIsNone(obj["tower"])
+        self.assertIsNone(obj["foe"])
+
+
 if __name__ == "__main__":
     unittest.main()

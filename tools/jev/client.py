@@ -39,19 +39,36 @@ which addresses Jev as `"typesafe:jev-latest"`, and Cloudflare Workers AI's cata
 names a pinned version `jev-1.13.0`. `DEFAULT_MODEL` below picks `"jev-latest"` as the plainest
 reading of the first of those two -- inferred, not confirmed by TypeSafe's own reference, and
 overridable with `--model`.
+
+TWO LIVE BACKENDS. TypeSafe paused direct Jev signups on 2026-09-22 (no `TYPESAFE_API_KEY` exists,
+and none is expected to). `SystemOneClient` above talks to TypeSafe's own endpoint directly and
+needs one anyway, for whenever that changes. `WorkersAIClient` below is what `--live` actually uses
+today: Cloudflare Workers AI resells the same Jev model through its account-scoped `/ai/run`
+endpoint, authenticated with a Cloudflare API token (read from `$CLOUDFLARE_API_TOKEN`, or failing
+that from wrangler's own OAuth token on disk -- see `resolve_workers_ai_token`). Both clients expose
+the same `ask(state, questions) -> {"model", "answers", "usage"}` contract; `WorkersAIClient` just
+unwraps Cloudflare's extra envelope first. Verified working 2026-09-23 12:27 CT against account
+`fd8ba3abbeadc6dcca7774a1a4a9a8d0`; the per-model path form (`/ai/run/typesafe/jev`) 400s with "No
+route for that URI" -- use the generic `/ai/run` with `"model"` in the body instead.
 """
 from __future__ import annotations
 
 import json
 import os
 import random
+import time
 import urllib.error
 import urllib.request
+from pathlib import Path
 
 API_URL = "https://api.typesafe.ai/v1/systemone"
 DEFAULT_MODEL = "jev-latest"  # inferred, not confirmed -- see module docstring
 PRICE_IN_PER_M = 0.042  # USD per million input tokens (TypeSafe blog + docs, 2026-09-15/22)
 PRICE_OUT_PER_M = 0.0  # output tokens are free ("too cheap to meter", not a permanent commitment)
+
+CLOUDFLARE_ACCOUNT_ID = "fd8ba3abbeadc6dcca7774a1a4a9a8d0"
+WORKERS_AI_URL = f"https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/run"
+WORKERS_AI_MODEL = "typesafe/jev"
 
 
 class SystemOneError(RuntimeError):
@@ -72,18 +89,56 @@ def resolve_api_key(env_var: str = "TYPESAFE_API_KEY") -> str:
     return key
 
 
-def build_request_body(state: str, questions: list, model: str = DEFAULT_MODEL) -> dict:
-    """The exact `{state, model, questions}` body `POST /v1/systemone` expects. `questions` is a
-    list of `rules.Question` / `rules.BoundQuestion` (only `.id`/`.instructions`/`.criteria` are
-    read, so either works)."""
+def _questions_wire(questions: list) -> dict:
+    """The `{"<id>": {"type": "noul", "instructions", "criteria"}}` shape both wire formats embed.
+    `questions` is a list of `rules.Question` / `rules.BoundQuestion` (only `.id`/`.instructions`/
+    `.criteria` are read, so either works)."""
     return {
-        "state": state,
-        "model": model,
-        "questions": {
-            q.id: {"type": "noul", "instructions": q.instructions, "criteria": q.criteria}
-            for q in questions
-        },
+        q.id: {"type": "noul", "instructions": q.instructions, "criteria": q.criteria}
+        for q in questions
     }
+
+
+def build_request_body(state, questions: list, model: str = DEFAULT_MODEL) -> dict:
+    """The exact `{state, model, questions}` body `POST /v1/systemone` expects."""
+    return {"state": state, "model": model, "questions": _questions_wire(questions)}
+
+
+def build_workers_ai_body(state, questions: list, model: str = WORKERS_AI_MODEL) -> dict:
+    """The exact body Cloudflare Workers AI's `/ai/run` expects for `typesafe/jev`: `model` at the
+    top level, everything TypeSafe itself would read nested under `input` (no `model` inside
+    `input` -- Workers AI already knows which model it's routing to)."""
+    return {"model": model, "input": {"state": state, "questions": _questions_wire(questions)}}
+
+
+def _open_with_retry(req: urllib.request.Request, timeout: float, label: str, max_retries: int = 5) -> bytes:
+    """POSTs `req`, retrying on a 429 (honoring `Retry-After` when the response sends one) or a
+    transient connection/read-timeout error, with exponential backoff -- discovered live 2026-09-23:
+    a read timeout raises a bare `TimeoutError`/`OSError`, NOT `urllib.error.URLError` (only
+    `Request.request()`'s failures get wrapped; `getresponse()`'s don't), so both are caught here
+    explicitly rather than assuming `URLError` covers every network failure. One flaky request
+    should not cost a 263-snapshot run its data point -- 'don't skip it' is a hard requirement here,
+    not a nicety. Raises `SystemOneError` only after `max_retries` attempts are exhausted."""
+    attempt = 0
+    while True:
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                return resp.read()
+        except urllib.error.HTTPError as err:
+            if err.code == 429 and attempt < max_retries:
+                retry_after = err.headers.get("Retry-After") if err.headers else None
+                wait = float(retry_after) if retry_after and retry_after.strip().isdigit() else 2**attempt
+                time.sleep(wait)
+                attempt += 1
+                continue
+            detail = err.read().decode("utf-8", "replace")
+            raise SystemOneError(f"{label} {err.code}: {detail[:300]}") from err
+        except (urllib.error.URLError, OSError) as err:
+            if attempt < max_retries:
+                time.sleep(2**attempt)
+                attempt += 1
+                continue
+            raise SystemOneError(f"{label} request failed after {max_retries} retries: {err}") from err
 
 
 class SystemOneClient:
@@ -104,14 +159,94 @@ class SystemOneClient:
                 "Authorization": f"Bearer {self.api_key}",
             },
         )
-        try:
-            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-                return json.loads(resp.read().decode("utf-8"))
-        except urllib.error.HTTPError as err:
-            detail = err.read().decode("utf-8", "replace")
-            raise SystemOneError(f"systemone {err.code}: {detail[:300]}") from err
-        except urllib.error.URLError as err:
-            raise SystemOneError(f"systemone request failed: {err}") from err
+        return json.loads(_open_with_retry(req, self.timeout, "systemone").decode("utf-8"))
+
+
+def _wrangler_config_paths() -> list[Path]:
+    """Where wrangler stashes its OAuth token, in lookup order. `APPDATA` is Windows-only (the host
+    this harness runs on); `~/.wrangler` is wrangler's fallback on every platform."""
+    paths = []
+    appdata = os.environ.get("APPDATA")
+    if appdata:
+        paths.append(Path(appdata) / "xdg.config" / ".wrangler" / "config" / "default.toml")
+    paths.append(Path.home() / ".wrangler" / "config" / "default.toml")
+    return paths
+
+
+def _read_toml_string_value(path: Path, key: str) -> str | None:
+    """Pulls one `key = "value"` line out of a TOML file without a TOML dependency -- wrangler's
+    config is flat enough that a line scan is exact, and this repo has no `tomllib`-free
+    requirement to work around otherwise. Returns `None` if the file or key doesn't exist."""
+    if not path.exists():
+        return None
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line.startswith(f"{key} ") or line.startswith(f"{key}="):
+            _, _, rhs = line.partition("=")
+            return rhs.strip().strip('"')
+    return None
+
+
+def resolve_workers_ai_token(env_var: str = "CLOUDFLARE_API_TOKEN") -> str:
+    """`$CLOUDFLARE_API_TOKEN` first, then wrangler's own OAuth token on disk (`wrangler login`
+    already put one there). Refuses clearly rather than silently doing nothing -- mirrors
+    `resolve_api_key`'s posture. Never logs or returns the token in an error message."""
+    token = os.environ.get(env_var)
+    if token:
+        return token
+    for path in _wrangler_config_paths():
+        token = _read_toml_string_value(path, "oauth_token")
+        if token:
+            return token
+    tried = ", ".join(str(p) for p in _wrangler_config_paths())
+    raise SystemExit(
+        f"No Cloudflare API token found: {env_var} is not set and no oauth_token was found in "
+        f"wrangler's config ({tried}). Run `wrangler login`, or set {env_var} directly."
+    )
+
+
+class WorkersAIClient:
+    """Talks to Jev through Cloudflare Workers AI's `/ai/run` endpoint instead of TypeSafe's own
+    (see the module docstring for why). Same `ask()` contract as `SystemOneClient` -- callers never
+    need to know which transport they're on."""
+
+    def __init__(
+        self,
+        api_token: str,
+        account_id: str = CLOUDFLARE_ACCOUNT_ID,
+        model: str = WORKERS_AI_MODEL,
+        timeout: float = 30.0,
+    ):
+        self.api_token = api_token
+        self.account_id = account_id
+        self.model = model
+        self.timeout = timeout
+        self.url = f"https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/run"
+
+    def ask(self, state, questions: list) -> dict:
+        body = build_workers_ai_body(state, questions, self.model)
+        req = urllib.request.Request(
+            self.url,
+            data=json.dumps(body).encode("utf-8"),
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.api_token}",
+            },
+        )
+        payload = json.loads(_open_with_retry(req, self.timeout, "workers-ai").decode("utf-8"))
+        return unwrap_workers_ai_response(payload)
+
+
+def unwrap_workers_ai_response(payload: dict) -> dict:
+    """Cloudflare wraps the TypeSafe-shaped `{model, answers, usage}` body at `result.result`
+    (verified 2026-09-23; see the module docstring). Raises on `success: false` or a shape that
+    doesn't have `result.result`, same posture as `SystemOneClient` raising on a non-2xx."""
+    if not payload.get("success"):
+        raise SystemOneError(f"workers-ai call did not succeed: {payload.get('errors')!r}")
+    result = payload.get("result")
+    if not isinstance(result, dict) or "result" not in result:
+        raise SystemOneError(f"workers-ai response missing result.result: {payload!r}")
+    return result["result"]
 
 
 class StubSystemOneClient:
@@ -161,12 +296,15 @@ def estimate_tokens(char_count: int) -> int:
     return max(1, char_count // 4)
 
 
-def estimate_request_tokens(state: str, questions: list) -> int:
+def estimate_request_tokens(state, questions: list) -> int:
     """Estimated input tokens for one systemone call: the state paragraph plus every question's
     `instructions` and `criteria` text -- the whole request body is what a real call bills for,
     not just the instructions line. Used as the fallback whenever a response doesn't carry a real
-    `usage.input_tokens` (the stub never does; a live response always should)."""
-    total_chars = len(state)
+    `usage.input_tokens` (the stub never does; a live response always should). `state` may be the
+    prose string or the structured-JSON alternative (`serializer.state_object`) -- either is
+    measured as the text actually sent over the wire."""
+    state_text = state if isinstance(state, str) else json.dumps(state)
+    total_chars = len(state_text)
     for q in questions:
         total_chars += len(q.instructions)
         total_chars += sum(len(k) + len(v) for k, v in q.criteria.items())
