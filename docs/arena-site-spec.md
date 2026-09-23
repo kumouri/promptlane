@@ -646,7 +646,8 @@ Where this document was silent, the smallest thing was chosen and is now the rul
 
 **Effort.** 10–12 job-hours: SSE + backlog 2, `src/live.ts` external-tick driver + checkpoint
 check + speed 3, bracket seeding/byes/ties + admin controls 3, a full dress rehearsal (Thursday
-night pre-run of two rounds, Friday replay at 4×, one live semi on a projector) 2–4.
+night pre-run of two rounds, Friday replay at 4×, one live semi watched remotely in a second
+browser, the way every real spectator will) 2–4.
 
 **Needs from Ceryce:** Q6 format, Q7 tie order, Q8 jam-day cadence, Q9 pre-run early rounds,
 Q15 side assignment, Q18 spectator gating, Q19 organizer list.
@@ -675,8 +676,9 @@ Checklist against the file list above:
   ahead of the server. The model was unloaded afterwards (`keep_alive: 0`).
 - [x] Two browsers on one live match, and the live page mid-match, were exercised on a slow fake
   model server (headless Edge screenshots: `LIVE · 2 s cadence`, clock and last reply moving).
-- [ ] **Dress rehearsal on the projector** (Thursday pre-run of two rounds, Friday replay at 4×, one
-  live semi) — **Ceryce, with the real entrants** (runbook §5)
+- [ ] **Dress rehearsal, watched remotely** (Thursday pre-run of two rounds, Friday replay at 4×, one
+  live semi, all watched from a second browser as a real spectator would) — **Ceryce, with the real
+  entrants** (runbook §5)
 
 Where this document was silent, the smallest thing was chosen and is now the rule:
 

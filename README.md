@@ -132,8 +132,8 @@ Checkpoints from the log are checked as the clock passes them; a mismatch shows 
 plays it faster than real time. The same page watches a match the arena is *still running*:
 `?live=<matchId>` (served by the arena as `/play/?live=…`) streams the log as it is written and
 steps the sim only up to the last completed round, so the clock runs at the model's pace and a
-late joiner catches up in seconds (`src/live.ts`). A screen share of this page is the round-one
-viewer.
+late joiner catches up in seconds (`src/live.ts`). This same page, opened directly in each
+spectator's own browser whenever they choose, *is* the round-one viewer — there is no shared screen.
 
 **Elysium, the arena.** `npm run arena` (`tools/arena/server.mjs`) is the pre-jam ladder and the
 jam-day bracket: entrants paste a prompt and run a quick test against the house bot, merged

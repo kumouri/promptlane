@@ -10,7 +10,7 @@ or prototyped for it.
 Read with: [`../src/render.ts`](../src/render.ts) (the renderer this replaces), [`../src/sim/map.ts`](../src/sim/map.ts),
 [`../src/sim/entities.ts`](../src/sim/entities.ts), [`../src/sim/match.ts`](../src/sim/match.ts),
 [`../src/live.ts`](../src/live.ts), [`arena-site-spec.md`](arena-site-spec.md) §3.4 (live stream) and
-§6 (jam-day sequence, round-one screen share), [`design.md`](design.md) (presentation-layer ethos).
+§6 (jam-day sequence, round-one remote viewing), [`design.md`](design.md) (presentation-layer ethos).
 
 ---
 
@@ -20,8 +20,8 @@ Read with: [`../src/render.ts`](../src/render.ts) (the renderer this replaces), 
 straight onto a square canvas with no rotation — `ctx.translate/scale` only. Every unit is a filled
 circle (nexus, minion, bearbot) or a filled square (tower); team is color (`#8e00ff` / `#00ff0f`);
 a bearbot's instrument is a single black letter (`D`/`K`/`V`) drawn on top of its circle. That letter
-is exactly what Ceryce is asking past — legible up close, invisible from across a room, and not a
-silhouette.
+is exactly what Ceryce is asking past — legible in a full-size window, unreadable once the window is
+small (a phone, a shrunk browser tab), and not a silhouette.
 
 **Rendering is a pure read of match state and stays that way.** Every match is re-simulated and
 replay-verified (`verifyReplay`) before it counts; a renderer that perturbs the sim, `src/rng.ts`, or
@@ -66,8 +66,9 @@ concern (§10).
 ## 3. "Fun to watch," made testable
 
 Her one line — *"enough to make it fun to watch"* — becomes these acceptance criteria. A build is
-correct against this spec when a person who has never seen promptlane, watching a **screen share or a
-projector from across a room**, can do all seven without being told anything except "watch this":
+correct against this spec when a person who has never seen promptlane, watching **alone in their own
+browser tab, on whatever device and at whatever moment they opened it, with nobody there to explain
+what they're looking at**, can do all seven without being told anything except "watch this":
 
 1. **Say which team is ahead**, within 3 seconds, from the HUD alone (score/clock), without counting
    individual HP bars.
@@ -90,9 +91,18 @@ Everything else in this document exists to make these seven true.
 ## 4. Projection — recommendation: yes, true isometric, here is the transform
 
 Her instinct is right, and it does real work beyond "looks nicer": it is the only lever here that adds
-genuine elevation (nexus looms, towers stand tall, creeps sit on the ground), and it improves the
-screen composition for a **widescreen projector** (constraint 5), which the current top-down square
-render does not.
+genuine elevation (nexus looms, towers stand tall, creeps sit on the ground), and it gives the three
+lanes distinct screen silhouettes (below), which the current top-down square render does not.
+
+*(An earlier pass argued this also "improves the screen composition for a widescreen projector."
+That premise is gone — there is no projector, no shared screen, and no fixed room to compose for.
+Every spectator watches in their own browser, at whatever window size, aspect ratio and zoom level
+they have, including a phone. That cuts the other way if anything: the isometric diamond is wider
+than it is tall, so it is *harder*, not easier, to fit into a narrow or portrait viewport than the
+current square top-down render — a phase-1/phase-2 canvas-fit pass has to handle that shape
+honestly rather than assuming a wide screen to compose for. The elevation and lane-silhouette wins
+above don't depend on screen shape, so they stand on their own; the widescreen-composition claim
+doesn't, and is withdrawn.)*
 
 **The transform.** Don't rotate the raw `(x, y)` axes — align the isometric axes with the map's own
 diagonals, which are already meaningful:
@@ -148,7 +158,7 @@ rotation).** Draw a ground-shadow ellipse at the true `(x, y)` and lift the body
 in screen-Y only, no `u/v` rotation. This gets *some* of the "2.5D" read (towers loom, nexus looms)
 for a fraction of the cost (no new coordinate system, no relearning, no hit-testing change), but it
 does **not** deliver the "fixed perspective isometric" look she specifically named, and it doesn't
-improve the lane-silhouette or widescreen-composition wins above. **I recommend the true isometric
+deliver the lane-silhouette win above. **I recommend the true isometric
 transform** because it's what she asked for and it's the one part of this spec that measurably helps
 "fun to watch" beyond what shape/color work alone can do — but see Open Decision 2 (§13): whether it
 ships in phase 1 or after.
@@ -190,7 +200,8 @@ silhouette distinguishable at small size, by shape alone:
 - **Minion (creep)** — smallest, ground-level (no lift), a simple rounded shape with no ornamentation —
   it should read as "background unit" even before you're close enough to see color.
 - **Bearbot** — noticeably larger than a minion (already true: r=14 vs r=8, keep that ratio or grow it
-  slightly under the iso scale so it survives distance-viewing), a distinct chassis silhouette (e.g. a
+  slightly under the iso scale so it stays legible at small scale — a phone, a shrunk browser window
+  — since it's just as often viewed up close as from a full-size desktop), a distinct chassis silhouette (e.g. a
   rounded body with small limb/ear nubs — "a bear," per `design.md`'s canon that every champion is the
   *same* chassis) so "bearbot" reads as one consistent shape family across all three instruments, with
   the instrument as an add-on marker (§7), not a different base shape. This also matters for a subtle
@@ -288,10 +299,12 @@ but worth not architecting against).
   "power" or "gold" gauge** — the brief and `design.md` are both explicit that the sim has no such
   stat, and inventing one to look like a broadcast HUD would be showing something that isn't real.
 - **Clock** — already exists (`clockText`, MM:SS countdown), keep it.
-- **Legibility pass for distance viewing** (constraint 5: this is a projected/shared screen, not a
-  laptop). The current `.topbar`/`.score` CSS was sized for someone sitting at a keyboard. A phase-1,
-  CSS-only pass (larger score/clock type, higher contrast, thicker strokes on lane/river borders) is
-  cheap and directly serves acceptance criteria 1 and 7 — flagging it here so it isn't dropped as
+- **Legibility pass for arbitrary viewports.** The current `.topbar`/`.score` CSS was sized for
+  someone sitting at a laptop keyboard, but every spectator now watches on their own device — a
+  desktop monitor, a laptop, or a phone held at arm's length — with nobody there to point at the
+  screen and say "look, top bar." A phase-1, CSS-only pass (responsive score/clock type, higher
+  contrast, thicker strokes on lane/river borders, a floor on minimum legible size at narrow widths)
+  is cheap and directly serves acceptance criteria 1 and 7 — flagging it here so it isn't dropped as
   "just styling."
 
 ## 10. Performance budget
@@ -332,13 +345,29 @@ buildable as an evolution of the existing `ctx.arc`/`ctx.fillRect` style in `ren
 
 ## 13. Open decisions for Ceryce
 
-**1. Ship before or after the Oct 2 jam?** *Recommend: after.* Round one is a screen share of this
-exact page (`arena-runbook.md` §6); the semis/final are live in front of people, and Phase B's own
-checklist still has an unchecked "dress rehearsal on the projector" item. Landing a renderer rewrite
-into that window adds risk to an already-tight schedule for a feature she raised while resting, not
-under jam pressure. Cost of recommended: the jam itself is watched on today's top-down/letter renderer.
-Cost of the alternative (ship before): real engineering time competes with the rehearsal in the same
-two weeks.
+**1. Ship before or after the Oct 2 jam?** *Recommend, revised: phase 1 before, phase 2 (the
+isometric camera) after — the original "after, full stop" recommendation doesn't survive its own
+premise.* It rested on round one being a passive screen share (`arena-runbook.md` §6) while only the
+semis/final carried real stakes, "live in front of people." Neither half of that is true: there is no
+room, no projector, and no co-located audience, ever — every round, round one included, is watched by
+someone alone in their own browser tab, arriving whenever they choose, with no operator there to
+explain what they're looking at. That makes self-explanation (acceptance criteria 1–4, 6, 7) matter
+for round one exactly as much as for the final, not less, which argues for landing the cheap,
+low-risk phase-1 work (entity silhouettes, hit/death feedback, the live-motion pacing fix, HUD
+legibility — §14) *before* the jam rather than after it, so round one isn't watched, unexplained, on
+the renderer's weakest form.
+
+What still argues for "after," and does so on its own footing, unrelated to who's in a room: schedule
+risk alone. The isometric camera (§4, phase 2) is the single biggest diff here — the one thing that
+changes the map's mental model and touches hit-testing/coordinate-system assumptions — and it was
+raised as a feature idea while she was resting, not under jam pressure. Landing it in the same two
+weeks as the actual dress rehearsal (`arena-site-spec.md` §6 Phase B) still competes with rehearsal
+time for no jam-day payoff, since top-down vs. isometric doesn't change whether any of the seven
+acceptance criteria pass. Cost of recommended: two ship dates instead of one, and phase 1 needs real
+rehearsal time of its own, not a landing the night before. Cost of the alternative (hold everything,
+phase 1 included, until after): the jam — round one included — is watched by people with no one to
+ask, on the renderer's current weakest form (a single letter distinguishing bearbots, health bars that
+don't flash), which is exactly the case this spec exists to fix.
 
 **2. If it ships, entity/HUD readability first or the isometric camera first?** *Recommend: entity
 silhouettes (§6/§7), the live-motion fix (§8), and the HUD legibility pass (§9) first, on the current
@@ -356,24 +385,29 @@ recommended: it will never look as good as authored art. Cost of the alternative
 time budget neither of which is scoped here, plus a real answer for what renders in the meantime.
 
 **4. Include the live-motion pacing fix (§8), or leave live choppy and only make replay/local-match
-look better this pass?** *Recommend: include it.* It's a small, additive, isolated change to
-`src/live.ts`/`src/main.ts`'s pacing policy — it doesn't touch the sim or the replay-verification
-contract — and it directly answers the brief's constraint 3 ("the gap between rounds... treat it as a
-first-class design problem, not an afterthought") and acceptance criterion 5. Cost of recommended: it's
-the one piece of this spec that touches decision-arrival timing logic rather than pure drawing, so it
-carries slightly more risk than a rendering-only change. Cost of the alternative: the isometric,
-better-silhouetted viewer would still visibly "freeze then teleport" every ~5 seconds in live mode,
-which is the single complaint most likely to undercut "fun to watch" for the people it matters most for
-(the live semis/final, watched by a room).
+look better this pass?** *Recommend: include it — and the remote viewing model makes the case
+stronger, not weaker.* It's a small, additive, isolated change to `src/live.ts`/`src/main.ts`'s
+pacing policy — it doesn't touch the sim or the replay-verification contract — and it directly
+answers the brief's constraint 3 ("the gap between rounds... treat it as a first-class design
+problem, not an afterthought") and acceptance criterion 5. Nobody watches from a fixed seat for the
+whole match; every spectator opens the page whenever they choose, mid-round as often as not, so the
+live view's catch-up behavior — recovering to the sim's real per-tick motion instead of bursting to
+the frontier — is a primary path every spectator hits, not an edge case reserved for a late arrival.
+Cost of recommended: it's the one piece of this spec that touches decision-arrival timing logic
+rather than pure drawing, so it carries slightly more risk than a rendering-only change. Cost of the
+alternative: the isometric, better-silhouetted viewer would still visibly "freeze then teleport"
+every ~5 seconds in live mode, for every spectator watching live in every round, which is the single
+complaint most likely to undercut "fun to watch" precisely because there's no one there to explain
+the freeze-then-teleport away as normal.
 
 ## 14. Phasing
 
-**Phase 1** (if greenlit — see Open Decision 1): entity silhouettes (§6/§7) on the current top-down
-camera, hit/death feedback (§8, feedback bullets), the live-motion pacing fix (§8, mechanism), and the
-HUD legibility pass (§9). Shippable and testable against acceptance criteria 1, 2, 3, 4, 5, 6 without
-touching the camera at all.
+**Phase 1** (recommended before the jam — see Open Decision 1): entity silhouettes (§6/§7) on the
+current top-down camera, hit/death feedback (§8, feedback bullets), the live-motion pacing fix (§8,
+mechanism), and the HUD legibility pass (§9). Shippable and testable against acceptance criteria 1, 2,
+3, 4, 5, 6 without touching the camera at all.
 
-**Phase 2**: the isometric transform (§4) — camera, lane/river geometry, draw-order-by-depth (§5),
+**Phase 2** (recommended after the jam — see Open Decision 1): the isometric transform (§4) — camera, lane/river geometry, draw-order-by-depth (§5),
 elevation (`h(entity)`). Answers acceptance criterion 7 more strongly (the base-color contrast becomes
 part of screen composition, not just something to notice) and delivers the literal "fixed perspective
 isometric 2.5D" look.
