@@ -1,19 +1,22 @@
 # Elysium viewer — isometric 2.5D render spec
 
-**Status: PHASE 1 BUILT — 2026-09-22** (branch `feat/render-phase1`). §14's phase 1 — entity/pilot
-silhouettes (§6/§7), hit/death/ability feedback (§8, feedback bullets), the live-view motion-pacing
-fix (§8, mechanism), and the HUD legibility pass (§9) — is built, on the unchanged top-down camera.
-**Phase 2 (§4, the isometric transform) is still spec only, not built.** §16 records what actually
-shipped, where it deviates from what this document imagined, and why. Originally written 2026-09-22
-in response to Ceryce's
+**Status: PHASE 2 BUILT — 2026-09-22** (branch `feat/render-phase2`, on top of `feat/render-phase1`).
+§14's phase 1 — entity/pilot silhouettes (§6/§7), hit/death/ability feedback (§8, feedback bullets),
+the live-view motion-pacing fix (§8, mechanism), and the HUD legibility pass (§9) — shipped first, on
+the top-down camera; §16 is its build log. **Phase 2 — the isometric transform (§4), depth sort (§5)
+and elevation (§4/§6) — is now also built**, on top of phase 1's silhouettes/feedback/pacing/HUD work,
+all of which survive the camera change unmodified. §17 is phase 2's build log. Originally written
+2026-09-22 in response to Ceryce's
 one-line brief (Telegram, 2026-09-22 20:46 CT): *"spec out making the game look decent in elysium. I'm
 thinking like fixed perspective isometric 2.5D or something, so we can see creeps vs bearbots and the
 drum bot vs the violin bot, etc. I'm not tied to anything other than 'enough to make it fun to watch'."*
 Sections 1-15 below are that original design document, left as written (design intent, not a
-build log) except where a phase 1 footnote marks a spot where the build deviated. §16 is the build
-log.
+build log) except where a phase 1 or phase 2 footnote marks a spot where the build deviated. §16 and
+§17 are the build logs.
 
-Read with: [`../src/render.ts`](../src/render.ts) (the renderer phase 1 rewrote), [`../src/sim/map.ts`](../src/sim/map.ts),
+Read with: [`../src/render.ts`](../src/render.ts) (the renderer phase 1 rewrote and phase 2 re-based
+on the iso camera), [`../src/iso.ts`](../src/iso.ts) (phase 2's pure projection/depth-sort/clustering
+math), [`../src/sim/map.ts`](../src/sim/map.ts),
 [`../src/sim/entities.ts`](../src/sim/entities.ts), [`../src/sim/match.ts`](../src/sim/match.ts),
 [`../src/live.ts`](../src/live.ts), [`arena-site-spec.md`](arena-site-spec.md) §3.4 (live stream) and
 §6 (jam-day sequence, round-one remote viewing), [`design.md`](design.md) (presentation-layer ethos).
@@ -413,7 +416,7 @@ silhouettes (§6/§7) on the current top-down camera, hit/death feedback (§8, f
 live-motion pacing fix (§8, mechanism), and the HUD legibility pass (§9). Shippable and testable
 against acceptance criteria 1, 2, 3, 4, 5, 6 without touching the camera at all.
 
-**Phase 2** (recommended after the jam — see Open Decision 1): the isometric transform (§4) — camera, lane/river geometry, draw-order-by-depth (§5),
+**Phase 2 — BUILT 2026-09-22, see §17.** (recommended after the jam — see Open Decision 1): the isometric transform (§4) — camera, lane/river geometry, draw-order-by-depth (§5),
 elevation (`h(entity)`). Answers acceptance criterion 7 more strongly (the base-color contrast becomes
 part of screen composition, not just something to notice) and delivers the literal "fixed perspective
 isometric 2.5D" look.
@@ -532,3 +535,101 @@ detail: a real (non-mock) desktop screenshot, a phone-portrait (375×667) and sh
 (hit flash, death fade → husk, cast pulse, cast streak) rendered through the real `render()` function
 in an actual browser via Playwright (installed ad hoc into the gitignored `artifacts/` directory for
 this verification, not added as a project dependency), and the full `test:arena` + `test:tools` gates.
+
+## 17. Phase 2 — as built (2026-09-22, branch `feat/render-phase2`)
+
+The isometric transform (§4), depth sort (§5) and elevation (§4/§6) are built, on top of phase 1's
+silhouettes/hit-death-cast feedback/live-pacing fix/HUD pass (§16), all of which survive unmodified —
+`RenderFx` is untouched, and every §8 effect now just draws at a projected screen position instead of
+a raw world one. `src/sim/*`, `src/rng.ts`, `src/pilots/*`, `src/types.ts` are untouched, and
+`test:arena`'s replay/verify tests (including phase 1's `LivePacer`/`Ticker` tests, also untouched)
+stayed green throughout.
+
+**The projection, built as specced, plus one implementation trick not in the spec.** `src/iso.ts` is
+a new, pure (no canvas/DOM) module holding `toIso`/`project`/`fitIso` exactly per §4's formula, plus
+`compareDepth`/`stableHash`/`stableOffset`/`clusterUnits` for §5. One thing the spec didn't anticipate:
+`project(_, 0, fit)`'s *ground* case (no elevation) is exactly an affine transform of `(x, y)`, so
+`groundMatrixOf()` returns it as a 6-number `ctx.setTransform` matrix — `render.ts` draws the river,
+lanes, jungle dots and every unit's footprint shadow by reusing old, unmodified world-space drawing
+code under that matrix, rather than hand-projecting every point. This is why the river/lane geometry
+came out exactly as §4 predicted (a vertical river band, a horizontal mid lane crossing it at exact
+screen center, two arcing top/bottom lanes) on the first real render — it's the same code that drew
+those lines correctly before, just under a different transform. Elevated sprites (everything but a
+ground-layer shape) can't use this trick — a lifted circle must stay a circle, not get skewed by the
+matrix — so they're drawn separately at an identity transform, at a screen position computed by
+`project()` directly.
+
+**Depth sort, draw order and the jitter, as specced.** `render()` now builds one flat list of
+Drawables across all four kinds and sorts it once by `compareDepth` (ground depth ascending, then
+kind priority, then id) before drawing — the earlier per-kind-then-loop structure (nexuses, then
+towers, then minions, then bearbots) that phase 1 inherited from the original top-down renderer would
+have been *wrong* under the iso camera, since a tower at low `v` must draw before a minion at high
+`v` regardless of kind. Minions and bearbots get a small stable per-id offset (`stableOffset`, an
+FNV-1a hash of the id, never `Math.random()`) so a spawned wave and a bearbot converging on the same
+spot don't sit exactly on top of each other; nexus/tower positions are unique by construction and
+aren't jittered.
+
+**Elevation, as specced, with one addition.** `HEIGHT_BY_KIND` gives nexus/tower/bearbot/minion the
+tallest-to-flat ordering §4 asked for; a bearbot also gets a small wall-clock idle bob (§4: "bearbot
+low with an idle bob"), and a dying unit's height animates toward 0 over the same death-fade window
+phase 1 already built, so it visibly "settles to the ground" (§8's death bullet, which phase 1
+couldn't fully deliver without elevation to settle *from*). The ground-shadow ellipse is drawn via the
+same `groundMatrixOf()` trick above — a world-space circle at a unit's true (un-lifted) position,
+which the matrix's anisotropy turns into a correctly-squashed ellipse for free, no manual ellipse math.
+
+**Tower orientation now computed in screen space.** Phase 1's `nearestSegmentAngle` (world-space lane
+tangent) is unchanged, but a world-space angle isn't the visual lane direction anymore once projected
+— `screenAngleOfWorldDir` converts it through the projection's linear part before rotating the
+tower's diamond, so it still visibly "stands along its lane" (§6) under the new camera.
+
+**Deviation: a legibility floor on bearbot/minion pixel radius, not in the spec's formula but
+explicitly invited by §6.** The iso camera projects a 2000-world-unit `u`-span onto the canvas (u
+ranges ±1000, vs. the old top-down renderer's 1000-unit width) — for a given canvas size, every
+entity's raw `radius * kx` is smaller than before. Measured on a real 940×745 desktop canvas: a
+bearbot's true `14 * kx` came out to ~6px, at which its ear-bumps and instrument marker were
+essentially unreadable (confirmed by rendering an isolated bearbot debug scene and zooming into the
+screenshot). §6 explicitly allows this: "keep that ratio or grow it slightly under the iso scale so
+it stays legible at small scale." `render.ts` floors bearbot pixel radius to 11px and minion to 4px
+(`MIN_RADIUS_PX`) — applied to the *pixel* radius only, so it doesn't change world-space
+depth/jitter/hit-testing, only what's drawn. Not applied to towers/nexus, which stayed comfortably
+readable at every viewport tested.
+
+**New beyond the original spec text: a team-fight count badge, answering acceptance criterion 4.**
+§5 floated this ("consider a small stacked '+N' badge on the densest cluster") without fully
+specifying it; phase 1 flagged criterion 4 as not independently verified, since depth/stacking are
+exactly what phase 2 touches. Built as `clusterUnits()` (single-link clustering of alive
+minions+bearbots by true world distance, threshold 70 units) plus a small `V–G` count badge drawn
+above any cluster over 6 members. Individual silhouettes still draw underneath (jittered, not
+clustering-aware spread) — the badge is what actually answers "roughly how many, which team has
+more" once a cluster gets dense, verified with a synthetic 11-unit (7 violet / 4 green) cluster scene
+that renders a clear "7–4" badge.
+
+**A bug caught and fixed before verification finished, not left for review to find.**
+`fitIso`'s vertical-fit math double-applied `ISO_RATIO` when computing the ground plane's screen
+height (once folded into an intermediate `vSpan`, again via `ky`), which halved the effective
+vertical space the diamond used and miscentered it — caught by comparing an actual desktop screenshot
+against the expected proportions, not by inspection. Fixed, with a regression test
+(`fitIso: content is vertically centered...`) asserting the margin above the tallest lifted point
+equals the margin below the ground plane, so this can't silently regress.
+
+**Canvas sizing, changed from a forced square to a plain flexed box.** The old top-down renderer set
+`canvas.width = canvas.height = min(rect.width, rect.height)`, relying on a `<canvas>`'s
+attribute-derived aspect ratio to size itself correctly under flex `align-items: stretch`. The iso
+diamond isn't square (§15), and that mechanism doesn't generalize cleanly to an arbitrary target
+ratio without re-deriving the sidepanel's width budget. `#arena` now gets `width/height: 100%` (a
+plain CSS box) and the backing bitmap is resized to match via `getBoundingClientRect()`; the mobile
+media query caps `#arena` to `height: 56vh` so phase 1's narrow-viewport roster fix (room left below
+the canvas) isn't undone by the base rule's `height: 100%`.
+
+**Deliberately left out, per the spec.** Canvas-click-to-select (§4 explicitly excludes it; roster-
+list selection, unaffected by any of this, remains the only way to select a bearbot).
+
+**Verification gap, flagged plainly rather than smoothed over.** Live rendering was not independently
+screenshotted — `render()` is called identically for live and replay (`src/main.ts`'s `loop()`), the
+live-specific pacing logic (`LivePacer`/`Ticker`) is untouched by this phase and already has its own
+passing tests, and every projection/depth/effect claim above was verified through a *replay* of a
+real (non-mock-CLI, full 600s) generated match log at three viewports, plus isolated synthetic scenes
+for the bearbot chassis, the team-fight badge, and hit/death/cast fx. Standing up a live match end-to-
+end (arena server, queue, an entrant fixture) was judged not worth the time given how thin the actual
+live-specific surface area is; a future pass watching one real live match would close this gap
+outright rather than lean on the architectural argument.

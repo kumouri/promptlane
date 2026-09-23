@@ -65,7 +65,8 @@ src/                 original generated game specimen; not maintained game sourc
 docs/                current design notes and historical recordings; not implicit run inputs
                      (docs/arena-site-spec.md: the arena spec, Phases A+B built; arena-runbook.md: how to run it;
                      render-spec.md: isometric viewer spec — phase 1 (silhouettes, hit/death feedback,
-                     live-pacing fix, HUD legibility) built; phase 2 (isometric camera) not yet built)
+                     live-pacing fix, HUD legibility) and phase 2 (isometric camera, depth sort,
+                     elevation) both built)
 assets/logo/         Jamobair, the mascot (PNG on black, on near-black, and transparent)
 ```
 
@@ -150,7 +151,8 @@ Cloudflare Access, and operate it — including the jam-day sequence — per
 mock model (no GPU; CI runs it). Making the canvas viewer itself look better is specced in
 [`docs/render-spec.md`](docs/render-spec.md): phase 1 (readable creep/tower/nexus/bearbot
 silhouettes, per-instrument markers, hit/death/ability feedback, a live-view motion-pacing fix, HUD
-legibility) is built, still on the top-down camera; phase 2 (the isometric 2.5D camera) is not.
+legibility) and phase 2 (the isometric 2.5D camera, depth-sorted draw order, elevation, a team-fight
+count badge) are both built.
 
 **Known v1 behaviour.** Low-health retreats can prevent first blood
 ([`runs/historical-v1.md`](runs/historical-v1.md)). The runner does not patch that; a match that

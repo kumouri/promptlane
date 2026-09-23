@@ -1,7 +1,21 @@
 import type { Match } from './sim/match';
 import { INSTRUMENTS } from './sim/entities';
 import { LANE_PATHS, LANES, WORLD_SIZE, inRiver } from './sim/map';
-import type { Lane, Vec2 } from './types';
+import type { Lane, Team, Vec2 } from './types';
+import {
+  ELEVATION_RATIO,
+  HEIGHT_BY_KIND,
+  clusterUnits,
+  compareDepth,
+  fitIso,
+  footprintRadii,
+  groundMatrixOf,
+  project,
+  screenAngleOfWorldDir,
+  stableOffset,
+  type DrawableKind,
+  type IsoFit,
+} from './iso';
 
 const VIOLET = '#8e00ff';
 const GREEN = '#00ff0f';
@@ -10,6 +24,31 @@ const HIT_FLASH_MS = 160;
 const DEATH_FADE_MS = 360;
 const CAST_PULSE_MS = 420;
 const CAST_STREAK_MS = 260;
+
+/** §5: units within this many world units of each other count as one cluster for the team-fight count badge. */
+const CLUSTER_DIST = 70;
+/** §5: past this many units in one cluster, individual silhouettes stop being legible — layer a count badge instead of trying to spread them further. */
+const CLUSTER_BADGE_MIN = 6;
+/** §5: the near-coincident-unit offset — small, and a stable hash of the id (never per-frame random), so overlapping minions/bearbots in a fight separate visually without misrepresenting position. */
+const JITTER_MAGNITUDE = 9;
+
+/**
+ * §6: "keep that ratio or grow it [the bearbot] slightly under the iso scale so it stays legible
+ * at small scale — a phone, a shrunk browser window." The iso camera maps a 2000-world-unit u-span
+ * onto the canvas (vs. the old top-down renderer's 1000), so at a given canvas size every entity's
+ * raw `radius * kx` is noticeably smaller than it used to be — towers/nexus stay comfortably
+ * readable, but a bearbot's chassis and instrument marker can shrink past the point of reading as
+ * anything but a dot. Floor bearbot/minion pixel radius (not their true world radius, which still
+ * drives depth/jitter/hit-testing) so they stay legible; not applied to towers/nexus, which don't
+ * need it at any viewport this spec targets.
+ */
+const MIN_RADIUS_PX: Partial<Record<DrawableKind, number>> = { bearbot: 11, minion: 4 };
+
+function legibleWorldRadius(worldRadius: number, kind: DrawableKind, kx: number): number {
+  const floorPx = MIN_RADIUS_PX[kind];
+  if (!floorPx || kx <= 0) return worldRadius;
+  return Math.max(worldRadius, floorPx / kx);
+}
 
 /**
  * Ability -> visual treatment (docs/render-spec.md §8): the two AoE abilities get a radial pulse
@@ -125,27 +164,49 @@ export class RenderFx {
   }
 }
 
+/** A unit queued for the depth-sorted sprite pass (docs/render-spec.md §5). `pos` is the (possibly jittered) world position used for both depth (structurally a `DepthEntry`, see iso.ts) and projection; `height` is `h(entity)` for this frame, already animated toward 0 for a unit mid-death-fade. */
+interface Drawable {
+  kind: DrawableKind;
+  id: string;
+  pos: Vec2;
+  height: number;
+  worldRadius: number;
+  draw: (ctx: CanvasRenderingContext2D, fit: IsoFit) => void;
+}
+
 export function render(ctx: CanvasRenderingContext2D, match: Match, selectedBotId: string | null, fx: RenderFx): void {
   const { canvas } = ctx;
-  const scale = Math.min(canvas.width, canvas.height) / WORLD_SIZE;
-  const offsetX = (canvas.width - WORLD_SIZE * scale) / 2;
-  const offsetY = (canvas.height - WORLD_SIZE * scale) / 2;
+  const fit = fitIso(canvas.width, canvas.height);
   const t = fx.now();
 
   ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.translate(offsetX, offsetY);
-  ctx.scale(scale, scale);
 
+  // Ground layer (docs/render-spec.md §4): river, lanes and jungle dots are drawn with the exact
+  // same world-space code as before phase 2, just under the iso projection's linear part as a
+  // canvas transform instead of a uniform translate+scale — see iso.ts's file doc comment for why
+  // that reproduces `project(_, 0, fit)` for every point on every path without re-deriving them.
+  ctx.setTransform(...groundMatrixOf(fit));
   drawRiver(ctx);
   drawLanes(ctx);
   drawJungleDots(ctx);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-  for (const n of match.nexuses) drawNexus(ctx, n, fx, t);
-  for (const tw of match.towers) drawTower(ctx, tw, fx, t);
-  for (const m of match.minions) drawMinion(ctx, m, fx, t);
-  for (const b of match.bearbots) drawBearbot(ctx, b, b.id === selectedBotId, fx, t, match.clockSec);
+  const drawables: Drawable[] = [];
+  for (const n of match.nexuses) drawables.push(nexusDrawable(n, fx, t));
+  for (const tw of match.towers) drawables.push(towerDrawable(tw, fx, t));
+  for (const m of match.minions) drawables.push(minionDrawable(m, fx, t));
+  for (const b of match.bearbots) drawables.push(bearbotDrawable(b, b.id === selectedBotId, fx, t, match.clockSec));
+  drawables.sort((a, b) => compareDepth(a, b));
+
+  for (const d of drawables) {
+    if (d.height > 0) drawFootprintShadow(ctx, project(d.pos, 0, fit), legibleWorldRadius(d.worldRadius, d.kind, fit.kx), fit);
+    d.draw(ctx, fit);
+  }
+
+  drawTeamFightBadges(ctx, match, fit);
 
   ctx.restore();
   fx.prune();
@@ -153,6 +214,18 @@ export function render(ctx: CanvasRenderingContext2D, match: Match, selectedBotI
 
 function teamColor(team: string): string {
   return team === 'violet' ? VIOLET : GREEN;
+}
+
+/** The soft ground-shadow ellipse drawn at a lifted unit's un-lifted (u,v) position (§4). */
+function drawFootprintShadow(ctx: CanvasRenderingContext2D, groundPos: Vec2, worldRadius: number, fit: IsoFit): void {
+  const { rx, ry } = footprintRadii(worldRadius, fit);
+  ctx.save();
+  ctx.globalAlpha = 0.35;
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.ellipse(groundPos.x, groundPos.y, rx, ry, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
 }
 
 function drawRiver(ctx: CanvasRenderingContext2D): void {
@@ -221,7 +294,7 @@ function distToSeg(px: number, py: number, x1: number, y1: number, x2: number, y
   return Math.hypot(px - cx, py - cy);
 }
 
-/** Angle of the lane segment nearest `p` — used to orient a tower's silhouette along its lane. */
+/** Angle (world radians) of the lane segment nearest `p` — used to orient a tower's silhouette along its lane. */
 function nearestSegmentAngle(path: Vec2[], p: Vec2): number {
   let bestDist = Infinity;
   let bestAngle = 0;
@@ -237,13 +310,14 @@ function nearestSegmentAngle(path: Vec2[], p: Vec2): number {
   return bestAngle;
 }
 
-function drawHpBar(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, hp: number, maxHp: number, color: string): void {
+function drawHpBar(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, hp: number, maxHp: number, color: string, px: number): void {
   const pct = Math.max(0, hp / maxHp);
+  const h = Math.max(2, 5 * px);
   ctx.save();
   ctx.fillStyle = '#222';
-  ctx.fillRect(x - w / 2, y, w, 5);
+  ctx.fillRect(x - w / 2, y, w, h);
   ctx.fillStyle = color;
-  ctx.fillRect(x - w / 2, y, w * pct, 5);
+  ctx.fillRect(x - w / 2, y, w * pct, h);
   ctx.restore();
 }
 
@@ -255,13 +329,13 @@ function deathProgress(deathAt: number | null, t: number): number | null {
   return elapsed / DEATH_FADE_MS;
 }
 
-/** A dim, permanent wreckage mark left after a structure/bearbot's death-fade finishes — so "which base fell" and unit-count reads (criterion 4) stay honest instead of the unit just vanishing. */
-function drawHusk(ctx: CanvasRenderingContext2D, pos: Vec2, r: number, color: string, shape: Shape): void {
+/** A dim, permanent wreckage mark left after a structure/bearbot's death-fade finishes — so "which base fell" and unit-count reads (criterion 4) stay honest instead of the unit just vanishing. Drawn settled on the ground (h=0). */
+function drawHusk(ctx: CanvasRenderingContext2D, pos: Vec2, r: number, color: string, shape: Shape, px: number): void {
   ctx.save();
   ctx.globalAlpha = 0.25;
   ctx.fillStyle = '#1a1a1a';
   ctx.strokeStyle = color;
-  ctx.lineWidth = 1.5;
+  ctx.lineWidth = Math.max(1, 1.5 * px);
   const s = r * 0.6;
   if (shape === 'circle') {
     ctx.beginPath();
@@ -275,10 +349,10 @@ function drawHusk(ctx: CanvasRenderingContext2D, pos: Vec2, r: number, color: st
   ctx.restore();
 }
 
-function drawHitFlash(ctx: CanvasRenderingContext2D, pos: Vec2, r: number, shape: Shape): void {
+function drawHitFlash(ctx: CanvasRenderingContext2D, pos: Vec2, r: number, shape: Shape, px: number): void {
   ctx.save();
   ctx.strokeStyle = '#fff';
-  ctx.lineWidth = 3;
+  ctx.lineWidth = Math.max(1, 3 * px);
   if (shape === 'circle') {
     ctx.beginPath();
     ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
@@ -289,33 +363,33 @@ function drawHitFlash(ctx: CanvasRenderingContext2D, pos: Vec2, r: number, shape
   ctx.restore();
 }
 
-function drawStatusRing(ctx: CanvasRenderingContext2D, pos: Vec2, r: number, color: string, dashed: boolean): void {
+function drawStatusRing(ctx: CanvasRenderingContext2D, pos: Vec2, r: number, color: string, dashed: boolean, px: number): void {
   ctx.save();
   ctx.strokeStyle = color;
-  ctx.lineWidth = 2;
-  if (dashed) ctx.setLineDash([4, 3]);
+  ctx.lineWidth = Math.max(1, 2 * px);
+  if (dashed) ctx.setLineDash([4 * px, 3 * px]);
   ctx.beginPath();
-  ctx.arc(pos.x, pos.y, r + 6, 0, Math.PI * 2);
+  ctx.arc(pos.x, pos.y, r + 6 * px, 0, Math.PI * 2);
   ctx.stroke();
   ctx.restore();
 }
 
-function drawCastPulse(ctx: CanvasRenderingContext2D, pos: Vec2, color: string, progress: number): void {
+function drawCastPulse(ctx: CanvasRenderingContext2D, pos: Vec2, color: string, progress: number, px: number): void {
   ctx.save();
   ctx.globalAlpha = 1 - progress;
   ctx.strokeStyle = color;
-  ctx.lineWidth = 4;
+  ctx.lineWidth = Math.max(1, 4 * px);
   ctx.beginPath();
-  ctx.arc(pos.x, pos.y, 14 + progress * 70, 0, Math.PI * 2);
+  ctx.arc(pos.x, pos.y, (14 + progress * 70) * px, 0, Math.PI * 2);
   ctx.stroke();
   ctx.restore();
 }
 
-function drawCastStreak(ctx: CanvasRenderingContext2D, from: Vec2, to: Vec2, color: string, progress: number): void {
+function drawCastStreak(ctx: CanvasRenderingContext2D, from: Vec2, to: Vec2, color: string, progress: number, px: number): void {
   ctx.save();
   ctx.globalAlpha = 1 - progress;
   ctx.strokeStyle = color;
-  ctx.lineWidth = 5;
+  ctx.lineWidth = Math.max(1, 5 * px);
   ctx.lineCap = 'round';
   ctx.beginPath();
   ctx.moveTo(from.x, from.y);
@@ -324,107 +398,160 @@ function drawCastStreak(ctx: CanvasRenderingContext2D, from: Vec2, to: Vec2, col
   ctx.restore();
 }
 
+/** Idle bob for a living bearbot (§4: "bearbot low with an idle bob") — wall-clock, purely cosmetic, never fed back into the sim. */
+function bearbotHeight(t: number): number {
+  const BOB_PERIOD_MS = 1400;
+  const BOB_AMPLITUDE = 6;
+  return HEIGHT_BY_KIND.bearbot + Math.sin((t / BOB_PERIOD_MS) * Math.PI * 2) * BOB_AMPLITUDE;
+}
+
 // --- nexus --------------------------------------------------------------------
 
-function drawNexusShape(ctx: CanvasRenderingContext2D, n: Match['nexuses'][number], color: string, alpha: number, scale: number, t: number): void {
-  const r = n.radius * scale;
+function drawNexusShape(ctx: CanvasRenderingContext2D, pos: Vec2, r: number, color: string, alpha: number, sizeMul: number, t: number, px: number): void {
+  const rr = r * sizeMul;
   const pulse = 0.15 * Math.sin(t / 500) + 0.85;
   ctx.save();
   ctx.globalAlpha = alpha * 0.35;
   ctx.strokeStyle = color;
-  ctx.lineWidth = 6;
+  ctx.lineWidth = Math.max(1, 6 * px);
   ctx.beginPath();
-  ctx.arc(n.pos.x, n.pos.y, r + 14 * pulse, 0, Math.PI * 2);
+  ctx.arc(pos.x, pos.y, rr + 14 * pulse * px, 0, Math.PI * 2);
   ctx.stroke();
 
   ctx.globalAlpha = alpha;
   ctx.fillStyle = color;
   ctx.beginPath();
-  ctx.arc(n.pos.x, n.pos.y, r, 0, Math.PI * 2);
+  ctx.arc(pos.x, pos.y, rr, 0, Math.PI * 2);
   ctx.fill();
   ctx.strokeStyle = '#fff';
-  ctx.lineWidth = 2;
+  ctx.lineWidth = Math.max(1, 2 * px);
   ctx.stroke();
 
   ctx.globalAlpha = alpha * 0.7;
   ctx.fillStyle = '#fff';
   ctx.beginPath();
-  ctx.arc(n.pos.x, n.pos.y, r * 0.35, 0, Math.PI * 2);
+  ctx.arc(pos.x, pos.y, rr * 0.35, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 }
 
-function drawNexus(ctx: CanvasRenderingContext2D, n: Match['nexuses'][number], fx: RenderFx, t: number): void {
-  const ufx = fx.trackUnit(n.id, n.hp, n.alive);
+function nexusDrawable(n: Match['nexuses'][number], fx: RenderFx, t: number): Drawable {
   const color = teamColor(n.team);
-  if (!n.alive) {
-    const p = deathProgress(ufx.deathAt, t);
-    if (p === null) {
-      drawHusk(ctx, n.pos, n.radius, color, 'circle');
-      return;
-    }
-    drawNexusShape(ctx, n, color, 1 - p, 1 - 0.3 * p, t);
-    return;
-  }
-  drawNexusShape(ctx, n, color, 1, 1, t);
-  if (t < ufx.hitFlashUntil) drawHitFlash(ctx, n.pos, n.radius + 5, 'circle');
-  drawHpBar(ctx, n.pos.x, n.pos.y - n.radius - 12, 90, n.hp, n.maxHp, color);
+  const ufxNow = fx.trackUnit(n.id, n.hp, n.alive);
+  const height = n.alive ? HEIGHT_BY_KIND.nexus : (() => {
+    const p = deathProgress(ufxNow.deathAt, t);
+    return p === null ? 0 : HEIGHT_BY_KIND.nexus * (1 - p);
+  })();
+  return {
+    kind: 'nexus',
+    id: n.id,
+    pos: n.pos,
+    height,
+    worldRadius: n.radius,
+    draw: (ctx, fit) => {
+      const ufx = fx.trackUnit(n.id, n.hp, n.alive);
+      const screenPos = project(n.pos, height, fit);
+      const radiusPx = n.radius * fit.kx;
+      if (!n.alive) {
+        const p = deathProgress(ufx.deathAt, t);
+        if (p === null) {
+          drawHusk(ctx, screenPos, radiusPx, color, 'circle', fit.kx);
+          return;
+        }
+        drawNexusShape(ctx, screenPos, radiusPx, color, 1 - p, 1 - 0.3 * p, t, fit.kx);
+        return;
+      }
+      drawNexusShape(ctx, screenPos, radiusPx, color, 1, 1, t, fit.kx);
+      if (t < ufx.hitFlashUntil) drawHitFlash(ctx, screenPos, radiusPx + 5 * fit.kx, 'circle', fit.kx);
+      drawHpBar(ctx, screenPos.x, screenPos.y - radiusPx - 12 * fit.kx, 90 * fit.kx, n.hp, n.maxHp, color, fit.kx);
+    },
+  };
 }
 
 // --- tower ----------------------------------------------------------------------
 
-function drawTowerShape(ctx: CanvasRenderingContext2D, twr: Match['towers'][number], color: string, alpha: number, scale: number, angle: number): void {
-  const r = twr.radius * scale;
+function drawTowerShape(ctx: CanvasRenderingContext2D, pos: Vec2, r: number, color: string, alpha: number, sizeMul: number, angle: number, px: number): void {
+  const rr = r * sizeMul;
   ctx.save();
   ctx.globalAlpha = alpha;
-  ctx.translate(twr.pos.x, twr.pos.y);
-  ctx.rotate(angle + Math.PI / 4); // a diamond, aligned to the lane it stands in — "oriented along the lane" (§6), no elevation available in phase 1
+  ctx.translate(pos.x, pos.y);
+  ctx.rotate(angle + Math.PI / 4); // a diamond, aligned to the lane it stands in — "oriented along the lane" (§6)
   ctx.fillStyle = color;
-  ctx.fillRect(-r, -r, r * 2, r * 2);
+  ctx.fillRect(-rr, -rr, rr * 2, rr * 2);
   ctx.strokeStyle = '#fff';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(-r, -r, r * 2, r * 2);
+  ctx.lineWidth = Math.max(1, 2 * px);
+  ctx.strokeRect(-rr, -rr, rr * 2, rr * 2);
   ctx.globalAlpha = alpha * 0.55;
   ctx.fillStyle = '#000';
-  const ir = r * 0.42;
+  const ir = rr * 0.42;
   ctx.fillRect(-ir, -ir, ir * 2, ir * 2);
   ctx.restore();
 }
 
-function drawTower(ctx: CanvasRenderingContext2D, twr: Match['towers'][number], fx: RenderFx, t: number): void {
-  const ufx = fx.trackUnit(twr.id, twr.hp, twr.alive);
+function towerDrawable(twr: Match['towers'][number], fx: RenderFx, t: number): Drawable {
   const color = teamColor(twr.team);
-  const angle = nearestSegmentAngle(LANE_PATHS[twr.lane], twr.pos);
-  if (!twr.alive) {
-    const p = deathProgress(ufx.deathAt, t);
-    if (p === null) {
-      drawHusk(ctx, twr.pos, twr.radius, color, 'square');
-      return;
-    }
-    drawTowerShape(ctx, twr, color, 1 - p, 1 - 0.4 * p, angle);
-    return;
-  }
-  drawTowerShape(ctx, twr, color, 1, 1, angle);
-  if (t < ufx.hitFlashUntil) drawHitFlash(ctx, twr.pos, twr.radius + 4, 'square');
-  drawHpBar(ctx, twr.pos.x, twr.pos.y - twr.radius - 10, 46, twr.hp, twr.maxHp, color);
+  const worldAngle = nearestSegmentAngle(LANE_PATHS[twr.lane], twr.pos);
+  const ufxNow = fx.trackUnit(twr.id, twr.hp, twr.alive);
+  const height = twr.alive ? HEIGHT_BY_KIND.tower : (() => {
+    const p = deathProgress(ufxNow.deathAt, t);
+    return p === null ? 0 : HEIGHT_BY_KIND.tower * (1 - p);
+  })();
+  return {
+    kind: 'tower',
+    id: twr.id,
+    pos: twr.pos,
+    height,
+    worldRadius: twr.radius,
+    draw: (ctx, fit) => {
+      const ufx = fx.trackUnit(twr.id, twr.hp, twr.alive);
+      const screenPos = project(twr.pos, height, fit);
+      const radiusPx = twr.radius * fit.kx;
+      const angle = screenAngleOfWorldDir(Math.cos(worldAngle), Math.sin(worldAngle), fit);
+      if (!twr.alive) {
+        const p = deathProgress(ufx.deathAt, t);
+        if (p === null) {
+          drawHusk(ctx, screenPos, radiusPx, color, 'square', fit.kx);
+          return;
+        }
+        drawTowerShape(ctx, screenPos, radiusPx, color, 1 - p, 1 - 0.4 * p, angle, fit.kx);
+        return;
+      }
+      drawTowerShape(ctx, screenPos, radiusPx, color, 1, 1, angle, fit.kx);
+      if (t < ufx.hitFlashUntil) drawHitFlash(ctx, screenPos, radiusPx + 4 * fit.kx, 'square', fit.kx);
+      drawHpBar(ctx, screenPos.x, screenPos.y - radiusPx - 10 * fit.kx, 46 * fit.kx, twr.hp, twr.maxHp, color, fit.kx);
+    },
+  };
 }
 
 // --- minion -----------------------------------------------------------------------
 
-function drawMinion(ctx: CanvasRenderingContext2D, m: Match['minions'][number], fx: RenderFx, t: number): void {
-  const ufx = fx.trackUnit(m.id, m.hp, m.alive);
-  // A dead minion is spliced out of `match.minions` the same tick it dies (sim/match.ts
-  // updateMinions) — no state survives to animate a fade for, and §8's death-feedback bullet
-  // calls this out for bearbots/towers "especially", not minions (§6: they're the deliberately
-  // unornamented "background unit"). So minions disappear instantly, same as before phase 1.
-  if (!m.alive) return;
-  ctx.save();
-  ctx.fillStyle = teamColor(m.team);
-  ctx.beginPath();
-  ctx.arc(m.pos.x, m.pos.y, m.radius, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-  if (t < ufx.hitFlashUntil) drawHitFlash(ctx, m.pos, m.radius + 2, 'circle');
+function minionDrawable(m: Match['minions'][number], fx: RenderFx, t: number): Drawable {
+  const jitter = stableOffset(m.id, JITTER_MAGNITUDE);
+  const renderPos = { x: m.pos.x + jitter.x, y: m.pos.y + jitter.y };
+  return {
+    kind: 'minion',
+    id: m.id,
+    pos: renderPos,
+    height: 0,
+    worldRadius: m.radius,
+    draw: (ctx, fit) => {
+      const ufx = fx.trackUnit(m.id, m.hp, m.alive);
+      // A dead minion is spliced out of `match.minions` the same tick it dies (sim/match.ts
+      // updateMinions) — no state survives to animate a fade for, and §8's death-feedback bullet
+      // calls this out for bearbots/towers "especially", not minions (§6: they're the deliberately
+      // unornamented "background unit"). So minions disappear instantly, same as before phase 1.
+      if (!m.alive) return;
+      const screenPos = project(renderPos, 0, fit);
+      const radiusPx = legibleWorldRadius(m.radius, 'minion', fit.kx) * fit.kx;
+      ctx.save();
+      ctx.fillStyle = teamColor(m.team);
+      ctx.beginPath();
+      ctx.arc(screenPos.x, screenPos.y, radiusPx, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      if (t < ufx.hitFlashUntil) drawHitFlash(ctx, screenPos, radiusPx + 2 * fit.kx, 'circle', fit.kx);
+    },
+  };
 }
 
 // --- bearbot --------------------------------------------------------------------------
@@ -508,44 +635,113 @@ function drawInstrumentMarker(ctx: CanvasRenderingContext2D, instrument: 'drums'
   ctx.restore();
 }
 
-function drawBearbot(ctx: CanvasRenderingContext2D, b: Match['bearbots'][number], selected: boolean, fx: RenderFx, t: number, clockSec: number): void {
-  const bfx = fx.trackBot(b);
+function bearbotDrawable(b: Match['bearbots'][number], selected: boolean, fx: RenderFx, t: number, clockSec: number): Drawable {
   const color = teamColor(b.team);
+  const jitter = stableOffset(b.id, JITTER_MAGNITUDE);
+  const renderPos = { x: b.pos.x + jitter.x, y: b.pos.y + jitter.y };
+  const bfxNow = fx.trackBot(b);
+  const height = b.alive ? bearbotHeight(t) : (() => {
+    const p = deathProgress(bfxNow.deathAt, t);
+    return p === null ? 0 : bearbotHeight(t) * (1 - p);
+  })();
+  return {
+    kind: 'bearbot',
+    id: b.id,
+    pos: renderPos,
+    height,
+    worldRadius: b.radius,
+    draw: (ctx, fit) => {
+      const bfx = fx.trackBot(b);
+      const screenPos = project(renderPos, height, fit);
+      const radiusPx = legibleWorldRadius(b.radius, 'bearbot', fit.kx) * fit.kx;
 
-  if (!b.alive) {
-    const p = deathProgress(bfx.deathAt, t);
-    if (p === null) {
-      drawHusk(ctx, b.pos, b.radius, color, 'circle');
-      return;
-    }
-    drawBearChassis(ctx, b.pos, b.radius * (1 - 0.35 * p), color, 1 - p);
-    return;
-  }
+      if (!b.alive) {
+        const p = deathProgress(bfx.deathAt, t);
+        if (p === null) {
+          drawHusk(ctx, screenPos, radiusPx, color, 'circle', fit.kx);
+          return;
+        }
+        drawBearChassis(ctx, screenPos, radiusPx * (1 - 0.35 * p), color, 1 - p);
+        return;
+      }
 
-  for (const cast of bfx.casts) {
-    const elapsed = t - cast.startedAt;
-    if (PULSE_ABILITIES.has(cast.ability) && elapsed < CAST_PULSE_MS) {
-      drawCastPulse(ctx, cast.toPos, color, elapsed / CAST_PULSE_MS);
-    } else if (STREAK_ABILITIES.has(cast.ability) && elapsed < CAST_STREAK_MS) {
-      drawCastStreak(ctx, cast.fromPos, cast.toPos, color, elapsed / CAST_STREAK_MS);
-    }
-  }
+      for (const cast of bfx.casts) {
+        const elapsed = t - cast.startedAt;
+        const fromScreen = project(cast.fromPos, height, fit);
+        const toScreen = project(cast.toPos, height, fit);
+        if (PULSE_ABILITIES.has(cast.ability) && elapsed < CAST_PULSE_MS) {
+          drawCastPulse(ctx, toScreen, color, elapsed / CAST_PULSE_MS, fit.kx);
+        } else if (STREAK_ABILITIES.has(cast.ability) && elapsed < CAST_STREAK_MS) {
+          drawCastStreak(ctx, fromScreen, toScreen, color, elapsed / CAST_STREAK_MS, fit.kx);
+        }
+      }
 
-  drawBearChassis(ctx, b.pos, b.radius, color, 1);
-  drawInstrumentMarker(ctx, b.instrument, b.pos, b.radius);
+      drawBearChassis(ctx, screenPos, radiusPx, color, 1);
+      drawInstrumentMarker(ctx, b.instrument, screenPos, radiusPx);
 
+      ctx.save();
+      ctx.strokeStyle = selected ? '#fff' : '#000';
+      ctx.lineWidth = Math.max(1, (selected ? 3 : 1.5) * fit.kx);
+      ctx.beginPath();
+      ctx.arc(screenPos.x, screenPos.y, radiusPx, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+
+      if (clockSec < b.buffs.slowUntil) drawStatusRing(ctx, screenPos, radiusPx, 'rgba(190,225,255,0.9)', true, fit.kx);
+      if (clockSec < b.buffs.soloUntil) drawStatusRing(ctx, screenPos, radiusPx + 3 * fit.kx, 'rgba(255,255,255,0.9)', false, fit.kx);
+
+      if (t < bfx.hitFlashUntil) drawHitFlash(ctx, screenPos, radiusPx + 3 * fit.kx, 'circle', fit.kx);
+
+      drawHpBar(ctx, screenPos.x, screenPos.y - radiusPx - 10 * fit.kx, 34 * fit.kx, b.hp, b.maxHp, color, fit.kx);
+    },
+  };
+}
+
+// --- team-fight cluster count badge (§5, acceptance criterion 4) ------------------------------
+
+function drawClusterBadge(ctx: CanvasRenderingContext2D, pos: Vec2, byTeam: Record<Team, number>, px: number): void {
+  const fontSize = Math.max(11, 13 * px);
   ctx.save();
-  ctx.strokeStyle = selected ? '#fff' : '#000';
-  ctx.lineWidth = selected ? 3 : 1.5;
-  ctx.beginPath();
-  ctx.arc(b.pos.x, b.pos.y, b.radius, 0, Math.PI * 2);
-  ctx.stroke();
+  ctx.font = `bold ${fontSize}px 'Courier New', monospace`;
+  ctx.textBaseline = 'middle';
+  const violetText = String(byTeam.violet);
+  const dashText = '–';
+  const greenText = String(byTeam.green);
+  const violetW = ctx.measureText(violetText).width;
+  const dashW = ctx.measureText(dashText).width;
+  const greenW = ctx.measureText(greenText).width;
+  const textWidth = violetW + dashW + greenW;
+  const padX = Math.max(5, 6 * px);
+  const padY = Math.max(3, 4 * px);
+  const w = textWidth + padX * 2;
+  const h = fontSize + padY * 2;
+  ctx.fillStyle = 'rgba(0,0,0,0.78)';
+  ctx.fillRect(pos.x - w / 2, pos.y - h / 2, w, h);
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = Math.max(1, 1.5 * px);
+  ctx.strokeRect(pos.x - w / 2, pos.y - h / 2, w, h);
+  let cx = pos.x - textWidth / 2;
+  ctx.fillStyle = VIOLET;
+  ctx.fillText(violetText, cx, pos.y);
+  cx += violetW;
+  ctx.fillStyle = '#fff';
+  ctx.fillText(dashText, cx, pos.y);
+  cx += dashW;
+  ctx.fillStyle = GREEN;
+  ctx.fillText(greenText, cx, pos.y);
   ctx.restore();
+}
 
-  if (clockSec < b.buffs.slowUntil) drawStatusRing(ctx, b.pos, b.radius, 'rgba(190,225,255,0.9)', true);
-  if (clockSec < b.buffs.soloUntil) drawStatusRing(ctx, b.pos, b.radius + 3, 'rgba(255,255,255,0.9)', false);
-
-  if (t < bfx.hitFlashUntil) drawHitFlash(ctx, b.pos, b.radius + 3, 'circle');
-
-  drawHpBar(ctx, b.pos.x, b.pos.y - b.radius - 10, 34, b.hp, b.maxHp, color);
+/** §5: "consider a small stacked +N badge on the densest cluster rather than trying to keep spreading them." Individual silhouettes still draw underneath (§5's stable jitter, not clustering-aware spreading) — the badge is what actually answers acceptance criterion 4 once a cluster gets dense. */
+function drawTeamFightBadges(ctx: CanvasRenderingContext2D, match: Match, fit: IsoFit): void {
+  const members = [
+    ...match.minions.filter((m) => m.alive).map((m) => ({ id: m.id, team: m.team, pos: m.pos })),
+    ...match.bearbots.filter((b) => b.alive).map((b) => ({ id: b.id, team: b.team, pos: b.pos })),
+  ];
+  const clusters = clusterUnits(members, CLUSTER_DIST).filter((c) => c.members.length > CLUSTER_BADGE_MIN);
+  for (const cluster of clusters) {
+    const badgeHeight = HEIGHT_BY_KIND.bearbot / ELEVATION_RATIO; // sit clearly above the crowd's own lift
+    const pos = project(cluster.centroid, badgeHeight, fit);
+    drawClusterBadge(ctx, pos, cluster.byTeam, fit.kx);
+  }
 }

@@ -16,8 +16,8 @@ Read with: [`../README.md`](../README.md) ("Run a jam match"), [`design.md`](des
 [`../src/replay.ts`](../src/replay.ts), the private
 [`jamobair-entrants`](https://github.com/kumouri/jamobair-entrants) README. The canvas viewer itself
 (`src/render.ts`, `src/live.ts`) has its own spec: [`render-spec.md`](render-spec.md) — entity
-silhouettes, hit/death feedback and a live-pacing fix (phase 1) are built; the isometric 2.5D camera
-(phase 2) is not.
+silhouettes, hit/death feedback and a live-pacing fix (phase 1), and the isometric 2.5D camera with
+depth-sorted draw order and elevation (phase 2), are both built.
 
 ---
 
@@ -373,8 +373,8 @@ pace once caught up, instead of bursting every newly-unlocked tick — see `rend
 How the field itself should look — projection, entity silhouettes, and a live-mode motion pacing fix
 for the every-~2s update batches — is specced separately in [`render-spec.md`](render-spec.md).
 Entity/pilot silhouettes, hit/death feedback, the live-pacing fix above, and an HUD legibility pass
-(phase 1) are built, still on this section's top-down camera and contract; the isometric 2.5D camera
-(phase 2) is not.
+(phase 1), and the isometric 2.5D camera with depth-sorted draw order and elevation (phase 2), are
+both built; this section's contract (the events, the tick-stepping driver) is unchanged by either.
 
 ### 3.5 Bracket and leaderboard
 
@@ -432,11 +432,11 @@ wall time, so it is a button, not the default. Ladder (Elo) draws are simply dra
 | `tools/match/load.mjs` | *built (A)* | the esbuild loader (bundled once per process), `httpCallModel`, `probeBackend`, `resultLine` |
 | `tools/model_server.py` | **reused unchanged (A/B); additive (Phase C: built)** | one process per backend; `/health` recorded in every log. Phase C: `--backend openrouter` — a general OpenAI-compatible `/chat/completions` client (`--base-url`, `--model`, `--api-key-env` also work as `--backend openai` against any other such host), preset to OpenRouter, key from `$OPENROUTER_API_KEY`, JSON mode, provider pinning (`--provider`), reasoning off by default, bounded concurrency and retry-with-backoff on 429/5xx, per-process token/cost tracking and an optional `--daily-budget-usd` cap, all on `/health` |
 | `src/replay.ts` | **reused unchanged** | `MatchLog`, `ReplayPilot`, `checkpointOf`, `JAM_ROSTER`, `decisionsByBot` |
-| `src/main.ts` | **reused, additive change (B: done; render phase 1: done)** | `?live=<id>` beside `?replay=`; both on the one external-tick driver; `?speed=1|4|16` and the speed control; LIVE badge. Render phase 1: wires `LivePacer` into the live ticker, shares one `RenderFx` across matches |
-| `src/live.ts` | *built (B); additive (render phase 1: done)* | `LiveFeed` (events → decision buffers), `Ticker` (steps the private `tick()` from outside: only up to the last completed round, yields after asking ticks, paces replay by speed), `DivergenceCheck`, `openLive` (`EventSource`). Render phase 1: `LivePacer` — meters live-mode ticks at the observed round-arrival pace instead of bursting to the frontier (`render-spec.md` §8) |
-| `src/style.css` | reused, additive change (B: done; render phase 1: done) | speed control and live badge (B); responsive topbar/sidepanel legibility pass (render phase 1) |
+| `src/main.ts` | **reused, additive change (B: done; render phase 1+2: done)** | `?live=<id>` beside `?replay=`; both on the one external-tick driver; `?speed=1|4|16` and the speed control; LIVE badge. Render phase 1: wires `LivePacer` into the live ticker, shares one `RenderFx` across matches. Render phase 2: `resizeCanvas` gives the canvas a plain CSS box instead of forcing a square, so the wider-than-tall iso diamond can size itself |
+| `src/live.ts` | *built (B); additive (render phase 1: done)* | `LiveFeed` (events → decision buffers), `Ticker` (steps the private `tick()` from outside: only up to the last completed round, yields after asking ticks, paces replay by speed), `DivergenceCheck`, `openLive` (`EventSource`). Render phase 1: `LivePacer` — meters live-mode ticks at the observed round-arrival pace instead of bursting to the frontier (`render-spec.md` §8). Untouched by render phase 2 |
+| `src/style.css` | reused, additive change (B: done; render phase 1+2: done) | speed control and live badge (B); responsive topbar/sidepanel legibility pass (render phase 1); `#arena` given a plain CSS box, capped to a fixed viewport share on the mobile media query (render phase 2) |
 | `src/sim/*`, `src/rng.ts`, `src/pilots/*`, `src/types.ts` | **frozen, untouched** | the specimen |
-| `src/render.ts` | *rewritten (render phase 1: done)* | entity/pilot silhouettes (§6/§7), hit/death/cast feedback (§8) — see `render-spec.md` §14. Still a pure read of `Match` state; still the current top-down camera, not `render-spec.md` §4's isometric transform (phase 2) |
+| `src/render.ts`, `src/iso.ts` | *rewritten (render phase 1+2: done)* | entity/pilot silhouettes (§6/§7), hit/death/cast feedback (§8) — see `render-spec.md` §14/§16. Render phase 2 (`render-spec.md` §17): `src/iso.ts`'s isometric projection (§4), depth-sorted draw order (§5), elevation and a team-fight count badge, replacing the top-down camera. Still a pure read of `Match` state |
 | `prompts/pilots/house-violet.md`, `house-green.md` | **exists** (Q13) | the house bot, one file per side; `tools/arena/house.mjs` bundles the pair under one hash and hands each side its own half; `house.md`, then `drums.md`, are the fallbacks |
 | `runs/` (`/runs/*/` ignored) | **reused layout** | `runs/arena/{ledger.jsonl,logs/,entrants/}` |
 | `tools/arena/server.mjs` | *built (A, B)* | HTTP API, static pages, Access JWT check, entrants poller, serves Vite `dist/` at `/play/` and logs at `/logs/`. B: `GET /api/matches/<id>/events` (SSE), `/bracket`, `/api/brackets/…`, the held-round visibility rules |

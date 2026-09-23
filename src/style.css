@@ -124,6 +124,17 @@ body {
   flex: 1 1 auto;
   display: block;
   background: #000;
+  /*
+   * Phase 2 (docs/render-spec.md §4/§15): the isometric diamond is wider than it is tall, so it
+   * can't rely on the canvas's own attribute-derived aspect ratio to size itself inside the flex
+   * layout the way the old square render could (see main.ts's `resizeCanvas`) — give it a plain
+   * CSS box instead, and `min-width/min-height: 0` so a flex row can still shrink it below its
+   * bitmap's intrinsic size on a narrow viewport instead of overflowing.
+   */
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
 }
 
 .sidepanel {
@@ -263,7 +274,16 @@ body {
   }
 
   #arena {
+    /*
+     * Phase 2: the base rule gives #arena `height: 100%`, which here would mean 100% of `.main` —
+     * leaving no room for the roster below it. Cap it to a fixed share of the viewport instead, so
+     * there's always room left for `.sidepanel` (max-height: 42vh) beneath it; `.main`'s own
+     * overflow-y: auto is the fallback for whatever doesn't fit (docs/render-spec.md §15 — a short
+     * landscape phone needs a scroll, but nothing is unreachable).
+     */
     flex: 0 0 auto;
+    width: 100%;
+    height: 56vh;
   }
 
   .sidepanel {

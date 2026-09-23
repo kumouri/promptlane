@@ -42,8 +42,10 @@ corner-to-corner, jungle between the lanes, towers along each lane, a nexus at e
 - Each **champion pilot** is one prompt. The pilot prompt gets the bearbot's instrument, the game
   state the engine exposes, and a fixed action vocabulary; it returns an action. Prompts live in
   `prompts/pilots/` once they exist.
-- Presentation layer stays minimal: 2D, top-down, flat shapes, the palette below. Chunky
-  8-bit-ish flat style is welcome; polish is not the point.
+- Presentation layer stays minimal: 2D, flat shapes, the palette below. Chunky 8-bit-ish flat style
+  is welcome; polish is not the point. Originally a top-down camera; a fixed isometric 2.5D camera
+  (`docs/render-spec.md`) replaced it without adding any art dependency — still flat procedural
+  shapes, just projected.
 
 ## The prompt is the source
 
