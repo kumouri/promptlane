@@ -12,8 +12,17 @@ results, spend and a comparison against the `qwen3.5:9b` baseline are in
 [`../runs/openrouter-phase-c-proof-2026-09-22.md`](../runs/openrouter-phase-c-proof-2026-09-22.md).
 The wiring note at the end of §2 is superseded by that build.
 
-The question: instead of the host's local `qwen3.5:9b` through Ollama, could jam matches run on a
-hosted 30–40B open model (OpenRouter, Hugging Face, or a rented GPU), and what would that cost?
+**Update, 2026-09-22 — a fundamentally different kind of option exists and doesn't fit this
+table.** TypeSafe AI's "Jev" is a decision model, not a chat model — no `prompt` field, no free
+text, typed questions in and typed answers out. It doesn't slot into the cost/latency comparison
+below because it isn't a drop-in replacement for the existing `Backend.complete(prompt) -> str`
+contract; adopting it changes what a pilot's prompt *is*, which reaches the entrant contract, not
+just the model server. Full research, identification evidence, and the four questions this was
+asked to answer: [`jev-decision-model-research.md`](jev-decision-model-research.md).
+
+The question this document answers: instead of the host's local `qwen3.5:9b` through Ollama, could
+jam matches run on a hosted 30–40B open model (OpenRouter, Hugging Face, or a rented GPU), and what
+would that cost?
 
 **Short answer.** A full-length match is ≈1.8 M input tokens and ≈45 k output tokens. At 32B-class
 open-model list prices that is **$0.15–0.20 per match, $2.5–3 for a 16-entrant jam day, $12–15 for a
