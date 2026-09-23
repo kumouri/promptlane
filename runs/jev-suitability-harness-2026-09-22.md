@@ -227,6 +227,8 @@ plainly: **the per-condition numbers are what this run actually measures about J
 overall-bucket number is confounded by ground-truth noncompliance and should not be read on its own
 as a suitability verdict.**
 
+**The ceiling, measured after the live runs (2026-09-23): 43.7%.** The inference above is now a number. `python tools/jev/harness.py --error-rate 0` (the stub answering every condition exactly as the rules say; no network) scores `overall_agreement_rate` **0.4373** (115/263) against the same ground truth. **Jev's live prose run scored 115/263, exactly the ceiling.** So on the overall number, live Jev matched a perfect rule-follower, and the entire gap to 100% is the ruled model breaking its own worksheet. The JSON run (107/263) sits 8 snapshots under the ceiling. Caveat: equal totals don't prove the same snapshots matched, only that the overall rate can't have been improved on by better rule-following.
+
 **Prose vs JSON: close, not conclusive.** 43.7% vs 40.7% overall, and each encoding missed exactly
 one condition out of six (a different one each time). One run per encoding is a single data point,
 not a repeated-trial comparison — this does not establish that either encoding is reliably better.
