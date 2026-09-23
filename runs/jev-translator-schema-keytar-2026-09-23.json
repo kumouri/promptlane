@@ -1,0 +1,56 @@
+{
+  "pilot_file": "prompts/pilots/keytar.md",
+  "instrument": "keytar",
+  "rules": [
+    {
+      "id": "recall_low_hp",
+      "condition": "is this bot's current health below 25% of its maximum health?",
+      "criteria_true": "health is less than one quarter of max",
+      "criteria_false": "health is greater than or equal to one quarter of max",
+      "action_kind": "recall",
+      "action_ability": null,
+      "action_target_selector": null
+    },
+    {
+      "id": "panic_dash_out",
+      "condition": "is a visible enemy inside melee range of this bot?",
+      "criteria_true": "an enemy is within melee distance",
+      "criteria_false": "no enemy is within melee distance",
+      "action_kind": "ability",
+      "action_ability": "glissando",
+      "action_target_selector": null
+    },
+    {
+      "id": "engage_cluster",
+      "condition": "is there a visible enemy cluster (densest) within attack range?",
+      "criteria_true": "a dense cluster of enemies is visible and reachable",
+      "criteria_false": "no dense cluster is available or out of range",
+      "action_kind": "ability",
+      "action_ability": "chord",
+      "action_target_selector": "densest_cluster_enemy"
+    },
+    {
+      "id": "poke_lane",
+      "condition": "are there no immediate threats and the bot is in a safe position to attack?",
+      "criteria_true": "the lane is clear of melee threats and minions are present",
+      "criteria_false": "a threat exists or the lane is empty",
+      "action_kind": "attack",
+      "action_ability": null,
+      "action_target_selector": "nearby_minion"
+    },
+    {
+      "id": "advance_lane",
+      "condition": "is there no enemy within attack range and the bot is not low on health?",
+      "criteria_true": "no enemy is in attack range and hp is safe",
+      "criteria_false": "an enemy is in attack range or hp is critical",
+      "action_kind": "move",
+      "action_ability": null,
+      "action_target_selector": "push_lane"
+    }
+  ],
+  "default_action": {
+    "kind": "move",
+    "ability": null,
+    "target_selector": "push_lane"
+  }
+}

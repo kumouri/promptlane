@@ -1,0 +1,65 @@
+{
+  "_provenance": "Hand-labeled by a Claude subagent from the prose and the Observation alone, before seeing any model's answer, blind to any translator or ground-truth-model output, 2026-09-23.",
+  "labels": [
+    {
+      "scenario": "empty_lane_push",
+      "action": {"kind": "move", "target": {"x": 900, "y": 100}, "ability": null},
+      "rationale": "No enemies, no threatened ally — 'march toward the enemy nexus alongside your minions unless a fight has started.'"
+    },
+    {
+      "scenario": "low_hp_recall_under_pressure",
+      "action": {"kind": "recall", "target": null, "ability": null},
+      "rationale": "hp 60/300 (20%) is below the quarter-health line — unconditional retreat overrides the nearby enemy and ready Kick."
+    },
+    {
+      "scenario": "melee_range_enemy_ability_ready",
+      "action": {"kind": "ability", "target": "enemy-adjacent", "ability": "kick"},
+      "rationale": "Enemy bearbot is close enough to touch and Kick is off cooldown — 'use it the instant... on cooldown, always, no hesitation.'"
+    },
+    {
+      "scenario": "ranged_enemy_far",
+      "action": {"kind": "move", "target": {"x": 900, "y": 100}, "ability": null},
+      "rationale": "Enemy is far across the map (~630 units) with nothing else happening — no fight has started, so keep pushing the lane; genuinely ambiguous exactly how close counts as 'a fight has started.'"
+    },
+    {
+      "scenario": "clustered_enemies",
+      "action": {"kind": "ability", "target": {"x": 427, "y": 465}, "ability": "fill"},
+      "rationale": "Two enemies (plus a minion) bunched together near self and Fill is ready — 'drop it under their feet, not yours.'"
+    },
+    {
+      "scenario": "ability_on_cooldown_enemy_present",
+      "action": {"kind": "attack", "target": "enemy-mid", "ability": null},
+      "rationale": "Kick is on cooldown and there's no cluster to Fill — fall back to the attack-priority rule and hit the nearest (only) enemy bearbot."
+    },
+    {
+      "scenario": "ally_under_threat",
+      "action": {"kind": "move", "target": "enemy-near-ally", "ability": null},
+      "rationale": "'When an enemy gets close to an ally, that enemy is now your problem' — go handle it even though it's far from self, matching 'attack whatever's... threatening an ally first.'"
+    },
+    {
+      "scenario": "isolated_vs_grouped_enemy",
+      "action": {"kind": "move", "target": {"x": 900, "y": 100}, "ability": null},
+      "rationale": "No enemy is touching, bunched near self, or threatening an ally, and all three sit at similar disengaged range — literal reading is no fight has started, so keep pushing the lane; drums has no isolation preference (that's violin's concern), so this could arguably also be read as 'engage nearest bearbot' — flagged as ambiguous."
+    },
+    {
+      "scenario": "enemy_tower_only",
+      "action": {"kind": "attack", "target": "tower-enemy", "ability": null},
+      "rationale": "No bearbot to trigger Kick/Fill/ally-protection, and prose says march toward the enemy nexus — the tower sits directly in that path, so attack it; prose never actually addresses towers, so this is a judgment call, not a directly-cited rule."
+    },
+    {
+      "scenario": "hp_exactly_at_threshold",
+      "action": {"kind": "attack", "target": "enemy-boundary", "ability": null},
+      "rationale": "hp is exactly 25% (75/300); 'below a quarter health' is read as strictly less-than, so at exactly the threshold, keep fighting — fall back to attacking the nearest enemy bearbot. Genuinely ambiguous edge case."
+    },
+    {
+      "scenario": "minion_wave_poke",
+      "action": {"kind": "move", "target": {"x": 900, "y": 100}, "ability": null},
+      "rationale": "Only own-team minions visible, no enemies — 'march toward the enemy nexus alongside your minions.'"
+    },
+    {
+      "scenario": "softest_target_selection",
+      "action": {"kind": "ability", "target": "enemy-close-healthy", "ability": "kick"},
+      "rationale": "Drums has no low-hp-targeting logic — it's touch-range/nearest driven, and enemy-close-healthy (~32 units away) is within Kick's touch range regardless of the far, nearly-dead enemy's low hp."
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "_provenance": "Hand-labeled by a Claude subagent from the prose and the Observation alone, before seeing any model's answer, blind to any translator or ground-truth-model output, 2026-09-23.",
+  "labels": [
+    {
+      "scenario": "empty_lane_push",
+      "action": {"kind": "move", "target": {"x": 900, "y": 100}, "ability": null},
+      "rationale": "No enemies to isolate yet — 'don't stand still... keep repositioning toward the next isolated target'; with no target known, this uses the enemy-nexus direction only as a scouting heuristic, not literal lane-pushing (violin explicitly isn't a bruiser) — flagged as an ambiguous fallback."
+    },
+    {
+      "scenario": "low_hp_recall_under_pressure",
+      "action": {"kind": "recall", "target": null, "ability": null},
+      "rationale": "hp 28/140 (20%) is below the quarter-health line — 'recall, no matter how close the kill looked.'"
+    },
+    {
+      "scenario": "melee_range_enemy_ability_ready",
+      "action": {"kind": "ability", "target": "enemy-adjacent", "ability": "staccato"},
+      "rationale": "The sole visible enemy is trivially isolated (alone) and in short range with Staccato ready — 'use it the moment you're in range of them, every time it's off cooldown.'"
+    },
+    {
+      "scenario": "ranged_enemy_far",
+      "action": {"kind": "move", "target": "enemy-far", "ability": null},
+      "rationale": "Sole visible enemy is isolated (alone) but ~630 units away, well outside Staccato's short range; nothing indicates it's fleeing or that this is 'the decisive moment,' so close the distance by moving rather than burning Solo, which 'is not free.'"
+    },
+    {
+      "scenario": "clustered_enemies",
+      "action": {"kind": "hold", "target": null, "ability": null},
+      "rationale": "Two enemies bunched together with nearly equal hp (140 vs 130) — neither alone nor clearly the softest target in the group, so 'wait at the edge of what you can see' rather than commit to bad odds."
+    },
+    {
+      "scenario": "ability_on_cooldown_enemy_present",
+      "action": {"kind": "move", "target": "enemy-mid", "ability": null},
+      "rationale": "Sole visible enemy is isolated by default but Staccato (the opener) is on cooldown and the target is out of short range anyway; violin's prose never mentions a plain basic attack, so the closest literal reading is to keep closing distance rather than burn Solo without urgency."
+    },
+    {
+      "scenario": "ally_under_threat",
+      "action": {"kind": "move", "target": "enemy-near-ally", "ability": null},
+      "rationale": "Violin's prose has no ally-protection directive, but this is the only visible enemy, so it's trivially 'isolated' and a valid pick on its own terms — approach it as a target, not as ally rescue; genuinely far (~570 units), so no urgency for Solo yet."
+    },
+    {
+      "scenario": "isolated_vs_grouped_enemy",
+      "action": {"kind": "ability", "target": "enemy-isolated", "ability": "solo"},
+      "rationale": "This is the canonical isolation test: enemy-isolated stands alone while groupA/B are grouped with no clearly-softest one between them — 'exactly one enemy is isolated... then commit fully'; Solo closes the distance for the decisive engage. Distinguishing this from the similarly-distant lone enemy in ranged_enemy_far (where I did not burn Solo) is a judgment call — flagged as the least clean-cut distinction in this set."
+    },
+    {
+      "scenario": "enemy_tower_only",
+      "action": {"kind": "hold", "target": null, "ability": null},
+      "rationale": "No bearbot present, and violin's prose is entirely about isolating and bursting enemy bearbots — a tower isn't a valid pick, so hold/scout rather than engage it; prose never addresses towers, a judgment call."
+    },
+    {
+      "scenario": "hp_exactly_at_threshold",
+      "action": {"kind": "move", "target": "enemy-boundary", "ability": null},
+      "rationale": "hp is exactly 25% (35/140); 'the instant you drop under a quarter health' is read as strictly less-than, so no recall yet at exactly the threshold (ambiguous edge case) — the isolated enemy is out of Staccato's short range, so close the distance rather than burn Solo without cause."
+    },
+    {
+      "scenario": "minion_wave_poke",
+      "action": {"kind": "move", "target": {"x": 900, "y": 100}, "ability": null},
+      "rationale": "Only own-team minions visible, no enemies — 'don't stand still... rather than sitting in a lane pushing minions like a bruiser would,' so keep moving/scouting for the next isolated target; no concrete target exists, so this uses the same ambiguous directional fallback as empty_lane_push."
+    },
+    {
+      "scenario": "softest_target_selection",
+      "action": {"kind": "move", "target": "enemy-far-weak", "ability": null},
+      "rationale": "enemy-far-weak (30/200 hp) is 'clearly the softest target' and a one-phrase kill, favored over trading with the healthy, merely-closer enemy-close-healthy; too far (~608 units) for Staccato and nothing suggests it's about to flee, so close distance by moving rather than burning Solo. Genuinely the most contestable label in this set — a purely range-driven reading would instead pick the in-range enemy-close-healthy."
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "pilot_file": "prompts/pilots/violin.md",
+  "instrument": "violin",
+  "rules": [
+    {
+      "id": "low_hp_recall",
+      "condition": "is this bot's hp below a quarter of its max?",
+      "criteria_true": "hp < 0.25 * max_hp",
+      "criteria_false": "hp >= 0.25 * max_hp",
+      "action_kind": "recall",
+      "action_ability": null,
+      "action_target_selector": "none"
+    },
+    {
+      "id": "engage_isolated",
+      "condition": "is there an isolated enemy bearbot within range?",
+      "criteria_true": "an isolated enemy exists and is in range",
+      "criteria_false": "no isolated enemy or out of range",
+      "action_kind": "ability",
+      "action_ability": "staccato",
+      "action_target_selector": "isolated_enemy"
+    },
+    {
+      "id": "close_gap_solo",
+      "condition": "is a target about to escape or is the decisive moment right?",
+      "criteria_true": "target is fleeing or engage timing is optimal",
+      "criteria_false": "target is not fleeing and timing is not optimal",
+      "action_kind": "ability",
+      "action_ability": "solo",
+      "action_target_selector": "nearest_enemy"
+    },
+    {
+      "id": "attack_in_range",
+      "condition": "is a target within attack range?",
+      "criteria_true": "a target is in range",
+      "criteria_false": "no target in range",
+      "action_kind": "attack",
+      "action_ability": null,
+      "action_target_selector": "nearest_enemy"
+    },
+    {
+      "id": "move_to_target",
+      "condition": "is there a target to pursue?",
+      "criteria_true": "a target exists and is visible",
+      "criteria_false": "no target exists or not visible",
+      "action_kind": "move",
+      "action_ability": null,
+      "action_target_selector": "nearest_enemy"
+    }
+  ],
+  "default_action": {
+    "kind": "move",
+    "ability": null,
+    "target_selector": "push_lane"
+  }
+}
