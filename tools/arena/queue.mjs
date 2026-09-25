@@ -198,6 +198,13 @@ export class Queue {
    * fallback when this returns `undefined` for a bot index.
    */
   decisionPilotFor(job) {
+    const houseFor = this.houseJevPilotFor(job);
+    const practiceFor = this.practicePilotFor(job);
+    if (!houseFor && !practiceFor) return undefined;
+    return (botIndex, team, currentTick) => practiceFor?.(botIndex, team, currentTick) ?? houseFor?.(botIndex, team, currentTick);
+  }
+
+  houseJevPilotFor(job) {
     const backendId = this.house?.backend;
     const backend = backendId ? this.backends[backendId] : null;
     if (!backend) return undefined;
@@ -209,6 +216,21 @@ export class Queue {
       pilot ??= this.headless.jevTracingPilot({ endpoint: backend.endpoint, timeoutSec: backend.timeoutSec }, currentTick);
       return pilot;
     };
+  }
+
+  /**
+   * Compile panel practice match (docs/entrant-compile-preview.md): the side marked `practice`
+   * decides through Jev on the rules its prose compiled to (`job.practice.schemas`, one per
+   * instrument) via `tools/jev/schema_server.py`, instead of the text prompt it carries for display.
+   */
+  practicePilotFor(job) {
+    if (!job.practice) return undefined;
+    const backend = this.backends[job.practice.backend];
+    if (!backend) throw new Error(`practice backend ${job.practice.backend} is not configured`);
+    const side = job.sides.violet?.practice ? 'violet' : job.sides.green?.practice ? 'green' : null;
+    if (!side) return undefined;
+    const pilot = this.headless.jevSchemaTracingPilot({ endpoint: backend.endpoint, timeoutSec: backend.timeoutSec, schemas: job.practice.schemas });
+    return (botIndex, team) => (team === side ? pilot : undefined);
   }
 
   resolveSide(ref, id, side) {
@@ -253,7 +275,8 @@ export class Queue {
       }
       if (this.hooks.callModelFor) callModelFor = this.hooks.callModelFor(job);
       const decisionPilotFor = this.hooks.decisionPilotFor ? this.hooks.decisionPilotFor(job) : this.decisionPilotFor(job);
-      const capMs = this.hooks.wallCapMs ?? wallCapMs({ maxSimSec: job.maxSimSec, cadenceSec: job.cadenceSec, avgSecPerCall: backend.avgSecPerCall });
+      const avgSecPerCall = Math.max(backend.avgSecPerCall ?? 0.9, job.practice ? this.backends[job.practice.backend]?.avgSecPerCall ?? 0.9 : 0);
+      const capMs = this.hooks.wallCapMs ?? wallCapMs({ maxSimSec: job.maxSimSec, cadenceSec: job.cadenceSec, avgSecPerCall });
       timer = setTimeout(() => ac.abort(), capMs);
       this.log.info(
         `arena: ${id} start ${sides.violet.name} vs ${sides.green.name} seed=${job.seed} cadence=${job.cadenceSec} ` +
