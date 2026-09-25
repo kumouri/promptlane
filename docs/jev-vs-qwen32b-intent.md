@@ -3,9 +3,10 @@
 Written first and committed alone, before either pilot exists, per Ceryce's brief (Telegram,
 2026-09-23 14:57 CT): "write a qwen team prompt and a jev team prompt... they should encode the
 same intent so the test is more a model test than a prompt writing test." This document is that
-intent. `prompts/pilots/team-qwen-{drums,keytar,violin}.md` (prose) and `tools/jev/team_rules.py`
-(schema/questions) are both derived from it, in a later commit, and neither is the source of truth
-— this file is.
+intent. `prompts/pilots/team-qwen.md` (prose — one entrant-format file that branches on
+`self.instrument`) and `tools/jev/team_rules.py` (schema/questions) are both derived from it, in a
+later commit, and neither is the source of truth — this file is. Results:
+`runs/jev-vs-qwen32b-2026-09-23.md`.
 
 **This is a new design, not a replay of `house-violet.md`.** `runs/jev-house-bot-2026-09-23.md`'s
 central finding was that the existing house prompt's rule order checks "no wave near tower → go

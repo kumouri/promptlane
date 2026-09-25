@@ -1,0 +1,395 @@
+{
+  "matches": [
+    {
+      "file": "runs/jev-vs-qwen32b-2026-09-23.json",
+      "seed": 1,
+      "createdAt": "2026-09-23T20:53:57.304Z",
+      "jevSide": "violet",
+      "winner": "jev",
+      "endReason": "timeout",
+      "durationSec": 600,
+      "stats": {
+        "jev": {
+          "calls": 513,
+          "cached": 1533,
+          "parseErrors": 0,
+          "callErrors": 0,
+          "avgMs": 2320,
+          "deaths": 3,
+          "towersLost": 0
+        },
+        "qwen": {
+          "calls": 876,
+          "cached": 2622,
+          "parseErrors": 0,
+          "callErrors": 0,
+          "avgMs": 1009,
+          "deaths": 0,
+          "towersLost": 1
+        }
+      }
+    },
+    {
+      "file": "runs/jev-vs-qwen32b-seed2-3.json",
+      "seed": 2,
+      "createdAt": "2026-09-23T21:58:01.688Z",
+      "jevSide": "green",
+      "winner": "draw",
+      "endReason": "timeout",
+      "durationSec": 600,
+      "stats": {
+        "jev": {
+          "calls": 626,
+          "cached": 1871,
+          "parseErrors": 0,
+          "callErrors": 0,
+          "avgMs": 610,
+          "deaths": 1,
+          "towersLost": 0
+        },
+        "qwen": {
+          "calls": 876,
+          "cached": 2622,
+          "parseErrors": 0,
+          "callErrors": 0,
+          "avgMs": 1492,
+          "deaths": 0,
+          "towersLost": 0
+        }
+      }
+    },
+    {
+      "file": "runs/jev-vs-qwen32b-seed2-3.json",
+      "seed": 3,
+      "createdAt": "2026-09-23T22:08:18.910Z",
+      "jevSide": "violet",
+      "winner": "jev",
+      "endReason": "timeout",
+      "durationSec": 600,
+      "stats": {
+        "jev": {
+          "calls": 543,
+          "cached": 1623,
+          "parseErrors": 0,
+          "callErrors": 0,
+          "avgMs": 488,
+          "deaths": 3,
+          "towersLost": 0
+        },
+        "qwen": {
+          "calls": 876,
+          "cached": 2622,
+          "parseErrors": 0,
+          "callErrors": 0,
+          "avgMs": 891,
+          "deaths": 0,
+          "towersLost": 1
+        }
+      }
+    },
+    {
+      "file": "runs/jev-vs-qwen32b-seed4-10.json",
+      "seed": 4,
+      "createdAt": "2026-09-25T11:57:45.800Z",
+      "jevSide": "green",
+      "winner": "jev",
+      "endReason": "timeout",
+      "durationSec": 600,
+      "stats": {
+        "jev": {
+          "calls": 876,
+          "cached": 2622,
+          "parseErrors": 0,
+          "callErrors": 1,
+          "avgMs": 1068,
+          "deaths": 0,
+          "towersLost": 0
+        },
+        "qwen": {
+          "calls": 637,
+          "cached": 1907,
+          "parseErrors": 0,
+          "callErrors": 0,
+          "avgMs": 1517,
+          "deaths": 1,
+          "towersLost": 1
+        }
+      }
+    },
+    {
+      "file": "runs/jev-vs-qwen32b-seed4-10.json",
+      "seed": 5,
+      "createdAt": "2026-09-25T12:16:27.691Z",
+      "jevSide": "violet",
+      "winner": "jev",
+      "endReason": "timeout",
+      "durationSec": 600,
+      "stats": {
+        "jev": {
+          "calls": 513,
+          "cached": 1533,
+          "parseErrors": 0,
+          "callErrors": 0,
+          "avgMs": 893,
+          "deaths": 3,
+          "towersLost": 0
+        },
+        "qwen": {
+          "calls": 876,
+          "cached": 2622,
+          "parseErrors": 0,
+          "callErrors": 1,
+          "avgMs": 1450,
+          "deaths": 0,
+          "towersLost": 1
+        }
+      }
+    },
+    {
+      "file": "runs/jev-vs-qwen32b-seed4-10.json",
+      "seed": 6,
+      "createdAt": "2026-09-25T12:30:14.253Z",
+      "jevSide": "green",
+      "winner": "jev",
+      "endReason": "timeout",
+      "durationSec": 600,
+      "stats": {
+        "jev": {
+          "calls": 828,
+          "cached": 2477,
+          "parseErrors": 0,
+          "callErrors": 0,
+          "avgMs": 725,
+          "deaths": 1,
+          "towersLost": 0
+        },
+        "qwen": {
+          "calls": 876,
+          "cached": 2622,
+          "parseErrors": 0,
+          "callErrors": 0,
+          "avgMs": 1182,
+          "deaths": 0,
+          "towersLost": 1
+        }
+      }
+    },
+    {
+      "file": "runs/jev-vs-qwen32b-seed7-rerun.json",
+      "seed": 7,
+      "createdAt": "2026-09-25T13:28:52.212Z",
+      "jevSide": "violet",
+      "winner": "jev",
+      "endReason": "timeout",
+      "durationSec": 600,
+      "stats": {
+        "jev": {
+          "calls": 588,
+          "cached": 1761,
+          "parseErrors": 0,
+          "callErrors": 0,
+          "avgMs": 751,
+          "deaths": 3,
+          "towersLost": 0
+        },
+        "qwen": {
+          "calls": 876,
+          "cached": 2622,
+          "parseErrors": 0,
+          "callErrors": 0,
+          "avgMs": 843,
+          "deaths": 0,
+          "towersLost": 1
+        }
+      }
+    },
+    {
+      "file": "runs/jev-vs-qwen32b-seed4-10.json",
+      "seed": 8,
+      "createdAt": "2026-09-25T12:52:11.352Z",
+      "jevSide": "green",
+      "winner": "draw",
+      "endReason": "timeout",
+      "durationSec": 600,
+      "stats": {
+        "jev": {
+          "calls": 745,
+          "cached": 2231,
+          "parseErrors": 0,
+          "callErrors": 1,
+          "avgMs": 732,
+          "deaths": 1,
+          "towersLost": 0
+        },
+        "qwen": {
+          "calls": 704,
+          "cached": 2107,
+          "parseErrors": 0,
+          "callErrors": 0,
+          "avgMs": 1501,
+          "deaths": 1,
+          "towersLost": 0
+        }
+      }
+    },
+    {
+      "file": "runs/jev-vs-qwen32b-seed4-10.json",
+      "seed": 9,
+      "createdAt": "2026-09-25T13:04:54.938Z",
+      "jevSide": "violet",
+      "winner": "jev",
+      "endReason": "timeout",
+      "durationSec": 600,
+      "stats": {
+        "jev": {
+          "calls": 513,
+          "cached": 1536,
+          "parseErrors": 0,
+          "callErrors": 0,
+          "avgMs": 674,
+          "deaths": 3,
+          "towersLost": 0
+        },
+        "qwen": {
+          "calls": 876,
+          "cached": 2622,
+          "parseErrors": 0,
+          "callErrors": 0,
+          "avgMs": 870,
+          "deaths": 0,
+          "towersLost": 1
+        }
+      }
+    },
+    {
+      "file": "runs/jev-vs-qwen32b-seed4-10.json",
+      "seed": 10,
+      "createdAt": "2026-09-25T13:13:01.238Z",
+      "jevSide": "green",
+      "winner": "jev",
+      "endReason": "timeout",
+      "durationSec": 600,
+      "stats": {
+        "jev": {
+          "calls": 812,
+          "cached": 2432,
+          "parseErrors": 0,
+          "callErrors": 0,
+          "avgMs": 825,
+          "deaths": 1,
+          "towersLost": 0
+        },
+        "qwen": {
+          "calls": 876,
+          "cached": 2622,
+          "parseErrors": 0,
+          "callErrors": 0,
+          "avgMs": 990,
+          "deaths": 0,
+          "towersLost": 1
+        }
+      }
+    }
+  ],
+  "excluded": [
+    {
+      "file": "runs/jev-vs-qwen32b-2026-09-23.json",
+      "seed": 2,
+      "jevSide": "green",
+      "reason": "786 jev-side call errors"
+    },
+    {
+      "file": "runs/jev-vs-qwen32b-2026-09-23.json",
+      "seed": 3,
+      "jevSide": "violet",
+      "reason": "876 jev-side call errors"
+    },
+    {
+      "file": "runs/jev-vs-qwen32b-2026-09-23.json",
+      "seed": 4,
+      "jevSide": "green",
+      "reason": "876 jev-side call errors"
+    },
+    {
+      "file": "runs/jev-vs-qwen32b-2026-09-23.json",
+      "seed": 5,
+      "jevSide": "violet",
+      "reason": "876 jev-side call errors"
+    },
+    {
+      "file": "runs/jev-vs-qwen32b-2026-09-23.json",
+      "seed": 6,
+      "jevSide": "green",
+      "reason": "876 jev-side call errors"
+    },
+    {
+      "file": "runs/jev-vs-qwen32b-seed4-10.json",
+      "seed": 7,
+      "jevSide": "violet",
+      "reason": "147 jev-side call errors"
+    }
+  ],
+  "summary": {
+    "matches": 10,
+    "wins": {
+      "jev": 8,
+      "qwen": 0,
+      "draw": 2
+    },
+    "nexusKills": {
+      "jev": 0,
+      "qwen": 0
+    },
+    "jev": {
+      "calls": 6557,
+      "decision_failures": {
+        "parseErrors": 0,
+        "callErrors": 2,
+        "total": 2
+      },
+      "latency": {
+        "n": 6557,
+        "mean_sec": 0.889,
+        "p50_sec": 0.379,
+        "p90_sec": 0.798
+      },
+      "deaths": 19,
+      "towersLost": 0,
+      "actionKindCounts": {
+        "move": 4109,
+        "attack": 1299,
+        "ability": 941,
+        "recall": 206,
+        "hold": 0
+      },
+      "lowHpRecallCompliance": {
+        "situations": 6555,
+        "compliant": 6552,
+        "rate": 0.9995423340961098
+      }
+    },
+    "qwen": {
+      "calls": 8349,
+      "decision_failures": {
+        "parseErrors": 0,
+        "callErrors": 1,
+        "total": 1
+      },
+      "latency": {
+        "n": 8349,
+        "mean_sec": 1.158,
+        "p50_sec": 0.937,
+        "p90_sec": 1.912
+      },
+      "deaths": 2,
+      "towersLost": 8,
+      "actionKindCounts": {
+        "move": 7025,
+        "attack": 67,
+        "ability": 456,
+        "recall": 7,
+        "hold": 793
+      }
+    }
+  }
+}
