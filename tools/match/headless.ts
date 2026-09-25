@@ -159,6 +159,8 @@ class RecordingPilot implements Pilot {
       if (trace.action === null) {
         if (trace.reply.startsWith('[pilot error:')) ctx.stats.callErrors += 1;
         else ctx.stats.parseErrors += 1;
+      } else if (trace.reply.startsWith('[jev-fallback:')) {
+        ctx.stats.callErrors += 1; // the Jev house bot played on by rules-in-code (jevPilot.ts), but its call still failed
       }
       this.last = action;
       const decision: LogDecision = { tick, bot: this.botIndex, reply: trace.reply, action: trace.action, ms };
