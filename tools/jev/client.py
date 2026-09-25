@@ -267,16 +267,25 @@ def _format_expiry(epoch: float) -> str:
     return datetime.fromtimestamp(epoch, tz=timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
-def exchange_refresh_token(refresh_token: str, timeout: float = 30.0) -> dict:
+def refresh_request(refresh_token: str) -> urllib.request.Request:
     """The same `grant_type=refresh_token` POST wrangler itself makes (read from wrangler's
-    `exchangeRefreshTokenForAccessToken`). Returns `{access_token, expires_in, refresh_token?,
-    scope?}`. Never puts a token in an error message."""
+    `exchangeRefreshTokenForAccessToken`). The explicit User-Agent is load-bearing: found live
+    2026-09-25, dash.cloudflare.com answers Python-urllib's default one with `403 error code: 1010`
+    (browser-signature block) before the OAuth server ever sees the request."""
     data = urllib.parse.urlencode(
         {"grant_type": "refresh_token", "refresh_token": refresh_token, "client_id": WRANGLER_OAUTH_CLIENT_ID}
     ).encode("utf-8")
-    req = urllib.request.Request(
-        WRANGLER_TOKEN_URL, data=data, headers={"Content-Type": "application/x-www-form-urlencoded"}
+    return urllib.request.Request(
+        WRANGLER_TOKEN_URL,
+        data=data,
+        headers={"Content-Type": "application/x-www-form-urlencoded", "User-Agent": "promptlane-jev/1"},
     )
+
+
+def exchange_refresh_token(refresh_token: str, timeout: float = 30.0) -> dict:
+    """POSTs `refresh_request`. Returns `{access_token, expires_in, refresh_token?, scope?}`. Never
+    puts a token in an error message."""
+    req = refresh_request(refresh_token)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             payload = json.loads(resp.read().decode("utf-8"))

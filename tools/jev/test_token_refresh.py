@@ -208,6 +208,16 @@ class WorkersAIClient401Tests(unittest.TestCase):
         self.assertEqual(stub.seen, ["cf-test-token"])
 
 
+class RefreshRequestTests(unittest.TestCase):
+    def test_sends_wranglers_grant_with_an_explicit_user_agent(self):
+        req = C.refresh_request("r0")
+        self.assertEqual(req.full_url, C.WRANGLER_TOKEN_URL)
+        self.assertIn(b"grant_type=refresh_token", req.data)
+        self.assertIn(C.WRANGLER_OAUTH_CLIENT_ID.encode(), req.data)
+        # Python-urllib's default UA gets `403 error code: 1010` from dash.cloudflare.com
+        self.assertNotIn("Python-urllib", req.get_header("User-agent") or "Python-urllib")
+
+
 class ResolveProviderTests(unittest.TestCase):
     def test_env_token_is_static(self):
         with unittest.mock.patch.dict(os.environ, {"CLOUDFLARE_API_TOKEN": "cf-env"}):
