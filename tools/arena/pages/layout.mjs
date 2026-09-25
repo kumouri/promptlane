@@ -45,6 +45,7 @@ footer { color: var(--dim); font-size: 12px; text-align: center; padding: 16px; 
 const NAV = [
   ['/', 'Home'],
   ['/contract', 'Contract'],
+  ['/compile', 'Compile'],
   ['/test', 'Test'],
   ['/ladder', 'Ladder'],
   ['/matches', 'Matches'],
@@ -93,6 +94,7 @@ export function record(r) {
 
 export function sideLabel(ref) {
   if (!ref) return '?';
+  if (ref.practice) return `${ref.handle} (practice · compiled on Jev)`;
   if (ref.scratch) return `${ref.handle} (scratch)`;
   return ref.handle;
 }

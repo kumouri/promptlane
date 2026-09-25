@@ -60,6 +60,7 @@ The entrants poller shells out to `gh api` for `kumouri/jamobair-entrants` (`mai
 | `entrants` | `{kind: gh, repo, ref, syncIntervalSec}` or `{kind: dir, path}` |
 | `house` | `{handle, files}` — ordered candidates; a candidate is a `{violet, green}` pair (one prompt per side) or one file; the first whose files all exist wins: the `house-*.md` pair, then `house.md`, then `drums.md`. `backend` (default `null`) names a `kind: "jev-http"` entry to have Jev play the house side — §6, *5.3 Jam day with the Jev house bot* |
 | `organizerEmail` | the one organizer (Q19); refused if left as `CHANGE-ME` in Access mode; `ARENA_ORGANIZER_EMAIL` overrides |
+| `compile` | the `/compile` panel (§1b): `backend` (`ollama`/`openrouter`), per-IP and global limits, `ipHeader`, `practiceBackend` |
 
 Changing the tournament block appends a new `tournament` row; nothing already played is altered.
 
@@ -111,6 +112,34 @@ finished. The 6-pilot lockstep round now runs genuinely in parallel (mean ≈1.4
 run, vs. Ollama's serial queue), so a full 600-second match finishes in low single-digit minutes
 instead of the 25+ the everyday ladder takes — budget the rehearsal slot accordingly, and re-check
 `/health`'s `cost_usd` afterward against the day's budget before running the real bracket.
+
+---
+
+## 1b. The compile panel (`/compile`) and practice matches
+
+Entrants paste prose at `/compile` and read what it compiles to for Jev — the same view as
+`python tools/jev/compile.py` and the jamobair-entrants PR bot (rulings 20–21; the full design and
+measurements are in [`entrant-compile-preview.md`](entrant-compile-preview.md)). It is on by
+default and compiles with host Ollama; nothing to start.
+
+- **Hosted compiles:** set `"compile": {"backend": "openrouter"}` and start the arena with
+  `OPENROUTER_API_KEY` in its environment. The key stays in the arena process and its
+  `compile.py` child; the browser only ever gets the rendered view. ≈$0.0006 per compile, capped at
+  `maxTokensPerCompile` (20k) each.
+- **Limits:** `perIpPerMinute` 3, `perIpPerDay` 20, `globalPerDay` 400, `maxConcurrent` 1 — in
+  memory, so a restart resets them. **Behind the tunnel set `"ipHeader": "cf-connecting-ip"`**, or
+  every visitor arrives as 127.0.0.1 and shares one bucket.
+- **Practice matches (optional):** start the schema server, then point the panel at it:
+
+  ```
+  python tools/jev/schema_server.py              # live Jev via Workers AI, 127.0.0.1:8797, --budget-usd 0.50
+  python tools/jev/schema_server.py --stub       # $0 plumbing run
+  ```
+
+  and set `"compile": {"practiceBackend": "jev-schema"}` (the `jev-schema` backend is already in
+  `config.example.json`). The entrant's compiled rules play violet on Jev against the house bot:
+  a quick test against their handle's quota, never ranked. `npx wrangler whoami` first if the
+  Workers AI token may have expired, and restart the schema server after it refreshes.
 
 ---
 
@@ -412,7 +441,7 @@ match plays Jev; entrants never do. **Back out:** set `"backend": null` and rest
 
 ## 7. Tests
 
-`npm run test:arena` — `node --test` over `tools/arena/test_*.mjs` (59 tests): the `arena.` →
+`npm run test:arena` — `node --test` over `tools/arena/test_*.mjs` (95 tests): the `arena.` →
 `elysium.` redirect, Elo and placements, ledger folds (quota, standings, recovery), the ported
 validator, Access JWT refusal, the verify gate and wall cap, the house pair, the bracket (seeding,
 byes, the Q7 tie order, the fold through void/re-run/ruling/reveal), the live stream (backlog,
@@ -421,4 +450,6 @@ stream being identical to the one synthesized from the log), the browser driver 
 bundled and run in Node against a real mock log: never ahead of the server, lands on the log,
 stops on a tampered checkpoint, 16× replay paces itself), and headless end-to-ends that boot the
 arena on the mock model — ladder, quota, Access refusal, and a whole bracket over HTTP with a
-held round hidden from a spectator. No GPU; it is what CI runs.
+held round hidden from a spectator, and the compile panel (the markdown renderer's escaping, the
+rate limiter, the real `compile.py` child against a fake Ollama, a practice match through a fake
+schema server). No GPU; it is what CI runs.

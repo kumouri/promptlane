@@ -300,12 +300,19 @@ def translate_pilot(
     ollama_url: str | None = None,
     model: str = DEFAULT_MODEL,
     max_attempts: int = 3,
+    generate=None,
 ) -> TranslatedSchema:
-    url = resolve_ollama_url(ollama_url)
+    """`generate`, when given, is a `prompt -> reply text` callable that replaces the host-Ollama
+    call (`llm_backends.Backend.generate` -- how `compile.py` runs the same translation on
+    OpenRouter, or under a token cap). The prompt, parsing, retries and priority guard are the same
+    either way."""
+    if generate is None:
+        url = resolve_ollama_url(ollama_url)
+        generate = lambda p: _ollama_generate(url, model, p, timeout=90.0, max_tokens=1800)  # noqa: E731
     prompt = _translation_prompt(pilot_text, instrument, primary_ability, ultimate_ability)
     last_err: Exception | None = None
     for attempt in range(max_attempts):
-        reply = _ollama_generate(url, model, prompt, timeout=90.0, max_tokens=1800)
+        reply = generate(prompt)
         try:
             raw_json = _extract_json_object(reply)
             schema = parse_schema(raw_json, pilot_file, instrument, reply)

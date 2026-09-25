@@ -449,6 +449,7 @@ wall time, so it is a button, not the default. Ladder (Elo) draws are simply dra
 | `tools/arena/pages/*.mjs` | *built (A, B)* | server-rendered HTML: home/explainer, `/test`, `/ladder`, `/matches` (running + recent, "Watch live"), `/matches/<id>`, `/admin` (B: create a bracket from the ladder), `/bracket` (B: columns per round, organizer controls per round and slot) |
 | `tools/arena/config.example.json` | *built (A)* | tournament (backend, cadence, quick shape, seeds, quota), backends, entrants source, house files, organizer email. Access AUD/team are environment variables |
 | `tools/arena/test_*.mjs` | *built (A, B)* | `node --test`: Elo + placements, ledger folds, validator port, JWT refusal, verify gate + wall cap, house pair, headless end-to-end on the mock. B: `test_bracket` (seeding, byes, tie order, fold), `test_live` (stream units; SSE e2e; bracket e2e with held/reveal/rule/re-run), `test_browser` (`src/live.ts` bundled and driven in Node against a real log). `testkit.mjs` holds the shared fixtures |
+| `tools/arena/compile.mjs`, `pages/compile.mjs`, `test_compile.mjs` | *built (2026-09-25, rulings 20–21)* | The `/compile` panel: runs `tools/jev/compile.py` server-side, per-IP/day limits, and the optional Jev practice match (`Queue.practicePilotFor` → `tools/match/jevSchemaPilot.ts` → `tools/jev/schema_server.py`). Design and measurements: [`entrant-compile-preview.md`](entrant-compile-preview.md) |
 | `.github/workflows/ci.yml` | **reused, additive (A: done)** | `npm run test:arena` after the match smoke |
 | `jamobair-entrants` `tools/validate_entry.py` | **reused unchanged** | remains the CI gate for merged prompts |
 | `cloudflared` config | ops, not in repo | ingress `elysium.<zone>` → `http://127.0.0.1:8790`, nothing else; `arena.<zone>` is a Cloudflare redirect rule (Q16) |
@@ -830,6 +831,8 @@ original wording is kept beneath for the record. **One departure from the recomm
 | 17 | Phase C public **after the jam** |
 | 18 | Spectators **behind Access too** (round one) |
 | 19 | Organizer: **Ceryce only** |
+| 20 | *(2026-09-25 10:42 CT)* **The jam runs entrants on Jev**, their prose compiled by the transparent translator. Verbatim: *"Feels like enough of one, I think. Especially for a first jam. With the transparent translator they should be fine as long as they don't come day of without having tried it through the translator/parser/compiler."* |
+| 21 | *(2026-09-25 10:43 CT)* How entrants try their prose before Oct 2 — options were a PR bot in jamobair-entrants, a local command, Margo compiling on request. Verbatim: *"1, 2, and a live version in elysium."* Built: [`entrant-compile-preview.md`](entrant-compile-preview.md) — the local command, the PR bot, and Elysium's `/compile` panel |
 
 ### Original questions (as asked)
 

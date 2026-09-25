@@ -61,9 +61,12 @@ feature.
 **Scope, same as #25's:** `expressibility.FILES` only has hand-labeled segments for the three real
 reference pilots (`drums.md`, `keytar.md`, `violin.md`) — there's no `entrants/` directory in this
 repo (see that module's docstring for why). `transparency.build_report` raises `KeyError` for any
-other pilot file name by design; a report built without real hand-labeled segments would be guessing
-at exactly the thing this module exists to make honest. A real jam would need per-entrant labeling —
-flagged, not solved, same caveat #6 below carries forward.
+other pilot file name unless the caller passes segments explicitly; a report built without real
+hand-labeled segments would be guessing at exactly the thing this module exists to make honest.
+**Update 2026-09-25:** the jam needs per-entrant reports, so `tools/jev/segment.py` now supplies
+automatic word-list labels for any prose, and a report built on them says so at the top — the
+entrant compile preview (`tools/jev/compile.py`, [`entrant-compile-preview.md`](entrant-compile-preview.md))
+is where that happens, with the labeller's measured agreement against these hand labels.
 
 **One real rendered rule** (from `runs/jev-translator-transparency-keytar-2026-09-23.md`, drums'
 recall rule, chosen because it shows every part of the view working at once):

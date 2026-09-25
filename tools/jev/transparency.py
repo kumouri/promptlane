@@ -26,9 +26,11 @@ strong match" is more useful to an entrant than a wrong one.
 SCOPE. `expressibility.FILES` only has hand-labeled segments for the three real reference pilots
 (`drums.md`, `keytar.md`, `violin.md`) -- the same scope the fidelity memo works in, for the same
 reason (no `entrants/` directory in this repo, see that module's docstring). `build_report` raises
-`KeyError` for any other pilot file name; there is no silent fallback, because a report built without
-real hand-labeled segments would be guessing at exactly the thing this module exists to make
-honest.
+`KeyError` for any other pilot file name unless the caller passes `segments` explicitly -- which is
+what the entrant compile preview (`compile.py`) does with `segment.auto_segments`' word-list labels.
+There is still no *silent* fallback: a report built on automatic labels says so at the top
+(`labels="auto"`), so an entrant knows the rule/voice/advisory split came from a heuristic, not a
+reader.
 """
 from __future__ import annotations
 
@@ -92,6 +94,7 @@ class TransparencyReport:
     schema: TranslatedSchema
     rules: tuple[RuleProvenance, ...]
     dropped: tuple[DroppedSegment, ...]
+    labels: str = "hand"  # "hand" (expressibility.FILES) or "auto" (segment.auto_segments)
 
 
 def _describe_jev_ask(rule: TranslatedRule) -> str:
@@ -137,10 +140,13 @@ def _best_match(tokens: set[str], rules: list[TranslatedRule]) -> int | None:
     return best_idx
 
 
-def build_report(schema: TranslatedSchema, pilot_file: str) -> TransparencyReport:
-    """`pilot_file` must be one of `expressibility.FILES`'s keys (drums.md/keytar.md/violin.md) --
-    see module docstring for why there is no fallback for unlabeled prose."""
-    segments = PILOT_SEGMENTS[pilot_file]
+def build_report(schema: TranslatedSchema, pilot_file: str, segments=None, labels: str = "hand") -> TransparencyReport:
+    """`pilot_file` must be one of `expressibility.FILES`'s keys (drums.md/keytar.md/violin.md)
+    unless `segments` is given -- see module docstring for why there is no silent fallback for
+    unlabeled prose. Pass `labels="auto"` with automatically labelled segments so the rendered view
+    says so."""
+    if segments is None:
+        segments = PILOT_SEGMENTS[pilot_file]
 
     claims: dict[int, list[str]] = {i: [] for i in range(len(schema.rules))}
     dropped: list[DroppedSegment] = []
@@ -178,7 +184,7 @@ def build_report(schema: TranslatedSchema, pilot_file: str) -> TransparencyRepor
             )
         )
 
-    return TransparencyReport(schema=schema, rules=tuple(rule_reports), dropped=tuple(dropped))
+    return TransparencyReport(schema=schema, rules=tuple(rule_reports), dropped=tuple(dropped), labels=labels)
 
 
 def _describe_action(kind: str, ability: str | None, selector: str | None) -> str:
@@ -211,6 +217,16 @@ def render_report_markdown(report: TransparencyReport) -> str:
         "fires where it does. The **Dropped** section at the end lists everything from your prose "
         "that did *not* become a rule, and why.",
         "",
+    ]
+    if report.labels == "auto":
+        lines += [
+            "*Your prose was split into sentences and sorted into rule / advisory / voice "
+            "automatically, by a word list -- not by a person. If a sentence below is filed under the "
+            "wrong heading, trust your own reading; what matters is whether each instruction you meant "
+            "shows up as a rule.*",
+            "",
+        ]
+    lines += [
         "## Quick view",
         "",
         "| # | Condition | Then |",

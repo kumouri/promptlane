@@ -23,6 +23,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ROOT, loadHeadless, resultLine } from '../match/load.mjs';
 import { AuthError, makeAuth } from './auth.mjs';
+import { CompileError, clientIp, makeCompiler, practiceSchemas } from './compile.mjs';
 import { DEFAULT_HOUSE_FILES, bundleHouse, candidateLabel, pickHouse } from './house.mjs';
 import { Ledger, bracketIds, bracketView, dayCT, isHeld, pendingPlacements, queued as queuedJobs, quotaUsed, standings } from './ledger.mjs';
 import { LiveHub, eventsFromLog, serveSse, sseFollow, sseFrame, sseHead } from './live.mjs';
@@ -31,6 +32,7 @@ import { Queue } from './queue.mjs';
 import { bracketMatchSeed, bracketPlan, placementPlan } from './rating.mjs';
 import { adminPage } from './pages/admin.mjs';
 import { bracketPage } from './pages/bracket.mjs';
+import { compilePage } from './pages/compile.mjs';
 import { contractPage } from './pages/contract.mjs';
 import { homePage } from './pages/home.mjs';
 import { ladderPage } from './pages/ladder.mjs';
@@ -71,6 +73,14 @@ export function loadConfig(file, overrides = {}) {
     const houseBackend = cfg.backends[cfg.house.backend];
     if (!houseBackend) throw new Error(`house backend ${cfg.house.backend} is not in config.backends`);
     if (houseBackend.kind !== 'jev-http') throw new Error(`house backend ${cfg.house.backend} must have kind "jev-http", got ${houseBackend.kind}`);
+  }
+  // Compile panel practice matches (docs/entrant-compile-preview.md): unset = the panel compiles but
+  // offers no match; set to a `kind: "jev-schema-http"` backend (tools/jev/schema_server.py) to let
+  // an entrant's compiled rules play the house bot on Jev.
+  if (cfg.compile?.practiceBackend) {
+    const pb = cfg.backends[cfg.compile.practiceBackend];
+    if (!pb) throw new Error(`compile.practiceBackend ${cfg.compile.practiceBackend} is not in config.backends`);
+    if (pb.kind !== 'jev-schema-http') throw new Error(`compile.practiceBackend ${cfg.compile.practiceBackend} must have kind "jev-schema-http", got ${pb.kind}`);
   }
   return cfg;
 }
@@ -180,6 +190,8 @@ export async function createArena({
     ledger.append({ type: 'house', handle: houseHandle, hash: houseHash, file: houseFile });
   }
   const house = { handle: houseHandle, hash: houseHash, file: houseFile, backend: config.house?.backend };
+  const compiler = makeCompiler({ config: config.compile, root: ROOT, run: hooks.compileRun });
+  const practiceBackendId = compiler.cfg.practiceBackend;
   const houseRef = { handle: houseHandle, hash: houseHash, house: true };
   log.info(`arena: house bot loaded from ${houseFile} (${houseHash.slice(0, 8)})`);
 
@@ -241,14 +253,29 @@ export async function createArena({
   };
 
   // --- test submission ----------------------------------------------------------------------
-  function submitTest(user, body) {
+  /** Validate + claim the handle for this user; returns it. */
+  function claimHandle(user, raw) {
     const state = ledger.state();
-    const handle = String(body.handle ?? '').trim();
+    const handle = String(raw ?? '').trim();
     if (!isHandle(handle)) throw new HttpError(400, 'handle must be letters, digits, . _ - (your GitHub login)');
     const holder = state.handles.get(handle);
     if (holder && holder !== user.email && !user.organizer) throw new HttpError(409, `handle ${handle} is already claimed by someone else — ask the organizer`);
     if (state.claims.get(user.email) !== handle) ledger.append({ type: 'claim', email: user.email, handle, by: user.email });
+    return handle;
+  }
 
+  function checkQuota(user, handle, quick) {
+    if (user.organizer) return;
+    const used = quotaUsed(ledger.state(), handle, dayCT());
+    if (used.active >= 1) throw new HttpError(429, 'you already have a test queued or running — one at a time');
+    const limit = quick ? tournament.quota.quick : tournament.quota.full;
+    const n = quick ? used.quick : used.full;
+    if (n >= limit) throw new HttpError(429, `daily quota reached: ${n}/${limit} ${quick ? 'quick' : 'full'} tests today (Central Time)`);
+  }
+
+  function submitTest(user, body) {
+    const handle = claimHandle(user, body.handle);
+    const state = ledger.state();
     const quick = body.kind !== 'full';
     const source = body.source === 'merged' ? 'merged' : 'scratch';
     let mine;
@@ -271,13 +298,7 @@ export async function createArena({
       if (!p) throw new HttpError(400, `${opp} has no merged prompt to play against`);
       opponent = { handle: opp, hash: p.hash };
     }
-    if (!user.organizer) {
-      const used = quotaUsed(state, handle, dayCT());
-      if (used.active >= 1) throw new HttpError(429, 'you already have a test queued or running — one at a time');
-      const limit = quick ? tournament.quota.quick : tournament.quota.full;
-      const n = quick ? used.quick : used.full;
-      if (n >= limit) throw new HttpError(429, `daily quota reached: ${n}/${limit} ${quick ? 'quick' : 'full'} tests today (Central Time)`);
-    }
+    checkQuota(user, handle, quick);
     const id = queue.enqueue({
       tournamentId: tournament.id,
       kind: 'test',
@@ -295,6 +316,48 @@ export async function createArena({
     return { id, position: positionOf(id) };
   }
 
+  /**
+   * Compile panel practice match: the entrant's compiled rules (a cached compile, so exactly the
+   * schemas they just read) play violet through Jev (`practice` on the job -> `Queue.decisionPilotFor`),
+   * the house bot plays green as usual. A quick test in every other respect: same length, same
+   * quota, never ranked.
+   */
+  function submitPractice(user, body) {
+    if (!practiceBackendId) throw new HttpError(404, 'practice matches are not switched on for this arena');
+    const compiled = compiler.get(body.compileId);
+    if (!compiled) throw new HttpError(410, 'that compile has expired — compile your prose again, then run the practice match');
+    const schemas = practiceSchemas(compiled.result);
+    if (!schemas) throw new HttpError(400, 'a practice match needs all three instruments to compile');
+    const handle = claimHandle(user, body.handle);
+    checkQuota(user, handle, true);
+    const id = queue.enqueue({
+      tournamentId: tournament.id,
+      kind: 'test',
+      priority: 'test',
+      sides: { violet: { scratch: true, handle, practice: true }, green: houseRef },
+      seed: tournament.quick.seed ?? 7,
+      backendId: tournament.backend,
+      cadenceSec: tournament.quick.cadenceSec,
+      maxSimSec: tournament.quick.maxSimSec,
+      quick: true,
+      ranked: false,
+      requestedBy: { email: user.email, handle },
+      practice: { backend: practiceBackendId, compiledWith: compiled.result.backend, schemas },
+      scratchText: compiled.text,
+    });
+    return { id, position: positionOf(id) };
+  }
+
+  function compileView(user, req, extra = {}) {
+    return compilePage({
+      user,
+      cfg: compiler.cfg,
+      usage: compiler.limiter.usage(clientIp(req, compiler.cfg.ipHeader)),
+      practice: { enabled: !!practiceBackendId, schemas: extra.compiled ? practiceSchemas(extra.compiled.result) : null },
+      ...extra,
+    });
+  }
+
   function positionOf(id) {
     const list = queuedJobs(ledger.state(), queue.running);
     const i = list.findIndex((j) => j.id === id);
@@ -303,6 +366,7 @@ export async function createArena({
 
   function jobView(j) {
     const { ...v } = j;
+    if (v.practice) v.practice = { backend: v.practice.backend, compiledWith: v.practice.compiledWith, instruments: Object.keys(v.practice.schemas ?? {}) };
     if (v.sides) v.sides = Object.fromEntries(Object.entries(v.sides).map(([t, ref]) => [t, ref.scratch ? { scratch: true, handle: ref.handle } : ref]));
     return v;
   }
@@ -459,6 +523,45 @@ export async function createArena({
           draft: body,
         }), err.status);
       }
+    }
+    // --- compile panel (door B) --------------------------------------------------------------------
+    if (p === '/compile' && method === 'GET') return sendHtml(res, compileView(user, req));
+    if (p === '/compile' && method === 'POST') {
+      const body = await readBody(req);
+      try {
+        const compiled = await compiler.compile(body.prompt, clientIp(req, compiler.cfg.ipHeader));
+        return sendHtml(res, compileView(user, req, { compiled, draft: compiled.text }));
+      } catch (err) {
+        if (!(err instanceof CompileError)) throw err;
+        if (err.retryAfterSec) res.setHeader('Retry-After', String(err.retryAfterSec));
+        return sendHtml(res, compileView(user, req, { draft: String(body.prompt ?? ''), flash: { ok: false, text: err.message } }), err.status);
+      }
+    }
+    if (p === '/api/compile' && method === 'POST') {
+      const body = await readBody(req);
+      try {
+        const { id, result } = await compiler.compile(body.prompt, clientIp(req, compiler.cfg.ipHeader));
+        return sendJson(res, { compileId: id, practice: !!practiceBackendId && !!practiceSchemas(result), ...result });
+      } catch (err) {
+        if (!(err instanceof CompileError)) throw err;
+        if (err.retryAfterSec) res.setHeader('Retry-After', String(err.retryAfterSec));
+        return sendJson(res, { error: err.message }, err.status);
+      }
+    }
+    if (p === '/compile/practice' && method === 'POST') {
+      const body = await readBody(req);
+      try {
+        const { id } = submitPractice(user, body);
+        return redirect(res, `/matches/${id}`);
+      } catch (err) {
+        if (!(err instanceof HttpError)) throw err;
+        const compiled = compiler.get(body.compileId);
+        return sendHtml(res, compileView(user, req, { compiled, draft: compiled?.text, flash: { ok: false, text: err.message } }), err.status);
+      }
+    }
+    if (p === '/api/compile/practice' && method === 'POST') {
+      const body = await readBody(req);
+      return sendJson(res, submitPractice(user, body), 202);
     }
     if (p === '/api/tests' && method === 'POST') {
       const body = await readBody(req);

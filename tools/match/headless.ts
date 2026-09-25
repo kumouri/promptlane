@@ -35,6 +35,7 @@ import {
 export { mockCallModel } from '../../src/pilots/callModel';
 export { jevTracingPilot } from './jevPilot';
 export { jevTeamTracingPilot } from './jevTeamPilot';
+export { jevSchemaTracingPilot } from './jevSchemaPilot';
 
 const MATCH_DURATION_SEC = 600;
 const MAX_TICKS = Math.ceil(MATCH_DURATION_SEC / TICK_DT) + 2;
