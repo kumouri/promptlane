@@ -869,8 +869,8 @@ inferred: `runs/jev-house-bot-2026-09-23.md`.
 
 | File | What |
 |---|---|
-| `tools/jev/house_server.py` | A second Jev HTTP backend, alongside `tools/model_server.py`, with a different wire contract (worksheet in, `{bucket, rule, answers, ms}` out — not `{prompt} -> {reply}`, per the memo's §4: Jev has no `prompt` field). Reuses `tools/jev/{client,rules,serializer}.py` unchanged. Own spend cap (`--budget-usd`, default $1). |
-| `tools/match/jevPilot.ts` | The Jev house pilot: `Observation` → worksheet (code, mirrors house-violet.md's own self-report rules) → the server above → bucket → `Action`. Lives outside `src/pilots/` on purpose (frozen). Holds on any transport failure, never throws. |
+| `tools/jev/house_server.py` | A second Jev HTTP backend, alongside `tools/model_server.py`, with a different wire contract (worksheet in, `{bucket, rule, answers, ms}` out — not `{prompt} -> {reply}`, per the memo's §4: Jev has no `prompt` field). Reuses `tools/jev/{client,rules,serializer}.py`. Own spend cap (`--budget-usd`, default $1). Since 2026-09-25: asks the exact rule 3 (the worksheet carries the foe's kind and hp), renews the Workers AI token before it expires, and answers with the rules evaluated in code (`"fallback": "rules-in-code"`, logged loudly) whenever Jev can't — `runs/jev-jam-readiness-2026-09-25.md`. |
+| `tools/match/jevPilot.ts` | The Jev house pilot: `Observation` → worksheet (code, mirrors house-violet.md's own self-report rules, plus the foe's kind/hp) → the server above → bucket → `Action`. Lives outside `src/pilots/` on purpose (frozen). If the server is unreachable it decides by the same rules in code (`decideByRules`), never holds, never throws. |
 | `tools/match/headless.ts` | Additive only: `RunOptions.decisionPilotFor`, an optional per-bot pilot override; omitted (the default), a match is byte-for-byte identical to before this addendum — covered by the existing 83-test `test:arena` suite passing unchanged. |
 | `tools/arena/queue.mjs`, `server.mjs` | The one config change to go live: `config.house.backend` (unset by default) naming a `kind: "jev-http"` entry in `config.backends` routes the house-playing side only through Jev; the entrant side is never affected. Validated at config load; covered by `test_queue.mjs`. |
 | `tools/jev/run_house_bench.mjs` | The head-to-head benchmark script (Jev house vs today's qwen3.5:9b house) used for the run report above. |
@@ -882,4 +882,6 @@ inferred: `runs/jev-house-bot-2026-09-23.md`.
 ```
 
 with a `"jev-house": { "kind": "jev-http", "endpoint": "http://<host>:8798/" }` entry present under
-`backends` (see `tools/arena/config.example.json`, where it's present but not selected).
+`backends` (see `tools/arena/config.example.json`, where it's present but not selected). The
+operator procedure — token check, starting the server, the fallback, going live and backing out —
+is `docs/arena-runbook.md` §6, *5.3 Jam day with the Jev house bot*.
