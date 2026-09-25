@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import http from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { loadHeadless } from '../match/load.mjs';
@@ -11,16 +12,25 @@ import { Queue, finalFromLog, wallCapMs } from './queue.mjs';
 const quiet = { info() {}, warn() {}, error() {} };
 const headless = await loadHeadless();
 
-function setup(hooks = {}) {
+function setup(hooks = {}, { backends, house: houseOverrides } = {}) {
   const dir = mkdtempSync(path.join(tmpdir(), 'arena-queue-'));
   const ledger = new Ledger(path.join(dir, 'ledger.jsonl')).load();
   const promptStore = new PromptStore(path.join(dir, 'prompts'));
   const houseText = 'House. Reply with one JSON action.';
   const houseHash = promptStore.save('house', houseText);
   const aliceHash = promptStore.save('alice', 'Alice. Reply with one JSON action.');
-  const house = { handle: 'house', hash: houseHash, file: 'prompts/pilots/drums.md' };
-  ledger.append({ type: 'house', ...house });
-  const queue = new Queue({ ledger, backends: { mock: { kind: 'mock', avgSecPerCall: 0.001 } }, headless, dataDir: dir, promptStore, house, log: quiet, hooks });
+  const house = { handle: 'house', hash: houseHash, file: 'prompts/pilots/drums.md', ...houseOverrides };
+  ledger.append({ type: 'house', handle: house.handle, hash: house.hash, file: house.file });
+  const queue = new Queue({
+    ledger,
+    backends: backends ?? { mock: { kind: 'mock', avgSecPerCall: 0.001 } },
+    headless,
+    dataDir: dir,
+    promptStore,
+    house,
+    log: quiet,
+    hooks,
+  });
   const job = (extra = {}) => ({
     tournamentId: 'ladder',
     kind: 'test',
@@ -151,6 +161,66 @@ test('pause stops new starts; resume continues; priority order is honoured', asy
   } finally {
     await queue.stop();
     cleanup();
+  }
+});
+
+test('decisionPilotFor: undefined unless house.backend names a configured backend with a house side in the job', () => {
+  const { queue, job, cleanup } = setup();
+  try {
+    assert.equal(queue.decisionPilotFor(job()), undefined, 'house.backend unset -> today\'s default, unchanged');
+  } finally {
+    cleanup();
+  }
+});
+
+test('Jev house bot (SHADOW ONLY, runs/jev-house-bot-2026-09-23.md): house.backend routes only the house side through jev-http; the entrant side is unaffected', async () => {
+  const calls = [];
+  const stub = http.createServer((req, res) => {
+    let raw = '';
+    req.on('data', (c) => (raw += c));
+    req.on('end', () => {
+      calls.push(JSON.parse(raw));
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ bucket: 'go_home', rule: 2, answers: { q2_tower_no_wave_go_home: 0.9 }, ms: 3.1 }));
+    });
+  });
+  await new Promise((resolve) => stub.listen(0, '127.0.0.1', resolve));
+  const port = stub.address().port;
+  const { dir, ledger, queue, job, cleanup } = setup(
+    {},
+    {
+      backends: {
+        mock: { kind: 'mock', avgSecPerCall: 0.001 },
+        'jev-house': { kind: 'jev-http', endpoint: `http://127.0.0.1:${port}/`, timeoutSec: 5 },
+      },
+      house: { backend: 'jev-house' },
+    },
+  );
+  try {
+    queue.start();
+    const id = queue.enqueue(job());
+    await queue.waitForIdle(30000);
+    assert.equal(ledger.state().jobs.get(id).status, 'finished');
+    const log = JSON.parse(readFileSync(path.join(dir, 'logs', `${id}.json`), 'utf8'));
+    const houseDecisions = log.decisions.filter((d) => d.bot >= 3 && !d.cached);
+    const entrantDecisions = log.decisions.filter((d) => d.bot < 3 && !d.cached);
+    assert.ok(houseDecisions.length > 0, 'the house (green) side made at least one real call');
+    assert.ok(entrantDecisions.length > 0, 'the entrant (violet) side made at least one real call');
+    for (const d of houseDecisions) {
+      const parsed = JSON.parse(d.reply);
+      assert.equal(parsed.bucket, 'go_home');
+      assert.deepEqual(d.action, { kind: 'move', target: { x: 900, y: 100 } }, 'green home per src/sim/map.ts BASE.green');
+    }
+    for (const d of entrantDecisions) {
+      assert.doesNotMatch(d.reply, /"bucket"/, 'the entrant side never touches the jev-house stub');
+    }
+    assert.ok(calls.length > 0, 'the stub actually received worksheet POSTs');
+    assert.ok('hp' in calls[0] && 'instrument' in calls[0] && 'team' in calls[0], 'the worksheet shape reaches the stub');
+    assert.equal(calls[0].team, 'green');
+  } finally {
+    await queue.stop();
+    cleanup();
+    await new Promise((resolve) => stub.close(resolve));
   }
 });
 

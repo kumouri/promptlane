@@ -1,0 +1,1357 @@
+{
+  "model": "qwen/qwen3-32b (OpenRouter)",
+  "n": 263,
+  "overall_agreement_rate": 0.3612167300380228,
+  "parse_failures": 0,
+  "disagreements": [
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 1,
+      "instrument": "drums",
+      "predicted": null,
+      "actual": "go_home",
+      "reply": "{\"kind\":\"hold\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 86,
+      "instrument": "drums",
+      "predicted": null,
+      "actual": "go_home",
+      "reply": "{\"kind\":\"hold\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 172,
+      "instrument": "violin",
+      "predicted": null,
+      "actual": "go_home",
+      "reply": "{\"kind\":\"hold\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 172,
+      "instrument": "drums",
+      "predicted": null,
+      "actual": "go_home",
+      "reply": "{\"kind\":\"hold\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 332,
+      "instrument": "violin",
+      "predicted": null,
+      "actual": "go_home",
+      "reply": "{\"kind\":\"hold\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 412,
+      "instrument": "drums",
+      "predicted": null,
+      "actual": "go_home",
+      "reply": "{\"kind\":\"hold\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 572,
+      "instrument": "drums",
+      "predicted": null,
+      "actual": "go_home",
+      "reply": "{\"kind\":\"hold\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 653,
+      "instrument": "violin",
+      "predicted": "go_home",
+      "actual": "attack_tower",
+      "reply": "{\"kind\":\"move\",\"target\":{\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 653,
+      "instrument": "drums",
+      "predicted": "go_home",
+      "actual": "ride_wave",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 653,
+      "instrument": "keytar",
+      "predicted": "go_home",
+      "actual": "attack_tower",
+      "reply": "{\"kind\":\"move\",\"target\":{\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 741,
+      "instrument": "violin",
+      "predicted": "go_home",
+      "actual": "attack_foe",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 741,
+      "instrument": "keytar",
+      "predicted": "go_home",
+      "actual": "attack_tower",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 829,
+      "instrument": "violin",
+      "predicted": "ride_wave",
+      "actual": "attack_foe",
+      "reply": "{\"kind\":\"move\",\"target\":{\"x\":10,\"y\":10}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 829,
+      "instrument": "drums",
+      "predicted": "go_home",
+      "actual": "ride_wave",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 829,
+      "instrument": "keytar",
+      "predicted": "attack_foe",
+      "actual": "ability",
+      "reply": "{\"kind\": \"attack\", \"target\": \"mn-27\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 917,
+      "instrument": "drums",
+      "predicted": "attack_foe",
+      "actual": "ability",
+      "reply": "{\"kind\": \"attack\", \"target\": \"mn-30\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 917,
+      "instrument": "keytar",
+      "predicted": "attack_foe",
+      "actual": "ability",
+      "reply": "{\"kind\": \"attack\", \"target\": \"mn-30\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 917,
+      "instrument": "violin",
+      "predicted": "go_home",
+      "actual": "attack_tower",
+      "reply": "{\"kind\":\"move\",\"target\":{\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 1005,
+      "instrument": "keytar",
+      "predicted": "go_home",
+      "actual": "attack_foe",
+      "reply": "{\"kind\":\"move\",\"target\":{\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 1005,
+      "instrument": "violin",
+      "predicted": "go_home",
+      "actual": "attack_tower",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 1005,
+      "instrument": "drums",
+      "predicted": "go_home",
+      "actual": "ability",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 1093,
+      "instrument": "violin",
+      "predicted": "go_home",
+      "actual": "attack_foe",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 1181,
+      "instrument": "violin",
+      "predicted": "go_home",
+      "actual": "recall",
+      "reply": "{\"kind\":\"move\",\"target\":{\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 1269,
+      "instrument": "drums",
+      "predicted": "go_home",
+      "actual": "ride_wave",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 1357,
+      "instrument": "keytar",
+      "predicted": "attack_foe",
+      "actual": "ability",
+      "reply": "{\"kind\":\"attack\",\"target\":\"mn-39\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 1445,
+      "instrument": "drums",
+      "predicted": "go_home",
+      "actual": "attack_tower",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\": 100, \"y\": 900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 1445,
+      "instrument": "keytar",
+      "predicted": "go_home",
+      "actual": "attack_tower",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 1533,
+      "instrument": "keytar",
+      "predicted": "attack_foe",
+      "actual": "ability",
+      "reply": "{\"kind\": \"attack\", \"target\": \"mn-39\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 1533,
+      "instrument": "drums",
+      "predicted": "go_home",
+      "actual": "ability",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\": 100, \"y\": 900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 1621,
+      "instrument": "keytar",
+      "predicted": "go_home",
+      "actual": "attack_tower",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 1621,
+      "instrument": "drums",
+      "predicted": "go_home",
+      "actual": "ability",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 1709,
+      "instrument": "keytar",
+      "predicted": "go_home",
+      "actual": "ability",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\": 100, \"y\": 900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 1797,
+      "instrument": "keytar",
+      "predicted": "go_home",
+      "actual": "recall",
+      "reply": "{\"kind\":\"move\",\"target\":{\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 1973,
+      "instrument": "keytar",
+      "predicted": "attack_foe",
+      "actual": "ability",
+      "reply": "{\"kind\":\"attack\",\"target\":\"mn-63\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 1973,
+      "instrument": "drums",
+      "predicted": "go_home",
+      "actual": "ride_wave",
+      "reply": "{\"kind\":\"move\",\"target\":{\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 2061,
+      "instrument": "drums",
+      "predicted": "go_home",
+      "actual": "ride_wave",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 2061,
+      "instrument": "keytar",
+      "predicted": "go_home",
+      "actual": "attack_tower",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\": 100, \"y\": 900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 2149,
+      "instrument": "keytar",
+      "predicted": "attack_foe",
+      "actual": "ability",
+      "reply": "{\"kind\":\"attack\",\"target\":\"mn-67\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 2149,
+      "instrument": "drums",
+      "predicted": "go_home",
+      "actual": "ability",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\": 100, \"y\": 900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 2413,
+      "instrument": "keytar",
+      "predicted": "go_home",
+      "actual": "attack_tower",
+      "reply": "{\"kind\":\"move\",\"target\":{\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 2501,
+      "instrument": "drums",
+      "predicted": "go_home",
+      "actual": "ride_wave",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 2501,
+      "instrument": "keytar",
+      "predicted": "go_home",
+      "actual": "attack_tower",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 2586,
+      "instrument": "keytar",
+      "predicted": "attack_foe",
+      "actual": "ability",
+      "reply": "{\"kind\": \"attack\", \"target\": \"mn-75\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 2666,
+      "instrument": "keytar",
+      "predicted": "go_home",
+      "actual": "attack_tower",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 2666,
+      "instrument": "drums",
+      "predicted": "go_home",
+      "actual": "ride_wave",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 2746,
+      "instrument": "keytar",
+      "predicted": "go_home",
+      "actual": "attack_tower",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 2746,
+      "instrument": "drums",
+      "predicted": "go_home",
+      "actual": "ability",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\": 100, \"y\": 900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 2826,
+      "instrument": "drums",
+      "predicted": "go_home",
+      "actual": "ability",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\": 100, \"y\": 900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 2826,
+      "instrument": "keytar",
+      "predicted": "attack_foe",
+      "actual": "ability",
+      "reply": "{\"kind\":\"attack\",\"target\":\"mn-78\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 3146,
+      "instrument": "drums",
+      "predicted": "go_home",
+      "actual": "ride_wave",
+      "reply": "{\"kind\":\"move\",\"target\":{\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 3146,
+      "instrument": "keytar",
+      "predicted": "go_home",
+      "actual": "recall",
+      "reply": "{\"kind\":\"move\",\"target\":{\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 3226,
+      "instrument": "drums",
+      "predicted": "go_home",
+      "actual": "ride_wave",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 3306,
+      "instrument": "drums",
+      "predicted": "attack_foe",
+      "actual": "ability",
+      "reply": "{\"kind\":\"attack\", \"target\":\"mn-102\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 3386,
+      "instrument": "drums",
+      "predicted": "attack_foe",
+      "actual": "ability",
+      "reply": "{\"kind\": \"attack\", \"target\": \"mn-104\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+      "tick": 3546,
+      "instrument": "drums",
+      "predicted": null,
+      "actual": "go_home",
+      "reply": "{\"kind\":\"hold\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 1,
+      "instrument": "drums",
+      "predicted": null,
+      "actual": "go_home",
+      "reply": "{\"kind\":\"hold\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 1,
+      "instrument": "violin",
+      "predicted": null,
+      "actual": "go_home",
+      "reply": "{\"kind\":\"hold\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 86,
+      "instrument": "violin",
+      "predicted": null,
+      "actual": "go_home",
+      "reply": "{\"kind\":\"hold\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 86,
+      "instrument": "keytar",
+      "predicted": null,
+      "actual": "go_home",
+      "reply": "{\"kind\":\"hold\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 86,
+      "instrument": "drums",
+      "predicted": null,
+      "actual": "go_home",
+      "reply": "{\"kind\":\"hold\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 172,
+      "instrument": "drums",
+      "predicted": null,
+      "actual": "go_home",
+      "reply": "{\"kind\":\"hold\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 172,
+      "instrument": "violin",
+      "predicted": null,
+      "actual": "go_home",
+      "reply": "{\"kind\":\"hold\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 172,
+      "instrument": "keytar",
+      "predicted": null,
+      "actual": "go_home",
+      "reply": "{\"kind\":\"hold\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 252,
+      "instrument": "keytar",
+      "predicted": null,
+      "actual": "go_home",
+      "reply": "{\"kind\":\"hold\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 252,
+      "instrument": "drums",
+      "predicted": null,
+      "actual": "go_home",
+      "reply": "{\"kind\":\"hold\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 252,
+      "instrument": "violin",
+      "predicted": null,
+      "actual": "go_home",
+      "reply": "{\"kind\":\"hold\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 332,
+      "instrument": "violin",
+      "predicted": null,
+      "actual": "go_home",
+      "reply": "{\"kind\":\"hold\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 332,
+      "instrument": "keytar",
+      "predicted": null,
+      "actual": "go_home",
+      "reply": "{\"kind\":\"hold\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 412,
+      "instrument": "drums",
+      "predicted": null,
+      "actual": "go_home",
+      "reply": "{\"kind\":\"hold\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 412,
+      "instrument": "violin",
+      "predicted": null,
+      "actual": "go_home",
+      "reply": "{\"kind\":\"hold\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 492,
+      "instrument": "violin",
+      "predicted": null,
+      "actual": "go_home",
+      "reply": "{\"kind\":\"hold\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 572,
+      "instrument": "violin",
+      "predicted": null,
+      "actual": "go_home",
+      "reply": "{\"kind\":\"hold\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 572,
+      "instrument": "drums",
+      "predicted": null,
+      "actual": "go_home",
+      "reply": "{\"kind\":\"hold\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 653,
+      "instrument": "keytar",
+      "predicted": "go_home",
+      "actual": "attack_tower",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 653,
+      "instrument": "drums",
+      "predicted": "go_home",
+      "actual": "ride_wave",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 741,
+      "instrument": "drums",
+      "predicted": "go_home",
+      "actual": "ride_wave",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 741,
+      "instrument": "violin",
+      "predicted": "go_home",
+      "actual": "attack_foe",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 741,
+      "instrument": "keytar",
+      "predicted": "go_home",
+      "actual": "attack_tower",
+      "reply": "{\"kind\":\"move\",\"target\":{\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 829,
+      "instrument": "violin",
+      "predicted": "ride_wave",
+      "actual": "attack_foe",
+      "reply": "{\"kind\":\"move\",\"target\":{\"x\":10,\"y\":10}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 829,
+      "instrument": "keytar",
+      "predicted": "go_home",
+      "actual": "attack_tower",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\": 100, \"y\": 900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 917,
+      "instrument": "keytar",
+      "predicted": "attack_foe",
+      "actual": "ability",
+      "reply": "{\"kind\":\"attack\", \"target\":\"mn-30\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 917,
+      "instrument": "drums",
+      "predicted": "attack_foe",
+      "actual": "ability",
+      "reply": "{\"kind\": \"attack\", \"target\": \"mn-30\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 917,
+      "instrument": "violin",
+      "predicted": "go_home",
+      "actual": "attack_tower",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 1005,
+      "instrument": "violin",
+      "predicted": "go_home",
+      "actual": "attack_tower",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 1005,
+      "instrument": "drums",
+      "predicted": "go_home",
+      "actual": "ability",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 1005,
+      "instrument": "keytar",
+      "predicted": "go_home",
+      "actual": "attack_foe",
+      "reply": "{\"kind\":\"move\",\"target\":{\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 1093,
+      "instrument": "violin",
+      "predicted": "go_home",
+      "actual": "attack_foe",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 1093,
+      "instrument": "keytar",
+      "predicted": "recall",
+      "actual": "go_home",
+      "reply": "{\"kind\":\"recall\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 1181,
+      "instrument": "violin",
+      "predicted": "go_home",
+      "actual": "recall",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 1357,
+      "instrument": "keytar",
+      "predicted": "attack_foe",
+      "actual": "ability",
+      "reply": "{\"kind\":\"attack\",\"target\":\"mn-45\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 1445,
+      "instrument": "drums",
+      "predicted": null,
+      "actual": "go_home",
+      "reply": "{\"kind\":\"hold\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 1533,
+      "instrument": "keytar",
+      "predicted": "attack_foe",
+      "actual": "recall",
+      "reply": "{\"kind\":\"attack\",\"target\":\"mn-49\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 1533,
+      "instrument": "drums",
+      "predicted": null,
+      "actual": "go_home",
+      "reply": "{\"kind\":\"hold\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 1621,
+      "instrument": "keytar",
+      "predicted": "ride_wave",
+      "actual": "recall",
+      "reply": "{\"kind\":\"move\",\"target\":{\"x\":10,\"y\":10}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 1709,
+      "instrument": "drums",
+      "predicted": null,
+      "actual": "go_home",
+      "reply": "{\"kind\":\"hold\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 1797,
+      "instrument": "keytar",
+      "predicted": "recall",
+      "actual": "go_home",
+      "reply": "{\"kind\":\"recall\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 1885,
+      "instrument": "drums",
+      "predicted": "go_home",
+      "actual": "ride_wave",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 1885,
+      "instrument": "keytar",
+      "predicted": "go_home",
+      "actual": "attack_tower",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 1973,
+      "instrument": "keytar",
+      "predicted": "ride_wave",
+      "actual": "ability",
+      "reply": "{\"kind\":\"move\",\"target\":{\"x\":10,\"y\":10}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 1973,
+      "instrument": "drums",
+      "predicted": "go_home",
+      "actual": "ride_wave",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 2061,
+      "instrument": "keytar",
+      "predicted": "go_home",
+      "actual": "attack_tower",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 2061,
+      "instrument": "drums",
+      "predicted": "go_home",
+      "actual": "ability",
+      "reply": "{\"kind\":\"move\",\"target\":{\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 2149,
+      "instrument": "drums",
+      "predicted": "go_home",
+      "actual": "ability",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\": 100, \"y\": 900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 2149,
+      "instrument": "keytar",
+      "predicted": "attack_foe",
+      "actual": "ability",
+      "reply": "{\"kind\":\"attack\",\"target\":\"mn-67\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 2413,
+      "instrument": "keytar",
+      "predicted": "go_home",
+      "actual": "attack_tower",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 2501,
+      "instrument": "drums",
+      "predicted": "go_home",
+      "actual": "ride_wave",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 2501,
+      "instrument": "keytar",
+      "predicted": "ride_wave",
+      "actual": "attack_tower",
+      "reply": "{\"kind\":\"move\",\"target\":{\"x\":10,\"y\":10}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 2586,
+      "instrument": "keytar",
+      "predicted": "ride_wave",
+      "actual": "attack_tower",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":10,\"y\":10}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 2586,
+      "instrument": "drums",
+      "predicted": "go_home",
+      "actual": "attack_tower",
+      "reply": "{\"kind\":\"move\",\"target\":{\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 2666,
+      "instrument": "drums",
+      "predicted": "go_home",
+      "actual": "attack_tower",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 2666,
+      "instrument": "keytar",
+      "predicted": "go_home",
+      "actual": "attack_tower",
+      "reply": "{\"kind\":\"move\",\"target\":{\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 2746,
+      "instrument": "keytar",
+      "predicted": "attack_foe",
+      "actual": "ability",
+      "reply": "{\"kind\":\"attack\",\"target\":\"mn-85\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 2746,
+      "instrument": "drums",
+      "predicted": "go_home",
+      "actual": "attack_tower",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 2826,
+      "instrument": "drums",
+      "predicted": "go_home",
+      "actual": "ability",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\": 100, \"y\": 900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 2826,
+      "instrument": "keytar",
+      "predicted": "go_home",
+      "actual": "attack_foe",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 2906,
+      "instrument": "drums",
+      "predicted": "go_home",
+      "actual": "ability",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\": 100, \"y\": 900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 3066,
+      "instrument": "keytar",
+      "predicted": "attack_foe",
+      "actual": "ability",
+      "reply": "{\"kind\":\"attack\",\"target\":\"mn-93\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 3146,
+      "instrument": "drums",
+      "predicted": "attack_foe",
+      "actual": "ability",
+      "reply": "{\"kind\": \"attack\", \"target\": \"tw-6\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 3146,
+      "instrument": "keytar",
+      "predicted": "go_home",
+      "actual": "attack_tower",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 3226,
+      "instrument": "drums",
+      "predicted": "go_home",
+      "actual": "recall",
+      "reply": "{\"kind\":\"move\",\"target\":{\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 3226,
+      "instrument": "keytar",
+      "predicted": "go_home",
+      "actual": "attack_tower",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 3306,
+      "instrument": "drums",
+      "predicted": "go_home",
+      "actual": "recall",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 3306,
+      "instrument": "keytar",
+      "predicted": "attack_foe",
+      "actual": "ability",
+      "reply": "{\"kind\": \"attack\", \"target\": \"mn-102\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 3386,
+      "instrument": "drums",
+      "predicted": null,
+      "actual": "go_home",
+      "reply": "{\"kind\":\"hold\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 3386,
+      "instrument": "keytar",
+      "predicted": "ride_wave",
+      "actual": "ability",
+      "reply": "{\"kind\":\"move\",\"target\":{\"x\":10,\"y\":10}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+      "tick": 3466,
+      "instrument": "drums",
+      "predicted": null,
+      "actual": "go_home",
+      "reply": "{\"kind\":\"hold\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 1,
+      "instrument": "drums",
+      "predicted": null,
+      "actual": "go_home",
+      "reply": "{\"kind\":\"hold\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 1,
+      "instrument": "violin",
+      "predicted": null,
+      "actual": "go_home",
+      "reply": "{\"kind\":\"hold\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 86,
+      "instrument": "drums",
+      "predicted": null,
+      "actual": "go_home",
+      "reply": "{\"kind\":\"hold\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 172,
+      "instrument": "drums",
+      "predicted": null,
+      "actual": "go_home",
+      "reply": "{\"kind\":\"hold\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 252,
+      "instrument": "keytar",
+      "predicted": "recall",
+      "actual": "go_home",
+      "reply": "{\"kind\":\"recall\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 332,
+      "instrument": "keytar",
+      "predicted": "go_home",
+      "actual": "recall",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 412,
+      "instrument": "keytar",
+      "predicted": null,
+      "actual": "go_home",
+      "reply": "{\"kind\":\"hold\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 412,
+      "instrument": "drums",
+      "predicted": null,
+      "actual": "go_home",
+      "reply": "{\"kind\":\"hold\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 492,
+      "instrument": "keytar",
+      "predicted": null,
+      "actual": "go_home",
+      "reply": "{\"kind\":\"hold\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 572,
+      "instrument": "violin",
+      "predicted": null,
+      "actual": "go_home",
+      "reply": "{\"kind\":\"hold\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 572,
+      "instrument": "drums",
+      "predicted": null,
+      "actual": "go_home",
+      "reply": "{\"kind\":\"hold\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 653,
+      "instrument": "violin",
+      "predicted": "go_home",
+      "actual": "attack_tower",
+      "reply": "{\"kind\":\"move\",\"target\":{\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 653,
+      "instrument": "drums",
+      "predicted": "go_home",
+      "actual": "ride_wave",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 653,
+      "instrument": "keytar",
+      "predicted": "go_home",
+      "actual": "attack_tower",
+      "reply": "{\"kind\":\"move\",\"target\":{\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 741,
+      "instrument": "violin",
+      "predicted": "go_home",
+      "actual": "attack_foe",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 741,
+      "instrument": "keytar",
+      "predicted": "go_home",
+      "actual": "attack_tower",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 829,
+      "instrument": "keytar",
+      "predicted": "go_home",
+      "actual": "attack_tower",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\": 100, \"y\": 900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 829,
+      "instrument": "drums",
+      "predicted": "go_home",
+      "actual": "ride_wave",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 829,
+      "instrument": "violin",
+      "predicted": "ride_wave",
+      "actual": "attack_foe",
+      "reply": "{\"kind\":\"move\",\"target\":{\"x\":10,\"y\":10}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 917,
+      "instrument": "keytar",
+      "predicted": "attack_foe",
+      "actual": "ability",
+      "reply": "{\"kind\": \"attack\", \"target\": \"mn-30\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 917,
+      "instrument": "drums",
+      "predicted": "attack_foe",
+      "actual": "ability",
+      "reply": "{\"kind\":\"attack\",\"target\":\"mn-30\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 917,
+      "instrument": "violin",
+      "predicted": "go_home",
+      "actual": "attack_tower",
+      "reply": "{\"kind\":\"move\",\"target\":{\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 1005,
+      "instrument": "violin",
+      "predicted": "go_home",
+      "actual": "attack_tower",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 1005,
+      "instrument": "keytar",
+      "predicted": "go_home",
+      "actual": "attack_foe",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\": 100, \"y\": 900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 1005,
+      "instrument": "drums",
+      "predicted": "go_home",
+      "actual": "ability",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 1093,
+      "instrument": "violin",
+      "predicted": "go_home",
+      "actual": "attack_foe",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 1093,
+      "instrument": "keytar",
+      "predicted": "attack_foe",
+      "actual": "ability",
+      "reply": "{\"kind\":\"attack\",\"target\":\"bb-20\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 1093,
+      "instrument": "drums",
+      "predicted": "attack_foe",
+      "actual": "ability",
+      "reply": "{\"kind\": \"attack\", \"target\": \"bb-20\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 1181,
+      "instrument": "violin",
+      "predicted": "go_home",
+      "actual": "recall",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\": 100, \"y\": 900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 1269,
+      "instrument": "keytar",
+      "predicted": "go_home",
+      "actual": "attack_tower",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 1357,
+      "instrument": "keytar",
+      "predicted": "go_home",
+      "actual": "attack_tower",
+      "reply": "{\"kind\":\"move\",\"target\":{\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 1357,
+      "instrument": "drums",
+      "predicted": "go_home",
+      "actual": "ability",
+      "reply": "{\"kind\":\"move\",\"target\":{\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 1445,
+      "instrument": "keytar",
+      "predicted": "go_home",
+      "actual": "attack_tower",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\": 100, \"y\": 900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 1533,
+      "instrument": "keytar",
+      "predicted": "attack_foe",
+      "actual": "ability",
+      "reply": "{\"kind\":\"attack\",\"target\":\"mn-48\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 1621,
+      "instrument": "keytar",
+      "predicted": "go_home",
+      "actual": "attack_foe",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 1797,
+      "instrument": "keytar",
+      "predicted": "go_home",
+      "actual": "recall",
+      "reply": "{\"kind\":\"move\",\"target\":{\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 1885,
+      "instrument": "keytar",
+      "predicted": "go_home",
+      "actual": "attack_tower",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 1973,
+      "instrument": "keytar",
+      "predicted": "go_home",
+      "actual": "attack_tower",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 2061,
+      "instrument": "keytar",
+      "predicted": "go_home",
+      "actual": "attack_tower",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 2149,
+      "instrument": "keytar",
+      "predicted": "attack_foe",
+      "actual": "ability",
+      "reply": "{\"kind\":\"attack\",\"target\":\"mn-67\"}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 2237,
+      "instrument": "keytar",
+      "predicted": "go_home",
+      "actual": "attack_foe",
+      "reply": "{\"kind\": \"move\", \"target\": {\"x\":100,\"y\":900}}"
+    },
+    {
+      "source_file": "house-prompt-2026-09-21-r4-house-vs-house-seed7.json",
+      "tick": 2413,
+      "instrument": "keytar",
+      "predicted": "ability",
+      "actual": "recall",
+      "reply": "{\"kind\":\"ability\",\"target\":\"bb-19\",\"ability\":\"chord\"}"
+    }
+  ],
+  "latency": {
+    "mean_sec": 0.9796730038022814,
+    "p50_sec": 0.895,
+    "p90_sec": 1.485
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "model": "jev (workers-ai typesafe/jev)",
+  "n": 263,
+  "overall_agreement_rate": 1.0,
+  "per_question": {
+    "q1_recall_low_hp": {
+      "rule_number": 1,
+      "n": 263,
+      "accuracy": 1.0
+    },
+    "q2a_engage_ability": {
+      "rule_number": 2,
+      "n": 263,
+      "accuracy": 1.0
+    },
+    "q2b_engage_attack": {
+      "rule_number": 3,
+      "n": 263,
+      "accuracy": 1.0
+    },
+    "q3_push_tower_with_wave": {
+      "rule_number": 4,
+      "n": 263,
+      "accuracy": 0.7946768060836502
+    },
+    "q4_regroup_no_wave": {
+      "rule_number": 5,
+      "n": 263,
+      "accuracy": 0.9619771863117871
+    },
+    "q5_ride_wave": {
+      "rule_number": 6,
+      "n": 263,
+      "accuracy": 1.0
+    }
+  },
+  "disagreements": [],
+  "total_input_tokens": 233566,
+  "estimated_cost_usd": 0.009809772,
+  "latency": {
+    "mean_sec": 2.1984476376344366,
+    "p50_sec": 0.5850536001380533,
+    "p90_sec": 4.339158960012719
+  }
+}
