@@ -12,7 +12,7 @@
     "model-server": "python tools/model_server.py",
     "test:tools": "python -m unittest discover -s tools -p \"test_*.py\"",
     "arena": "node tools/arena/server.mjs",
-    "test:arena": "node --test tools/arena/test_host.mjs tools/arena/test_house.mjs tools/arena/test_rating.mjs tools/arena/test_ledger.mjs tools/arena/test_prompts.mjs tools/arena/test_contract.mjs tools/arena/test_auth.mjs tools/arena/test_queue.mjs tools/arena/test_bracket.mjs tools/arena/test_live.mjs tools/arena/test_browser.mjs tools/arena/test_iso.mjs tools/arena/test_e2e.mjs"
+    "test:arena": "node --test tools/arena/test_host.mjs tools/arena/test_house.mjs tools/arena/test_rating.mjs tools/arena/test_ledger.mjs tools/arena/test_prompts.mjs tools/arena/test_contract.mjs tools/arena/test_auth.mjs tools/arena/test_queue.mjs tools/arena/test_bracket.mjs tools/arena/test_live.mjs tools/arena/test_browser.mjs tools/arena/test_iso.mjs tools/arena/test_e2e.mjs tools/jev/test_merge_team_bench.mjs"
   },
   "devDependencies": {
     "esbuild": "0.21.5",

@@ -40,6 +40,7 @@ function parseArgs(argv) {
     qwenEndpoint: process.env.QWEN_ENDPOINT ?? DEFAULT_QWEN_ENDPOINT,
     out: 'runs/jev-vs-qwen32b.json',
     timeout: 60,
+    jevSideStart: 'violet', // which side jev plays on m=0; alternates from there (m % 2)
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -53,6 +54,7 @@ function parseArgs(argv) {
       case '--qwen-endpoint': args.qwenEndpoint = next(); break;
       case '--out': args.out = next(); break;
       case '--timeout': args.timeout = Number(next()); break;
+      case '--jev-side-start': args.jevSideStart = next(); break;
       default: throw new Error(`unknown option ${a}`);
     }
   }
@@ -188,7 +190,10 @@ async function main() {
   const jevSides = [];
   for (let m = 0; m < args.matches; m++) {
     const seed = args.seedStart + m;
-    const jevTeam = m % 2 === 0 ? 'violet' : 'green'; // swap sides each match so map asymmetry cancels
+    // swap sides each match so map asymmetry cancels; --jev-side-start picks which side m=0 plays,
+    // so a restarted run (e.g. after a token refresh) can continue the alternation correctly.
+    const other = args.jevSideStart === 'violet' ? 'green' : 'violet';
+    const jevTeam = m % 2 === 0 ? args.jevSideStart : other;
     jevSides.push(jevTeam);
     const sides = {
       violet: { name: jevTeam === 'violet' ? 'jev-team' : 'qwen32b-team', promptFile: TEAM_QWEN_PROMPT, promptText: qwenText },
