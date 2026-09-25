@@ -1,0 +1,7232 @@
+{
+ "summary": {
+  "source": "runs/jev-jam-readiness-worksheets-2026-09-25.json",
+  "mode": "live",
+  "calls": 400,
+  "input_tokens": 343928,
+  "cost_usd": 0.0144,
+  "mean_latency_sec": 1.441,
+  "before_approx_q3": {
+   "n": 200,
+   "bucket_agreement": 0.69,
+   "contested_n": 120,
+   "contested_agreement": 0.5,
+   "ability_over_trigger": "60/60",
+   "ability_over_trigger_rate": 1.0,
+   "ability_missed": "0/60",
+   "ability_missed_rate": 0.0
+  },
+  "after_exact_q3": {
+   "n": 200,
+   "bucket_agreement": 0.995,
+   "contested_n": 120,
+   "contested_agreement": 1.0,
+   "ability_over_trigger": "0/60",
+   "ability_over_trigger_rate": 0.0,
+   "ability_missed": "0/60",
+   "ability_missed_rate": 0.0
+  }
+ },
+ "rows": [
+  {
+   "worksheet": {
+    "seed": 4,
+    "hp": 150,
+    "wave": 9,
+    "tower": null,
+    "foe": "mn-1385",
+    "foeKind": "minion",
+    "foeHp": 16,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 8506,
+    "clockSec": 425
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.3
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.95,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.38
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 2,
+    "hp": 220,
+    "wave": 3,
+    "tower": null,
+    "foe": "mn-546",
+    "foeKind": "minion",
+    "foeHp": 34,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "green",
+    "tick": 5906,
+    "clockSec": 295
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.3
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.95,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.36
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 6,
+    "hp": 78,
+    "wave": 3,
+    "tower": "tw-1906",
+    "foe": "mn-2158",
+    "foeKind": "minion",
+    "foeHp": 20,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 8866,
+    "clockSec": 443
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.9,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.08
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.03,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.08
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 2,
+    "hp": 132,
+    "wave": 3,
+    "tower": "tw-385",
+    "foe": "mn-491",
+    "foeKind": "minion",
+    "foeHp": 42,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 4026,
+    "clockSec": 201
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.07
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.95,
+    "q6_wave_present_ride": 0.08
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 5,
+    "hp": 150,
+    "wave": 3,
+    "tower": null,
+    "foe": "mn-1832",
+    "foeKind": "minion",
+    "foeHp": 60,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 10709,
+    "clockSec": 535
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.9,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.33
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.95,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.45
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 3,
+    "hp": 96,
+    "wave": 2,
+    "tower": "tw-766",
+    "foe": "mn-983",
+    "foeKind": "minion",
+    "foeHp": 60,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 7706,
+    "clockSec": 385
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.93,
+    "q6_wave_present_ride": 0.08
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.08
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 6,
+    "hp": 147,
+    "wave": 2,
+    "tower": "tw-1903",
+    "foe": "bb-1916",
+    "foeKind": "bearbot",
+    "foeHp": 122,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "green",
+    "tick": 6226,
+    "clockSec": 311
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.06
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.07
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 5,
+    "hp": 80,
+    "wave": 3,
+    "tower": null,
+    "foe": "mn-1696",
+    "foeKind": "minion",
+    "foeHp": 16,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 5746,
+    "clockSec": 287
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.33
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.94,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.39
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 1,
+    "hp": 150,
+    "wave": 1,
+    "tower": "tw-6",
+    "foe": "mn-314",
+    "foeKind": "minion",
+    "foeHp": 3,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 10929,
+    "clockSec": 546
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.9,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.93,
+    "q6_wave_present_ride": 0.09
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.95,
+    "q6_wave_present_ride": 0.1
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 6,
+    "hp": 96,
+    "wave": 2,
+    "tower": "tw-1906",
+    "foe": "mn-2194",
+    "foeKind": "minion",
+    "foeHp": 49,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 10106,
+    "clockSec": 505
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.9,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.09
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.95,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.08
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 4,
+    "hp": 220,
+    "wave": 2,
+    "tower": "tw-1150",
+    "foe": "bb-1159",
+    "foeKind": "bearbot",
+    "foeHp": 140,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 961,
+    "clockSec": 48
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.1
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.93,
+    "q6_wave_present_ride": 0.08
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 1,
+    "hp": 184,
+    "wave": 3,
+    "tower": "tw-5",
+    "foe": "mn-39",
+    "foeKind": "minion",
+    "foeHp": 42,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "green",
+    "tick": 1621,
+    "clockSec": 81
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.95,
+    "q6_wave_present_ride": 0.09
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.95,
+    "q6_wave_present_ride": 0.07
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 4,
+    "hp": 90,
+    "wave": 2,
+    "tower": "tw-1145",
+    "foe": "mn-1253",
+    "foeKind": "minion",
+    "foeHp": 12,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 4106,
+    "clockSec": 205
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.93,
+    "q6_wave_present_ride": 0.09
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.08
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 1,
+    "hp": 184,
+    "wave": 2,
+    "tower": "tw-5",
+    "foe": "mn-40",
+    "foeKind": "minion",
+    "foeHp": 42,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "green",
+    "tick": 1665,
+    "clockSec": 83
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.07
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.95,
+    "q6_wave_present_ride": 0.07
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 4,
+    "hp": 150,
+    "wave": 3,
+    "tower": null,
+    "foe": "mn-1436",
+    "foeKind": "minion",
+    "foeHp": 42,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 10577,
+    "clockSec": 529
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.9,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.34
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.95,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.42
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 3,
+    "hp": 118,
+    "wave": 3,
+    "tower": "tw-769",
+    "foe": "bb-775",
+    "foeKind": "bearbot",
+    "foeHp": 220,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 8106,
+    "clockSec": 405
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.07
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.07
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 3,
+    "hp": 156,
+    "wave": 3,
+    "tower": null,
+    "foe": "bb-779",
+    "foeKind": "bearbot",
+    "foeHp": 132,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 6306,
+    "clockSec": 315
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.92,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.35
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.3
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 6,
+    "hp": 132,
+    "wave": 3,
+    "tower": "tw-1905",
+    "foe": "mn-1975",
+    "foeKind": "minion",
+    "foeHp": 60,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 2786,
+    "clockSec": 139
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.07
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.93,
+    "q6_wave_present_ride": 0.07
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 1,
+    "hp": 150,
+    "wave": 3,
+    "tower": "tw-13",
+    "foe": "bb-17",
+    "foeKind": "bearbot",
+    "foeHp": 150,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 1049,
+    "clockSec": 52
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.93,
+    "q6_wave_present_ride": 0.07
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.93,
+    "q6_wave_present_ride": 0.07
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 2,
+    "hp": 98,
+    "wave": 3,
+    "tower": "tw-390",
+    "foe": "mn-482",
+    "foeKind": "minion",
+    "foeHp": 42,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 3306,
+    "clockSec": 165
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.9,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.08
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.95,
+    "q6_wave_present_ride": 0.08
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 3,
+    "hp": 130,
+    "wave": 3,
+    "tower": "tw-765",
+    "foe": "mn-817",
+    "foeKind": "minion",
+    "foeHp": 13,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "green",
+    "tick": 2237,
+    "clockSec": 112
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.93,
+    "q6_wave_present_ride": 0.07
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.1
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 6,
+    "hp": 150,
+    "wave": 3,
+    "tower": "tw-1906",
+    "foe": "mn-2140",
+    "foeKind": "minion",
+    "foeHp": 60,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 8266,
+    "clockSec": 413
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.93,
+    "q6_wave_present_ride": 0.07
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.06
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 3,
+    "hp": 220,
+    "wave": 3,
+    "tower": null,
+    "foe": "mn-1079",
+    "foeKind": "minion",
+    "foeHp": 34,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 10533,
+    "clockSec": 527
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.92,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.36
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.95,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.45
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 5,
+    "hp": 138,
+    "wave": 3,
+    "tower": null,
+    "foe": "mn-1762",
+    "foeKind": "minion",
+    "foeHp": 38,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 8546,
+    "clockSec": 427
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.9,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.3
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.95,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.35
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 4,
+    "hp": 150,
+    "wave": 3,
+    "tower": null,
+    "foe": "mn-1364",
+    "foeKind": "minion",
+    "foeHp": 18,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 8106,
+    "clockSec": 405
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.9,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.36
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.95,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.5
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 3,
+    "hp": 98,
+    "wave": 3,
+    "tower": "tw-770",
+    "foe": "mn-880",
+    "foeKind": "minion",
+    "foeHp": 42,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 3906,
+    "clockSec": 195
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.08
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.93,
+    "q6_wave_present_ride": 0.08
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 3,
+    "hp": 210,
+    "wave": 2,
+    "tower": "tw-766",
+    "foe": "mn-966",
+    "foeKind": "minion",
+    "foeHp": 20,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 7266,
+    "clockSec": 363
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.9,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.09
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.95,
+    "q6_wave_present_ride": 0.08
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 3,
+    "hp": 150,
+    "wave": 9,
+    "tower": null,
+    "foe": "mn-969",
+    "foeKind": "minion",
+    "foeHp": 24,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 7266,
+    "clockSec": 363
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.9,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.31
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.01,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.33
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 5,
+    "hp": 150,
+    "wave": 3,
+    "tower": "tw-1526",
+    "foe": "mn-1796",
+    "foeKind": "minion",
+    "foeHp": 31,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 9466,
+    "clockSec": 473
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.92,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.09
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.96,
+    "q6_wave_present_ride": 0.08
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 6,
+    "hp": 102,
+    "wave": 3,
+    "tower": "tw-1906",
+    "foe": "mn-2122",
+    "foeKind": "minion",
+    "foeHp": 60,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 7546,
+    "clockSec": 377
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.09
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.95,
+    "q6_wave_present_ride": 0.07
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 6,
+    "hp": 184,
+    "wave": 3,
+    "tower": "tw-1905",
+    "foe": "mn-1939",
+    "foeKind": "minion",
+    "foeHp": 42,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "green",
+    "tick": 1621,
+    "clockSec": 81
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.08
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.95,
+    "q6_wave_present_ride": 0.07
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 1,
+    "hp": 132,
+    "wave": 3,
+    "tower": "tw-5",
+    "foe": "mn-111",
+    "foeKind": "minion",
+    "foeHp": 42,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 4026,
+    "clockSec": 201
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.9,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.06
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.08
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 1,
+    "hp": 184,
+    "wave": 1,
+    "tower": "tw-4",
+    "foe": "mn-300",
+    "foeKind": "minion",
+    "foeHp": 60,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 9666,
+    "clockSec": 483
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.9,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.08
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.09
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 2,
+    "hp": 220,
+    "wave": 2,
+    "tower": "tw-390",
+    "foe": "bb-399",
+    "foeKind": "bearbot",
+    "foeHp": 140,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 961,
+    "clockSec": 48
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.93,
+    "q6_wave_present_ride": 0.08
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.92,
+    "q6_wave_present_ride": 0.09
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 4,
+    "hp": 98,
+    "wave": 2,
+    "tower": "tw-1150",
+    "foe": "mn-1244",
+    "foeKind": "minion",
+    "foeHp": 22,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 3346,
+    "clockSec": 167
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.89,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.93,
+    "q6_wave_present_ride": 0.1
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.95,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.07
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 6,
+    "hp": 84,
+    "wave": 3,
+    "tower": "tw-1905",
+    "foe": "mn-1976",
+    "foeKind": "minion",
+    "foeHp": 24,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 2866,
+    "clockSec": 143
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.08
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.95,
+    "q6_wave_present_ride": 0.08
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 2,
+    "hp": 138,
+    "wave": 3,
+    "tower": null,
+    "foe": "mn-622",
+    "foeKind": "minion",
+    "foeHp": 38,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 8546,
+    "clockSec": 427
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.9,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.41
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.95,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.41
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 4,
+    "hp": 98,
+    "wave": 2,
+    "tower": "tw-1150",
+    "foe": "mn-1226",
+    "foeKind": "minion",
+    "foeHp": 22,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 2746,
+    "clockSec": 137
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.9,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.92,
+    "q6_wave_present_ride": 0.09
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.09
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 3,
+    "hp": 150,
+    "wave": 2,
+    "tower": "tw-765",
+    "foe": "mn-800",
+    "foeKind": "minion",
+    "foeHp": 42,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 1665,
+    "clockSec": 83
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.9,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.93,
+    "q6_wave_present_ride": 0.07
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.95,
+    "q6_wave_present_ride": 0.08
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 5,
+    "hp": 220,
+    "wave": 3,
+    "tower": null,
+    "foe": "mn-1802",
+    "foeKind": "minion",
+    "foeHp": 60,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 9306,
+    "clockSec": 465
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.9,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.33
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.95,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.47
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 5,
+    "hp": 150,
+    "wave": 2,
+    "tower": "tw-1525",
+    "foe": "mn-1560",
+    "foeKind": "minion",
+    "foeHp": 42,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 1665,
+    "clockSec": 83
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.9,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.93,
+    "q6_wave_present_ride": 0.07
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.06
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 2,
+    "hp": 156,
+    "wave": 3,
+    "tower": null,
+    "foe": "bb-399",
+    "foeKind": "bearbot",
+    "foeHp": 132,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 6306,
+    "clockSec": 315
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.05,
+    "q6_wave_present_ride": 0.37
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.28
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 5,
+    "hp": 150,
+    "wave": 1,
+    "tower": "tw-1526",
+    "foe": "mn-1833",
+    "foeKind": "minion",
+    "foeHp": 3,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 10841,
+    "clockSec": 542
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.09
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.95,
+    "q6_wave_present_ride": 0.08
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 5,
+    "hp": 150,
+    "wave": 2,
+    "tower": "tw-1529",
+    "foe": "bb-1536",
+    "foeKind": "bearbot",
+    "foeHp": 122,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 6346,
+    "clockSec": 317
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.93,
+    "q6_wave_present_ride": 0.08
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.92,
+    "q6_wave_present_ride": 0.07
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 5,
+    "hp": 98,
+    "wave": 3,
+    "tower": "tw-1530",
+    "foe": "mn-1586",
+    "foeKind": "minion",
+    "foeHp": 42,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 2105,
+    "clockSec": 105
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.08
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.07
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 6,
+    "hp": 150,
+    "wave": 2,
+    "tower": "tw-1909",
+    "foe": "bb-1916",
+    "foeKind": "bearbot",
+    "foeHp": 122,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 6346,
+    "clockSec": 317
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.92,
+    "q6_wave_present_ride": 0.08
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.93,
+    "q6_wave_present_ride": 0.06
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 1,
+    "hp": 112,
+    "wave": 2,
+    "tower": "tw-7",
+    "foe": "bb-16",
+    "foeKind": "bearbot",
+    "foeHp": 111,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 6386,
+    "clockSec": 319
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.08
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.93,
+    "q6_wave_present_ride": 0.07
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 1,
+    "hp": 132,
+    "wave": 3,
+    "tower": "tw-5",
+    "foe": "mn-147",
+    "foeKind": "minion",
+    "foeHp": 42,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 5226,
+    "clockSec": 261
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.93,
+    "q6_wave_present_ride": 0.07
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.07
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 6,
+    "hp": 150,
+    "wave": 3,
+    "tower": "tw-1906",
+    "foe": "mn-2176",
+    "foeKind": "minion",
+    "foeHp": 60,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 9426,
+    "clockSec": 471
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.9,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.08
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.95,
+    "q6_wave_present_ride": 0.08
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 6,
+    "hp": 114,
+    "wave": 3,
+    "tower": null,
+    "foe": "mn-2178",
+    "foeKind": "minion",
+    "foeHp": 60,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 9826,
+    "clockSec": 491
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.9,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.36
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.95,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.4
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 2,
+    "hp": 94,
+    "wave": 3,
+    "tower": "tw-385",
+    "foe": "mn-509",
+    "foeKind": "minion",
+    "foeHp": 60,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "green",
+    "tick": 4586,
+    "clockSec": 229
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.07
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.95,
+    "q6_wave_present_ride": 0.08
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 2,
+    "hp": 150,
+    "wave": 3,
+    "tower": null,
+    "foe": "mn-675",
+    "foeKind": "minion",
+    "foeHp": 42,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 10533,
+    "clockSec": 527
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.34
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.94,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.41
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 1,
+    "hp": 94,
+    "wave": 6,
+    "tower": null,
+    "foe": "bb-19",
+    "foeKind": "bearbot",
+    "foeHp": 140,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 5746,
+    "clockSec": 287
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.92,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.34
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.02,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.26
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 2,
+    "hp": 148,
+    "wave": 2,
+    "tower": "tw-385",
+    "foe": "mn-493",
+    "foeKind": "minion",
+    "foeHp": 12,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "green",
+    "tick": 4106,
+    "clockSec": 205
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.08
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.08
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 5,
+    "hp": 150,
+    "wave": 3,
+    "tower": "tw-1534",
+    "foe": "mn-1556",
+    "foeKind": "minion",
+    "foeHp": 60,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 1005,
+    "clockSec": 50
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.07
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.95,
+    "q6_wave_present_ride": 0.08
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 4,
+    "hp": 147,
+    "wave": 2,
+    "tower": "tw-1143",
+    "foe": "bb-1156",
+    "foeKind": "bearbot",
+    "foeHp": 122,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "green",
+    "tick": 6226,
+    "clockSec": 311
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.09
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.93,
+    "q6_wave_present_ride": 0.07
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 3,
+    "hp": 150,
+    "wave": 3,
+    "tower": "tw-765",
+    "foe": "mn-907",
+    "foeKind": "minion",
+    "foeHp": 60,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 5186,
+    "clockSec": 259
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.93,
+    "q6_wave_present_ride": 0.06
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.08
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 6,
+    "hp": 220,
+    "wave": 3,
+    "tower": "tw-1910",
+    "foe": "bb-1919",
+    "foeKind": "bearbot",
+    "foeHp": 140,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 917,
+    "clockSec": 46
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.09
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.93,
+    "q6_wave_present_ride": 0.07
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 4,
+    "hp": 220,
+    "wave": 3,
+    "tower": "tw-1145",
+    "foe": "mn-1233",
+    "foeKind": "minion",
+    "foeHp": 60,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "green",
+    "tick": 3386,
+    "clockSec": 169
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.92,
+    "q6_wave_present_ride": 0.06
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.07
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 6,
+    "hp": 150,
+    "wave": 6,
+    "tower": null,
+    "foe": "bb-1915",
+    "foeKind": "bearbot",
+    "foeHp": 130,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 8546,
+    "clockSec": 427
+   },
+   "truth": "attack_foe",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.3
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.25
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 1,
+    "hp": 150,
+    "wave": 9,
+    "tower": null,
+    "foe": "bb-15",
+    "foeKind": "bearbot",
+    "foeHp": 94,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 8586,
+    "clockSec": 429
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.92,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.31
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.94,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.26
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 4,
+    "hp": 142,
+    "wave": 3,
+    "tower": null,
+    "foe": "bb-1159",
+    "foeKind": "bearbot",
+    "foeHp": 98,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 6386,
+    "clockSec": 319
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.9,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.36
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.93,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.29
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 1,
+    "hp": 176,
+    "wave": 3,
+    "tower": null,
+    "foe": "bb-20",
+    "foeKind": "bearbot",
+    "foeHp": 46,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 8266,
+    "clockSec": 413
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.35
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.95,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.28
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 5,
+    "hp": 166,
+    "wave": 2,
+    "tower": null,
+    "foe": "bb-1539",
+    "foeKind": "bearbot",
+    "foeHp": 74,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 8386,
+    "clockSec": 419
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.9,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.4
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.95,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.3
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 3,
+    "hp": 150,
+    "wave": 3,
+    "tower": "tw-769",
+    "foe": "bb-776",
+    "foeKind": "bearbot",
+    "foeHp": 96,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 7546,
+    "clockSec": 377
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.9,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.07
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.95,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.92,
+    "q6_wave_present_ride": 0.08
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 6,
+    "hp": 142,
+    "wave": 3,
+    "tower": null,
+    "foe": "bb-1919",
+    "foeKind": "bearbot",
+    "foeHp": 98,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 6426,
+    "clockSec": 321
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.34
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.94,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.28
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 3,
+    "hp": 132,
+    "wave": 2,
+    "tower": null,
+    "foe": "bb-779",
+    "foeKind": "bearbot",
+    "foeHp": 98,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 6626,
+    "clockSec": 331
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.34
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.94,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.31
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 6,
+    "hp": 142,
+    "wave": 3,
+    "tower": null,
+    "foe": "bb-1919",
+    "foeKind": "bearbot",
+    "foeHp": 98,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 6586,
+    "clockSec": 329
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.9,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.34
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.95,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.33
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 5,
+    "hp": 136,
+    "wave": 3,
+    "tower": null,
+    "foe": "bb-1539",
+    "foeKind": "bearbot",
+    "foeHp": 98,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 6386,
+    "clockSec": 319
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.32
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.95,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.28
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 4,
+    "hp": 220,
+    "wave": 6,
+    "tower": null,
+    "foe": "bb-1159",
+    "foeKind": "bearbot",
+    "foeHp": 98,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 6786,
+    "clockSec": 339
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.92,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.35
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.95,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.03,
+    "q6_wave_present_ride": 0.24
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 6,
+    "hp": 150,
+    "wave": 9,
+    "tower": null,
+    "foe": "bb-1915",
+    "foeKind": "bearbot",
+    "foeHp": 94,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 8586,
+    "clockSec": 429
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.9,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.3
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.94,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.22
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 2,
+    "hp": 150,
+    "wave": 9,
+    "tower": null,
+    "foe": "bb-395",
+    "foeKind": "bearbot",
+    "foeHp": 94,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 8586,
+    "clockSec": 429
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.35
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.94,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.24
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 3,
+    "hp": 220,
+    "wave": 3,
+    "tower": null,
+    "foe": "bb-775",
+    "foeKind": "bearbot",
+    "foeHp": 74,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "green",
+    "tick": 5786,
+    "clockSec": 289
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.35
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.95,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.24
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 6,
+    "hp": 150,
+    "wave": 3,
+    "tower": null,
+    "foe": "bb-1915",
+    "foeKind": "bearbot",
+    "foeHp": 50,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 8706,
+    "clockSec": 435
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.34
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.95,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.26
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 4,
+    "hp": 150,
+    "wave": 9,
+    "tower": null,
+    "foe": "bb-1155",
+    "foeKind": "bearbot",
+    "foeHp": 94,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 8586,
+    "clockSec": 429
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.92,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.31
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.95,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.24
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 1,
+    "hp": 150,
+    "wave": 9,
+    "tower": null,
+    "foe": "bb-16",
+    "foeKind": "bearbot",
+    "foeHp": 96,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 7306,
+    "clockSec": 365
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.32
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.94,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.24
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 2,
+    "hp": 118,
+    "wave": 3,
+    "tower": null,
+    "foe": "bb-396",
+    "foeKind": "bearbot",
+    "foeHp": 86,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 7866,
+    "clockSec": 393
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.92,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.35
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.94,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.25
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 5,
+    "hp": 94,
+    "wave": 6,
+    "tower": null,
+    "foe": "bb-1540",
+    "foeKind": "bearbot",
+    "foeHp": 90,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 5626,
+    "clockSec": 281
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.92,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.35
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.95,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.3
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 5,
+    "hp": 176,
+    "wave": 3,
+    "tower": null,
+    "foe": "bb-1539",
+    "foeKind": "bearbot",
+    "foeHp": 86,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 8226,
+    "clockSec": 411
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.92,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.34
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.95,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.31
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 1,
+    "hp": 150,
+    "wave": 3,
+    "tower": "tw-9",
+    "foe": "bb-16",
+    "foeKind": "bearbot",
+    "foeHp": 96,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 7506,
+    "clockSec": 375
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.08
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.94,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.93,
+    "q6_wave_present_ride": 0.06
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 2,
+    "hp": 90,
+    "wave": 3,
+    "tower": null,
+    "foe": "bb-399",
+    "foeKind": "bearbot",
+    "foeHp": 98,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 6466,
+    "clockSec": 323
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.92,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.37
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.94,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.26
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 2,
+    "hp": 86,
+    "wave": 1,
+    "tower": "tw-387",
+    "foe": "bb-396",
+    "foeKind": "bearbot",
+    "foeHp": 89,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 6426,
+    "clockSec": 321
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.93,
+    "q6_wave_present_ride": 0.1
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.94,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.93,
+    "q6_wave_present_ride": 0.08
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 3,
+    "hp": 110,
+    "wave": 3,
+    "tower": null,
+    "foe": "bb-779",
+    "foeKind": "bearbot",
+    "foeHp": 98,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 6426,
+    "clockSec": 321
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.92,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.34
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.95,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.3
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 4,
+    "hp": 100,
+    "wave": 2,
+    "tower": "tw-1147",
+    "foe": "bb-1156",
+    "foeKind": "bearbot",
+    "foeHp": 87,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 8866,
+    "clockSec": 443
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.07
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.94,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.92,
+    "q6_wave_present_ride": 0.09
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 5,
+    "hp": 118,
+    "wave": 3,
+    "tower": null,
+    "foe": "bb-1536",
+    "foeKind": "bearbot",
+    "foeHp": 86,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 7866,
+    "clockSec": 393
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.92,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.31
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.94,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.28
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 4,
+    "hp": 176,
+    "wave": 2,
+    "tower": null,
+    "foe": "bb-1159",
+    "foeKind": "bearbot",
+    "foeHp": 86,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 8346,
+    "clockSec": 417
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.92,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.36
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.95,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.3
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 6,
+    "hp": 150,
+    "wave": 9,
+    "tower": null,
+    "foe": "bb-1916",
+    "foeKind": "bearbot",
+    "foeHp": 96,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 7306,
+    "clockSec": 365
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.9,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.28
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.94,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.25
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 2,
+    "hp": 188,
+    "wave": 3,
+    "tower": null,
+    "foe": "bb-398",
+    "foeKind": "bearbot",
+    "foeHp": 63,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 6266,
+    "clockSec": 313
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.37
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.95,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.29
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 6,
+    "hp": 194,
+    "wave": 1,
+    "tower": "tw-1910",
+    "foe": "bb-1919",
+    "foeKind": "bearbot",
+    "foeHp": 97,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 1577,
+    "clockSec": 79
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.11
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.95,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.92,
+    "q6_wave_present_ride": 0.07
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 3,
+    "hp": 166,
+    "wave": 2,
+    "tower": null,
+    "foe": "bb-779",
+    "foeKind": "bearbot",
+    "foeHp": 74,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 8386,
+    "clockSec": 419
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.9,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.33
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.95,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.28
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 1,
+    "hp": 118,
+    "wave": 3,
+    "tower": null,
+    "foe": "bb-16",
+    "foeKind": "bearbot",
+    "foeHp": 86,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 7866,
+    "clockSec": 393
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.9,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.33
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.94,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.28
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 6,
+    "hp": 98,
+    "wave": 1,
+    "tower": "tw-1908",
+    "foe": "bb-1919",
+    "foeKind": "bearbot",
+    "foeHp": 97,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 1577,
+    "clockSec": 79
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.93,
+    "q6_wave_present_ride": 0.12
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.94,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.08
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 3,
+    "hp": 142,
+    "wave": 3,
+    "tower": null,
+    "foe": "bb-779",
+    "foeKind": "bearbot",
+    "foeHp": 98,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 6466,
+    "clockSec": 323
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.33
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.93,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.28
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 4,
+    "hp": 142,
+    "wave": 3,
+    "tower": null,
+    "foe": "bb-1159",
+    "foeKind": "bearbot",
+    "foeHp": 98,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 6546,
+    "clockSec": 327
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.36
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.94,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.32
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 3,
+    "hp": 198,
+    "wave": 3,
+    "tower": null,
+    "foe": "bb-779",
+    "foeKind": "bearbot",
+    "foeHp": 86,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 8186,
+    "clockSec": 409
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.9,
+    "q4_foe_present_attack": 0.95,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.37
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.95,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.27
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 3,
+    "hp": 150,
+    "wave": 3,
+    "tower": null,
+    "foe": "bb-775",
+    "foeKind": "bearbot",
+    "foeHp": 76,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 8666,
+    "clockSec": 433
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.33
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.93,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.24
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 1,
+    "hp": 150,
+    "wave": 2,
+    "tower": "tw-9",
+    "foe": "bb-16",
+    "foeKind": "bearbot",
+    "foeHp": 96,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 7586,
+    "clockSec": 379
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.93,
+    "q6_wave_present_ride": 0.08
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.94,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.92,
+    "q6_wave_present_ride": 0.06
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 5,
+    "hp": 100,
+    "wave": 2,
+    "tower": "tw-1527",
+    "foe": "bb-1536",
+    "foeKind": "bearbot",
+    "foeHp": 87,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 8866,
+    "clockSec": 443
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.9,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.07
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.93,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.07
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 3,
+    "hp": 86,
+    "wave": 1,
+    "tower": "tw-767",
+    "foe": "bb-776",
+    "foeKind": "bearbot",
+    "foeHp": 89,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 6426,
+    "clockSec": 321
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.93,
+    "q6_wave_present_ride": 0.07
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.95,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.92,
+    "q6_wave_present_ride": 0.08
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 4,
+    "hp": 176,
+    "wave": 3,
+    "tower": null,
+    "foe": "bb-1160",
+    "foeKind": "bearbot",
+    "foeHp": 46,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 8266,
+    "clockSec": 413
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.92,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.38
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.95,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.27
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 2,
+    "hp": 94,
+    "wave": 6,
+    "tower": null,
+    "foe": "bb-400",
+    "foeKind": "bearbot",
+    "foeHp": 72,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 5666,
+    "clockSec": 283
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.92,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.35
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.95,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.26
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 1,
+    "hp": 118,
+    "wave": 0,
+    "tower": null,
+    "foe": "bb-16",
+    "foeKind": "bearbot",
+    "foeHp": 86,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 7826,
+    "clockSec": 391
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.03
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.94,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.03
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 2,
+    "hp": 176,
+    "wave": 2,
+    "tower": null,
+    "foe": "bb-399",
+    "foeKind": "bearbot",
+    "foeHp": 86,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 8346,
+    "clockSec": 417
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.9,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.37
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.95,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.28
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 5,
+    "hp": 142,
+    "wave": 3,
+    "tower": null,
+    "foe": "bb-1539",
+    "foeKind": "bearbot",
+    "foeHp": 98,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 6426,
+    "clockSec": 321
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.32
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.94,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.31
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 2,
+    "hp": 150,
+    "wave": 3,
+    "tower": null,
+    "foe": "bb-395",
+    "foeKind": "bearbot",
+    "foeHp": 50,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 8706,
+    "clockSec": 435
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.31
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.95,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.27
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 1,
+    "hp": 142,
+    "wave": 3,
+    "tower": null,
+    "foe": "bb-19",
+    "foeKind": "bearbot",
+    "foeHp": 98,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 6426,
+    "clockSec": 321
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.9,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.32
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.93,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.03,
+    "q6_wave_present_ride": 0.27
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 6,
+    "hp": 136,
+    "wave": 3,
+    "tower": null,
+    "foe": "bb-1919",
+    "foeKind": "bearbot",
+    "foeHp": 98,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 6386,
+    "clockSec": 319
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.34
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.95,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.27
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 3,
+    "hp": 142,
+    "wave": 3,
+    "tower": null,
+    "foe": "bb-779",
+    "foeKind": "bearbot",
+    "foeHp": 98,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 6506,
+    "clockSec": 325
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.42
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.94,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.27
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 1,
+    "hp": 220,
+    "wave": 3,
+    "tower": null,
+    "foe": "bb-19",
+    "foeKind": "bearbot",
+    "foeHp": 86,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 8146,
+    "clockSec": 407
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.36
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.95,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.25
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 4,
+    "hp": 150,
+    "wave": 1,
+    "tower": "tw-1149",
+    "foe": "bb-1156",
+    "foeKind": "bearbot",
+    "foeHp": 96,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 7626,
+    "clockSec": 381
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.92,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.92,
+    "q6_wave_present_ride": 0.07
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.95,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.92,
+    "q6_wave_present_ride": 0.06
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 4,
+    "hp": 132,
+    "wave": 2,
+    "tower": null,
+    "foe": "bb-1159",
+    "foeKind": "bearbot",
+    "foeHp": 98,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 6626,
+    "clockSec": 331
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.32
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.94,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.29
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 2,
+    "hp": 176,
+    "wave": 3,
+    "tower": null,
+    "foe": "bb-399",
+    "foeKind": "bearbot",
+    "foeHp": 86,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 8226,
+    "clockSec": 411
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.37
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.95,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.3
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 6,
+    "hp": 90,
+    "wave": 1,
+    "tower": "tw-1903",
+    "foe": "bb-1915",
+    "foeKind": "bearbot",
+    "foeHp": 94,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 5626,
+    "clockSec": 281
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.93,
+    "q6_wave_present_ride": 0.08
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.94,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.92,
+    "q6_wave_present_ride": 0.08
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 4,
+    "hp": 150,
+    "wave": 2,
+    "tower": "tw-1149",
+    "foe": "bb-1156",
+    "foeKind": "bearbot",
+    "foeHp": 96,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 7586,
+    "clockSec": 379
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.07
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.95,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.92,
+    "q6_wave_present_ride": 0.06
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 1,
+    "hp": 150,
+    "wave": 3,
+    "tower": null,
+    "foe": "bb-15",
+    "foeKind": "bearbot",
+    "foeHp": 76,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 8666,
+    "clockSec": 433
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.9,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.3
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.94,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.25
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 2,
+    "hp": 90,
+    "wave": 1,
+    "tower": "tw-383",
+    "foe": "bb-395",
+    "foeKind": "bearbot",
+    "foeHp": 94,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 5626,
+    "clockSec": 281
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.1
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.94,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.93,
+    "q6_wave_present_ride": 0.09
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 5,
+    "hp": 150,
+    "wave": 9,
+    "tower": null,
+    "foe": "bb-1535",
+    "foeKind": "bearbot",
+    "foeHp": 94,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 8586,
+    "clockSec": 429
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.32
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.94,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.23
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 2,
+    "hp": 110,
+    "wave": 3,
+    "tower": null,
+    "foe": "bb-399",
+    "foeKind": "bearbot",
+    "foeHp": 98,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 6426,
+    "clockSec": 321
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.38
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.95,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.3
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 4,
+    "hp": 118,
+    "wave": 9,
+    "tower": null,
+    "foe": "bb-1156",
+    "foeKind": "bearbot",
+    "foeHp": 86,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 7906,
+    "clockSec": 395
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.01,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.34
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.94,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.27
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 2,
+    "hp": 142,
+    "wave": 3,
+    "tower": null,
+    "foe": "bb-399",
+    "foeKind": "bearbot",
+    "foeHp": 98,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 6426,
+    "clockSec": 321
+   },
+   "truth": "ability",
+   "contested": true,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.9,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.36
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.94,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.32
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 3,
+    "hp": 96,
+    "wave": 3,
+    "tower": null,
+    "foe": "bb-779",
+    "foeKind": "bearbot",
+    "foeHp": 140,
+    "cd": 0,
+    "instrument": "keytar",
+    "team": "violet",
+    "tick": 7626,
+    "clockSec": 381
+   },
+   "truth": "ability",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.82,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.36
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.81,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.29
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 4,
+    "hp": 220,
+    "wave": 0,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 11149,
+    "clockSec": 557
+   },
+   "truth": "go_home",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.06,
+    "q4_foe_present_attack": 0.08,
+    "q5_tower_present_attack": 0.05,
+    "q6_wave_present_ride": 0.03
+   },
+   "approx": "go_home",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.07,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.04
+   },
+   "exact": "go_home"
+  },
+  {
+   "worksheet": {
+    "seed": 6,
+    "hp": 150,
+    "wave": 0,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 7106,
+    "clockSec": 355
+   },
+   "truth": "go_home",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.06,
+    "q4_foe_present_attack": 0.08,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.04
+   },
+   "approx": "go_home",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.09,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.04
+   },
+   "exact": "go_home"
+  },
+  {
+   "worksheet": {
+    "seed": 1,
+    "hp": 140,
+    "wave": 9,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "keytar",
+    "team": "violet",
+    "tick": 1973,
+    "clockSec": 99
+   },
+   "truth": "ride_wave",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.05,
+    "q4_foe_present_attack": 0.1,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "approx": "ride_wave",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.05,
+    "q4_foe_present_attack": 0.1,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "exact": "ride_wave"
+  },
+  {
+   "worksheet": {
+    "seed": 2,
+    "hp": 140,
+    "wave": 2,
+    "tower": "tw-390",
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 3.1,
+    "instrument": "keytar",
+    "team": "violet",
+    "tick": 4586,
+    "clockSec": 229
+   },
+   "truth": "attack_tower",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.02,
+    "q4_foe_present_attack": 0.43,
+    "q5_tower_present_attack": 0.97,
+    "q6_wave_present_ride": 0.13
+   },
+   "approx": "attack_tower",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.02,
+    "q4_foe_present_attack": 0.5,
+    "q5_tower_present_attack": 0.97,
+    "q6_wave_present_ride": 0.14
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 2,
+    "hp": 150,
+    "wave": 0,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 5946,
+    "clockSec": 297
+   },
+   "truth": "go_home",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.05,
+    "q4_foe_present_attack": 0.08,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.03
+   },
+   "approx": "go_home",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.08,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.04
+   },
+   "exact": "go_home"
+  },
+  {
+   "worksheet": {
+    "seed": 6,
+    "hp": 150,
+    "wave": 9,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 3626,
+    "clockSec": 181
+   },
+   "truth": "ride_wave",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.08,
+    "q4_foe_present_attack": 0.1,
+    "q5_tower_present_attack": 0.05,
+    "q6_wave_present_ride": 0.98
+   },
+   "approx": "ride_wave",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.1,
+    "q5_tower_present_attack": 0.05,
+    "q6_wave_present_ride": 0.98
+   },
+   "exact": "ride_wave"
+  },
+  {
+   "worksheet": {
+    "seed": 2,
+    "hp": 220,
+    "wave": 0,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "green",
+    "tick": 532,
+    "clockSec": 27
+   },
+   "truth": "go_home",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.05,
+    "q4_foe_present_attack": 0.08,
+    "q5_tower_present_attack": 0.05,
+    "q6_wave_present_ride": 0.04
+   },
+   "approx": "go_home",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.08,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.03
+   },
+   "exact": "go_home"
+  },
+  {
+   "worksheet": {
+    "seed": 1,
+    "hp": 220,
+    "wave": 9,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 4986,
+    "clockSec": 249
+   },
+   "truth": "ride_wave",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.06,
+    "q4_foe_present_attack": 0.09,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "approx": "ride_wave",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.09,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "exact": "ride_wave"
+  },
+  {
+   "worksheet": {
+    "seed": 4,
+    "hp": 76,
+    "wave": 3,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "green",
+    "tick": 2666,
+    "clockSec": 133
+   },
+   "truth": "ride_wave",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.03,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.08,
+    "q4_foe_present_attack": 0.09,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "approx": "ride_wave",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.03,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.09,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "exact": "ride_wave"
+  },
+  {
+   "worksheet": {
+    "seed": 5,
+    "hp": 220,
+    "wave": 3,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 9266,
+    "clockSec": 463
+   },
+   "truth": "ride_wave",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.06,
+    "q4_foe_present_attack": 0.09,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "approx": "ride_wave",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.1,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "exact": "ride_wave"
+  },
+  {
+   "worksheet": {
+    "seed": 1,
+    "hp": 90,
+    "wave": 2,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 5386,
+    "clockSec": 269
+   },
+   "truth": "ride_wave",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.07,
+    "q4_foe_present_attack": 0.09,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "approx": "ride_wave",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.1,
+    "q5_tower_present_attack": 0.05,
+    "q6_wave_present_ride": 0.98
+   },
+   "exact": "ride_wave"
+  },
+  {
+   "worksheet": {
+    "seed": 1,
+    "hp": 140,
+    "wave": 6,
+    "tower": null,
+    "foe": "bb-15",
+    "foeKind": "bearbot",
+    "foeHp": 130,
+    "cd": 5.2,
+    "instrument": "keytar",
+    "team": "green",
+    "tick": 8546,
+    "clockSec": 427
+   },
+   "truth": "attack_foe",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.02,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.28
+   },
+   "approx": "attack_foe",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.02,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.26
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 3,
+    "hp": 140,
+    "wave": 3,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "keytar",
+    "team": "green",
+    "tick": 2149,
+    "clockSec": 107
+   },
+   "truth": "ride_wave",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.05,
+    "q4_foe_present_attack": 0.09,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "approx": "ride_wave",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.06,
+    "q4_foe_present_attack": 0.09,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "exact": "ride_wave"
+  },
+  {
+   "worksheet": {
+    "seed": 1,
+    "hp": 140,
+    "wave": 3,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "keytar",
+    "team": "violet",
+    "tick": 2017,
+    "clockSec": 101
+   },
+   "truth": "ride_wave",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.05,
+    "q4_foe_present_attack": 0.1,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "approx": "ride_wave",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.06,
+    "q4_foe_present_attack": 0.1,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "exact": "ride_wave"
+  },
+  {
+   "worksheet": {
+    "seed": 5,
+    "hp": 114,
+    "wave": 0,
+    "tower": "tw-1526",
+    "foe": "mn-1798",
+    "foeKind": "minion",
+    "foeHp": 60,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 9626,
+    "clockSec": 481
+   },
+   "truth": "go_home",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.97,
+    "q3_ability_ready": 0.91,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.93,
+    "q6_wave_present_ride": 0.02
+   },
+   "approx": "go_home",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.97,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.95,
+    "q6_wave_present_ride": 0.02
+   },
+   "exact": "go_home"
+  },
+  {
+   "worksheet": {
+    "seed": 4,
+    "hp": 220,
+    "wave": 3,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 10489,
+    "clockSec": 524
+   },
+   "truth": "ride_wave",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.06,
+    "q4_foe_present_attack": 0.1,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "approx": "ride_wave",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.1,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "exact": "ride_wave"
+  },
+  {
+   "worksheet": {
+    "seed": 5,
+    "hp": 220,
+    "wave": 0,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 7786,
+    "clockSec": 389
+   },
+   "truth": "go_home",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.01,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.05,
+    "q4_foe_present_attack": 0.08,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.03
+   },
+   "approx": "go_home",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.09,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.03
+   },
+   "exact": "go_home"
+  },
+  {
+   "worksheet": {
+    "seed": 3,
+    "hp": 140,
+    "wave": 0,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "keytar",
+    "team": "violet",
+    "tick": 8186,
+    "clockSec": 409
+   },
+   "truth": "go_home",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.08,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.04
+   },
+   "approx": "go_home",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.08,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.04
+   },
+   "exact": "go_home"
+  },
+  {
+   "worksheet": {
+    "seed": 3,
+    "hp": 140,
+    "wave": 9,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "keytar",
+    "team": "violet",
+    "tick": 3746,
+    "clockSec": 187
+   },
+   "truth": "ride_wave",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.05,
+    "q4_foe_present_attack": 0.09,
+    "q5_tower_present_attack": 0.05,
+    "q6_wave_present_ride": 0.98
+   },
+   "approx": "ride_wave",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.05,
+    "q4_foe_present_attack": 0.1,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "exact": "ride_wave"
+  },
+  {
+   "worksheet": {
+    "seed": 3,
+    "hp": 98,
+    "wave": 1,
+    "tower": "tw-770",
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 4026,
+    "clockSec": 201
+   },
+   "truth": "attack_tower",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.18,
+    "q4_foe_present_attack": 0.38,
+    "q5_tower_present_attack": 0.97,
+    "q6_wave_present_ride": 0.15
+   },
+   "approx": "attack_tower",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.38,
+    "q5_tower_present_attack": 0.98,
+    "q6_wave_present_ride": 0.13
+   },
+   "exact": "attack_tower"
+  },
+  {
+   "worksheet": {
+    "seed": 2,
+    "hp": 140,
+    "wave": 3,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "keytar",
+    "team": "violet",
+    "tick": 8626,
+    "clockSec": 431
+   },
+   "truth": "ride_wave",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.05,
+    "q4_foe_present_attack": 0.1,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "approx": "ride_wave",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.05,
+    "q4_foe_present_attack": 0.11,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "exact": "ride_wave"
+  },
+  {
+   "worksheet": {
+    "seed": 1,
+    "hp": 40,
+    "wave": 0,
+    "tower": "tw-4",
+    "foe": "mn-336",
+    "foeKind": "minion",
+    "foeHp": 60,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 10973,
+    "clockSec": 549
+   },
+   "truth": "recall",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.85,
+    "q2_tower_no_wave_go_home": 0.98,
+    "q3_ability_ready": 0.9,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.95,
+    "q6_wave_present_ride": 0.03
+   },
+   "approx": "recall",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.84,
+    "q2_tower_no_wave_go_home": 0.98,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.95,
+    "q5_tower_present_attack": 0.95,
+    "q6_wave_present_ride": 0.02
+   },
+   "exact": "recall"
+  },
+  {
+   "worksheet": {
+    "seed": 4,
+    "hp": 140,
+    "wave": 0,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "keytar",
+    "team": "green",
+    "tick": 252,
+    "clockSec": 13
+   },
+   "truth": "go_home",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.08,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.03
+   },
+   "approx": "go_home",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.08,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.04
+   },
+   "exact": "go_home"
+  },
+  {
+   "worksheet": {
+    "seed": 6,
+    "hp": 220,
+    "wave": 3,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 873,
+    "clockSec": 44
+   },
+   "truth": "ride_wave",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.06,
+    "q4_foe_present_attack": 0.09,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "approx": "ride_wave",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.1,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "exact": "ride_wave"
+  },
+  {
+   "worksheet": {
+    "seed": 4,
+    "hp": 108,
+    "wave": 3,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "keytar",
+    "team": "green",
+    "tick": 1445,
+    "clockSec": 72
+   },
+   "truth": "ride_wave",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.05,
+    "q4_foe_present_attack": 0.09,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "approx": "ride_wave",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.05,
+    "q4_foe_present_attack": 0.09,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "exact": "ride_wave"
+  },
+  {
+   "worksheet": {
+    "seed": 2,
+    "hp": 140,
+    "wave": 0,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "keytar",
+    "team": "green",
+    "tick": 1753,
+    "clockSec": 88
+   },
+   "truth": "go_home",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.08,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.03
+   },
+   "approx": "go_home",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.08,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.03
+   },
+   "exact": "go_home"
+  },
+  {
+   "worksheet": {
+    "seed": 1,
+    "hp": 140,
+    "wave": 0,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "keytar",
+    "team": "green",
+    "tick": 7146,
+    "clockSec": 357
+   },
+   "truth": "go_home",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.08,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.03
+   },
+   "approx": "go_home",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.07,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.04
+   },
+   "exact": "go_home"
+  },
+  {
+   "worksheet": {
+    "seed": 1,
+    "hp": 202,
+    "wave": 3,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "green",
+    "tick": 5986,
+    "clockSec": 299
+   },
+   "truth": "ride_wave",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.07,
+    "q4_foe_present_attack": 0.1,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "approx": "ride_wave",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.09,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "exact": "ride_wave"
+  },
+  {
+   "worksheet": {
+    "seed": 6,
+    "hp": 132,
+    "wave": 0,
+    "tower": "tw-1906",
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 11017,
+    "clockSec": 551
+   },
+   "truth": "go_home",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.97,
+    "q3_ability_ready": 0.19,
+    "q4_foe_present_attack": 0.42,
+    "q5_tower_present_attack": 0.98,
+    "q6_wave_present_ride": 0.03
+   },
+   "approx": "go_home",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.97,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.44,
+    "q5_tower_present_attack": 0.98,
+    "q6_wave_present_ride": 0.03
+   },
+   "exact": "go_home"
+  },
+  {
+   "worksheet": {
+    "seed": 6,
+    "hp": 166,
+    "wave": 3,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 3626,
+    "clockSec": 181
+   },
+   "truth": "ride_wave",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.06,
+    "q4_foe_present_attack": 0.08,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "approx": "ride_wave",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.09,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "exact": "ride_wave"
+  },
+  {
+   "worksheet": {
+    "seed": 3,
+    "hp": 140,
+    "wave": 1,
+    "tower": "tw-770",
+    "foe": "bb-779",
+    "foeKind": "bearbot",
+    "foeHp": 124,
+    "cd": 0,
+    "instrument": "keytar",
+    "team": "violet",
+    "tick": 1005,
+    "clockSec": 50
+   },
+   "truth": "ability",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.81,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.09
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.82,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.93,
+    "q6_wave_present_ride": 0.09
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 3,
+    "hp": 98,
+    "wave": 3,
+    "tower": "tw-763",
+    "foe": "bb-775",
+    "foeKind": "bearbot",
+    "foeHp": 110,
+    "cd": 5.1,
+    "instrument": "keytar",
+    "team": "green",
+    "tick": 6426,
+    "clockSec": 321
+   },
+   "truth": "attack_foe",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.02,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.91,
+    "q6_wave_present_ride": 0.08
+   },
+   "approx": "attack_foe",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.02,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.93,
+    "q6_wave_present_ride": 0.07
+   },
+   "exact": "attack_foe"
+  },
+  {
+   "worksheet": {
+    "seed": 6,
+    "hp": 220,
+    "wave": 9,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 3026,
+    "clockSec": 151
+   },
+   "truth": "ride_wave",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.06,
+    "q4_foe_present_attack": 0.09,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "approx": "ride_wave",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.09,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "exact": "ride_wave"
+  },
+  {
+   "worksheet": {
+    "seed": 1,
+    "hp": 98,
+    "wave": 3,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 5226,
+    "clockSec": 261
+   },
+   "truth": "ride_wave",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.06,
+    "q4_foe_present_attack": 0.1,
+    "q5_tower_present_attack": 0.05,
+    "q6_wave_present_ride": 0.98
+   },
+   "approx": "ride_wave",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.09,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "exact": "ride_wave"
+  },
+  {
+   "worksheet": {
+    "seed": 4,
+    "hp": 220,
+    "wave": 0,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 9946,
+    "clockSec": 497
+   },
+   "truth": "go_home",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.05,
+    "q4_foe_present_attack": 0.08,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.04
+   },
+   "approx": "go_home",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.08,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.04
+   },
+   "exact": "go_home"
+  },
+  {
+   "worksheet": {
+    "seed": 5,
+    "hp": 44,
+    "wave": 0,
+    "tower": "tw-1527",
+    "foe": "bb-1536",
+    "foeKind": "bearbot",
+    "foeHp": 57,
+    "cd": 0.1,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 8946,
+    "clockSec": 447
+   },
+   "truth": "recall",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.87,
+    "q2_tower_no_wave_go_home": 0.98,
+    "q3_ability_ready": 0.07,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.02
+   },
+   "approx": "recall",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.84,
+    "q2_tower_no_wave_go_home": 0.97,
+    "q3_ability_ready": 0.06,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.93,
+    "q6_wave_present_ride": 0.02
+   },
+   "exact": "recall"
+  },
+  {
+   "worksheet": {
+    "seed": 1,
+    "hp": 150,
+    "wave": 0,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 6946,
+    "clockSec": 347
+   },
+   "truth": "go_home",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.05,
+    "q4_foe_present_attack": 0.08,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.04
+   },
+   "approx": "go_home",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.08,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.03
+   },
+   "exact": "go_home"
+  },
+  {
+   "worksheet": {
+    "seed": 3,
+    "hp": 86,
+    "wave": 9,
+    "tower": null,
+    "foe": "bb-776",
+    "foeKind": "bearbot",
+    "foeHp": 86,
+    "cd": 0,
+    "instrument": "keytar",
+    "team": "green",
+    "tick": 7906,
+    "clockSec": 395
+   },
+   "truth": "ability",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.8,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.34
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.83,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.26
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 3,
+    "hp": 140,
+    "wave": 6,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "keytar",
+    "team": "green",
+    "tick": 4986,
+    "clockSec": 249
+   },
+   "truth": "ride_wave",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.05,
+    "q4_foe_present_attack": 0.09,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "approx": "ride_wave",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.05,
+    "q4_foe_present_attack": 0.1,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "exact": "ride_wave"
+  },
+  {
+   "worksheet": {
+    "seed": 5,
+    "hp": 112,
+    "wave": 3,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 4226,
+    "clockSec": 211
+   },
+   "truth": "ride_wave",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.06,
+    "q4_foe_present_attack": 0.09,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "approx": "ride_wave",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.09,
+    "q5_tower_present_attack": 0.05,
+    "q6_wave_present_ride": 0.98
+   },
+   "exact": "ride_wave"
+  },
+  {
+   "worksheet": {
+    "seed": 3,
+    "hp": 84,
+    "wave": 0,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 3106,
+    "clockSec": 155
+   },
+   "truth": "go_home",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.06,
+    "q4_foe_present_attack": 0.08,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.04
+   },
+   "approx": "go_home",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.08,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.04
+   },
+   "exact": "go_home"
+  },
+  {
+   "worksheet": {
+    "seed": 4,
+    "hp": 80,
+    "wave": 3,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 5666,
+    "clockSec": 283
+   },
+   "truth": "ride_wave",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.03,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.07,
+    "q4_foe_present_attack": 0.1,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "approx": "ride_wave",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.03,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.1,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "exact": "ride_wave"
+  },
+  {
+   "worksheet": {
+    "seed": 6,
+    "hp": 140,
+    "wave": 2,
+    "tower": "tw-1908",
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "keytar",
+    "team": "violet",
+    "tick": 5306,
+    "clockSec": 265
+   },
+   "truth": "attack_tower",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.23,
+    "q4_foe_present_attack": 0.52,
+    "q5_tower_present_attack": 0.98,
+    "q6_wave_present_ride": 0.17
+   },
+   "approx": "attack_foe",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.23,
+    "q4_foe_present_attack": 0.47,
+    "q5_tower_present_attack": 0.98,
+    "q6_wave_present_ride": 0.15
+   },
+   "exact": "attack_tower"
+  },
+  {
+   "worksheet": {
+    "seed": 1,
+    "hp": 90,
+    "wave": 2,
+    "tower": "tw-3",
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 5586,
+    "clockSec": 279
+   },
+   "truth": "attack_tower",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.18,
+    "q4_foe_present_attack": 0.36,
+    "q5_tower_present_attack": 0.97,
+    "q6_wave_present_ride": 0.15
+   },
+   "approx": "attack_tower",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.43,
+    "q5_tower_present_attack": 0.98,
+    "q6_wave_present_ride": 0.16
+   },
+   "exact": "attack_tower"
+  },
+  {
+   "worksheet": {
+    "seed": 6,
+    "hp": 210,
+    "wave": 0,
+    "tower": "tw-1906",
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 7386,
+    "clockSec": 369
+   },
+   "truth": "go_home",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.97,
+    "q3_ability_ready": 0.25,
+    "q4_foe_present_attack": 0.54,
+    "q5_tower_present_attack": 0.98,
+    "q6_wave_present_ride": 0.03
+   },
+   "approx": "go_home",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.01,
+    "q2_tower_no_wave_go_home": 0.97,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.57,
+    "q5_tower_present_attack": 0.98,
+    "q6_wave_present_ride": 0.02
+   },
+   "exact": "go_home"
+  },
+  {
+   "worksheet": {
+    "seed": 4,
+    "hp": 140,
+    "wave": 9,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "keytar",
+    "team": "violet",
+    "tick": 9026,
+    "clockSec": 451
+   },
+   "truth": "ride_wave",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.06,
+    "q4_foe_present_attack": 0.1,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "approx": "ride_wave",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.05,
+    "q4_foe_present_attack": 0.1,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "exact": "ride_wave"
+  },
+  {
+   "worksheet": {
+    "seed": 3,
+    "hp": 144,
+    "wave": 0,
+    "tower": "tw-766",
+    "foe": "mn-1002",
+    "foeKind": "minion",
+    "foeHp": 60,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 8466,
+    "clockSec": 423
+   },
+   "truth": "go_home",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.97,
+    "q3_ability_ready": 0.9,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.95,
+    "q6_wave_present_ride": 0.02
+   },
+   "approx": "go_home",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.96,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.95,
+    "q6_wave_present_ride": 0.02
+   },
+   "exact": "go_home"
+  },
+  {
+   "worksheet": {
+    "seed": 4,
+    "hp": 150,
+    "wave": 3,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 961,
+    "clockSec": 48
+   },
+   "truth": "ride_wave",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.08,
+    "q4_foe_present_attack": 0.09,
+    "q5_tower_present_attack": 0.05,
+    "q6_wave_present_ride": 0.98
+   },
+   "approx": "ride_wave",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.1,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "exact": "ride_wave"
+  },
+  {
+   "worksheet": {
+    "seed": 1,
+    "hp": 220,
+    "wave": 0,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 492,
+    "clockSec": 25
+   },
+   "truth": "go_home",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.05,
+    "q4_foe_present_attack": 0.08,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.04
+   },
+   "approx": "go_home",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.08,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.03
+   },
+   "exact": "go_home"
+  },
+  {
+   "worksheet": {
+    "seed": 2,
+    "hp": 174,
+    "wave": 0,
+    "tower": "tw-386",
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 7426,
+    "clockSec": 371
+   },
+   "truth": "go_home",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.97,
+    "q3_ability_ready": 0.22,
+    "q4_foe_present_attack": 0.61,
+    "q5_tower_present_attack": 0.98,
+    "q6_wave_present_ride": 0.03
+   },
+   "approx": "go_home",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.97,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.57,
+    "q5_tower_present_attack": 0.98,
+    "q6_wave_present_ride": 0.03
+   },
+   "exact": "go_home"
+  },
+  {
+   "worksheet": {
+    "seed": 2,
+    "hp": 80,
+    "wave": 3,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "keytar",
+    "team": "violet",
+    "tick": 10621,
+    "clockSec": 531
+   },
+   "truth": "ride_wave",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.09,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "approx": "ride_wave",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.05,
+    "q4_foe_present_attack": 0.1,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "exact": "ride_wave"
+  },
+  {
+   "worksheet": {
+    "seed": 2,
+    "hp": 140,
+    "wave": 0,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "keytar",
+    "team": "green",
+    "tick": 572,
+    "clockSec": 29
+   },
+   "truth": "go_home",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.08,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.03
+   },
+   "approx": "go_home",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.08,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.04
+   },
+   "exact": "go_home"
+  },
+  {
+   "worksheet": {
+    "seed": 1,
+    "hp": 150,
+    "wave": 1,
+    "tower": "tw-5",
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 1753,
+    "clockSec": 88
+   },
+   "truth": "attack_tower",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.23,
+    "q4_foe_present_attack": 0.5,
+    "q5_tower_present_attack": 0.98,
+    "q6_wave_present_ride": 0.15
+   },
+   "approx": "attack_foe",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.46,
+    "q5_tower_present_attack": 0.97,
+    "q6_wave_present_ride": 0.16
+   },
+   "exact": "attack_tower"
+  },
+  {
+   "worksheet": {
+    "seed": 4,
+    "hp": 58,
+    "wave": 0,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 9866,
+    "clockSec": 493
+   },
+   "truth": "recall",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.85,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.06,
+    "q4_foe_present_attack": 0.08,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.04
+   },
+   "approx": "recall",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.83,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.08,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.04
+   },
+   "exact": "recall"
+  },
+  {
+   "worksheet": {
+    "seed": 2,
+    "hp": 220,
+    "wave": 0,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 7706,
+    "clockSec": 385
+   },
+   "truth": "go_home",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.05,
+    "q4_foe_present_attack": 0.08,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.04
+   },
+   "approx": "go_home",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.08,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.04
+   },
+   "exact": "go_home"
+  },
+  {
+   "worksheet": {
+    "seed": 1,
+    "hp": 98,
+    "wave": 2,
+    "tower": "tw-10",
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 3386,
+    "clockSec": 169
+   },
+   "truth": "attack_tower",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.16,
+    "q4_foe_present_attack": 0.32,
+    "q5_tower_present_attack": 0.97,
+    "q6_wave_present_ride": 0.17
+   },
+   "approx": "attack_tower",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.33,
+    "q5_tower_present_attack": 0.97,
+    "q6_wave_present_ride": 0.15
+   },
+   "exact": "attack_tower"
+  },
+  {
+   "worksheet": {
+    "seed": 4,
+    "hp": 80,
+    "wave": 3,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "keytar",
+    "team": "violet",
+    "tick": 11941,
+    "clockSec": 597
+   },
+   "truth": "ride_wave",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.05,
+    "q4_foe_present_attack": 0.1,
+    "q5_tower_present_attack": 0.05,
+    "q6_wave_present_ride": 0.98
+   },
+   "approx": "ride_wave",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.03,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.05,
+    "q4_foe_present_attack": 0.1,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "exact": "ride_wave"
+  },
+  {
+   "worksheet": {
+    "seed": 2,
+    "hp": 140,
+    "wave": 3,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "keytar",
+    "team": "green",
+    "tick": 2017,
+    "clockSec": 101
+   },
+   "truth": "ride_wave",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.05,
+    "q4_foe_present_attack": 0.1,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "approx": "ride_wave",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.05,
+    "q4_foe_present_attack": 0.09,
+    "q5_tower_present_attack": 0.05,
+    "q6_wave_present_ride": 0.98
+   },
+   "exact": "ride_wave"
+  },
+  {
+   "worksheet": {
+    "seed": 6,
+    "hp": 122,
+    "wave": 6,
+    "tower": null,
+    "foe": "bb-1918",
+    "foeKind": "bearbot",
+    "foeHp": 147,
+    "cd": 0,
+    "instrument": "keytar",
+    "team": "violet",
+    "tick": 6226,
+    "clockSec": 311
+   },
+   "truth": "ability",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.81,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.34
+   },
+   "approx": "ability",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.82,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.26
+   },
+   "exact": "ability"
+  },
+  {
+   "worksheet": {
+    "seed": 4,
+    "hp": 98,
+    "wave": 0,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 3586,
+    "clockSec": 179
+   },
+   "truth": "go_home",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.06,
+    "q4_foe_present_attack": 0.08,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.03
+   },
+   "approx": "go_home",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.08,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.04
+   },
+   "exact": "go_home"
+  },
+  {
+   "worksheet": {
+    "seed": 6,
+    "hp": 80,
+    "wave": 3,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0.1,
+    "instrument": "keytar",
+    "team": "violet",
+    "tick": 10577,
+    "clockSec": 529
+   },
+   "truth": "ride_wave",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.02,
+    "q4_foe_present_attack": 0.09,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "approx": "ride_wave",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.03,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.02,
+    "q4_foe_present_attack": 0.09,
+    "q5_tower_present_attack": 0.05,
+    "q6_wave_present_ride": 0.98
+   },
+   "exact": "ride_wave"
+  },
+  {
+   "worksheet": {
+    "seed": 3,
+    "hp": 98,
+    "wave": 1,
+    "tower": "tw-770",
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 3466,
+    "clockSec": 173
+   },
+   "truth": "attack_tower",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.18,
+    "q4_foe_present_attack": 0.38,
+    "q5_tower_present_attack": 0.97,
+    "q6_wave_present_ride": 0.14
+   },
+   "approx": "attack_tower",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.4,
+    "q5_tower_present_attack": 0.97,
+    "q6_wave_present_ride": 0.15
+   },
+   "exact": "attack_tower"
+  },
+  {
+   "worksheet": {
+    "seed": 3,
+    "hp": 220,
+    "wave": 3,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 5026,
+    "clockSec": 251
+   },
+   "truth": "ride_wave",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.01,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.06,
+    "q4_foe_present_attack": 0.08,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "approx": "ride_wave",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.09,
+    "q5_tower_present_attack": 0.05,
+    "q6_wave_present_ride": 0.98
+   },
+   "exact": "ride_wave"
+  },
+  {
+   "worksheet": {
+    "seed": 5,
+    "hp": 156,
+    "wave": 3,
+    "tower": "tw-1526",
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 7466,
+    "clockSec": 373
+   },
+   "truth": "attack_tower",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.17,
+    "q4_foe_present_attack": 0.44,
+    "q5_tower_present_attack": 0.97,
+    "q6_wave_present_ride": 0.16
+   },
+   "approx": "attack_tower",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.46,
+    "q5_tower_present_attack": 0.98,
+    "q6_wave_present_ride": 0.15
+   },
+   "exact": "attack_tower"
+  },
+  {
+   "worksheet": {
+    "seed": 3,
+    "hp": 62,
+    "wave": 0,
+    "tower": "tw-763",
+    "foe": "bb-776",
+    "foeKind": "bearbot",
+    "foeHp": 140,
+    "cd": 1.1,
+    "instrument": "keytar",
+    "team": "green",
+    "tick": 6826,
+    "clockSec": 341
+   },
+   "truth": "recall",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.83,
+    "q2_tower_no_wave_go_home": 0.98,
+    "q3_ability_ready": 0.02,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.02
+   },
+   "approx": "recall",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.84,
+    "q2_tower_no_wave_go_home": 0.98,
+    "q3_ability_ready": 0.02,
+    "q4_foe_present_attack": 0.97,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.02
+   },
+   "exact": "recall"
+  },
+  {
+   "worksheet": {
+    "seed": 6,
+    "hp": 140,
+    "wave": 9,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "keytar",
+    "team": "violet",
+    "tick": 3706,
+    "clockSec": 185
+   },
+   "truth": "ride_wave",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.05,
+    "q4_foe_present_attack": 0.1,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "approx": "ride_wave",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.05,
+    "q4_foe_present_attack": 0.1,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "exact": "ride_wave"
+  },
+  {
+   "worksheet": {
+    "seed": 6,
+    "hp": 42,
+    "wave": 0,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 11149,
+    "clockSec": 557
+   },
+   "truth": "recall",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.86,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.06,
+    "q4_foe_present_attack": 0.08,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.04
+   },
+   "approx": "recall",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.88,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.09,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.03
+   },
+   "exact": "recall"
+  },
+  {
+   "worksheet": {
+    "seed": 3,
+    "hp": 184,
+    "wave": 3,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "green",
+    "tick": 1313,
+    "clockSec": 66
+   },
+   "truth": "ride_wave",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.07,
+    "q4_foe_present_attack": 0.1,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "approx": "ride_wave",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.1,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "exact": "ride_wave"
+  },
+  {
+   "worksheet": {
+    "seed": 4,
+    "hp": 140,
+    "wave": 0,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "keytar",
+    "team": "violet",
+    "tick": 172,
+    "clockSec": 9
+   },
+   "truth": "go_home",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.05,
+    "q4_foe_present_attack": 0.09,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.04
+   },
+   "approx": "go_home",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.09,
+    "q5_tower_present_attack": 0.05,
+    "q6_wave_present_ride": 0.03
+   },
+   "exact": "go_home"
+  },
+  {
+   "worksheet": {
+    "seed": 1,
+    "hp": 98,
+    "wave": 9,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "violet",
+    "tick": 3066,
+    "clockSec": 153
+   },
+   "truth": "ride_wave",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.06,
+    "q4_foe_present_attack": 0.09,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "approx": "ride_wave",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.1,
+    "q5_tower_present_attack": 0.05,
+    "q6_wave_present_ride": 0.98
+   },
+   "exact": "ride_wave"
+  },
+  {
+   "worksheet": {
+    "seed": 4,
+    "hp": 220,
+    "wave": 6,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "green",
+    "tick": 5546,
+    "clockSec": 277
+   },
+   "truth": "ride_wave",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.07,
+    "q4_foe_present_attack": 0.09,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "approx": "ride_wave",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.1,
+    "q5_tower_present_attack": 0.05,
+    "q6_wave_present_ride": 0.98
+   },
+   "exact": "ride_wave"
+  },
+  {
+   "worksheet": {
+    "seed": 4,
+    "hp": 220,
+    "wave": 9,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "green",
+    "tick": 5426,
+    "clockSec": 271
+   },
+   "truth": "ride_wave",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.07,
+    "q4_foe_present_attack": 0.1,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "approx": "ride_wave",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.1,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "exact": "ride_wave"
+  },
+  {
+   "worksheet": {
+    "seed": 2,
+    "hp": 150,
+    "wave": 9,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 3706,
+    "clockSec": 185
+   },
+   "truth": "ride_wave",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.07,
+    "q4_foe_present_attack": 0.1,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "approx": "ride_wave",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.09,
+    "q5_tower_present_attack": 0.05,
+    "q6_wave_present_ride": 0.98
+   },
+   "exact": "ride_wave"
+  },
+  {
+   "worksheet": {
+    "seed": 1,
+    "hp": 220,
+    "wave": 0,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 10146,
+    "clockSec": 507
+   },
+   "truth": "go_home",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.05,
+    "q4_foe_present_attack": 0.07,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.04
+   },
+   "approx": "go_home",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.08,
+    "q5_tower_present_attack": 0.05,
+    "q6_wave_present_ride": 0.04
+   },
+   "exact": "go_home"
+  },
+  {
+   "worksheet": {
+    "seed": 5,
+    "hp": 150,
+    "wave": 9,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 6146,
+    "clockSec": 307
+   },
+   "truth": "ride_wave",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.07,
+    "q4_foe_present_attack": 0.1,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "approx": "ride_wave",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.09,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "exact": "ride_wave"
+  },
+  {
+   "worksheet": {
+    "seed": 1,
+    "hp": 30,
+    "wave": 3,
+    "tower": "tw-6",
+    "foe": "mn-222",
+    "foeKind": "minion",
+    "foeHp": 44,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 7586,
+    "clockSec": 379
+   },
+   "truth": "recall",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.83,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.89,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.08
+   },
+   "approx": "recall",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.8,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.96,
+    "q5_tower_present_attack": 0.94,
+    "q6_wave_present_ride": 0.07
+   },
+   "exact": "recall"
+  },
+  {
+   "worksheet": {
+    "seed": 4,
+    "hp": 140,
+    "wave": 3,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "keytar",
+    "team": "green",
+    "tick": 2626,
+    "clockSec": 131
+   },
+   "truth": "ride_wave",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.06,
+    "q4_foe_present_attack": 0.1,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.98
+   },
+   "approx": "ride_wave",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.02,
+    "q3_ability_ready": 0.05,
+    "q4_foe_present_attack": 0.1,
+    "q5_tower_present_attack": 0.05,
+    "q6_wave_present_ride": 0.98
+   },
+   "exact": "ride_wave"
+  },
+  {
+   "worksheet": {
+    "seed": 6,
+    "hp": 84,
+    "wave": 0,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "violin",
+    "team": "green",
+    "tick": 3106,
+    "clockSec": 155
+   },
+   "truth": "go_home",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.06,
+    "q4_foe_present_attack": 0.08,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.03
+   },
+   "approx": "go_home",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.04,
+    "q4_foe_present_attack": 0.08,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.03
+   },
+   "exact": "go_home"
+  },
+  {
+   "worksheet": {
+    "seed": 6,
+    "hp": 220,
+    "wave": 0,
+    "tower": null,
+    "foe": null,
+    "foeKind": null,
+    "foeHp": null,
+    "cd": 0,
+    "instrument": "drums",
+    "team": "violet",
+    "tick": 7706,
+    "clockSec": 385
+   },
+   "truth": "go_home",
+   "contested": false,
+   "approx_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.05,
+    "q4_foe_present_attack": 0.08,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.03
+   },
+   "approx": "go_home",
+   "exact_answers": {
+    "q1_low_hp_recall": 0.02,
+    "q2_tower_no_wave_go_home": 0.03,
+    "q3_ability_ready": 0.03,
+    "q4_foe_present_attack": 0.08,
+    "q5_tower_present_attack": 0.04,
+    "q6_wave_present_ride": 0.04
+   },
+   "exact": "go_home"
+  }
+ ]
+}
