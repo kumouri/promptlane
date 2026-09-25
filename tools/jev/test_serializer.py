@@ -42,6 +42,19 @@ class StateParagraphTests(unittest.TestCase):
         self.assertIn("tw-7", text)
         self.assertIn("bb-3", text)
 
+    def test_offline_foe_clause_is_unchanged(self):
+        text = S.state_paragraph(ws(foe="bb-3"))
+        self.assertIn("An enemy is targeted as a foe, id bb-3.", text)
+
+    def test_live_foe_clause_states_kind_and_hp_against_100(self):
+        low = S.state_paragraph(ws(foe="bb-3", foe_detail=True, foe_kind="bearbot", foe_hp=62))
+        self.assertIn("enemy bearbot", low)
+        self.assertIn("62, which is below 100", low)
+        high = S.state_paragraph(ws(foe="bb-3", foe_detail=True, foe_kind="bearbot", foe_hp=140))
+        self.assertIn("140, which is at or above 100", high)
+        minion = S.state_paragraph(ws(foe="mn-9", foe_detail=True, foe_kind="minion", foe_hp=20))
+        self.assertIn("minion (not a bearbot)", minion)
+
     def test_tower_and_foe_absence_is_explicit(self):
         text = S.state_paragraph(ws(tower=None, foe=None))
         self.assertIn("No enemy tower", text)

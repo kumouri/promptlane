@@ -57,6 +57,23 @@ class DecideTests(unittest.TestCase):
         self.assertEqual(result["rule"], 7)
         self.assertEqual(result["bucket"], "go_home")
 
+    def test_live_foe_detail_makes_rule3_exact(self):
+        # A violin with cd 0 facing a 140-hp bearbot: the real rule 3 says attack, not ability.
+        client = FakeClient()
+        b = JevHouseBackend(client, budget_usd=None)
+        live = dict(hp=200, wave=1, tower=None, foe="bb-4", cd=0.0, instrument="violin", team="violet", tick=1, clock_sec=0.05)
+        client.set_ground_truth(Worksheet(**live, foe_detail=True, foe_kind="bearbot", foe_hp=140))
+        result = b.decide(body(instrument="violin", foe="bb-4", foeKind="bearbot", foeHp=140))
+        self.assertEqual(result["bucket"], "attack_foe")
+
+    def test_approx_q3_ignores_foe_detail(self):
+        client = FakeClient()
+        b = JevHouseBackend(client, budget_usd=None, approx_q3=True)
+        live = dict(hp=200, wave=1, tower=None, foe="bb-4", cd=0.0, instrument="violin", team="violet", tick=1, clock_sec=0.05)
+        client.set_ground_truth(Worksheet(**live))  # the approximation: any foe + cd 0 -> ability
+        result = b.decide(body(instrument="violin", foe="bb-4", foeKind="bearbot", foeHp=140))
+        self.assertEqual(result["bucket"], "ability")
+
     def test_missing_field_raises_value_error(self):
         client = FakeClient()
         b = JevHouseBackend(client, budget_usd=None)

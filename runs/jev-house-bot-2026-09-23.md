@@ -24,6 +24,10 @@ Tests: `tools/jev/test_house_server.py` (new, 5 tests, no network — a fake cli
 `python -m unittest discover -s tools -p "test_*.py"` (107 tests) and `npm run test:arena` (85
 tests, was 83) all green; `npm run typecheck` and `npm run build` clean.
 
+> **Fixed 2026-09-25** (`runs/jev-jam-readiness-2026-09-25.md`): the live path now sends the foe's
+> kind and hp and asks the exact rule 3; the offline harness keeps the approximation. The paragraph
+> below describes this run as it was.
+
 **Where q3 stayed a known approximation on purpose.** `rules.py`'s `q3_ability_ready` asks the same
 reduced condition (cd is 0, a foe is present) for every instrument, even though violin/drums'
 real rule also needs "foe is a bearbot under 100 hp" — a limitation the offline harness had because

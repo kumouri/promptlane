@@ -11,8 +11,9 @@ Jev has no `prompt` field). This server's contract is different by design:
     GET  /health   -> {"ok": true, "backend": "jev-house", "model": ..., "requests", "errors",
                         "avg_seconds", "tokens_in", "cost_usd", "budget_usd"}
     POST /         body: {"hp", "wave", "tower", "foe", "cd", "instrument", "team", "tick",
-                           "clockSec"} -- exactly `rules.Worksheet`'s fields, camelCase on the wire
-                           (the caller is TypeScript), snake_case once parsed into a Worksheet.
+                           "clockSec", "foeKind"?, "foeHp"?} -- exactly `rules.Worksheet`'s fields,
+                           camelCase on the wire (the caller is TypeScript), snake_case once parsed
+                           into a Worksheet. `foeKind`/`foeHp` present -> `foe_detail=True`.
                    -> 200 {"bucket": "recall"|"go_home"|"ability"|"attack_foe"|"attack_tower"|
                             "ride_wave", "rule": 1-7, "answers": {qid: 0.0-1.0}, "ms": float}
                    -> non-2xx {"error": "..."} on ANY failure -- a bad request, a Jev/transport
@@ -20,11 +21,11 @@ Jev has no `prompt` field). This server's contract is different by design:
                       non-2xx exactly like `tools/model_server.py`'s callers treat one: hold, never
                       crash the match.
 
-The worksheet's `foe`/`tower` carry only presence (an id or null), matching house-violet.md's own
-rules and `rules.py`'s q3 approximation -- see that module's KNOWN APPROXIMATION note. This server
-does not read real foe kind/hp even though a live match has them, so its q3 answers stay directly
-comparable to the harness's offline numbers (`runs/jev-suitability-harness-2026-09-22.md`) rather
-than quietly testing a different, easier rule 3.
+Rule 3 is exact here (2026-09-25): `tools/match/jevPilot.ts` sends the foe's real kind and hp, so
+q3 asks house-violet.md's real violin/drums condition ("foe is a bearbot under 100 hp") instead of
+the offline harness's approximation -- see `rules.py`'s LIVE PATH note. `--approx-q3` drops the
+foe detail and asks the old approximate q3, only so a before/after can be measured live
+(`runs/jev-jam-readiness-2026-09-25.md`); never use it for real play.
 
 Budget: `--budget-usd` (default 1.00, matching the run's hard cap) refuses new calls once the
 process's cumulative estimated cost (from real `usage.input_tokens`, `client.estimate_cost_usd`)
@@ -66,9 +67,10 @@ class JevHouseBackend:
     """Wraps a Jev client (`SystemOneClient` or `WorkersAIClient`) with the worksheet -> bucket
     pipeline and a running spend cap. One instance per process, shared across requests."""
 
-    def __init__(self, client, budget_usd: float | None = DEFAULT_BUDGET_USD):
+    def __init__(self, client, budget_usd: float | None = DEFAULT_BUDGET_USD, approx_q3: bool = False):
         self.client = client
         self.budget_usd = budget_usd
+        self.approx_q3 = approx_q3
         self.lock = threading.Lock()
         self.requests = 0
         self.errors = 0
@@ -80,6 +82,7 @@ class JevHouseBackend:
         missing = [f for f in REQUIRED_FIELDS if f not in body]
         if missing:
             raise ValueError(f"missing field(s): {', '.join(missing)}")
+        foe_detail = "foeKind" in body and not self.approx_q3
         ws = Worksheet(
             hp=float(body["hp"]),
             wave=int(body["wave"]),
@@ -90,6 +93,9 @@ class JevHouseBackend:
             team=body["team"],
             tick=int(body["tick"]),
             clock_sec=float(body["clockSec"]),
+            foe_detail=foe_detail,
+            foe_kind=body.get("foeKind") if foe_detail else None,
+            foe_hp=float(body["foeHp"]) if foe_detail and body.get("foeHp") is not None else None,
         )
         with self.lock:
             if self.budget_usd is not None and self.cost_usd >= self.budget_usd:
@@ -226,6 +232,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--budget-usd", type=float, default=DEFAULT_BUDGET_USD,
                     help="refuse new calls once this process's cumulative estimated cost reaches this "
                          "(default $1.00); pass a negative number to disable the cap")
+    p.add_argument("--approx-q3", action="store_true",
+                    help="MEASUREMENT ONLY: ignore the foe's kind/hp and ask the offline harness's "
+                         "approximate rule 3 (the pre-2026-09-25 live behaviour)")
     p.add_argument("--verbose", action="store_true")
     return p.parse_args(argv)
 
@@ -235,11 +244,11 @@ def main(argv: list[str] | None = None) -> int:
     client = make_client(args)
     model = args.model or getattr(client, "model")
     budget = None if args.budget_usd is not None and args.budget_usd < 0 else args.budget_usd
-    backend = JevHouseBackend(client, budget_usd=budget)
+    backend = JevHouseBackend(client, budget_usd=budget, approx_q3=args.approx_q3)
     server = serve(backend, model, args.host, args.port, verbose=args.verbose)
     print(
         f"promptlane jev-house server on http://{args.host}:{args.port}/  backend={args.backend} model={model} "
-        f"budget_usd={budget}",
+        f"budget_usd={budget}{'  q3=APPROX (measurement only)' if args.approx_q3 else ''}",
         flush=True,
     )
     print("POST a house-violet.md worksheet -> {bucket, rule, answers, ms}; GET /health; Ctrl-C to stop", flush=True)

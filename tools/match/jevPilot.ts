@@ -40,6 +40,11 @@ export interface Worksheet {
   wave: number;
   tower: string | null;
   foe: string | null;
+  /** The foe's real kind and hp -- house-violet.md's rule 3 needs "foe is a bearbot with hp less
+   * than 100" for violin/drums. The offline harness never had these (its logs didn't); a live match
+   * does, so `house_server.py` asks the exact rule 3 whenever they're sent (`rules.py` LIVE PATH). */
+  foeKind: 'bearbot' | 'minion' | null;
+  foeHp: number | null;
   cd: number;
   instrument: Instrument;
   team: Team;
@@ -63,13 +68,13 @@ export function extractWorksheet(obs: Observation, tick: number): Worksheet {
   const wave = obs.nearbyMinions.filter((m) => m.team === obs.self.team).length;
   const towerEntry = obs.visibleEnemies.find((e) => e.kind === 'tower' || e.kind === 'nexus');
   const bearbots = obs.visibleEnemies.filter((e) => e.kind === 'bearbot');
-  let foeId: string | null = null;
+  let foe: Observation['visibleEnemies'][number] | null = null;
   if (bearbots.length > 0) {
-    foeId = [...bearbots].sort((a, b) => a.hp - b.hp)[0].id;
+    foe = [...bearbots].sort((a, b) => a.hp - b.hp)[0];
   } else {
     const minions = obs.visibleEnemies.filter((e) => e.kind === 'minion');
     if (minions.length > 0) {
-      foeId = [...minions].sort((a, b) => distance(obs.self.pos, a.pos) - distance(obs.self.pos, b.pos))[0].id;
+      foe = [...minions].sort((a, b) => distance(obs.self.pos, a.pos) - distance(obs.self.pos, b.pos))[0];
     }
   }
   const abilityKey = ABILITY_NAME[obs.self.instrument];
@@ -77,7 +82,9 @@ export function extractWorksheet(obs: Observation, tick: number): Worksheet {
     hp: obs.self.hp,
     wave,
     tower: towerEntry?.id ?? null,
-    foe: foeId,
+    foe: foe?.id ?? null,
+    foeKind: foe ? (foe.kind as 'bearbot' | 'minion') : null,
+    foeHp: foe?.hp ?? null,
     cd: obs.self.cooldowns[abilityKey] ?? 0,
     instrument: obs.self.instrument,
     team: obs.self.team,
@@ -161,7 +168,7 @@ export function jevTracingPilot(config: JevPilotConfig, currentTick: () => numbe
         // that might itself be wrong.
         return {
           action,
-          reply: JSON.stringify({ hp: ws.hp, wave: ws.wave, tower: ws.tower, foe: ws.foe, cd: ws.cd, bucket: data.bucket, rule: data.rule, answers: data.answers, ms: data.ms }),
+          reply: JSON.stringify({ hp: ws.hp, wave: ws.wave, tower: ws.tower, foe: ws.foe, foeKind: ws.foeKind, foeHp: ws.foeHp, cd: ws.cd, instrument: ws.instrument, bucket: data.bucket, rule: data.rule, answers: data.answers, ms: data.ms }),
         };
       } catch (err) {
         return { action: null, reply: `[pilot error: ${(err as Error).message}]` };
