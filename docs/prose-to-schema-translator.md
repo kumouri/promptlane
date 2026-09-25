@@ -123,7 +123,10 @@ free (local inference). Not Jev: Jev has no free-text output primitive at all
 pre-declared questions against it. Not OpenRouter: also available (`$OPENROUTER_API_KEY` is set on
 this host) but there is no reason to spend real money on a task a local model already handles, and
 using it keeps the translation step's cost trivially reportable as real ($0, not "free" hiding real
-compute — wall-clock and token counts are still measured; see §4.1).
+compute — wall-clock and token counts are still measured; see §4.1). *(2026-09-25: for entrants
+without a GPU, `tools/jev/compile.py --backend openrouter` runs the same translation on the same
+model hosted, `qwen/qwen3.5-9b`, ≈$0.0006 per three-instrument compile — see
+[`entrant-compile-preview.md`](entrant-compile-preview.md).)*
 
 **Target vocabulary — the one place prose nuance is deliberately flattened.** Jev's questions judge
 *conditions*, but nothing in this pipeline asks Jev to pick *which entity*. Once a rule fires, its

@@ -54,8 +54,10 @@ un-hear.
 prompts/             versioned build prompts; initial_prompt.md is frozen v1
 generation/          pinned-input preparation, run recorder, cross-client protocol
 acceptance/          independent, post-submission evaluation and evidence requirements
-tools/               jam tooling: headless match runner (tools/match/), the model server, and
-                     Elysium, the arena (tools/arena/ — the pre-jam ladder site; docs/arena-runbook.md)
+tools/               jam tooling: headless match runner (tools/match/), the model server,
+                     Elysium, the arena (tools/arena/ — the pre-jam ladder site; docs/arena-runbook.md),
+                     and the Jev tools (tools/jev/ — incl. the entrant compile preview, `npm run compile`;
+                     docs/entrant-compile-preview.md)
 runs/                operator records and match logs (per-run directories are local/ignored)
 artifacts/           exported workspaces and frozen submissions (local/ignored)
 src/                 original generated game specimen; not maintained game source
