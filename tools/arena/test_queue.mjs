@@ -224,6 +224,45 @@ test('Jev house bot (SHADOW ONLY, runs/jev-house-bot-2026-09-23.md): house.backe
   }
 });
 
+test('Jev house bot never stops playing: with its server unreachable, the house side decides by rules-in-code, counted as call errors', async () => {
+  const probe = http.createServer();
+  await new Promise((resolve) => probe.listen(0, '127.0.0.1', resolve));
+  const deadPort = probe.address().port;
+  await new Promise((resolve) => probe.close(resolve)); // nothing listens here now
+  const { dir, ledger, queue, job, cleanup } = setup(
+    {},
+    {
+      backends: {
+        mock: { kind: 'mock', avgSecPerCall: 0.001 },
+        'jev-house': { kind: 'jev-http', endpoint: `http://127.0.0.1:${deadPort}/`, timeoutSec: 2 },
+      },
+      house: { backend: 'jev-house' },
+    },
+  );
+  const origError = console.error;
+  const fallbackLines = [];
+  console.error = (...args) => (String(args[0]).includes('!!! FALLBACK') ? fallbackLines.push(args[0]) : origError(...args));
+  try {
+    queue.start();
+    const id = queue.enqueue(job());
+    await queue.waitForIdle(30000);
+    assert.equal(ledger.state().jobs.get(id).status, 'finished');
+    const log = JSON.parse(readFileSync(path.join(dir, 'logs', `${id}.json`), 'utf8'));
+    const houseDecisions = log.decisions.filter((d) => d.bot >= 3 && !d.cached);
+    assert.ok(houseDecisions.length > 0);
+    for (const d of houseDecisions) {
+      assert.match(d.reply, /^\[jev-fallback:/);
+      assert.notEqual(d.action?.kind ?? 'hold', 'hold', 'a fallback decision is a real action, never hold');
+    }
+    assert.equal(log.result.stats.green.callErrors, houseDecisions.length, 'every fallback still counts as a failed call');
+    assert.ok(fallbackLines.length >= houseDecisions.length, 'each fallback is logged loudly');
+  } finally {
+    console.error = origError;
+    await queue.stop();
+    cleanup();
+  }
+});
+
 test('a missing prompt fails the job cleanly and the worker moves on', async () => {
   const { ledger, queue, job, cleanup } = setup();
   try {

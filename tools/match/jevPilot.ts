@@ -22,11 +22,12 @@
  *      target (an entity id, or a position for `move`), since the offline harness only ever
  *      compared bucket labels, never assembled a playable action.
  *
- * The `hold` path: any transport failure (endpoint down, timeout, non-2xx) resolves to
- * `{kind: 'hold'}`, exactly like `PromptPilot`'s own `catch` -- memo §4's "what happens to the
- * hold path": the *parse*-failure reason for hold is structurally unreachable here (there is no
- * free text to fail to parse), but the *transport*-failure reason is exactly as necessary as it
- * ever was, so it is the only path this file's `catch` block exists to serve.
+ * No hold path (changed 2026-09-25, runs/jev-jam-readiness-2026-09-25.md): the house bot must never
+ * silently stop playing. If Jev fails, `house_server.py` already answers with a rules-in-code
+ * decision (`fallback: 'rules-in-code'`); if the server itself is unreachable (endpoint down,
+ * timeout, non-2xx), this file's `catch` decides with `decideByRules` -- the same seven rules in
+ * TypeScript -- and logs `!!! FALLBACK` to stderr. That reply starts `[jev-fallback:` so
+ * `tools/match/headless.ts` still counts it as a call error.
  */
 import type { Action, Instrument, Observation, Team, Vec2 } from '../../src/types';
 import { BASE } from '../../src/sim/map';
@@ -40,6 +41,11 @@ export interface Worksheet {
   wave: number;
   tower: string | null;
   foe: string | null;
+  /** The foe's real kind and hp -- house-violet.md's rule 3 needs "foe is a bearbot with hp less
+   * than 100" for violin/drums. The offline harness never had these (its logs didn't); a live match
+   * does, so `house_server.py` asks the exact rule 3 whenever they're sent (`rules.py` LIVE PATH). */
+  foeKind: 'bearbot' | 'minion' | null;
+  foeHp: number | null;
   cd: number;
   instrument: Instrument;
   team: Team;
@@ -52,6 +58,29 @@ export interface JevDecideResponse {
   rule: number;
   answers: Record<string, number>;
   ms: number;
+  /** Set when house_server.py couldn't reach Jev and decided by the rules in code instead. */
+  fallback?: 'rules-in-code';
+  error?: string;
+}
+
+/** house-violet.md's seven rules evaluated in code on the exact worksheet -- the TypeScript twin of
+ * `tools/jev/rules.py::ground_truth_answers` + `first_match`, used only when the jev-house server
+ * itself can't be reached (`house_server.py` has its own fallback for when Jev can't be). */
+export function decideByRules(ws: Worksheet): { bucket: ActionBucket; rule: number } {
+  const rule3 =
+    ws.cd === 0 &&
+    ws.foe !== null &&
+    (ws.instrument === 'keytar' || (ws.foeKind === 'bearbot' && ws.foeHp !== null && ws.foeHp < 100));
+  const rules: Array<[boolean, ActionBucket]> = [
+    [ws.hp < 75, 'recall'],
+    [ws.tower !== null && ws.wave === 0, 'go_home'],
+    [rule3, 'ability'],
+    [ws.foe !== null, 'attack_foe'],
+    [ws.tower !== null, 'attack_tower'],
+    [ws.foe === null && ws.tower === null && ws.wave >= 1, 'ride_wave'],
+  ];
+  const i = rules.findIndex(([matches]) => matches);
+  return i === -1 ? { bucket: 'go_home', rule: 7 } : { bucket: rules[i][1], rule: i + 1 };
 }
 
 function distance(a: Vec2, b: Vec2): number {
@@ -63,13 +92,13 @@ export function extractWorksheet(obs: Observation, tick: number): Worksheet {
   const wave = obs.nearbyMinions.filter((m) => m.team === obs.self.team).length;
   const towerEntry = obs.visibleEnemies.find((e) => e.kind === 'tower' || e.kind === 'nexus');
   const bearbots = obs.visibleEnemies.filter((e) => e.kind === 'bearbot');
-  let foeId: string | null = null;
+  let foe: Observation['visibleEnemies'][number] | null = null;
   if (bearbots.length > 0) {
-    foeId = [...bearbots].sort((a, b) => a.hp - b.hp)[0].id;
+    foe = [...bearbots].sort((a, b) => a.hp - b.hp)[0];
   } else {
     const minions = obs.visibleEnemies.filter((e) => e.kind === 'minion');
     if (minions.length > 0) {
-      foeId = [...minions].sort((a, b) => distance(obs.self.pos, a.pos) - distance(obs.self.pos, b.pos))[0].id;
+      foe = [...minions].sort((a, b) => distance(obs.self.pos, a.pos) - distance(obs.self.pos, b.pos))[0];
     }
   }
   const abilityKey = ABILITY_NAME[obs.self.instrument];
@@ -77,7 +106,9 @@ export function extractWorksheet(obs: Observation, tick: number): Worksheet {
     hp: obs.self.hp,
     wave,
     tower: towerEntry?.id ?? null,
-    foe: foeId,
+    foe: foe?.id ?? null,
+    foeKind: foe ? (foe.kind as 'bearbot' | 'minion') : null,
+    foeHp: foe?.hp ?? null,
     cd: obs.self.cooldowns[abilityKey] ?? 0,
     instrument: obs.self.instrument,
     team: obs.self.team,
@@ -122,8 +153,7 @@ export interface JevPilotConfig {
  * `action: null` means this attempt failed and the caller should fall back to hold, exactly as
  * `PromptPilot.decide` does internally (`action ?? { kind: 'hold' }`) -- `tools/match/headless.ts`
  * applies the identical fallback here so a Jev bearbot and a prompt bearbot share one `TracingPilot`
- * contract. Jev can fail only at the transport level (memo §4: no free text means no parse-failure
- * path), so `action` here is null only when the network call itself failed.
+ * contract. The Jev pilot never returns `action: null` -- see the module docstring's fallback note.
  */
 export interface TracingDecision {
   reply: string;
@@ -134,8 +164,8 @@ export interface TracingPilot {
   decide(obs: Observation): Promise<TracingDecision>;
 }
 
-/** POSTs the worksheet, turns the response into an Action, and reports `action: null` (hold path)
- * on any transport failure -- never throws. `tick` comes from the caller (headless.ts tracks the
+/** POSTs the worksheet and turns the response into an Action; on any transport failure decides by
+ * `decideByRules` instead -- never throws, never holds. `tick` comes from the caller (headless.ts tracks the
  * sim's own tick counter; the offline harness's `Worksheet.tick` has no live equivalent here). */
 export function jevTracingPilot(config: JevPilotConfig, currentTick: () => number): TracingPilot {
   const timeoutMs = (config.timeoutSec ?? 30) * 1000;
@@ -161,10 +191,18 @@ export function jevTracingPilot(config: JevPilotConfig, currentTick: () => numbe
         // that might itself be wrong.
         return {
           action,
-          reply: JSON.stringify({ hp: ws.hp, wave: ws.wave, tower: ws.tower, foe: ws.foe, cd: ws.cd, bucket: data.bucket, rule: data.rule, answers: data.answers, ms: data.ms }),
+          reply: JSON.stringify({ hp: ws.hp, wave: ws.wave, tower: ws.tower, foe: ws.foe, foeKind: ws.foeKind, foeHp: ws.foeHp, cd: ws.cd, instrument: ws.instrument, bucket: data.bucket, rule: data.rule, answers: data.answers, ms: data.ms, ...(data.fallback ? { fallback: data.fallback } : {}) }),
         };
       } catch (err) {
-        return { action: null, reply: `[pilot error: ${(err as Error).message}]` };
+        // The server itself is down or timed out: never stop playing -- decide by the rules in code,
+        // loudly. The `[jev-fallback` prefix makes headless.ts count it as a call error.
+        const message = (err as Error).message;
+        const { bucket, rule } = decideByRules(ws);
+        console.error(`[jev-house] !!! FALLBACK (server unreachable: ${message}) -> rules-in-code rule=${rule} bucket=${bucket}`);
+        return {
+          action: bucketToAction(bucket, ws, obs),
+          reply: `[jev-fallback: ${message}] ` + JSON.stringify({ hp: ws.hp, wave: ws.wave, tower: ws.tower, foe: ws.foe, foeKind: ws.foeKind, foeHp: ws.foeHp, cd: ws.cd, instrument: ws.instrument, bucket, rule, fallback: 'rules-in-code' }),
+        };
       }
     },
   };

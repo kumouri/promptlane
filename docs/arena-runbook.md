@@ -58,7 +58,7 @@ The entrants poller shells out to `gh api` for `kumouri/jamobair-entrants` (`mai
 | `tournament.quota` | `{quick: 6, full: 2}` per handle per Central-Time day (Q11); organizer exempt |
 | `backends.<id>` | `{kind: http, endpoint, model, avgSecPerCall, timeoutSec}` or `{kind: mock}`; `avgSecPerCall` sizes the wall-clock cap (3× expected) — raise it when the GPU is shared. A hosted backend (§1a) also carries `concurrency`, `usdPerMToken`, `dailyBudgetUsd` in the shape `docs/arena-site-spec.md` §5.4 wants; the arena doesn't read those three yet (§1a "not built") — they document the backend for now, the same way `runs/arena/config.json` has always been the record of what a tournament ran on |
 | `entrants` | `{kind: gh, repo, ref, syncIntervalSec}` or `{kind: dir, path}` |
-| `house` | `{handle, files}` — ordered candidates; a candidate is a `{violet, green}` pair (one prompt per side) or one file; the first whose files all exist wins: the `house-*.md` pair, then `house.md`, then `drums.md` |
+| `house` | `{handle, files}` — ordered candidates; a candidate is a `{violet, green}` pair (one prompt per side) or one file; the first whose files all exist wins: the `house-*.md` pair, then `house.md`, then `drums.md`. `backend` (default `null`) names a `kind: "jev-http"` entry to have Jev play the house side — §6, *5.3 Jam day with the Jev house bot* |
 | `organizerEmail` | the one organizer (Q19); refused if left as `CHANGE-ME` in Access mode; `ARENA_ORGANIZER_EMAIL` overrides |
 
 Changing the tournament block appends a new `tournament` row; nothing already played is altered.
@@ -254,6 +254,8 @@ change the house: merge the file(s), restart the arena, read the startup line.
 
 The house bot is a fixed Elo 1000 that never moves and does not appear on the ladder.
 
+The same rules can instead be played by Jev (shadow only unless Ceryce flips it): see *5.3 Jam day with the Jev house bot* in §6.
+
 ---
 
 ## 5. What runs unattended
@@ -328,6 +330,83 @@ preRunRounds, seedBase, top?}`, `/api/brackets/<id>/rounds/<r>/run|reveal`,
 Access; a held pre-run match answers 403 to anyone but the organizer.
 
 `curl -N` on the events URL is the quickest way to see a match happen from a terminal.
+
+### 5.3 Jam day with the Jev house bot
+
+**Shadow by default.** `house.backend` is `null` in every shipped config, so the house bot plays
+`house-violet.md`/`house-green.md` on `tournament.backend` like everyone else, and none of this
+section applies. Going live is Ceryce's call; when she makes it, this is the whole procedure. The
+Jev house bot plays the same seven rules — Jev answers each rule's condition, code applies them in
+order (`tools/jev/rules.py`, rule 3 exact on the live path). Background and numbers:
+[`runs/jev-house-bot-2026-09-23.md`](../runs/jev-house-bot-2026-09-23.md),
+[`runs/jev-jam-readiness-2026-09-25.md`](../runs/jev-jam-readiness-2026-09-25.md).
+
+**1. Token.** Jev runs on Cloudflare Workers AI. Two ways to authenticate, checked in this order:
+
+- **`$CLOUDFLARE_API_TOKEN` (preferred for jam day)** — a dashboard API token with Workers AI
+  permission, set in the environment the server starts from. It does not expire mid-jam.
+- **Wrangler's OAuth login** (what the workstation uses today). The access token lives about an
+  hour; the server renews it on its own once less than `--refresh-margin-sec` (default 900 s = one
+  600 s match + slack) is left, writes the new pair back to wrangler's config, and on a 401 renews
+  once more and retries. Only a dead refresh token needs you: `npx wrangler login`.
+
+Check before starting (renews if needed, then exits):
+
+```
+python tools/jev/house_server.py --check-token
+# token OK: source=wrangler-oauth expires in 3599s (margin 900s; the server renews automatically)
+```
+
+Exit code 1 or a `TOKEN RENEWAL FAILED` line → `npx wrangler login`, then check again.
+
+**2. Start the server** (its own terminal or scheduled task, next to the model server):
+
+```
+python tools/jev/house_server.py --port 8798 --budget-usd 3.00
+```
+
+Cost: about $0.035 per 1,000 Jev calls (measured, `usage.input_tokens` × $0.042/M). A jam-shape
+match (600 s, cadence 2) is ~900 house calls ≈ $0.03, so $3 covers ~90 house matches. Past the
+budget the bot keeps playing on the fallback below — restart with a bigger `--budget-usd` to put
+Jev back.
+
+**3. Watch it.** `curl -s http://127.0.0.1:8798/health` →
+
+| Field | Healthy |
+|---|---|
+| `token_source`, `token_expires_in_sec` | `env` and `null`, or `wrangler-oauth` and a number that climbs back to ~3600 after each renewal |
+| `fallbacks`, `last_fallback_error` | `0` and `null` |
+| `cost_usd` / `budget_usd` | well apart |
+
+The server's stderr prints `[jev-token] renewed …` on each renewal.
+
+**4. The fallback — the house bot never stops playing.** If Jev can't answer (network, a 401 that
+survived the renewal, the budget), the server decides with the same seven rules evaluated in code
+and prints `[jev-house] !!! FALLBACK #n: … -> rules-in-code rule=… bucket=…`; the first Jev
+success afterwards prints `RECOVERED`. If the server itself is down, the arena's pilot does the
+same in TypeScript and logs `[jev-house] !!! FALLBACK (server unreachable …)`. Either way the
+bearbot plays house-violet.md's rules perfectly instead of holding, and each fallback still counts
+as a call error in that match's stats. What to do:
+
+| `last_fallback_error` says | Do |
+|---|---|
+| `401` / `TOKEN RENEWAL FAILED` | `npx wrangler login` — the server picks the new token off disk on its next renewal; no restart |
+| `BudgetExceeded` | restart the server with a larger `--budget-usd` |
+| a timeout / connection error | Cloudflare trouble; nothing to do, it recovers on its own |
+| (arena log: server unreachable) | restart `house_server.py` |
+
+A match that ran mostly on fallback was played by the rules-in-code house bot, not Jev; it still
+counts (same rules), but if that matters for a placement, void and re-run it.
+
+**5. Go live — the one config change.** In `runs/arena/config.json`, with the `jev-house` entry
+present under `backends` (copy it from `tools/arena/config.example.json`):
+
+```json
+"house": { ..., "backend": "jev-house" }
+```
+
+then restart the arena. Only the house side of a
+match plays Jev; entrants never do. **Back out:** set `"backend": null` and restart.
 
 ---
 

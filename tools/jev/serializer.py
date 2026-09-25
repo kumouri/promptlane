@@ -65,10 +65,19 @@ def _tower_clause(tower: str | None) -> str:
     return f"An enemy tower or nexus is visible, id {tower}."
 
 
-def _foe_clause(foe: str | None) -> str:
-    if foe is None:
+def _foe_clause(ws: Worksheet) -> str:
+    """Offline (`foe_detail` False) the logs only have the foe's id, so the clause says only that --
+    byte-identical to what the suitability harness measured. Live, it also states the foe's kind and
+    hp against rule 3's 100-hp line, interpretation next to the number like `_hp_clause`."""
+    if ws.foe is None:
         return "No enemy bearbot or minion is currently targeted as a foe."
-    return f"An enemy is targeted as a foe, id {foe}."
+    if not ws.foe_detail:
+        return f"An enemy is targeted as a foe, id {ws.foe}."
+    if ws.foe_kind != "bearbot":
+        return f"An enemy minion (not a bearbot) is targeted as a foe, id {ws.foe}."
+    hp = ws.foe_hp if ws.foe_hp is not None else 0.0
+    relation = "below" if hp < 100 else "at or above"
+    return f"An enemy bearbot is targeted as a foe, id {ws.foe}; its hp is {hp:g}, which is {relation} 100."
 
 
 def _cd_clause(cd: float) -> str:
@@ -87,7 +96,8 @@ def state_paragraph(ws: Worksheet) -> str:
     """A short, dense, detailed paragraph describing one bearbot's decision-relevant state at one
     tick -- the subset of an `Observation` (`tools/arena/pages/contract.mjs`) that the checked-in
     run logs actually preserve. See `harness.py`'s module docstring for exactly what that is and
-    is not (no position, no per-ability cooldown map, no minion/enemy roster -- only presence)."""
+    is not (no position, no per-ability cooldown map, no minion/enemy roster -- only presence).
+    A live worksheet (`ws.foe_detail`) also carries the foe's kind and hp -- see `_foe_clause`."""
     return " ".join(
         [
             f"This is a {ws.team}-team bearbot playing {ws.instrument}, "
@@ -95,7 +105,7 @@ def state_paragraph(ws: Worksheet) -> str:
             _hp_clause(ws.hp),
             _wave_clause(ws.wave).capitalize() + ".",
             _tower_clause(ws.tower),
-            _foe_clause(ws.foe),
+            _foe_clause(ws),
             _cd_clause(ws.cd),
         ]
     )
@@ -108,7 +118,7 @@ def state_object(ws: Worksheet) -> dict:
     harness's second live run makes: does Jev do better with an explicit field than with English
     comparison words for the same numbers (Simon Willison's "not great with numbers" caveat, see
     module docstring)."""
-    return {
+    obj = {
         "team": ws.team,
         "instrument": ws.instrument,
         "tick": ws.tick,
@@ -121,3 +131,6 @@ def state_object(ws: Worksheet) -> dict:
         "cd": ws.cd,
         "cd_ready_threshold": 0,
     }
+    if ws.foe_detail:
+        obj.update({"foe_kind": ws.foe_kind, "foe_hp": ws.foe_hp, "foe_hp_ability_threshold": 100})
+    return obj

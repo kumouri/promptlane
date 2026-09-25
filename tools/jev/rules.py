@@ -47,6 +47,15 @@ the harness report, and in the per-question accuracy output; it is not silently 
 means predicted `ability` firings for violin/drums are expected to over-trigger relative to the true
 rule whenever the real foe was a minion, or a bearbot at or above 100 hp -- a known, explainable
 source of disagreement, not a harness bug.
+
+THE LIVE PATH IS EXACT (2026-09-25). A live match *does* know the foe's kind and hp
+(`Observation.visibleEnemies`), so `tools/match/jevPilot.ts::extractWorksheet` sends them and
+`house_server.py` builds a `Worksheet` with `foe_detail=True`. For such a worksheet, q3 asks
+house-violet.md's real rule 3 -- keytar: cd 0 and any foe; violin/drums: cd 0 and the foe is a
+bearbot under 100 hp -- and `rule3_ability_ready` evaluates the same exact condition. The offline
+harness never sets `foe_detail` (its logs cannot), so it keeps the approximation above, unchanged
+and still labelled -- its numbers stay comparable to `runs/jev-suitability-harness-2026-09-22.md`.
+Measured before/after: `runs/jev-jam-readiness-2026-09-25.md`.
 """
 from __future__ import annotations
 
@@ -68,7 +77,11 @@ class Worksheet:
     """The five worksheet fields house-violet.md's model self-reports before it decides
     (`"hp"`, `"wave"`, `"tower"`, `"foe"`, `"cd"`), plus the identity fields needed to build the
     state paragraph and pick the right q3 wording. `tower`/`foe` are the id string or `None`, since
-    presence -- not identity -- is all the seven rules ever test."""
+    presence -- not identity -- is all rules but rule 3 ever test.
+
+    `foe_detail` says whether `foe_kind`/`foe_hp` are real: `True` on the live path (a live
+    `Observation` has them), `False` offline (the logs never did). Only rule 3's violin/drums
+    variant reads them -- see the module docstring's LIVE PATH note."""
 
     hp: float
     wave: int
@@ -79,6 +92,9 @@ class Worksheet:
     team: str
     tick: int
     clock_sec: float
+    foe_detail: bool = False
+    foe_kind: str | None = None  # "bearbot" | "minion" | None (no foe)
+    foe_hp: float | None = None
 
 
 # --- rule predicates --------------------------------------------------------------------------
@@ -95,9 +111,14 @@ def rule2_tower_no_wave(ws: Worksheet) -> bool:
 
 
 def rule3_ability_ready(ws: Worksheet) -> bool:
-    """Reduced condition -- see the KNOWN APPROXIMATION note above. Evaluates the keytar variant
-    (`cd is 0 and foe is not null`) for every instrument."""
-    return ws.cd == 0 and ws.foe is not None
+    """house-violet.md's real rule 3 when the foe's kind/hp are known (`ws.foe_detail`, the live
+    path); otherwise the reduced condition from the KNOWN APPROXIMATION note above, which evaluates
+    the keytar variant (`cd is 0 and foe is not null`) for every instrument."""
+    if ws.cd != 0 or ws.foe is None:
+        return False
+    if ws.instrument == "keytar" or not ws.foe_detail:
+        return True
+    return ws.foe_kind == "bearbot" and ws.foe_hp is not None and ws.foe_hp < 100
 
 
 def rule4_foe_present(ws: Worksheet) -> bool:
@@ -125,22 +146,40 @@ class Question:
     ground_truth: "callable[[Worksheet], bool]"
 
 
-def question_set(instrument: Instrument) -> list[Question]:
+def question_set(instrument: Instrument, foe_detail: bool = False) -> list[Question]:
     """The six questions for one decision, in rule order. `instrument` only changes q3's wording
-    (to name the right ability and, honestly, to say what it can't check -- see the module
-    docstring); the reduced condition it evaluates is identical across instruments."""
+    (to name the right ability). `foe_detail` (the live path) makes q3 ask violin/drums' real
+    condition -- the foe is a bearbot under 100 hp; without it q3 asks the reduced condition and
+    says honestly what it can't check -- see the module docstring."""
     ability_name = {"keytar": "chord", "violin": "staccato", "drums": "kick"}[instrument]
-    q3_instructions = (
-        f"This bearbot plays {instrument}; its ability is called {ability_name!r}. Should it use "
-        f"{ability_name!r} right now because the ability is off cooldown and there is a foe to use "
-        "it on?"
-    )
-    if instrument != "keytar":
-        q3_instructions += (
-            " (The house prompt's real rule for this instrument also requires the foe to be a "
-            "bearbot under 100 hp; that detail is not available in this dataset, so judge only on "
-            "cooldown and foe presence.)"
+    q3_criteria = {
+        "true": "the ability is off cooldown (cd is 0) and a foe is present",
+        "false": "the ability is still cooling down, or no foe is present",
+    }
+    if instrument != "keytar" and foe_detail:
+        q3_instructions = (
+            f"This bearbot plays {instrument}; its ability is called {ability_name!r}. Should it use "
+            f"{ability_name!r} right now because the ability is off cooldown and the foe is an enemy "
+            "bearbot with less than 100 hp? (A minion foe, or a bearbot foe at 100 hp or more, does "
+            "not qualify.)"
         )
+        q3_criteria = {
+            "true": "cd is 0 and the foe is an enemy bearbot whose hp is below 100",
+            "false": "the ability is still cooling down, there is no foe, the foe is a minion, or the "
+            "foe bearbot has 100 hp or more",
+        }
+    else:
+        q3_instructions = (
+            f"This bearbot plays {instrument}; its ability is called {ability_name!r}. Should it use "
+            f"{ability_name!r} right now because the ability is off cooldown and there is a foe to use "
+            "it on?"
+        )
+        if instrument != "keytar":
+            q3_instructions += (
+                " (The house prompt's real rule for this instrument also requires the foe to be a "
+                "bearbot under 100 hp; that detail is not available in this dataset, so judge only on "
+                "cooldown and foe presence.)"
+            )
     return [
         Question(
             id="q1_low_hp_recall",
@@ -165,10 +204,7 @@ def question_set(instrument: Instrument) -> list[Question]:
             id="q3_ability_ready",
             rule_number=3,
             instructions=q3_instructions,
-            criteria={
-                "true": "the ability is off cooldown (cd is 0) and a foe is present",
-                "false": "the ability is still cooling down, or no foe is present",
-            },
+            criteria=q3_criteria,
             ground_truth=rule3_ability_ready,
         ),
         Question(
@@ -216,10 +252,11 @@ class BoundQuestion:
 
 
 def bind_questions(instrument: Instrument, ws: Worksheet) -> list[BoundQuestion]:
-    """`question_set(instrument)`, each question evaluated against `ws` for its ground truth."""
+    """`question_set(instrument, ws.foe_detail)`, each question evaluated against `ws` for its
+    ground truth."""
     return [
         BoundQuestion(q.id, q.rule_number, q.instructions, q.criteria, q.ground_truth(ws))
-        for q in question_set(instrument)
+        for q in question_set(instrument, ws.foe_detail)
     ]
 
 

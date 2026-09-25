@@ -127,5 +127,38 @@ class BindQuestionsTests(unittest.TestCase):
         self.assertNotIn("not available in this dataset", keytar_q3.instructions)
 
 
+class LiveRule3Tests(unittest.TestCase):
+    """The live path (`foe_detail=True`) evaluates house-violet.md's real rule 3."""
+
+    def live(self, **overrides):
+        return ws(foe_detail=True, **overrides)
+
+    def test_violin_drums_need_a_bearbot_under_100(self):
+        for inst in ("violin", "drums"):
+            self.assertTrue(R.rule3_ability_ready(self.live(instrument=inst, foe="bb-1", foe_kind="bearbot", foe_hp=99)))
+            self.assertFalse(R.rule3_ability_ready(self.live(instrument=inst, foe="bb-1", foe_kind="bearbot", foe_hp=100)))
+            self.assertFalse(R.rule3_ability_ready(self.live(instrument=inst, foe="mn-1", foe_kind="minion", foe_hp=10)))
+            self.assertFalse(R.rule3_ability_ready(self.live(instrument=inst, cd=1.0, foe="bb-1", foe_kind="bearbot", foe_hp=10)))
+
+    def test_keytar_fires_on_any_foe(self):
+        self.assertTrue(R.rule3_ability_ready(self.live(instrument="keytar", foe="mn-1", foe_kind="minion", foe_hp=300)))
+        self.assertFalse(R.rule3_ability_ready(self.live(instrument="keytar", foe=None)))
+
+    def test_offline_worksheet_keeps_the_approximation(self):
+        self.assertTrue(R.rule3_ability_ready(ws(instrument="violin", foe="mn-1")))
+
+    def test_live_q3_asks_the_real_condition(self):
+        q3 = next(q for q in R.bind_questions("drums", self.live(foe="bb-1", foe_kind="bearbot", foe_hp=80)) if q.id == "q3_ability_ready")
+        self.assertIn("less than 100 hp", q3.instructions)
+        self.assertNotIn("not available in this dataset", q3.instructions)
+        self.assertTrue(q3.ground_truth_value)
+        keytar_q3 = next(q for q in R.bind_questions("keytar", self.live()) if q.id == "q3_ability_ready")
+        self.assertNotIn("100 hp", keytar_q3.instructions)
+
+    def test_ground_truth_cascade_skips_ability_for_a_healthy_bearbot(self):
+        answers = R.ground_truth_answers(self.live(instrument="violin", foe="bb-1", foe_kind="bearbot", foe_hp=140))
+        self.assertEqual(R.bucket_for_rule(R.first_match(answers)), "attack_foe")
+
+
 if __name__ == "__main__":
     unittest.main()
