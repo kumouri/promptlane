@@ -33,7 +33,7 @@ from client import (  # noqa: E402
     WorkersAIClient,
     estimate_cost_usd,
     resolve_api_key,
-    resolve_workers_ai_token,
+    resolve_workers_ai_token_provider,
 )
 from serializer_team import state_paragraph  # noqa: E402
 from team_rules import Worksheet, bind_questions, bucket_for_rule, first_match  # noqa: E402
@@ -193,7 +193,7 @@ def make_client(args: argparse.Namespace):
         kwargs["model"] = args.model
     if args.backend == "typesafe":
         return SystemOneClient(resolve_api_key(), **kwargs)
-    return WorkersAIClient(resolve_workers_ai_token(), **kwargs)
+    return WorkersAIClient(resolve_workers_ai_token_provider(), **kwargs)
 
 
 def serve(backend: JevTeamBackend, model: str, host: str, port: int, verbose: bool = False) -> ThreadingHTTPServer:
