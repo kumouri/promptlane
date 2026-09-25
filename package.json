@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "match": "node tools/match/cli.mjs",
+    "compile": "python tools/jev/compile.py",
     "model-server": "python tools/model_server.py",
     "test:tools": "python -m unittest discover -s tools -p \"test_*.py\"",
     "arena": "node tools/arena/server.mjs",
