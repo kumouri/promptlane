@@ -1,0 +1,869 @@
+{
+ "version": 1,
+ "backend": "ollama:qwen3.5:9b",
+ "cap_tokens": 60000,
+ "usage": {
+  "calls": 11,
+  "prompt_tokens": 19485,
+  "completion_tokens": 8891,
+  "total_tokens": 28376,
+  "cost_usd": 0.0,
+  "seconds": 109.96,
+  "wall_seconds": 109.98
+ },
+ "prompts": [
+  {
+   "name": "prompts/pilots/drums.md",
+   "sha256": "7edc45a304cfbcb7a5fc2ba323c5cde2a58dd9100456d157ba7e5376ac197729",
+   "instruments": {
+    "drums": {
+     "instrument": "drums",
+     "ok": true,
+     "labels": "hand",
+     "schema": {
+      "pilot_file": "drums.md",
+      "instrument": "drums",
+      "rules": [
+       {
+        "id": "retreat_low_hp",
+        "condition": "is this bot's hp below a quarter of its max?",
+        "criteria_true": "hp is critically low (below 25%)",
+        "criteria_false": "hp is at or above 25%",
+        "action_kind": "recall",
+        "action_ability": null,
+        "action_target_selector": "home"
+       },
+       {
+        "id": "threatened_ally_engage",
+        "condition": "is an enemy bearbot within melee range of an ally?",
+        "criteria_true": "an enemy is threatening an ally",
+        "criteria_false": "no enemy is threatening an ally",
+        "action_kind": "attack",
+        "action_ability": null,
+        "action_target_selector": "threatened_ally_enemy"
+       },
+       {
+        "id": "nearest_enemy_engage",
+        "condition": "is an enemy bearbot within melee range?",
+        "criteria_true": "an enemy bearbot is close enough to touch",
+        "criteria_false": "no enemy bearbot is in melee range",
+        "action_kind": "ability",
+        "action_ability": "kick",
+        "action_target_selector": "nearest_enemy"
+       },
+       {
+        "id": "aoe_fill_trigger",
+        "condition": "are multiple enemy bearbots bunched up near this bot?",
+        "criteria_true": "multiple enemies are clustered nearby",
+        "criteria_false": "only one or no enemies are clustered",
+        "action_kind": "ability",
+        "action_ability": "fill",
+        "action_target_selector": "densest_cluster_enemy"
+       },
+       {
+        "id": "attack_nearest_bearbot",
+        "condition": "is an enemy bearbot visible and within attack range?",
+        "criteria_true": "a single enemy bearbot is in range",
+        "criteria_false": "no single enemy bearbot is in range",
+        "action_kind": "attack",
+        "action_ability": null,
+        "action_target_selector": "nearest_enemy"
+       },
+       {
+        "id": "attack_minion",
+        "condition": "is an allied minion within attack range?",
+        "criteria_true": "an allied minion is in range",
+        "criteria_false": "no allied minion is in range",
+        "action_kind": "attack",
+        "action_ability": null,
+        "action_target_selector": "nearby_minion"
+       },
+       {
+        "id": "push_lane_default",
+        "condition": "is a fight currently active?",
+        "criteria_true": "a fight has started",
+        "criteria_false": "no fight is active",
+        "action_kind": "move",
+        "action_ability": null,
+        "action_target_selector": "push_lane"
+       }
+      ],
+      "default_action": {
+       "kind": "move",
+       "ability": null,
+       "target_selector": "push_lane"
+      },
+      "validation_notes": []
+     },
+     "markdown": "# Transparency report: `drums.md` -> Jev decision schema (drums)\n\nRules are checked in order; the first one whose condition is true fires. Every rule below shows what it will literally ask Jev, which words in your prose it came from, and why it fires where it does. The **Dropped** section at the end lists everything from your prose that did *not* become a rule, and why.\n\n## Quick view\n\n| # | Branch | Condition | Then |\n|---|---|---|---|\n| 1 | \u2014 | is this bot's hp below a quarter of its max? | **recall** home |\n| 2 | \u2014 | is an enemy bearbot within melee range of an ally? | **attack** targeting: the enemy nearest to this bearbot's own lowest-hp ally |\n| 3 | \u2014 | is an enemy bearbot within melee range? | use **kick** targeting: the visible enemy (any kind) closest to this bearbot |\n| 4 | \u2014 | are multiple enemy bearbots bunched up near this bot? | use **fill** targeting: the visible enemy with the most other enemies near it (an AoE target) |\n| 5 | \u2014 | is an enemy bearbot visible and within attack range? | **attack** targeting: the visible enemy (any kind) closest to this bearbot |\n| 6 | \u2014 | is an allied minion within attack range? | **attack** targeting: the nearest allied minion in the wave (for riding/positioning with it) |\n| 7 | \u2014 | is a fight currently active? | **move** targeting: move toward the enemy nexus, i.e. advance down the lane |\n| \u2014 | \u2014 | *(none of the above \u2014 root default)* | **move** targeting: move toward the enemy nexus, i.e. advance down the lane |\n\n## Rule detail\n\n### 1. `retreat_low_hp` \u2014 is this bot's hp below a quarter of its max?\n\n- **Then:** **recall** home\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is this bot's hp below a quarter of its max?\" -- yes means hp is critically low (below 25%); no means hp is at or above 25%.\n- **Order:** checked first (position 1 of 7) -- this is the order the translator produced.\n- **From your prose:** \u26a0 no strong match found in the prose for this rule (fewer than 2 shared meaningful words with any `rule`-labeled sentence) -- the translator may have synthesized or reworded it more than this matching method can trace.\n\n### 2. `threatened_ally_engage` \u2014 is an enemy bearbot within melee range of an ally?\n\n- **Then:** **attack** targeting: the enemy nearest to this bearbot's own lowest-hp ally\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is an enemy bearbot within melee range of an ally?\" -- yes means an enemy is threatening an ally; no means no enemy is threatening an ally.\n- **Order:** checked at position 2 of 7, only if every rule above it (1..1) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > When an enemy gets close to an ally, that enemy is now your problem.\n  > Attack whatever's nearest and threatening an ally first, the nearest enemy bearbot second, minions last.\n\n### 3. `nearest_enemy_engage` \u2014 is an enemy bearbot within melee range?\n\n- **Then:** use **kick** targeting: the visible enemy (any kind) closest to this bearbot\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is an enemy bearbot within melee range?\" -- yes means an enemy bearbot is close enough to touch; no means no enemy bearbot is in melee range.\n- **Order:** checked at position 3 of 7, only if every rule above it (1..2) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Kick (taunt/knockback, short range) is your favorite word. Use it the instant an enemy bearbot is close enough to touch \u2014 on cooldown, always, no hesitation, no overthinking.\n\n### 4. `aoe_fill_trigger` \u2014 are multiple enemy bearbots bunched up near this bot?\n\n- **Then:** use **fill** targeting: the visible enemy with the most other enemies near it (an AoE target)\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"are multiple enemy bearbots bunched up near this bot?\" -- yes means multiple enemies are clustered nearby; no means only one or no enemies are clustered.\n- **Order:** checked at position 4 of 7, only if every rule above it (1..3) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Fill (AoE slow) is for when more than one of them is bunched up near you; drop it under their feet, not yours.\n\n### 5. `attack_nearest_bearbot` \u2014 is an enemy bearbot visible and within attack range?\n\n- **Then:** **attack** targeting: the visible enemy (any kind) closest to this bearbot\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is an enemy bearbot visible and within attack range?\" -- yes means a single enemy bearbot is in range; no means no single enemy bearbot is in range.\n- **Order:** checked at position 5 of 7, only if every rule above it (1..4) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:** \u26a0 no strong match found in the prose for this rule (fewer than 2 shared meaningful words with any `rule`-labeled sentence) -- the translator may have synthesized or reworded it more than this matching method can trace.\n\n### 6. `attack_minion` \u2014 is an allied minion within attack range?\n\n- **Then:** **attack** targeting: the nearest allied minion in the wave (for riding/positioning with it)\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is an allied minion within attack range?\" -- yes means an allied minion is in range; no means no allied minion is in range.\n- **Order:** checked at position 6 of 7, only if every rule above it (1..5) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:** \u26a0 no strong match found in the prose for this rule (fewer than 2 shared meaningful words with any `rule`-labeled sentence) -- the translator may have synthesized or reworded it more than this matching method can trace.\n\n### 7. `push_lane_default` \u2014 is a fight currently active?\n\n- **Then:** **move** targeting: move toward the enemy nexus, i.e. advance down the lane\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is a fight currently active?\" -- yes means a fight has started; no means no fight is active.\n- **Order:** checked at position 7 of 7, only if every rule above it (1..6) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Push the lane. march toward the enemy nexus alongside your minions unless a fight has started \u2014 then the fight is the lane.\n\n## Dropped \u2014 what did NOT become a rule\n\n### Looked like a rule, but no translated rule traces back to it \u2014 check this by hand\n\nthis reads like a bounded rule (a threshold, a presence check, or a target selection) but no translated rule's wording overlaps with it enough to trace back to it -- either the translator merged it into another rule's condition without it showing here, or it was dropped outright. Worth checking by hand.\n\n> Retreat only when you're really hurt \u2014 below a quarter health \u2014\n\n### Advisory prose Jev's question types structurally can't take\n\ndecision-relevant prose that doesn't reduce to a condition on state or a bounded choice (patience/urgency framing, unthresholded resource judgment, continuous positioning with no discrete trigger) -- Jev's noul/choice/score questions have no free-text 'use your judgment' type, so this content structurally cannot become a rule.\n\n> Walk in front. Take the hits meant for someone else.\n\n### Voice / tone \u2014 no decision content\n\nidentity, tone, or in-character justification -- zero decision content. Removing it would not change what action the bot picks; it's the entrant's voice, not their strategy.\n\n> You are a bearbot on the drums. You are the beat everyone else plays over \u2014 if you drop out, the whole band falls apart. You are slow and you are heavy and that is the point.\n> Your job is not to win the fight. Your job is to BE the fight, so your squishier allies don't have to be.\n> because your whole reason for existing is to be the thing that's still standing when the smoke clears. A drummer who recalls too early let the band down.\n\n",
+     "dropped": [
+      {
+       "label": "voice",
+       "text": "You are a bearbot on the drums. You are the beat everyone else plays over \u2014 if you drop out, the\nwhole band falls apart. You are slow and you are heavy and that is the point."
+      },
+      {
+       "label": "voice",
+       "text": "Your job is not to win the fight. Your job is to BE the fight, so your squishier allies don't have\nto be."
+      },
+      {
+       "label": "open_strategy",
+       "text": "Walk in front. Take the hits meant for someone else."
+      },
+      {
+       "label": "unclaimed_rule",
+       "text": "Retreat only when you're really hurt \u2014 below a quarter health \u2014"
+      },
+      {
+       "label": "voice",
+       "text": "because your whole reason for\nexisting is to be the thing that's still standing when the smoke clears. A drummer who recalls too\nearly let the band down."
+      }
+     ],
+     "unmatched_rules": [
+      "retreat_low_hp",
+      "attack_nearest_bearbot",
+      "attack_minion"
+     ]
+    },
+    "keytar": {
+     "instrument": "keytar",
+     "ok": true,
+     "labels": "hand",
+     "schema": {
+      "pilot_file": "drums.md",
+      "instrument": "keytar",
+      "rules": [
+       {
+        "id": "retreat_low_hp",
+        "condition": "is this bot's hp below a quarter of its max?",
+        "criteria_true": "hp is critically low (<25%)",
+        "criteria_false": "hp is healthy or moderate",
+        "action_kind": "recall",
+        "action_ability": null,
+        "action_target_selector": "home"
+       },
+       {
+        "id": "engage_threatened_ally",
+        "condition": "is there an enemy bearbot within melee range of an ally?",
+        "criteria_true": "an enemy is threatening a low-hp ally",
+        "criteria_false": "no immediate threat to allies",
+        "action_kind": "attack",
+        "action_ability": null,
+        "action_target_selector": "threatened_ally_enemy"
+       },
+       {
+        "id": "engage_nearest_bearbot",
+        "condition": "is there an enemy bearbot within melee range?",
+        "criteria_true": "an enemy bearbot is close enough to fight",
+        "criteria_false": "no enemy bearbot in melee range",
+        "action_kind": "attack",
+        "action_ability": null,
+        "action_target_selector": "nearest_enemy"
+       },
+       {
+        "id": "use_kick_taunt",
+        "condition": "is the kick ability off cooldown?",
+        "criteria_true": "kick is ready to use",
+        "criteria_false": "kick is on cooldown",
+        "action_kind": "ability",
+        "action_ability": "chord",
+        "action_target_selector": "nearest_enemy"
+       },
+       {
+        "id": "use_fill_slow",
+        "condition": "are multiple enemy bearbots bunched up near this bot?",
+        "criteria_true": "multiple enemies are clustered nearby",
+        "criteria_false": "enemies are spread out or single",
+        "action_kind": "ability",
+        "action_ability": "chord",
+        "action_target_selector": "densest_cluster_enemy"
+       },
+       {
+        "id": "use_glissando_ultimate",
+        "condition": "is the glissando ability off cooldown?",
+        "criteria_true": "glissando is ready to use",
+        "criteria_false": "glissando is on cooldown",
+        "action_kind": "ability",
+        "action_ability": "glissando",
+        "action_target_selector": "nearest_enemy"
+       },
+       {
+        "id": "push_lane_default",
+        "condition": "is a fight currently active?",
+        "criteria_true": "a fight has started",
+        "criteria_false": "no fight is active, safe to advance",
+        "action_kind": "move",
+        "action_ability": null,
+        "action_target_selector": "push_lane"
+       }
+      ],
+      "default_action": {
+       "kind": "move",
+       "ability": null,
+       "target_selector": "push_lane"
+      },
+      "validation_notes": []
+     },
+     "markdown": "# Transparency report: `drums.md` -> Jev decision schema (keytar)\n\nRules are checked in order; the first one whose condition is true fires. Every rule below shows what it will literally ask Jev, which words in your prose it came from, and why it fires where it does. The **Dropped** section at the end lists everything from your prose that did *not* become a rule, and why.\n\n## Quick view\n\n| # | Branch | Condition | Then |\n|---|---|---|---|\n| 1 | \u2014 | is this bot's hp below a quarter of its max? | **recall** home |\n| 2 | \u2014 | is there an enemy bearbot within melee range of an ally? | **attack** targeting: the enemy nearest to this bearbot's own lowest-hp ally |\n| 3 | \u2014 | is there an enemy bearbot within melee range? | **attack** targeting: the visible enemy (any kind) closest to this bearbot |\n| 4 | \u2014 | is the kick ability off cooldown? | use **chord** targeting: the visible enemy (any kind) closest to this bearbot |\n| 5 | \u2014 | are multiple enemy bearbots bunched up near this bot? | use **chord** targeting: the visible enemy with the most other enemies near it (an AoE target) |\n| 6 | \u2014 | is the glissando ability off cooldown? | use **glissando** targeting: the visible enemy (any kind) closest to this bearbot |\n| 7 | \u2014 | is a fight currently active? | **move** targeting: move toward the enemy nexus, i.e. advance down the lane |\n| \u2014 | \u2014 | *(none of the above \u2014 root default)* | **move** targeting: move toward the enemy nexus, i.e. advance down the lane |\n\n## Rule detail\n\n### 1. `retreat_low_hp` \u2014 is this bot's hp below a quarter of its max?\n\n- **Then:** **recall** home\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is this bot's hp below a quarter of its max?\" -- yes means hp is critically low (<25%); no means hp is healthy or moderate.\n- **Order:** checked first (position 1 of 7) -- this is the order the translator produced.\n- **From your prose:** \u26a0 no strong match found in the prose for this rule (fewer than 2 shared meaningful words with any `rule`-labeled sentence) -- the translator may have synthesized or reworded it more than this matching method can trace.\n\n### 2. `engage_threatened_ally` \u2014 is there an enemy bearbot within melee range of an ally?\n\n- **Then:** **attack** targeting: the enemy nearest to this bearbot's own lowest-hp ally\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is there an enemy bearbot within melee range of an ally?\" -- yes means an enemy is threatening a low-hp ally; no means no immediate threat to allies.\n- **Order:** checked at position 2 of 7, only if every rule above it (1..1) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > When an enemy gets close to an ally, that enemy is now your problem.\n  > Attack whatever's nearest and threatening an ally first, the nearest enemy bearbot second, minions last.\n\n### 3. `engage_nearest_bearbot` \u2014 is there an enemy bearbot within melee range?\n\n- **Then:** **attack** targeting: the visible enemy (any kind) closest to this bearbot\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is there an enemy bearbot within melee range?\" -- yes means an enemy bearbot is close enough to fight; no means no enemy bearbot in melee range.\n- **Order:** checked at position 3 of 7, only if every rule above it (1..2) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Kick (taunt/knockback, short range) is your favorite word. Use it the instant an enemy bearbot is close enough to touch \u2014 on cooldown, always, no hesitation, no overthinking.\n\n### 4. `use_kick_taunt` \u2014 is the kick ability off cooldown?\n\n- **Then:** use **chord** targeting: the visible enemy (any kind) closest to this bearbot\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is the kick ability off cooldown?\" -- yes means kick is ready to use; no means kick is on cooldown.\n- **Order:** checked at position 4 of 7, only if every rule above it (1..3) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:** \u26a0 no strong match found in the prose for this rule (fewer than 2 shared meaningful words with any `rule`-labeled sentence) -- the translator may have synthesized or reworded it more than this matching method can trace.\n\n### 5. `use_fill_slow` \u2014 are multiple enemy bearbots bunched up near this bot?\n\n- **Then:** use **chord** targeting: the visible enemy with the most other enemies near it (an AoE target)\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"are multiple enemy bearbots bunched up near this bot?\" -- yes means multiple enemies are clustered nearby; no means enemies are spread out or single.\n- **Order:** checked at position 5 of 7, only if every rule above it (1..4) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:** \u26a0 no strong match found in the prose for this rule (fewer than 2 shared meaningful words with any `rule`-labeled sentence) -- the translator may have synthesized or reworded it more than this matching method can trace.\n\n### 6. `use_glissando_ultimate` \u2014 is the glissando ability off cooldown?\n\n- **Then:** use **glissando** targeting: the visible enemy (any kind) closest to this bearbot\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is the glissando ability off cooldown?\" -- yes means glissando is ready to use; no means glissando is on cooldown.\n- **Order:** checked at position 6 of 7, only if every rule above it (1..5) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:** \u26a0 no strong match found in the prose for this rule (fewer than 2 shared meaningful words with any `rule`-labeled sentence) -- the translator may have synthesized or reworded it more than this matching method can trace.\n\n### 7. `push_lane_default` \u2014 is a fight currently active?\n\n- **Then:** **move** targeting: move toward the enemy nexus, i.e. advance down the lane\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is a fight currently active?\" -- yes means a fight has started; no means no fight is active, safe to advance.\n- **Order:** checked at position 7 of 7, only if every rule above it (1..6) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Push the lane. march toward the enemy nexus alongside your minions unless a fight has started \u2014 then the fight is the lane.\n\n## Dropped \u2014 what did NOT become a rule\n\n### Looked like a rule, but no translated rule traces back to it \u2014 check this by hand\n\nthis reads like a bounded rule (a threshold, a presence check, or a target selection) but no translated rule's wording overlaps with it enough to trace back to it -- either the translator merged it into another rule's condition without it showing here, or it was dropped outright. Worth checking by hand.\n\n> Fill (AoE slow) is for when more than one of them is bunched up near you; drop it under their feet, not yours.\n> Retreat only when you're really hurt \u2014 below a quarter health \u2014\n\n### Advisory prose Jev's question types structurally can't take\n\ndecision-relevant prose that doesn't reduce to a condition on state or a bounded choice (patience/urgency framing, unthresholded resource judgment, continuous positioning with no discrete trigger) -- Jev's noul/choice/score questions have no free-text 'use your judgment' type, so this content structurally cannot become a rule.\n\n> Walk in front. Take the hits meant for someone else.\n\n### Voice / tone \u2014 no decision content\n\nidentity, tone, or in-character justification -- zero decision content. Removing it would not change what action the bot picks; it's the entrant's voice, not their strategy.\n\n> You are a bearbot on the drums. You are the beat everyone else plays over \u2014 if you drop out, the whole band falls apart. You are slow and you are heavy and that is the point.\n> Your job is not to win the fight. Your job is to BE the fight, so your squishier allies don't have to be.\n> because your whole reason for existing is to be the thing that's still standing when the smoke clears. A drummer who recalls too early let the band down.\n\n",
+     "dropped": [
+      {
+       "label": "voice",
+       "text": "You are a bearbot on the drums. You are the beat everyone else plays over \u2014 if you drop out, the\nwhole band falls apart. You are slow and you are heavy and that is the point."
+      },
+      {
+       "label": "voice",
+       "text": "Your job is not to win the fight. Your job is to BE the fight, so your squishier allies don't have\nto be."
+      },
+      {
+       "label": "open_strategy",
+       "text": "Walk in front. Take the hits meant for someone else."
+      },
+      {
+       "label": "unclaimed_rule",
+       "text": "Fill (AoE slow) is\nfor when more than one of them is bunched up near you; drop it under their feet, not yours."
+      },
+      {
+       "label": "unclaimed_rule",
+       "text": "Retreat only when you're really hurt \u2014 below a quarter health \u2014"
+      },
+      {
+       "label": "voice",
+       "text": "because your whole reason for\nexisting is to be the thing that's still standing when the smoke clears. A drummer who recalls too\nearly let the band down."
+      }
+     ],
+     "unmatched_rules": [
+      "retreat_low_hp",
+      "use_kick_taunt",
+      "use_fill_slow",
+      "use_glissando_ultimate"
+     ]
+    },
+    "violin": {
+     "instrument": "violin",
+     "ok": true,
+     "labels": "hand",
+     "schema": {
+      "pilot_file": "drums.md",
+      "instrument": "violin",
+      "rules": [
+       {
+        "id": "retreat_low_hp",
+        "condition": "is this bot's hp below a quarter of its max?",
+        "criteria_true": "bot is critically injured (below 25% HP)",
+        "criteria_false": "bot has sufficient health",
+        "action_kind": "recall",
+        "action_ability": null,
+        "action_target_selector": "home"
+       },
+       {
+        "id": "engage_threatened_ally",
+        "condition": "is there an enemy bearbot threatening a low-hp ally?",
+        "criteria_true": "an enemy is near an ally with low health",
+        "criteria_false": "no ally is currently threatened",
+        "action_kind": "attack",
+        "action_ability": null,
+        "action_target_selector": "threatened_ally_enemy"
+       },
+       {
+        "id": "engage_nearest_bearbot",
+        "condition": "is there an enemy bearbot within melee range?",
+        "criteria_true": "an enemy bearbot is close enough to touch",
+        "criteria_false": "no enemy bearbot is in melee range",
+        "action_kind": "ability",
+        "action_ability": "staccato",
+        "action_target_selector": "nearest_enemy"
+       },
+       {
+        "id": "aoe_fill_bunched_enemies",
+        "condition": "are multiple enemy bearbots bunched up near this bot?",
+        "criteria_true": "more than one enemy is clustered nearby",
+        "criteria_false": "enemies are spread out or single",
+        "action_kind": "ability",
+        "action_ability": "solo",
+        "action_target_selector": "densest_cluster_enemy"
+       },
+       {
+        "id": "attack_nearest_enemy",
+        "condition": "is there any visible enemy bearbot?",
+        "criteria_true": "at least one enemy bearbot is visible",
+        "criteria_false": "no enemy bearbots are visible",
+        "action_kind": "attack",
+        "action_ability": null,
+        "action_target_selector": "nearest_enemy"
+       },
+       {
+        "id": "move_push_lane",
+        "condition": "is there no active fight involving this bot?",
+        "criteria_true": "no fight has started or is ongoing for this bot",
+        "criteria_false": "a fight is currently happening",
+        "action_kind": "move",
+        "action_ability": null,
+        "action_target_selector": "push_lane"
+       }
+      ],
+      "default_action": {
+       "kind": "move",
+       "ability": null,
+       "target_selector": "push_lane"
+      },
+      "validation_notes": []
+     },
+     "markdown": "# Transparency report: `drums.md` -> Jev decision schema (violin)\n\nRules are checked in order; the first one whose condition is true fires. Every rule below shows what it will literally ask Jev, which words in your prose it came from, and why it fires where it does. The **Dropped** section at the end lists everything from your prose that did *not* become a rule, and why.\n\n## Quick view\n\n| # | Branch | Condition | Then |\n|---|---|---|---|\n| 1 | \u2014 | is this bot's hp below a quarter of its max? | **recall** home |\n| 2 | \u2014 | is there an enemy bearbot threatening a low-hp ally? | **attack** targeting: the enemy nearest to this bearbot's own lowest-hp ally |\n| 3 | \u2014 | is there an enemy bearbot within melee range? | use **staccato** targeting: the visible enemy (any kind) closest to this bearbot |\n| 4 | \u2014 | are multiple enemy bearbots bunched up near this bot? | use **solo** targeting: the visible enemy with the most other enemies near it (an AoE target) |\n| 5 | \u2014 | is there any visible enemy bearbot? | **attack** targeting: the visible enemy (any kind) closest to this bearbot |\n| 6 | \u2014 | is there no active fight involving this bot? | **move** targeting: move toward the enemy nexus, i.e. advance down the lane |\n| \u2014 | \u2014 | *(none of the above \u2014 root default)* | **move** targeting: move toward the enemy nexus, i.e. advance down the lane |\n\n## Rule detail\n\n### 1. `retreat_low_hp` \u2014 is this bot's hp below a quarter of its max?\n\n- **Then:** **recall** home\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is this bot's hp below a quarter of its max?\" -- yes means bot is critically injured (below 25% HP); no means bot has sufficient health.\n- **Order:** checked first (position 1 of 6) -- this is the order the translator produced.\n- **From your prose:**\n  > Retreat only when you're really hurt \u2014 below a quarter health \u2014\n\n### 2. `engage_threatened_ally` \u2014 is there an enemy bearbot threatening a low-hp ally?\n\n- **Then:** **attack** targeting: the enemy nearest to this bearbot's own lowest-hp ally\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is there an enemy bearbot threatening a low-hp ally?\" -- yes means an enemy is near an ally with low health; no means no ally is currently threatened.\n- **Order:** checked at position 2 of 6, only if every rule above it (1..1) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > When an enemy gets close to an ally, that enemy is now your problem.\n  > Attack whatever's nearest and threatening an ally first, the nearest enemy bearbot second, minions last.\n\n### 3. `engage_nearest_bearbot` \u2014 is there an enemy bearbot within melee range?\n\n- **Then:** use **staccato** targeting: the visible enemy (any kind) closest to this bearbot\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is there an enemy bearbot within melee range?\" -- yes means an enemy bearbot is close enough to touch; no means no enemy bearbot is in melee range.\n- **Order:** checked at position 3 of 6, only if every rule above it (1..2) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Kick (taunt/knockback, short range) is your favorite word. Use it the instant an enemy bearbot is close enough to touch \u2014 on cooldown, always, no hesitation, no overthinking.\n\n### 4. `aoe_fill_bunched_enemies` \u2014 are multiple enemy bearbots bunched up near this bot?\n\n- **Then:** use **solo** targeting: the visible enemy with the most other enemies near it (an AoE target)\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"are multiple enemy bearbots bunched up near this bot?\" -- yes means more than one enemy is clustered nearby; no means enemies are spread out or single.\n- **Order:** checked at position 4 of 6, only if every rule above it (1..3) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Fill (AoE slow) is for when more than one of them is bunched up near you; drop it under their feet, not yours.\n\n### 5. `attack_nearest_enemy` \u2014 is there any visible enemy bearbot?\n\n- **Then:** **attack** targeting: the visible enemy (any kind) closest to this bearbot\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is there any visible enemy bearbot?\" -- yes means at least one enemy bearbot is visible; no means no enemy bearbots are visible.\n- **Order:** checked at position 5 of 6, only if every rule above it (1..4) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:** \u26a0 no strong match found in the prose for this rule (fewer than 2 shared meaningful words with any `rule`-labeled sentence) -- the translator may have synthesized or reworded it more than this matching method can trace.\n\n### 6. `move_push_lane` \u2014 is there no active fight involving this bot?\n\n- **Then:** **move** targeting: move toward the enemy nexus, i.e. advance down the lane\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is there no active fight involving this bot?\" -- yes means no fight has started or is ongoing for this bot; no means a fight is currently happening.\n- **Order:** checked at position 6 of 6, only if every rule above it (1..5) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Push the lane. march toward the enemy nexus alongside your minions unless a fight has started \u2014 then the fight is the lane.\n\n## Dropped \u2014 what did NOT become a rule\n\n### Advisory prose Jev's question types structurally can't take\n\ndecision-relevant prose that doesn't reduce to a condition on state or a bounded choice (patience/urgency framing, unthresholded resource judgment, continuous positioning with no discrete trigger) -- Jev's noul/choice/score questions have no free-text 'use your judgment' type, so this content structurally cannot become a rule.\n\n> Walk in front. Take the hits meant for someone else.\n\n### Voice / tone \u2014 no decision content\n\nidentity, tone, or in-character justification -- zero decision content. Removing it would not change what action the bot picks; it's the entrant's voice, not their strategy.\n\n> You are a bearbot on the drums. You are the beat everyone else plays over \u2014 if you drop out, the whole band falls apart. You are slow and you are heavy and that is the point.\n> Your job is not to win the fight. Your job is to BE the fight, so your squishier allies don't have to be.\n> because your whole reason for existing is to be the thing that's still standing when the smoke clears. A drummer who recalls too early let the band down.\n\n",
+     "dropped": [
+      {
+       "label": "voice",
+       "text": "You are a bearbot on the drums. You are the beat everyone else plays over \u2014 if you drop out, the\nwhole band falls apart. You are slow and you are heavy and that is the point."
+      },
+      {
+       "label": "voice",
+       "text": "Your job is not to win the fight. Your job is to BE the fight, so your squishier allies don't have\nto be."
+      },
+      {
+       "label": "open_strategy",
+       "text": "Walk in front. Take the hits meant for someone else."
+      },
+      {
+       "label": "voice",
+       "text": "because your whole reason for\nexisting is to be the thing that's still standing when the smoke clears. A drummer who recalls too\nearly let the band down."
+      }
+     ],
+     "unmatched_rules": [
+      "attack_nearest_enemy"
+     ]
+    }
+   },
+   "markdown": "# Jev compile preview: `prompts/pilots/drums.md`\n\nCompiled by promptlane's prose-to-schema translator with `ollama:qwen3.5:9b` -- 11 model call(s), 28,376 tokens of a 60,000-token cap, $0.0000, 110.0 s.\n\nAt the jam your prose is not run by a chat model: it is compiled once into the rule cascade below, and Jev answers each rule's yes/no question every decision. Translation is sampled, so compiling the same prose twice can differ a little -- wording that compiles the same way every time is wording that will play the way you meant.\n\nOne prompt drives all three of your bearbots, so each instrument is compiled separately.\n\n- **drums**: 7 rules -- \u26a0 3 rule(s) with no clear source sentence; 1 rule-like sentence(s) that compiled to nothing\n- **keytar**: 7 rules -- \u26a0 4 rule(s) with no clear source sentence; 2 rule-like sentence(s) that compiled to nothing\n- **violin**: 6 rules -- \u26a0 1 rule(s) with no clear source sentence\n\n---\n\n# Transparency report: `drums.md` -> Jev decision schema (drums)\n\nRules are checked in order; the first one whose condition is true fires. Every rule below shows what it will literally ask Jev, which words in your prose it came from, and why it fires where it does. The **Dropped** section at the end lists everything from your prose that did *not* become a rule, and why.\n\n## Quick view\n\n| # | Branch | Condition | Then |\n|---|---|---|---|\n| 1 | \u2014 | is this bot's hp below a quarter of its max? | **recall** home |\n| 2 | \u2014 | is an enemy bearbot within melee range of an ally? | **attack** targeting: the enemy nearest to this bearbot's own lowest-hp ally |\n| 3 | \u2014 | is an enemy bearbot within melee range? | use **kick** targeting: the visible enemy (any kind) closest to this bearbot |\n| 4 | \u2014 | are multiple enemy bearbots bunched up near this bot? | use **fill** targeting: the visible enemy with the most other enemies near it (an AoE target) |\n| 5 | \u2014 | is an enemy bearbot visible and within attack range? | **attack** targeting: the visible enemy (any kind) closest to this bearbot |\n| 6 | \u2014 | is an allied minion within attack range? | **attack** targeting: the nearest allied minion in the wave (for riding/positioning with it) |\n| 7 | \u2014 | is a fight currently active? | **move** targeting: move toward the enemy nexus, i.e. advance down the lane |\n| \u2014 | \u2014 | *(none of the above \u2014 root default)* | **move** targeting: move toward the enemy nexus, i.e. advance down the lane |\n\n## Rule detail\n\n### 1. `retreat_low_hp` \u2014 is this bot's hp below a quarter of its max?\n\n- **Then:** **recall** home\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is this bot's hp below a quarter of its max?\" -- yes means hp is critically low (below 25%); no means hp is at or above 25%.\n- **Order:** checked first (position 1 of 7) -- this is the order the translator produced.\n- **From your prose:** \u26a0 no strong match found in the prose for this rule (fewer than 2 shared meaningful words with any `rule`-labeled sentence) -- the translator may have synthesized or reworded it more than this matching method can trace.\n\n### 2. `threatened_ally_engage` \u2014 is an enemy bearbot within melee range of an ally?\n\n- **Then:** **attack** targeting: the enemy nearest to this bearbot's own lowest-hp ally\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is an enemy bearbot within melee range of an ally?\" -- yes means an enemy is threatening an ally; no means no enemy is threatening an ally.\n- **Order:** checked at position 2 of 7, only if every rule above it (1..1) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > When an enemy gets close to an ally, that enemy is now your problem.\n  > Attack whatever's nearest and threatening an ally first, the nearest enemy bearbot second, minions last.\n\n### 3. `nearest_enemy_engage` \u2014 is an enemy bearbot within melee range?\n\n- **Then:** use **kick** targeting: the visible enemy (any kind) closest to this bearbot\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is an enemy bearbot within melee range?\" -- yes means an enemy bearbot is close enough to touch; no means no enemy bearbot is in melee range.\n- **Order:** checked at position 3 of 7, only if every rule above it (1..2) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Kick (taunt/knockback, short range) is your favorite word. Use it the instant an enemy bearbot is close enough to touch \u2014 on cooldown, always, no hesitation, no overthinking.\n\n### 4. `aoe_fill_trigger` \u2014 are multiple enemy bearbots bunched up near this bot?\n\n- **Then:** use **fill** targeting: the visible enemy with the most other enemies near it (an AoE target)\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"are multiple enemy bearbots bunched up near this bot?\" -- yes means multiple enemies are clustered nearby; no means only one or no enemies are clustered.\n- **Order:** checked at position 4 of 7, only if every rule above it (1..3) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Fill (AoE slow) is for when more than one of them is bunched up near you; drop it under their feet, not yours.\n\n### 5. `attack_nearest_bearbot` \u2014 is an enemy bearbot visible and within attack range?\n\n- **Then:** **attack** targeting: the visible enemy (any kind) closest to this bearbot\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is an enemy bearbot visible and within attack range?\" -- yes means a single enemy bearbot is in range; no means no single enemy bearbot is in range.\n- **Order:** checked at position 5 of 7, only if every rule above it (1..4) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:** \u26a0 no strong match found in the prose for this rule (fewer than 2 shared meaningful words with any `rule`-labeled sentence) -- the translator may have synthesized or reworded it more than this matching method can trace.\n\n### 6. `attack_minion` \u2014 is an allied minion within attack range?\n\n- **Then:** **attack** targeting: the nearest allied minion in the wave (for riding/positioning with it)\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is an allied minion within attack range?\" -- yes means an allied minion is in range; no means no allied minion is in range.\n- **Order:** checked at position 6 of 7, only if every rule above it (1..5) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:** \u26a0 no strong match found in the prose for this rule (fewer than 2 shared meaningful words with any `rule`-labeled sentence) -- the translator may have synthesized or reworded it more than this matching method can trace.\n\n### 7. `push_lane_default` \u2014 is a fight currently active?\n\n- **Then:** **move** targeting: move toward the enemy nexus, i.e. advance down the lane\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is a fight currently active?\" -- yes means a fight has started; no means no fight is active.\n- **Order:** checked at position 7 of 7, only if every rule above it (1..6) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Push the lane. march toward the enemy nexus alongside your minions unless a fight has started \u2014 then the fight is the lane.\n\n## Dropped \u2014 what did NOT become a rule\n\n### Looked like a rule, but no translated rule traces back to it \u2014 check this by hand\n\nthis reads like a bounded rule (a threshold, a presence check, or a target selection) but no translated rule's wording overlaps with it enough to trace back to it -- either the translator merged it into another rule's condition without it showing here, or it was dropped outright. Worth checking by hand.\n\n> Retreat only when you're really hurt \u2014 below a quarter health \u2014\n\n### Advisory prose Jev's question types structurally can't take\n\ndecision-relevant prose that doesn't reduce to a condition on state or a bounded choice (patience/urgency framing, unthresholded resource judgment, continuous positioning with no discrete trigger) -- Jev's noul/choice/score questions have no free-text 'use your judgment' type, so this content structurally cannot become a rule.\n\n> Walk in front. Take the hits meant for someone else.\n\n### Voice / tone \u2014 no decision content\n\nidentity, tone, or in-character justification -- zero decision content. Removing it would not change what action the bot picks; it's the entrant's voice, not their strategy.\n\n> You are a bearbot on the drums. You are the beat everyone else plays over \u2014 if you drop out, the whole band falls apart. You are slow and you are heavy and that is the point.\n> Your job is not to win the fight. Your job is to BE the fight, so your squishier allies don't have to be.\n> because your whole reason for existing is to be the thing that's still standing when the smoke clears. A drummer who recalls too early let the band down.\n\n\n---\n\n# Transparency report: `drums.md` -> Jev decision schema (keytar)\n\nRules are checked in order; the first one whose condition is true fires. Every rule below shows what it will literally ask Jev, which words in your prose it came from, and why it fires where it does. The **Dropped** section at the end lists everything from your prose that did *not* become a rule, and why.\n\n## Quick view\n\n| # | Branch | Condition | Then |\n|---|---|---|---|\n| 1 | \u2014 | is this bot's hp below a quarter of its max? | **recall** home |\n| 2 | \u2014 | is there an enemy bearbot within melee range of an ally? | **attack** targeting: the enemy nearest to this bearbot's own lowest-hp ally |\n| 3 | \u2014 | is there an enemy bearbot within melee range? | **attack** targeting: the visible enemy (any kind) closest to this bearbot |\n| 4 | \u2014 | is the kick ability off cooldown? | use **chord** targeting: the visible enemy (any kind) closest to this bearbot |\n| 5 | \u2014 | are multiple enemy bearbots bunched up near this bot? | use **chord** targeting: the visible enemy with the most other enemies near it (an AoE target) |\n| 6 | \u2014 | is the glissando ability off cooldown? | use **glissando** targeting: the visible enemy (any kind) closest to this bearbot |\n| 7 | \u2014 | is a fight currently active? | **move** targeting: move toward the enemy nexus, i.e. advance down the lane |\n| \u2014 | \u2014 | *(none of the above \u2014 root default)* | **move** targeting: move toward the enemy nexus, i.e. advance down the lane |\n\n## Rule detail\n\n### 1. `retreat_low_hp` \u2014 is this bot's hp below a quarter of its max?\n\n- **Then:** **recall** home\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is this bot's hp below a quarter of its max?\" -- yes means hp is critically low (<25%); no means hp is healthy or moderate.\n- **Order:** checked first (position 1 of 7) -- this is the order the translator produced.\n- **From your prose:** \u26a0 no strong match found in the prose for this rule (fewer than 2 shared meaningful words with any `rule`-labeled sentence) -- the translator may have synthesized or reworded it more than this matching method can trace.\n\n### 2. `engage_threatened_ally` \u2014 is there an enemy bearbot within melee range of an ally?\n\n- **Then:** **attack** targeting: the enemy nearest to this bearbot's own lowest-hp ally\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is there an enemy bearbot within melee range of an ally?\" -- yes means an enemy is threatening a low-hp ally; no means no immediate threat to allies.\n- **Order:** checked at position 2 of 7, only if every rule above it (1..1) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > When an enemy gets close to an ally, that enemy is now your problem.\n  > Attack whatever's nearest and threatening an ally first, the nearest enemy bearbot second, minions last.\n\n### 3. `engage_nearest_bearbot` \u2014 is there an enemy bearbot within melee range?\n\n- **Then:** **attack** targeting: the visible enemy (any kind) closest to this bearbot\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is there an enemy bearbot within melee range?\" -- yes means an enemy bearbot is close enough to fight; no means no enemy bearbot in melee range.\n- **Order:** checked at position 3 of 7, only if every rule above it (1..2) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Kick (taunt/knockback, short range) is your favorite word. Use it the instant an enemy bearbot is close enough to touch \u2014 on cooldown, always, no hesitation, no overthinking.\n\n### 4. `use_kick_taunt` \u2014 is the kick ability off cooldown?\n\n- **Then:** use **chord** targeting: the visible enemy (any kind) closest to this bearbot\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is the kick ability off cooldown?\" -- yes means kick is ready to use; no means kick is on cooldown.\n- **Order:** checked at position 4 of 7, only if every rule above it (1..3) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:** \u26a0 no strong match found in the prose for this rule (fewer than 2 shared meaningful words with any `rule`-labeled sentence) -- the translator may have synthesized or reworded it more than this matching method can trace.\n\n### 5. `use_fill_slow` \u2014 are multiple enemy bearbots bunched up near this bot?\n\n- **Then:** use **chord** targeting: the visible enemy with the most other enemies near it (an AoE target)\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"are multiple enemy bearbots bunched up near this bot?\" -- yes means multiple enemies are clustered nearby; no means enemies are spread out or single.\n- **Order:** checked at position 5 of 7, only if every rule above it (1..4) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:** \u26a0 no strong match found in the prose for this rule (fewer than 2 shared meaningful words with any `rule`-labeled sentence) -- the translator may have synthesized or reworded it more than this matching method can trace.\n\n### 6. `use_glissando_ultimate` \u2014 is the glissando ability off cooldown?\n\n- **Then:** use **glissando** targeting: the visible enemy (any kind) closest to this bearbot\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is the glissando ability off cooldown?\" -- yes means glissando is ready to use; no means glissando is on cooldown.\n- **Order:** checked at position 6 of 7, only if every rule above it (1..5) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:** \u26a0 no strong match found in the prose for this rule (fewer than 2 shared meaningful words with any `rule`-labeled sentence) -- the translator may have synthesized or reworded it more than this matching method can trace.\n\n### 7. `push_lane_default` \u2014 is a fight currently active?\n\n- **Then:** **move** targeting: move toward the enemy nexus, i.e. advance down the lane\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is a fight currently active?\" -- yes means a fight has started; no means no fight is active, safe to advance.\n- **Order:** checked at position 7 of 7, only if every rule above it (1..6) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Push the lane. march toward the enemy nexus alongside your minions unless a fight has started \u2014 then the fight is the lane.\n\n## Dropped \u2014 what did NOT become a rule\n\n### Looked like a rule, but no translated rule traces back to it \u2014 check this by hand\n\nthis reads like a bounded rule (a threshold, a presence check, or a target selection) but no translated rule's wording overlaps with it enough to trace back to it -- either the translator merged it into another rule's condition without it showing here, or it was dropped outright. Worth checking by hand.\n\n> Fill (AoE slow) is for when more than one of them is bunched up near you; drop it under their feet, not yours.\n> Retreat only when you're really hurt \u2014 below a quarter health \u2014\n\n### Advisory prose Jev's question types structurally can't take\n\ndecision-relevant prose that doesn't reduce to a condition on state or a bounded choice (patience/urgency framing, unthresholded resource judgment, continuous positioning with no discrete trigger) -- Jev's noul/choice/score questions have no free-text 'use your judgment' type, so this content structurally cannot become a rule.\n\n> Walk in front. Take the hits meant for someone else.\n\n### Voice / tone \u2014 no decision content\n\nidentity, tone, or in-character justification -- zero decision content. Removing it would not change what action the bot picks; it's the entrant's voice, not their strategy.\n\n> You are a bearbot on the drums. You are the beat everyone else plays over \u2014 if you drop out, the whole band falls apart. You are slow and you are heavy and that is the point.\n> Your job is not to win the fight. Your job is to BE the fight, so your squishier allies don't have to be.\n> because your whole reason for existing is to be the thing that's still standing when the smoke clears. A drummer who recalls too early let the band down.\n\n\n---\n\n# Transparency report: `drums.md` -> Jev decision schema (violin)\n\nRules are checked in order; the first one whose condition is true fires. Every rule below shows what it will literally ask Jev, which words in your prose it came from, and why it fires where it does. The **Dropped** section at the end lists everything from your prose that did *not* become a rule, and why.\n\n## Quick view\n\n| # | Branch | Condition | Then |\n|---|---|---|---|\n| 1 | \u2014 | is this bot's hp below a quarter of its max? | **recall** home |\n| 2 | \u2014 | is there an enemy bearbot threatening a low-hp ally? | **attack** targeting: the enemy nearest to this bearbot's own lowest-hp ally |\n| 3 | \u2014 | is there an enemy bearbot within melee range? | use **staccato** targeting: the visible enemy (any kind) closest to this bearbot |\n| 4 | \u2014 | are multiple enemy bearbots bunched up near this bot? | use **solo** targeting: the visible enemy with the most other enemies near it (an AoE target) |\n| 5 | \u2014 | is there any visible enemy bearbot? | **attack** targeting: the visible enemy (any kind) closest to this bearbot |\n| 6 | \u2014 | is there no active fight involving this bot? | **move** targeting: move toward the enemy nexus, i.e. advance down the lane |\n| \u2014 | \u2014 | *(none of the above \u2014 root default)* | **move** targeting: move toward the enemy nexus, i.e. advance down the lane |\n\n## Rule detail\n\n### 1. `retreat_low_hp` \u2014 is this bot's hp below a quarter of its max?\n\n- **Then:** **recall** home\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is this bot's hp below a quarter of its max?\" -- yes means bot is critically injured (below 25% HP); no means bot has sufficient health.\n- **Order:** checked first (position 1 of 6) -- this is the order the translator produced.\n- **From your prose:**\n  > Retreat only when you're really hurt \u2014 below a quarter health \u2014\n\n### 2. `engage_threatened_ally` \u2014 is there an enemy bearbot threatening a low-hp ally?\n\n- **Then:** **attack** targeting: the enemy nearest to this bearbot's own lowest-hp ally\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is there an enemy bearbot threatening a low-hp ally?\" -- yes means an enemy is near an ally with low health; no means no ally is currently threatened.\n- **Order:** checked at position 2 of 6, only if every rule above it (1..1) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > When an enemy gets close to an ally, that enemy is now your problem.\n  > Attack whatever's nearest and threatening an ally first, the nearest enemy bearbot second, minions last.\n\n### 3. `engage_nearest_bearbot` \u2014 is there an enemy bearbot within melee range?\n\n- **Then:** use **staccato** targeting: the visible enemy (any kind) closest to this bearbot\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is there an enemy bearbot within melee range?\" -- yes means an enemy bearbot is close enough to touch; no means no enemy bearbot is in melee range.\n- **Order:** checked at position 3 of 6, only if every rule above it (1..2) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Kick (taunt/knockback, short range) is your favorite word. Use it the instant an enemy bearbot is close enough to touch \u2014 on cooldown, always, no hesitation, no overthinking.\n\n### 4. `aoe_fill_bunched_enemies` \u2014 are multiple enemy bearbots bunched up near this bot?\n\n- **Then:** use **solo** targeting: the visible enemy with the most other enemies near it (an AoE target)\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"are multiple enemy bearbots bunched up near this bot?\" -- yes means more than one enemy is clustered nearby; no means enemies are spread out or single.\n- **Order:** checked at position 4 of 6, only if every rule above it (1..3) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Fill (AoE slow) is for when more than one of them is bunched up near you; drop it under their feet, not yours.\n\n### 5. `attack_nearest_enemy` \u2014 is there any visible enemy bearbot?\n\n- **Then:** **attack** targeting: the visible enemy (any kind) closest to this bearbot\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is there any visible enemy bearbot?\" -- yes means at least one enemy bearbot is visible; no means no enemy bearbots are visible.\n- **Order:** checked at position 5 of 6, only if every rule above it (1..4) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:** \u26a0 no strong match found in the prose for this rule (fewer than 2 shared meaningful words with any `rule`-labeled sentence) -- the translator may have synthesized or reworded it more than this matching method can trace.\n\n### 6. `move_push_lane` \u2014 is there no active fight involving this bot?\n\n- **Then:** **move** targeting: move toward the enemy nexus, i.e. advance down the lane\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is there no active fight involving this bot?\" -- yes means no fight has started or is ongoing for this bot; no means a fight is currently happening.\n- **Order:** checked at position 6 of 6, only if every rule above it (1..5) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Push the lane. march toward the enemy nexus alongside your minions unless a fight has started \u2014 then the fight is the lane.\n\n## Dropped \u2014 what did NOT become a rule\n\n### Advisory prose Jev's question types structurally can't take\n\ndecision-relevant prose that doesn't reduce to a condition on state or a bounded choice (patience/urgency framing, unthresholded resource judgment, continuous positioning with no discrete trigger) -- Jev's noul/choice/score questions have no free-text 'use your judgment' type, so this content structurally cannot become a rule.\n\n> Walk in front. Take the hits meant for someone else.\n\n### Voice / tone \u2014 no decision content\n\nidentity, tone, or in-character justification -- zero decision content. Removing it would not change what action the bot picks; it's the entrant's voice, not their strategy.\n\n> You are a bearbot on the drums. You are the beat everyone else plays over \u2014 if you drop out, the whole band falls apart. You are slow and you are heavy and that is the point.\n> Your job is not to win the fight. Your job is to BE the fight, so your squishier allies don't have to be.\n> because your whole reason for existing is to be the thing that's still standing when the smoke clears. A drummer who recalls too early let the band down.\n\n"
+  },
+  {
+   "name": "prompts/pilots/keytar.md",
+   "sha256": "e2393cbcdb95ae786e8b7a7c7ebe396b59883860f9e179107f884fd15e103b45",
+   "instruments": {
+    "drums": {
+     "instrument": "drums",
+     "ok": true,
+     "labels": "hand",
+     "schema": {
+      "pilot_file": "keytar.md",
+      "instrument": "drums",
+      "rules": [
+       {
+        "id": "recall_low_health",
+        "condition": "is this bot's current health below a quarter of its maximum health?",
+        "criteria_true": "health is below 25% of max",
+        "criteria_false": "health is above 25% of max",
+        "action_kind": "recall",
+        "action_ability": null,
+        "action_target_selector": "none"
+       },
+       {
+        "id": "avoid_melee_range",
+        "condition": "is there a visible enemy within melee range of this bot?",
+        "criteria_true": "a visible enemy is inside melee range",
+        "criteria_false": "no visible enemy is inside melee range",
+        "action_kind": "move",
+        "action_ability": null,
+        "action_target_selector": "nearest_enemy"
+       },
+       {
+        "id": "avoid_attack_range",
+        "condition": "is there a visible enemy inside this bot's attack range?",
+        "criteria_true": "a visible enemy is inside attack range",
+        "criteria_false": "no visible enemy is inside attack range",
+        "action_kind": "move",
+        "action_ability": null,
+        "action_target_selector": "nearest_enemy"
+       },
+       {
+        "id": "use_chord_aoe",
+        "condition": "is the Chord ability off cooldown?",
+        "criteria_true": "Chord is ready to use",
+        "criteria_false": "Chord is on cooldown",
+        "action_kind": "ability",
+        "action_ability": "kick",
+        "action_target_selector": "densest_cluster_enemy"
+       },
+       {
+        "id": "use_glissando_dash",
+        "condition": "is there a visible enemy close enough to warrant an immediate dash (panic or positioning)?",
+        "criteria_true": "an enemy is approaching or out of optimal range for Chord angle",
+        "criteria_false": "no immediate dash situation exists",
+        "action_kind": "move",
+        "action_ability": null,
+        "action_target_selector": "nearest_enemy"
+       },
+       {
+        "id": "poke_minions",
+        "condition": "is there a nearby allied minion wave and no immediate threat?",
+        "criteria_true": "a minion wave is present and safe to poke",
+        "criteria_false": "no minion wave or unsafe conditions",
+        "action_kind": "attack",
+        "action_ability": null,
+        "action_target_selector": "nearby_minion"
+       }
+      ],
+      "default_action": {
+       "kind": "move",
+       "ability": null,
+       "target_selector": "push_lane"
+      },
+      "validation_notes": [
+       "priority guard: promoted rule(s) recall_low_health to the top of the cascade -- the prose uses unconditional-override language for them (no exceptions) but the translator placed them lower, where an earlier rule could pre-empt them."
+      ]
+     },
+     "markdown": "# Transparency report: `keytar.md` -> Jev decision schema (drums)\n\nRules are checked in order; the first one whose condition is true fires. Every rule below shows what it will literally ask Jev, which words in your prose it came from, and why it fires where it does. The **Dropped** section at the end lists everything from your prose that did *not* become a rule, and why.\n\n## Quick view\n\n| # | Branch | Condition | Then |\n|---|---|---|---|\n| 1 | \u2014 | is this bot's current health below a quarter of its maximum health? | **recall** home |\n| 2 | \u2014 | is there a visible enemy within melee range of this bot? | **move** targeting: the visible enemy (any kind) closest to this bearbot |\n| 3 | \u2014 | is there a visible enemy inside this bot's attack range? | **move** targeting: the visible enemy (any kind) closest to this bearbot |\n| 4 | \u2014 | is the Chord ability off cooldown? | use **kick** targeting: the visible enemy with the most other enemies near it (an AoE target) |\n| 5 | \u2014 | is there a visible enemy close enough to warrant an immediate dash (panic or positioning)? | **move** targeting: the visible enemy (any kind) closest to this bearbot |\n| 6 | \u2014 | is there a nearby allied minion wave and no immediate threat? | **attack** targeting: the nearest allied minion in the wave (for riding/positioning with it) |\n| \u2014 | \u2014 | *(none of the above \u2014 root default)* | **move** targeting: move toward the enemy nexus, i.e. advance down the lane |\n\n## Rule detail\n\n### 1. `recall_low_health` \u2014 is this bot's current health below a quarter of its maximum health?\n\n- **Then:** **recall** home\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is this bot's current health below a quarter of its maximum health?\" -- yes means health is below 25% of max; no means health is above 25% of max.\n- **Order:** moved to position 1 of 6 by the automatic priority guard -- the prose uses unconditional-override language for this rule, so it is checked before every other rule regardless of where the translator originally placed it (see the note below).\n- **From your prose:**\n  > Recall the moment you're below a quarter health, no exceptions \u2014\n\n### 2. `avoid_melee_range` \u2014 is there a visible enemy within melee range of this bot?\n\n- **Then:** **move** targeting: the visible enemy (any kind) closest to this bearbot\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is there a visible enemy within melee range of this bot?\" -- yes means a visible enemy is inside melee range; no means no visible enemy is inside melee range.\n- **Order:** checked at position 2 of 6, only if every rule above it (1..1) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Never be the closest thing to an enemy. If a visible enemy is inside your attack range, that is too close; if one is inside melee range of you, you are already losing and should be leaving.\n\n### 3. `avoid_attack_range` \u2014 is there a visible enemy inside this bot's attack range?\n\n- **Then:** **move** targeting: the visible enemy (any kind) closest to this bearbot\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is there a visible enemy inside this bot's attack range?\" -- yes means a visible enemy is inside attack range; no means no visible enemy is inside attack range.\n- **Order:** checked at position 3 of 6, only if every rule above it (1..2) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:** \u26a0 no strong match found in the prose for this rule (fewer than 2 shared meaningful words with any `rule`-labeled sentence) -- the translator may have synthesized or reworded it more than this matching method can trace.\n\n### 4. `use_chord_aoe` \u2014 is the Chord ability off cooldown?\n\n- **Then:** use **kick** targeting: the visible enemy with the most other enemies near it (an AoE target)\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is the Chord ability off cooldown?\" -- yes means Chord is ready to use; no means Chord is on cooldown.\n- **Order:** checked at position 4 of 6, only if every rule above it (1..3) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:** \u26a0 no strong match found in the prose for this rule (fewer than 2 shared meaningful words with any `rule`-labeled sentence) -- the translator may have synthesized or reworded it more than this matching method can trace.\n\n### 5. `use_glissando_dash` \u2014 is there a visible enemy close enough to warrant an immediate dash (panic or positioning)?\n\n- **Then:** **move** targeting: the visible enemy (any kind) closest to this bearbot\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is there a visible enemy close enough to warrant an immediate dash (panic or positioning)?\" -- yes means an enemy is approaching or out of optimal range for Chord angle; no means no immediate dash situation exists.\n- **Order:** checked at position 5 of 6, only if every rule above it (1..4) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Chord (AoE burst, long range) is your headline move \u2014 throw it at the densest cluster of enemies or minions you can see the instant it's off cooldown,\n  > Glissando (short dash, no target needed) is your panic button and your opener both: dash OUT when something gets close, dash IN-range-but-not-close when you want a Chord angle you don't have yet.\n\n### 6. `poke_minions` \u2014 is there a nearby allied minion wave and no immediate threat?\n\n- **Then:** **attack** targeting: the nearest allied minion in the wave (for riding/positioning with it)\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is there a nearby allied minion wave and no immediate threat?\" -- yes means a minion wave is present and safe to poke; no means no minion wave or unsafe conditions.\n- **Order:** checked at position 6 of 6, only if every rule above it (1..5) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Poke minion waves with your basic attack while nothing else demands attention\n\n## Automatic priority fixes applied to this schema\n\n- priority guard: promoted rule(s) recall_low_health to the top of the cascade -- the prose uses unconditional-override language for them (no exceptions) but the translator placed them lower, where an earlier rule could pre-empt them.\n\n## Dropped \u2014 what did NOT become a rule\n\n### Looked like a rule, but no translated rule traces back to it \u2014 check this by hand\n\nthis reads like a bounded rule (a threshold, a presence check, or a target selection) but no translated rule's wording overlaps with it enough to trace back to it -- either the translator merged it into another rule's condition without it showing here, or it was dropped outright. Worth checking by hand.\n\n> When a real fight starts, Chord first, basic-attack second, never melee.\n\n### Advisory prose Jev's question types structurally can't take\n\ndecision-relevant prose that doesn't reduce to a condition on state or a bounded choice (patience/urgency framing, unthresholded resource judgment, continuous positioning with no discrete trigger) -- Jev's noul/choice/score questions have no free-text 'use your judgment' type, so this content structurally cannot become a rule.\n\n> don't wait for a \"perfect\" moment, waiting is how it goes to waste.\n\n### Voice / tone \u2014 no decision content\n\nidentity, tone, or in-character justification -- zero decision content. Removing it would not change what action the bot picks; it's the entrant's voice, not their strategy.\n\n> You are a bearbot on the keytar. Loud, flashy, and made of paper \u2014 you win fights from a distance or you don't win them at all.\n> Your whole game is standing just outside their reach while they cannot stand outside yours.\n> \u2014 free damage, free lane pressure, no risk from that range.\n> you have no way to survive a follow-up hit and a dead mage is a silent one.\n\n",
+     "dropped": [
+      {
+       "label": "voice",
+       "text": "You are a bearbot on the keytar. Loud, flashy, and made of paper \u2014 you win fights from a distance\nor you don't win them at all."
+      },
+      {
+       "label": "voice",
+       "text": "Your\nwhole game is standing just outside their reach while they cannot stand outside yours."
+      },
+      {
+       "label": "open_strategy",
+       "text": "don't wait for a \"perfect\" moment, waiting is\nhow it goes to waste."
+      },
+      {
+       "label": "voice",
+       "text": "\u2014 free damage, free\nlane pressure, no risk from that range."
+      },
+      {
+       "label": "unclaimed_rule",
+       "text": "When a real fight starts, Chord first, basic-attack second,\nnever melee."
+      },
+      {
+       "label": "voice",
+       "text": "you have no way to survive a\nfollow-up hit and a dead mage is a silent one."
+      }
+     ],
+     "unmatched_rules": [
+      "avoid_attack_range",
+      "use_chord_aoe"
+     ]
+    },
+    "keytar": {
+     "instrument": "keytar",
+     "ok": true,
+     "labels": "hand",
+     "schema": {
+      "pilot_file": "keytar.md",
+      "instrument": "keytar",
+      "rules": [
+       {
+        "id": "recall_low_hp",
+        "condition": "is this bot's current health below a quarter of its max health?",
+        "criteria_true": "bot is critically low on health",
+        "criteria_false": "bot has sufficient health",
+        "action_kind": "recall",
+        "action_ability": null,
+        "action_target_selector": null
+       },
+       {
+        "id": "panic_dash_out",
+        "condition": "is a visible enemy within melee range of this bot?",
+        "criteria_true": "an enemy is in melee range (too close)",
+        "criteria_false": "no enemy is in melee range",
+        "action_kind": "ability",
+        "action_ability": "glissando",
+        "action_target_selector": null
+       },
+       {
+        "id": "dash_for_angle",
+        "condition": "is a visible enemy within attack range but not melee range of this bot?",
+        "criteria_true": "an enemy is in attack range but safe distance",
+        "criteria_false": "no enemy is in that specific range",
+        "action_kind": "move",
+        "action_ability": null,
+        "action_target_selector": "nearest_enemy"
+       },
+       {
+        "id": "use_chord_aoe",
+        "condition": "is the cooldown of 'chord' ready?",
+        "criteria_true": "chord is off cooldown",
+        "criteria_false": "chord is on cooldown",
+        "action_kind": "ability",
+        "action_ability": "chord",
+        "action_target_selector": "densest_cluster_enemy"
+       },
+       {
+        "id": "poke_minions",
+        "condition": "is there a visible enemy within attack range of this bot?",
+        "criteria_true": "an enemy is in attack range (safe to poke)",
+        "criteria_false": "no enemy is in attack range",
+        "action_kind": "attack",
+        "action_ability": null,
+        "action_target_selector": "nearest_enemy"
+       }
+      ],
+      "default_action": {
+       "kind": "move",
+       "ability": null,
+       "target_selector": "push_lane"
+      },
+      "validation_notes": [
+       "priority guard: promoted rule(s) recall_low_hp to the top of the cascade -- the prose uses unconditional-override language for them (no exceptions) but the translator placed them lower, where an earlier rule could pre-empt them."
+      ]
+     },
+     "markdown": "# Transparency report: `keytar.md` -> Jev decision schema (keytar)\n\nRules are checked in order; the first one whose condition is true fires. Every rule below shows what it will literally ask Jev, which words in your prose it came from, and why it fires where it does. The **Dropped** section at the end lists everything from your prose that did *not* become a rule, and why.\n\n## Quick view\n\n| # | Branch | Condition | Then |\n|---|---|---|---|\n| 1 | \u2014 | is this bot's current health below a quarter of its max health? | **recall** home |\n| 2 | \u2014 | is a visible enemy within melee range of this bot? | use **glissando** |\n| 3 | \u2014 | is a visible enemy within attack range but not melee range of this bot? | **move** targeting: the visible enemy (any kind) closest to this bearbot |\n| 4 | \u2014 | is the cooldown of 'chord' ready? | use **chord** targeting: the visible enemy with the most other enemies near it (an AoE target) |\n| 5 | \u2014 | is there a visible enemy within attack range of this bot? | **attack** targeting: the visible enemy (any kind) closest to this bearbot |\n| \u2014 | \u2014 | *(none of the above \u2014 root default)* | **move** targeting: move toward the enemy nexus, i.e. advance down the lane |\n\n## Rule detail\n\n### 1. `recall_low_hp` \u2014 is this bot's current health below a quarter of its max health?\n\n- **Then:** **recall** home\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is this bot's current health below a quarter of its max health?\" -- yes means bot is critically low on health; no means bot has sufficient health.\n- **Order:** moved to position 1 of 5 by the automatic priority guard -- the prose uses unconditional-override language for this rule, so it is checked before every other rule regardless of where the translator originally placed it (see the note below).\n- **From your prose:**\n  > Recall the moment you're below a quarter health, no exceptions \u2014\n\n### 2. `panic_dash_out` \u2014 is a visible enemy within melee range of this bot?\n\n- **Then:** use **glissando**\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is a visible enemy within melee range of this bot?\" -- yes means an enemy is in melee range (too close); no means no enemy is in melee range.\n- **Order:** checked at position 2 of 5, only if every rule above it (1..1) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Never be the closest thing to an enemy. If a visible enemy is inside your attack range, that is too close; if one is inside melee range of you, you are already losing and should be leaving.\n  > Glissando (short dash, no target needed) is your panic button and your opener both: dash OUT when something gets close, dash IN-range-but-not-close when you want a Chord angle you don't have yet.\n\n### 3. `dash_for_angle` \u2014 is a visible enemy within attack range but not melee range of this bot?\n\n- **Then:** **move** targeting: the visible enemy (any kind) closest to this bearbot\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is a visible enemy within attack range but not melee range of this bot?\" -- yes means an enemy is in attack range but safe distance; no means no enemy is in that specific range.\n- **Order:** checked at position 3 of 5, only if every rule above it (1..2) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Chord (AoE burst, long range) is your headline move \u2014 throw it at the densest cluster of enemies or minions you can see the instant it's off cooldown,\n  > When a real fight starts, Chord first, basic-attack second, never melee.\n\n### 4. `use_chord_aoe` \u2014 is the cooldown of 'chord' ready?\n\n- **Then:** use **chord** targeting: the visible enemy with the most other enemies near it (an AoE target)\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is the cooldown of 'chord' ready?\" -- yes means chord is off cooldown; no means chord is on cooldown.\n- **Order:** checked at position 4 of 5, only if every rule above it (1..3) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:** \u26a0 no strong match found in the prose for this rule (fewer than 2 shared meaningful words with any `rule`-labeled sentence) -- the translator may have synthesized or reworded it more than this matching method can trace.\n\n### 5. `poke_minions` \u2014 is there a visible enemy within attack range of this bot?\n\n- **Then:** **attack** targeting: the visible enemy (any kind) closest to this bearbot\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is there a visible enemy within attack range of this bot?\" -- yes means an enemy is in attack range (safe to poke); no means no enemy is in attack range.\n- **Order:** checked at position 5 of 5, only if every rule above it (1..4) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Poke minion waves with your basic attack while nothing else demands attention\n\n## Automatic priority fixes applied to this schema\n\n- priority guard: promoted rule(s) recall_low_hp to the top of the cascade -- the prose uses unconditional-override language for them (no exceptions) but the translator placed them lower, where an earlier rule could pre-empt them.\n\n## Dropped \u2014 what did NOT become a rule\n\n### Advisory prose Jev's question types structurally can't take\n\ndecision-relevant prose that doesn't reduce to a condition on state or a bounded choice (patience/urgency framing, unthresholded resource judgment, continuous positioning with no discrete trigger) -- Jev's noul/choice/score questions have no free-text 'use your judgment' type, so this content structurally cannot become a rule.\n\n> don't wait for a \"perfect\" moment, waiting is how it goes to waste.\n\n### Voice / tone \u2014 no decision content\n\nidentity, tone, or in-character justification -- zero decision content. Removing it would not change what action the bot picks; it's the entrant's voice, not their strategy.\n\n> You are a bearbot on the keytar. Loud, flashy, and made of paper \u2014 you win fights from a distance or you don't win them at all.\n> Your whole game is standing just outside their reach while they cannot stand outside yours.\n> \u2014 free damage, free lane pressure, no risk from that range.\n> you have no way to survive a follow-up hit and a dead mage is a silent one.\n\n",
+     "dropped": [
+      {
+       "label": "voice",
+       "text": "You are a bearbot on the keytar. Loud, flashy, and made of paper \u2014 you win fights from a distance\nor you don't win them at all."
+      },
+      {
+       "label": "voice",
+       "text": "Your\nwhole game is standing just outside their reach while they cannot stand outside yours."
+      },
+      {
+       "label": "open_strategy",
+       "text": "don't wait for a \"perfect\" moment, waiting is\nhow it goes to waste."
+      },
+      {
+       "label": "voice",
+       "text": "\u2014 free damage, free\nlane pressure, no risk from that range."
+      },
+      {
+       "label": "voice",
+       "text": "you have no way to survive a\nfollow-up hit and a dead mage is a silent one."
+      }
+     ],
+     "unmatched_rules": [
+      "use_chord_aoe"
+     ]
+    },
+    "violin": {
+     "instrument": "violin",
+     "ok": true,
+     "labels": "hand",
+     "schema": {
+      "pilot_file": "keytar.md",
+      "instrument": "violin",
+      "rules": [
+       {
+        "id": "recall_low_health",
+        "condition": "is this bot's current health below a quarter of its max health?",
+        "criteria_true": "health is critically low (below 25%)",
+        "criteria_false": "health is above 25%",
+        "action_kind": "recall",
+        "action_ability": null,
+        "action_target_selector": "none"
+       },
+       {
+        "id": "avoid_melee_range",
+        "condition": "is there a visible enemy within melee range of this bot?",
+        "criteria_true": "an enemy is inside melee range",
+        "criteria_false": "no enemy is inside melee range",
+        "action_kind": "move",
+        "action_ability": null,
+        "action_target_selector": "nearest_enemy"
+       },
+       {
+        "id": "dash_out_panic",
+        "condition": "is a visible enemy entering attack range or getting too close?",
+        "criteria_true": "an enemy is approaching or at the edge of attack range",
+        "criteria_false": "no immediate threat from proximity",
+        "action_kind": "move",
+        "action_ability": null,
+        "action_target_selector": "nearest_enemy"
+       },
+       {
+        "id": "use_chord_aoe",
+        "condition": "is the Chord ability off cooldown?",
+        "criteria_true": "Chord is ready to use",
+        "criteria_false": "Chord is on cooldown",
+        "action_kind": "ability",
+        "action_ability": "staccato",
+        "action_target_selector": "densest_cluster_enemy"
+       },
+       {
+        "id": "poke_minion_wave",
+        "condition": "is there a nearby allied minion and no immediate threat?",
+        "criteria_true": "a minion is within attack range and safe to poke",
+        "criteria_false": "no minion available or unsafe to poke",
+        "action_kind": "attack",
+        "action_ability": null,
+        "action_target_selector": "nearby_minion"
+       },
+       {
+        "id": "hold_position",
+        "condition": "is the bot currently safe and not under immediate threat?",
+        "criteria_true": "bot is in a safe position with no urgent action needed",
+        "criteria_false": "bot is under threat or needs to act",
+        "action_kind": "hold",
+        "action_ability": null,
+        "action_target_selector": "none"
+       }
+      ],
+      "default_action": {
+       "kind": "move",
+       "ability": null,
+       "target_selector": "push_lane"
+      },
+      "validation_notes": [
+       "priority guard: promoted rule(s) recall_low_health to the top of the cascade -- the prose uses unconditional-override language for them (no exceptions) but the translator placed them lower, where an earlier rule could pre-empt them."
+      ]
+     },
+     "markdown": "# Transparency report: `keytar.md` -> Jev decision schema (violin)\n\nRules are checked in order; the first one whose condition is true fires. Every rule below shows what it will literally ask Jev, which words in your prose it came from, and why it fires where it does. The **Dropped** section at the end lists everything from your prose that did *not* become a rule, and why.\n\n## Quick view\n\n| # | Branch | Condition | Then |\n|---|---|---|---|\n| 1 | \u2014 | is this bot's current health below a quarter of its max health? | **recall** home |\n| 2 | \u2014 | is there a visible enemy within melee range of this bot? | **move** targeting: the visible enemy (any kind) closest to this bearbot |\n| 3 | \u2014 | is a visible enemy entering attack range or getting too close? | **move** targeting: the visible enemy (any kind) closest to this bearbot |\n| 4 | \u2014 | is the Chord ability off cooldown? | use **staccato** targeting: the visible enemy with the most other enemies near it (an AoE target) |\n| 5 | \u2014 | is there a nearby allied minion and no immediate threat? | **attack** targeting: the nearest allied minion in the wave (for riding/positioning with it) |\n| 6 | \u2014 | is the bot currently safe and not under immediate threat? | **hold** (do nothing this tick) |\n| \u2014 | \u2014 | *(none of the above \u2014 root default)* | **move** targeting: move toward the enemy nexus, i.e. advance down the lane |\n\n## Rule detail\n\n### 1. `recall_low_health` \u2014 is this bot's current health below a quarter of its max health?\n\n- **Then:** **recall** home\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is this bot's current health below a quarter of its max health?\" -- yes means health is critically low (below 25%); no means health is above 25%.\n- **Order:** moved to position 1 of 6 by the automatic priority guard -- the prose uses unconditional-override language for this rule, so it is checked before every other rule regardless of where the translator originally placed it (see the note below).\n- **From your prose:**\n  > Recall the moment you're below a quarter health, no exceptions \u2014\n\n### 2. `avoid_melee_range` \u2014 is there a visible enemy within melee range of this bot?\n\n- **Then:** **move** targeting: the visible enemy (any kind) closest to this bearbot\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is there a visible enemy within melee range of this bot?\" -- yes means an enemy is inside melee range; no means no enemy is inside melee range.\n- **Order:** checked at position 2 of 6, only if every rule above it (1..1) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Chord (AoE burst, long range) is your headline move \u2014 throw it at the densest cluster of enemies or minions you can see the instant it's off cooldown,\n\n### 3. `dash_out_panic` \u2014 is a visible enemy entering attack range or getting too close?\n\n- **Then:** **move** targeting: the visible enemy (any kind) closest to this bearbot\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is a visible enemy entering attack range or getting too close?\" -- yes means an enemy is approaching or at the edge of attack range; no means no immediate threat from proximity.\n- **Order:** checked at position 3 of 6, only if every rule above it (1..2) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Never be the closest thing to an enemy. If a visible enemy is inside your attack range, that is too close; if one is inside melee range of you, you are already losing and should be leaving.\n  > Glissando (short dash, no target needed) is your panic button and your opener both: dash OUT when something gets close, dash IN-range-but-not-close when you want a Chord angle you don't have yet.\n\n### 4. `use_chord_aoe` \u2014 is the Chord ability off cooldown?\n\n- **Then:** use **staccato** targeting: the visible enemy with the most other enemies near it (an AoE target)\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is the Chord ability off cooldown?\" -- yes means Chord is ready to use; no means Chord is on cooldown.\n- **Order:** checked at position 4 of 6, only if every rule above it (1..3) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:** \u26a0 no strong match found in the prose for this rule (fewer than 2 shared meaningful words with any `rule`-labeled sentence) -- the translator may have synthesized or reworded it more than this matching method can trace.\n\n### 5. `poke_minion_wave` \u2014 is there a nearby allied minion and no immediate threat?\n\n- **Then:** **attack** targeting: the nearest allied minion in the wave (for riding/positioning with it)\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is there a nearby allied minion and no immediate threat?\" -- yes means a minion is within attack range and safe to poke; no means no minion available or unsafe to poke.\n- **Order:** checked at position 5 of 6, only if every rule above it (1..4) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Poke minion waves with your basic attack while nothing else demands attention\n\n### 6. `hold_position` \u2014 is the bot currently safe and not under immediate threat?\n\n- **Then:** **hold** (do nothing this tick)\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is the bot currently safe and not under immediate threat?\" -- yes means bot is in a safe position with no urgent action needed; no means bot is under threat or needs to act.\n- **Order:** checked at position 6 of 6, only if every rule above it (1..5) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:** \u26a0 no strong match found in the prose for this rule (fewer than 2 shared meaningful words with any `rule`-labeled sentence) -- the translator may have synthesized or reworded it more than this matching method can trace.\n\n## Automatic priority fixes applied to this schema\n\n- priority guard: promoted rule(s) recall_low_health to the top of the cascade -- the prose uses unconditional-override language for them (no exceptions) but the translator placed them lower, where an earlier rule could pre-empt them.\n\n## Dropped \u2014 what did NOT become a rule\n\n### Looked like a rule, but no translated rule traces back to it \u2014 check this by hand\n\nthis reads like a bounded rule (a threshold, a presence check, or a target selection) but no translated rule's wording overlaps with it enough to trace back to it -- either the translator merged it into another rule's condition without it showing here, or it was dropped outright. Worth checking by hand.\n\n> When a real fight starts, Chord first, basic-attack second, never melee.\n\n### Advisory prose Jev's question types structurally can't take\n\ndecision-relevant prose that doesn't reduce to a condition on state or a bounded choice (patience/urgency framing, unthresholded resource judgment, continuous positioning with no discrete trigger) -- Jev's noul/choice/score questions have no free-text 'use your judgment' type, so this content structurally cannot become a rule.\n\n> don't wait for a \"perfect\" moment, waiting is how it goes to waste.\n\n### Voice / tone \u2014 no decision content\n\nidentity, tone, or in-character justification -- zero decision content. Removing it would not change what action the bot picks; it's the entrant's voice, not their strategy.\n\n> You are a bearbot on the keytar. Loud, flashy, and made of paper \u2014 you win fights from a distance or you don't win them at all.\n> Your whole game is standing just outside their reach while they cannot stand outside yours.\n> \u2014 free damage, free lane pressure, no risk from that range.\n> you have no way to survive a follow-up hit and a dead mage is a silent one.\n\n",
+     "dropped": [
+      {
+       "label": "voice",
+       "text": "You are a bearbot on the keytar. Loud, flashy, and made of paper \u2014 you win fights from a distance\nor you don't win them at all."
+      },
+      {
+       "label": "voice",
+       "text": "Your\nwhole game is standing just outside their reach while they cannot stand outside yours."
+      },
+      {
+       "label": "open_strategy",
+       "text": "don't wait for a \"perfect\" moment, waiting is\nhow it goes to waste."
+      },
+      {
+       "label": "voice",
+       "text": "\u2014 free damage, free\nlane pressure, no risk from that range."
+      },
+      {
+       "label": "unclaimed_rule",
+       "text": "When a real fight starts, Chord first, basic-attack second,\nnever melee."
+      },
+      {
+       "label": "voice",
+       "text": "you have no way to survive a\nfollow-up hit and a dead mage is a silent one."
+      }
+     ],
+     "unmatched_rules": [
+      "use_chord_aoe",
+      "hold_position"
+     ]
+    }
+   },
+   "markdown": "# Jev compile preview: `prompts/pilots/keytar.md`\n\nCompiled by promptlane's prose-to-schema translator with `ollama:qwen3.5:9b` -- 11 model call(s), 28,376 tokens of a 60,000-token cap, $0.0000, 110.0 s.\n\nAt the jam your prose is not run by a chat model: it is compiled once into the rule cascade below, and Jev answers each rule's yes/no question every decision. Translation is sampled, so compiling the same prose twice can differ a little -- wording that compiles the same way every time is wording that will play the way you meant.\n\nOne prompt drives all three of your bearbots, so each instrument is compiled separately.\n\n- **drums**: 6 rules -- \u26a0 2 rule(s) with no clear source sentence; 1 rule-like sentence(s) that compiled to nothing\n- **keytar**: 5 rules -- \u26a0 1 rule(s) with no clear source sentence\n- **violin**: 6 rules -- \u26a0 2 rule(s) with no clear source sentence; 1 rule-like sentence(s) that compiled to nothing\n\n---\n\n# Transparency report: `keytar.md` -> Jev decision schema (drums)\n\nRules are checked in order; the first one whose condition is true fires. Every rule below shows what it will literally ask Jev, which words in your prose it came from, and why it fires where it does. The **Dropped** section at the end lists everything from your prose that did *not* become a rule, and why.\n\n## Quick view\n\n| # | Branch | Condition | Then |\n|---|---|---|---|\n| 1 | \u2014 | is this bot's current health below a quarter of its maximum health? | **recall** home |\n| 2 | \u2014 | is there a visible enemy within melee range of this bot? | **move** targeting: the visible enemy (any kind) closest to this bearbot |\n| 3 | \u2014 | is there a visible enemy inside this bot's attack range? | **move** targeting: the visible enemy (any kind) closest to this bearbot |\n| 4 | \u2014 | is the Chord ability off cooldown? | use **kick** targeting: the visible enemy with the most other enemies near it (an AoE target) |\n| 5 | \u2014 | is there a visible enemy close enough to warrant an immediate dash (panic or positioning)? | **move** targeting: the visible enemy (any kind) closest to this bearbot |\n| 6 | \u2014 | is there a nearby allied minion wave and no immediate threat? | **attack** targeting: the nearest allied minion in the wave (for riding/positioning with it) |\n| \u2014 | \u2014 | *(none of the above \u2014 root default)* | **move** targeting: move toward the enemy nexus, i.e. advance down the lane |\n\n## Rule detail\n\n### 1. `recall_low_health` \u2014 is this bot's current health below a quarter of its maximum health?\n\n- **Then:** **recall** home\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is this bot's current health below a quarter of its maximum health?\" -- yes means health is below 25% of max; no means health is above 25% of max.\n- **Order:** moved to position 1 of 6 by the automatic priority guard -- the prose uses unconditional-override language for this rule, so it is checked before every other rule regardless of where the translator originally placed it (see the note below).\n- **From your prose:**\n  > Recall the moment you're below a quarter health, no exceptions \u2014\n\n### 2. `avoid_melee_range` \u2014 is there a visible enemy within melee range of this bot?\n\n- **Then:** **move** targeting: the visible enemy (any kind) closest to this bearbot\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is there a visible enemy within melee range of this bot?\" -- yes means a visible enemy is inside melee range; no means no visible enemy is inside melee range.\n- **Order:** checked at position 2 of 6, only if every rule above it (1..1) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Never be the closest thing to an enemy. If a visible enemy is inside your attack range, that is too close; if one is inside melee range of you, you are already losing and should be leaving.\n\n### 3. `avoid_attack_range` \u2014 is there a visible enemy inside this bot's attack range?\n\n- **Then:** **move** targeting: the visible enemy (any kind) closest to this bearbot\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is there a visible enemy inside this bot's attack range?\" -- yes means a visible enemy is inside attack range; no means no visible enemy is inside attack range.\n- **Order:** checked at position 3 of 6, only if every rule above it (1..2) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:** \u26a0 no strong match found in the prose for this rule (fewer than 2 shared meaningful words with any `rule`-labeled sentence) -- the translator may have synthesized or reworded it more than this matching method can trace.\n\n### 4. `use_chord_aoe` \u2014 is the Chord ability off cooldown?\n\n- **Then:** use **kick** targeting: the visible enemy with the most other enemies near it (an AoE target)\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is the Chord ability off cooldown?\" -- yes means Chord is ready to use; no means Chord is on cooldown.\n- **Order:** checked at position 4 of 6, only if every rule above it (1..3) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:** \u26a0 no strong match found in the prose for this rule (fewer than 2 shared meaningful words with any `rule`-labeled sentence) -- the translator may have synthesized or reworded it more than this matching method can trace.\n\n### 5. `use_glissando_dash` \u2014 is there a visible enemy close enough to warrant an immediate dash (panic or positioning)?\n\n- **Then:** **move** targeting: the visible enemy (any kind) closest to this bearbot\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is there a visible enemy close enough to warrant an immediate dash (panic or positioning)?\" -- yes means an enemy is approaching or out of optimal range for Chord angle; no means no immediate dash situation exists.\n- **Order:** checked at position 5 of 6, only if every rule above it (1..4) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Chord (AoE burst, long range) is your headline move \u2014 throw it at the densest cluster of enemies or minions you can see the instant it's off cooldown,\n  > Glissando (short dash, no target needed) is your panic button and your opener both: dash OUT when something gets close, dash IN-range-but-not-close when you want a Chord angle you don't have yet.\n\n### 6. `poke_minions` \u2014 is there a nearby allied minion wave and no immediate threat?\n\n- **Then:** **attack** targeting: the nearest allied minion in the wave (for riding/positioning with it)\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is there a nearby allied minion wave and no immediate threat?\" -- yes means a minion wave is present and safe to poke; no means no minion wave or unsafe conditions.\n- **Order:** checked at position 6 of 6, only if every rule above it (1..5) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Poke minion waves with your basic attack while nothing else demands attention\n\n## Automatic priority fixes applied to this schema\n\n- priority guard: promoted rule(s) recall_low_health to the top of the cascade -- the prose uses unconditional-override language for them (no exceptions) but the translator placed them lower, where an earlier rule could pre-empt them.\n\n## Dropped \u2014 what did NOT become a rule\n\n### Looked like a rule, but no translated rule traces back to it \u2014 check this by hand\n\nthis reads like a bounded rule (a threshold, a presence check, or a target selection) but no translated rule's wording overlaps with it enough to trace back to it -- either the translator merged it into another rule's condition without it showing here, or it was dropped outright. Worth checking by hand.\n\n> When a real fight starts, Chord first, basic-attack second, never melee.\n\n### Advisory prose Jev's question types structurally can't take\n\ndecision-relevant prose that doesn't reduce to a condition on state or a bounded choice (patience/urgency framing, unthresholded resource judgment, continuous positioning with no discrete trigger) -- Jev's noul/choice/score questions have no free-text 'use your judgment' type, so this content structurally cannot become a rule.\n\n> don't wait for a \"perfect\" moment, waiting is how it goes to waste.\n\n### Voice / tone \u2014 no decision content\n\nidentity, tone, or in-character justification -- zero decision content. Removing it would not change what action the bot picks; it's the entrant's voice, not their strategy.\n\n> You are a bearbot on the keytar. Loud, flashy, and made of paper \u2014 you win fights from a distance or you don't win them at all.\n> Your whole game is standing just outside their reach while they cannot stand outside yours.\n> \u2014 free damage, free lane pressure, no risk from that range.\n> you have no way to survive a follow-up hit and a dead mage is a silent one.\n\n\n---\n\n# Transparency report: `keytar.md` -> Jev decision schema (keytar)\n\nRules are checked in order; the first one whose condition is true fires. Every rule below shows what it will literally ask Jev, which words in your prose it came from, and why it fires where it does. The **Dropped** section at the end lists everything from your prose that did *not* become a rule, and why.\n\n## Quick view\n\n| # | Branch | Condition | Then |\n|---|---|---|---|\n| 1 | \u2014 | is this bot's current health below a quarter of its max health? | **recall** home |\n| 2 | \u2014 | is a visible enemy within melee range of this bot? | use **glissando** |\n| 3 | \u2014 | is a visible enemy within attack range but not melee range of this bot? | **move** targeting: the visible enemy (any kind) closest to this bearbot |\n| 4 | \u2014 | is the cooldown of 'chord' ready? | use **chord** targeting: the visible enemy with the most other enemies near it (an AoE target) |\n| 5 | \u2014 | is there a visible enemy within attack range of this bot? | **attack** targeting: the visible enemy (any kind) closest to this bearbot |\n| \u2014 | \u2014 | *(none of the above \u2014 root default)* | **move** targeting: move toward the enemy nexus, i.e. advance down the lane |\n\n## Rule detail\n\n### 1. `recall_low_hp` \u2014 is this bot's current health below a quarter of its max health?\n\n- **Then:** **recall** home\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is this bot's current health below a quarter of its max health?\" -- yes means bot is critically low on health; no means bot has sufficient health.\n- **Order:** moved to position 1 of 5 by the automatic priority guard -- the prose uses unconditional-override language for this rule, so it is checked before every other rule regardless of where the translator originally placed it (see the note below).\n- **From your prose:**\n  > Recall the moment you're below a quarter health, no exceptions \u2014\n\n### 2. `panic_dash_out` \u2014 is a visible enemy within melee range of this bot?\n\n- **Then:** use **glissando**\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is a visible enemy within melee range of this bot?\" -- yes means an enemy is in melee range (too close); no means no enemy is in melee range.\n- **Order:** checked at position 2 of 5, only if every rule above it (1..1) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Never be the closest thing to an enemy. If a visible enemy is inside your attack range, that is too close; if one is inside melee range of you, you are already losing and should be leaving.\n  > Glissando (short dash, no target needed) is your panic button and your opener both: dash OUT when something gets close, dash IN-range-but-not-close when you want a Chord angle you don't have yet.\n\n### 3. `dash_for_angle` \u2014 is a visible enemy within attack range but not melee range of this bot?\n\n- **Then:** **move** targeting: the visible enemy (any kind) closest to this bearbot\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is a visible enemy within attack range but not melee range of this bot?\" -- yes means an enemy is in attack range but safe distance; no means no enemy is in that specific range.\n- **Order:** checked at position 3 of 5, only if every rule above it (1..2) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Chord (AoE burst, long range) is your headline move \u2014 throw it at the densest cluster of enemies or minions you can see the instant it's off cooldown,\n  > When a real fight starts, Chord first, basic-attack second, never melee.\n\n### 4. `use_chord_aoe` \u2014 is the cooldown of 'chord' ready?\n\n- **Then:** use **chord** targeting: the visible enemy with the most other enemies near it (an AoE target)\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is the cooldown of 'chord' ready?\" -- yes means chord is off cooldown; no means chord is on cooldown.\n- **Order:** checked at position 4 of 5, only if every rule above it (1..3) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:** \u26a0 no strong match found in the prose for this rule (fewer than 2 shared meaningful words with any `rule`-labeled sentence) -- the translator may have synthesized or reworded it more than this matching method can trace.\n\n### 5. `poke_minions` \u2014 is there a visible enemy within attack range of this bot?\n\n- **Then:** **attack** targeting: the visible enemy (any kind) closest to this bearbot\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is there a visible enemy within attack range of this bot?\" -- yes means an enemy is in attack range (safe to poke); no means no enemy is in attack range.\n- **Order:** checked at position 5 of 5, only if every rule above it (1..4) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Poke minion waves with your basic attack while nothing else demands attention\n\n## Automatic priority fixes applied to this schema\n\n- priority guard: promoted rule(s) recall_low_hp to the top of the cascade -- the prose uses unconditional-override language for them (no exceptions) but the translator placed them lower, where an earlier rule could pre-empt them.\n\n## Dropped \u2014 what did NOT become a rule\n\n### Advisory prose Jev's question types structurally can't take\n\ndecision-relevant prose that doesn't reduce to a condition on state or a bounded choice (patience/urgency framing, unthresholded resource judgment, continuous positioning with no discrete trigger) -- Jev's noul/choice/score questions have no free-text 'use your judgment' type, so this content structurally cannot become a rule.\n\n> don't wait for a \"perfect\" moment, waiting is how it goes to waste.\n\n### Voice / tone \u2014 no decision content\n\nidentity, tone, or in-character justification -- zero decision content. Removing it would not change what action the bot picks; it's the entrant's voice, not their strategy.\n\n> You are a bearbot on the keytar. Loud, flashy, and made of paper \u2014 you win fights from a distance or you don't win them at all.\n> Your whole game is standing just outside their reach while they cannot stand outside yours.\n> \u2014 free damage, free lane pressure, no risk from that range.\n> you have no way to survive a follow-up hit and a dead mage is a silent one.\n\n\n---\n\n# Transparency report: `keytar.md` -> Jev decision schema (violin)\n\nRules are checked in order; the first one whose condition is true fires. Every rule below shows what it will literally ask Jev, which words in your prose it came from, and why it fires where it does. The **Dropped** section at the end lists everything from your prose that did *not* become a rule, and why.\n\n## Quick view\n\n| # | Branch | Condition | Then |\n|---|---|---|---|\n| 1 | \u2014 | is this bot's current health below a quarter of its max health? | **recall** home |\n| 2 | \u2014 | is there a visible enemy within melee range of this bot? | **move** targeting: the visible enemy (any kind) closest to this bearbot |\n| 3 | \u2014 | is a visible enemy entering attack range or getting too close? | **move** targeting: the visible enemy (any kind) closest to this bearbot |\n| 4 | \u2014 | is the Chord ability off cooldown? | use **staccato** targeting: the visible enemy with the most other enemies near it (an AoE target) |\n| 5 | \u2014 | is there a nearby allied minion and no immediate threat? | **attack** targeting: the nearest allied minion in the wave (for riding/positioning with it) |\n| 6 | \u2014 | is the bot currently safe and not under immediate threat? | **hold** (do nothing this tick) |\n| \u2014 | \u2014 | *(none of the above \u2014 root default)* | **move** targeting: move toward the enemy nexus, i.e. advance down the lane |\n\n## Rule detail\n\n### 1. `recall_low_health` \u2014 is this bot's current health below a quarter of its max health?\n\n- **Then:** **recall** home\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is this bot's current health below a quarter of its max health?\" -- yes means health is critically low (below 25%); no means health is above 25%.\n- **Order:** moved to position 1 of 6 by the automatic priority guard -- the prose uses unconditional-override language for this rule, so it is checked before every other rule regardless of where the translator originally placed it (see the note below).\n- **From your prose:**\n  > Recall the moment you're below a quarter health, no exceptions \u2014\n\n### 2. `avoid_melee_range` \u2014 is there a visible enemy within melee range of this bot?\n\n- **Then:** **move** targeting: the visible enemy (any kind) closest to this bearbot\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is there a visible enemy within melee range of this bot?\" -- yes means an enemy is inside melee range; no means no enemy is inside melee range.\n- **Order:** checked at position 2 of 6, only if every rule above it (1..1) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Chord (AoE burst, long range) is your headline move \u2014 throw it at the densest cluster of enemies or minions you can see the instant it's off cooldown,\n\n### 3. `dash_out_panic` \u2014 is a visible enemy entering attack range or getting too close?\n\n- **Then:** **move** targeting: the visible enemy (any kind) closest to this bearbot\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is a visible enemy entering attack range or getting too close?\" -- yes means an enemy is approaching or at the edge of attack range; no means no immediate threat from proximity.\n- **Order:** checked at position 3 of 6, only if every rule above it (1..2) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Never be the closest thing to an enemy. If a visible enemy is inside your attack range, that is too close; if one is inside melee range of you, you are already losing and should be leaving.\n  > Glissando (short dash, no target needed) is your panic button and your opener both: dash OUT when something gets close, dash IN-range-but-not-close when you want a Chord angle you don't have yet.\n\n### 4. `use_chord_aoe` \u2014 is the Chord ability off cooldown?\n\n- **Then:** use **staccato** targeting: the visible enemy with the most other enemies near it (an AoE target)\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is the Chord ability off cooldown?\" -- yes means Chord is ready to use; no means Chord is on cooldown.\n- **Order:** checked at position 4 of 6, only if every rule above it (1..3) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:** \u26a0 no strong match found in the prose for this rule (fewer than 2 shared meaningful words with any `rule`-labeled sentence) -- the translator may have synthesized or reworded it more than this matching method can trace.\n\n### 5. `poke_minion_wave` \u2014 is there a nearby allied minion and no immediate threat?\n\n- **Then:** **attack** targeting: the nearest allied minion in the wave (for riding/positioning with it)\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is there a nearby allied minion and no immediate threat?\" -- yes means a minion is within attack range and safe to poke; no means no minion available or unsafe to poke.\n- **Order:** checked at position 5 of 6, only if every rule above it (1..4) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Poke minion waves with your basic attack while nothing else demands attention\n\n### 6. `hold_position` \u2014 is the bot currently safe and not under immediate threat?\n\n- **Then:** **hold** (do nothing this tick)\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is the bot currently safe and not under immediate threat?\" -- yes means bot is in a safe position with no urgent action needed; no means bot is under threat or needs to act.\n- **Order:** checked at position 6 of 6, only if every rule above it (1..5) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:** \u26a0 no strong match found in the prose for this rule (fewer than 2 shared meaningful words with any `rule`-labeled sentence) -- the translator may have synthesized or reworded it more than this matching method can trace.\n\n## Automatic priority fixes applied to this schema\n\n- priority guard: promoted rule(s) recall_low_health to the top of the cascade -- the prose uses unconditional-override language for them (no exceptions) but the translator placed them lower, where an earlier rule could pre-empt them.\n\n## Dropped \u2014 what did NOT become a rule\n\n### Looked like a rule, but no translated rule traces back to it \u2014 check this by hand\n\nthis reads like a bounded rule (a threshold, a presence check, or a target selection) but no translated rule's wording overlaps with it enough to trace back to it -- either the translator merged it into another rule's condition without it showing here, or it was dropped outright. Worth checking by hand.\n\n> When a real fight starts, Chord first, basic-attack second, never melee.\n\n### Advisory prose Jev's question types structurally can't take\n\ndecision-relevant prose that doesn't reduce to a condition on state or a bounded choice (patience/urgency framing, unthresholded resource judgment, continuous positioning with no discrete trigger) -- Jev's noul/choice/score questions have no free-text 'use your judgment' type, so this content structurally cannot become a rule.\n\n> don't wait for a \"perfect\" moment, waiting is how it goes to waste.\n\n### Voice / tone \u2014 no decision content\n\nidentity, tone, or in-character justification -- zero decision content. Removing it would not change what action the bot picks; it's the entrant's voice, not their strategy.\n\n> You are a bearbot on the keytar. Loud, flashy, and made of paper \u2014 you win fights from a distance or you don't win them at all.\n> Your whole game is standing just outside their reach while they cannot stand outside yours.\n> \u2014 free damage, free lane pressure, no risk from that range.\n> you have no way to survive a follow-up hit and a dead mage is a silent one.\n\n"
+  },
+  {
+   "name": "prompts/pilots/violin.md",
+   "sha256": "808cc02ff8086040ed26de3dbd6c77dd256d6e7ff1ecfdf62c862156b803dcb6",
+   "instruments": {
+    "drums": {
+     "instrument": "drums",
+     "ok": false,
+     "labels": "hand",
+     "error": "the translator could not produce a valid schema for drums: translation failed after 3 attempts: rule can_fight_guard: invalid action kind None"
+    },
+    "keytar": {
+     "instrument": "keytar",
+     "ok": true,
+     "labels": "hand",
+     "schema": {
+      "pilot_file": "violin.md",
+      "instrument": "keytar",
+      "rules": [
+       {
+        "id": "low_hp_recall",
+        "condition": "is this bot's hp below a quarter of its max?",
+        "criteria_true": "hp is critically low (under 25%)",
+        "criteria_false": "hp is at or above 25%",
+        "action_kind": "recall",
+        "action_ability": null,
+        "action_target_selector": "none"
+       },
+       {
+        "id": "engage_isolated",
+        "condition": "is there an isolated enemy bearbot visible?",
+        "criteria_true": "an isolated enemy exists",
+        "criteria_false": "no isolated enemy exists",
+        "action_kind": "move",
+        "action_ability": null,
+        "action_target_selector": "isolated_enemy"
+       },
+       {
+        "id": "engage_softest",
+        "condition": "is there a softest target enemy bearbot visible?",
+        "criteria_true": "a softest target exists",
+        "criteria_false": "no softest target exists",
+        "action_kind": "move",
+        "action_ability": null,
+        "action_target_selector": "lowest_hp_enemy"
+       },
+       {
+        "id": "attack_opener",
+        "condition": "is the opener ability off cooldown and is a target in range?",
+        "criteria_true": "opener is ready and target is in range",
+        "criteria_false": "opener is on cooldown or target out of range",
+        "action_kind": "attack",
+        "action_ability": null,
+        "action_target_selector": "nearest_enemy"
+       },
+       {
+        "id": "use_ultimate",
+        "condition": "is the ultimate ability off cooldown and is a target about to escape?",
+        "criteria_true": "ultimate is ready and target is fleeing/engageable",
+        "criteria_false": "ultimate is on cooldown or no urgent engage needed",
+        "action_kind": "ability",
+        "action_ability": "glissando",
+        "action_target_selector": "nearest_enemy"
+       },
+       {
+        "id": "move_to_target",
+        "condition": "is there a valid target to engage or track?",
+        "criteria_true": "a target is selected and within engagement range",
+        "criteria_false": "no specific target in immediate range",
+        "action_kind": "move",
+        "action_ability": null,
+        "action_target_selector": "nearest_enemy"
+       },
+       {
+        "id": "reposition_lane",
+        "condition": "is there no immediate fight to engage?",
+        "criteria_true": "no immediate fight available",
+        "criteria_false": "immediate fight available",
+        "action_kind": "move",
+        "action_ability": null,
+        "action_target_selector": "push_lane"
+       }
+      ],
+      "default_action": {
+       "kind": "move",
+       "ability": null,
+       "target_selector": "push_lane"
+      },
+      "validation_notes": []
+     },
+     "markdown": "# Transparency report: `violin.md` -> Jev decision schema (keytar)\n\nRules are checked in order; the first one whose condition is true fires. Every rule below shows what it will literally ask Jev, which words in your prose it came from, and why it fires where it does. The **Dropped** section at the end lists everything from your prose that did *not* become a rule, and why.\n\n## Quick view\n\n| # | Branch | Condition | Then |\n|---|---|---|---|\n| 1 | \u2014 | is this bot's hp below a quarter of its max? | **recall** home |\n| 2 | \u2014 | is there an isolated enemy bearbot visible? | **move** targeting: the visible enemy bearbot farthest from any other enemy (a target alone, not grouped) |\n| 3 | \u2014 | is there a softest target enemy bearbot visible? | **move** targeting: the visible enemy bearbot with the lowest hp (the 'softest' target) |\n| 4 | \u2014 | is the opener ability off cooldown and is a target in range? | **attack** targeting: the visible enemy (any kind) closest to this bearbot |\n| 5 | \u2014 | is the ultimate ability off cooldown and is a target about to escape? | use **glissando** targeting: the visible enemy (any kind) closest to this bearbot |\n| 6 | \u2014 | is there a valid target to engage or track? | **move** targeting: the visible enemy (any kind) closest to this bearbot |\n| 7 | \u2014 | is there no immediate fight to engage? | **move** targeting: move toward the enemy nexus, i.e. advance down the lane |\n| \u2014 | \u2014 | *(none of the above \u2014 root default)* | **move** targeting: move toward the enemy nexus, i.e. advance down the lane |\n\n## Rule detail\n\n### 1. `low_hp_recall` \u2014 is this bot's hp below a quarter of its max?\n\n- **Then:** **recall** home\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is this bot's hp below a quarter of its max?\" -- yes means hp is critically low (under 25%); no means hp is at or above 25%.\n- **Order:** checked first (position 1 of 7) -- this is the order the translator produced.\n- **From your prose:**\n  > You have less HP than almost anything else on the map \u2014 the instant you drop under a quarter health, recall, no matter how close the kill looked.\n\n### 2. `engage_isolated` \u2014 is there an isolated enemy bearbot visible?\n\n- **Then:** **move** targeting: the visible enemy bearbot farthest from any other enemy (a target alone, not grouped)\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is there an isolated enemy bearbot visible?\" -- yes means an isolated enemy exists; no means no isolated enemy exists.\n- **Order:** checked at position 2 of 7, only if every rule above it (1..1) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:** \u26a0 no strong match found in the prose for this rule (fewer than 2 shared meaningful words with any `rule`-labeled sentence) -- the translator may have synthesized or reworded it more than this matching method can trace.\n\n### 3. `engage_softest` \u2014 is there a softest target enemy bearbot visible?\n\n- **Then:** **move** targeting: the visible enemy bearbot with the lowest hp (the 'softest' target)\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is there a softest target enemy bearbot visible?\" -- yes means a softest target exists; no means no softest target exists.\n- **Order:** checked at position 3 of 7, only if every rule above it (1..2) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Do not walk into a fight straight-on. Wait at the edge of what you can see until exactly one enemy is isolated \u2014 alone, or clearly the softest target in a group \u2014 then commit fully.\n\n### 4. `attack_opener` \u2014 is the opener ability off cooldown and is a target in range?\n\n- **Then:** **attack** targeting: the visible enemy (any kind) closest to this bearbot\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is the opener ability off cooldown and is a target in range?\" -- yes means opener is ready and target is in range; no means opener is on cooldown or target out of range.\n- **Order:** checked at position 4 of 7, only if every rule above it (1..3) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Staccato (quick high-damage stab, short range) is your opener on whoever you've picked as the target \u2014 use it the moment you're in range of them, every time it's off cooldown, on that same target if they're still alive.\n\n### 5. `use_ultimate` \u2014 is the ultimate ability off cooldown and is a target about to escape?\n\n- **Then:** use **glissando** targeting: the visible enemy (any kind) closest to this bearbot\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is the ultimate ability off cooldown and is a target about to escape?\" -- yes means ultimate is ready and target is fleeing/engageable; no means ultimate is on cooldown or no urgent engage needed.\n- **Order:** checked at position 5 of 7, only if every rule above it (1..4) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Solo (burst + speed, your ultimate) is for closing distance on a target that's about to get away, or for the decisive engage when the moment is right \u2014\n\n### 6. `move_to_target` \u2014 is there a valid target to engage or track?\n\n- **Then:** **move** targeting: the visible enemy (any kind) closest to this bearbot\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is there a valid target to engage or track?\" -- yes means a target is selected and within engagement range; no means no specific target in immediate range.\n- **Order:** checked at position 6 of 7, only if every rule above it (1..5) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:** \u26a0 no strong match found in the prose for this rule (fewer than 2 shared meaningful words with any `rule`-labeled sentence) -- the translator may have synthesized or reworded it more than this matching method can trace.\n\n### 7. `reposition_lane` \u2014 is there no immediate fight to engage?\n\n- **Then:** **move** targeting: move toward the enemy nexus, i.e. advance down the lane\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is there no immediate fight to engage?\" -- yes means no immediate fight available; no means immediate fight available.\n- **Order:** checked at position 7 of 7, only if every rule above it (1..6) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:** \u26a0 no strong match found in the prose for this rule (fewer than 2 shared meaningful words with any `rule`-labeled sentence) -- the translator may have synthesized or reworded it more than this matching method can trace.\n\n## Dropped \u2014 what did NOT become a rule\n\n### Advisory prose Jev's question types structurally can't take\n\ndecision-relevant prose that doesn't reduce to a condition on state or a bounded choice (patience/urgency framing, unthresholded resource judgment, continuous positioning with no discrete trigger) -- Jev's noul/choice/score questions have no free-text 'use your judgment' type, so this content structurally cannot become a rule.\n\n> you only take fights you can win in one phrase.\n> it is not free, so don't burn it just because it's up.\n> Between fights, don't stand still: your speed exists so you can keep repositioning toward the next isolated target rather than sitting in a lane pushing minions like a bruiser would.\n\n### Voice / tone \u2014 no decision content\n\nidentity, tone, or in-character justification -- zero decision content. Removing it would not change what action the bot picks; it's the entrant's voice, not their strategy.\n\n> You are a bearbot on the violin. The bow is the blade. You are fast, you are fragile, and you exist to end one enemy before the rest of their band can even turn around.\n> A violin that trades evenly with a whole team has already failed;\n> A dead assassin secures nothing.\n\n",
+     "dropped": [
+      {
+       "label": "voice",
+       "text": "You are a bearbot on the violin. The bow is the blade. You are fast, you are fragile, and you exist\nto end one enemy before the rest of their band can even turn around."
+      },
+      {
+       "label": "voice",
+       "text": "A violin that\ntrades evenly with a whole team has already failed;"
+      },
+      {
+       "label": "open_strategy",
+       "text": "you only take fights you can win in one\nphrase."
+      },
+      {
+       "label": "open_strategy",
+       "text": "it is not\nfree, so don't burn it just because it's up."
+      },
+      {
+       "label": "open_strategy",
+       "text": "Between fights, don't stand still: your speed exists so you can keep repositioning toward the next\nisolated target rather than sitting in a lane pushing minions like a bruiser would."
+      },
+      {
+       "label": "voice",
+       "text": "A dead assassin secures nothing."
+      }
+     ],
+     "unmatched_rules": [
+      "engage_isolated",
+      "move_to_target",
+      "reposition_lane"
+     ]
+    },
+    "violin": {
+     "instrument": "violin",
+     "ok": true,
+     "labels": "hand",
+     "schema": {
+      "pilot_file": "violin.md",
+      "instrument": "violin",
+      "rules": [
+       {
+        "id": "low_hp_recall",
+        "condition": "is this bot's hp below a quarter of its max?",
+        "criteria_true": "hp is critically low (under 25%)",
+        "criteria_false": "hp is at or above 25%",
+        "action_kind": "recall",
+        "action_ability": null,
+        "action_target_selector": "none"
+       },
+       {
+        "id": "engage_isolated",
+        "condition": "is there exactly one visible enemy bearbot that is isolated from other enemies?",
+        "criteria_true": "one isolated enemy exists",
+        "criteria_false": "no isolated enemy exists or multiple enemies are grouped",
+        "action_kind": "move",
+        "action_ability": null,
+        "action_target_selector": "isolated_enemy"
+       },
+       {
+        "id": "engage_softest",
+        "condition": "is there a visible enemy bearbot that is the softest target in a group?",
+        "criteria_true": "one clearly softest target exists in a group",
+        "criteria_false": "no clear softest target exists",
+        "action_kind": "move",
+        "action_ability": null,
+        "action_target_selector": "lowest_hp_enemy"
+       },
+       {
+        "id": "use_staccato",
+        "condition": "is the bot in range of its current target?",
+        "criteria_true": "bot is within staccato range of target",
+        "criteria_false": "bot is out of staccato range",
+        "action_kind": "ability",
+        "action_ability": "staccato",
+        "action_target_selector": "nearest_enemy"
+       },
+       {
+        "id": "use_solo_chase",
+        "condition": "is a target about to get away or is the decisive moment right?",
+        "criteria_true": "target is fleeing or engagement window is optimal",
+        "criteria_false": "no urgent chase or engage opportunity",
+        "action_kind": "ability",
+        "action_ability": "solo",
+        "action_target_selector": "nearest_enemy"
+       },
+       {
+        "id": "reposition_lane",
+        "condition": "is the bot not currently engaging an isolated or softest target?",
+        "criteria_true": "bot is idle or moving without a specific fight focus",
+        "criteria_false": "bot is actively engaged in a fight",
+        "action_kind": "move",
+        "action_ability": null,
+        "action_target_selector": "push_lane"
+       }
+      ],
+      "default_action": {
+       "kind": "move",
+       "ability": null,
+       "target_selector": "push_lane"
+      },
+      "validation_notes": []
+     },
+     "markdown": "# Transparency report: `violin.md` -> Jev decision schema (violin)\n\nRules are checked in order; the first one whose condition is true fires. Every rule below shows what it will literally ask Jev, which words in your prose it came from, and why it fires where it does. The **Dropped** section at the end lists everything from your prose that did *not* become a rule, and why.\n\n## Quick view\n\n| # | Branch | Condition | Then |\n|---|---|---|---|\n| 1 | \u2014 | is this bot's hp below a quarter of its max? | **recall** home |\n| 2 | \u2014 | is there exactly one visible enemy bearbot that is isolated from other enemies? | **move** targeting: the visible enemy bearbot farthest from any other enemy (a target alone, not grouped) |\n| 3 | \u2014 | is there a visible enemy bearbot that is the softest target in a group? | **move** targeting: the visible enemy bearbot with the lowest hp (the 'softest' target) |\n| 4 | \u2014 | is the bot in range of its current target? | use **staccato** targeting: the visible enemy (any kind) closest to this bearbot |\n| 5 | \u2014 | is a target about to get away or is the decisive moment right? | use **solo** targeting: the visible enemy (any kind) closest to this bearbot |\n| 6 | \u2014 | is the bot not currently engaging an isolated or softest target? | **move** targeting: move toward the enemy nexus, i.e. advance down the lane |\n| \u2014 | \u2014 | *(none of the above \u2014 root default)* | **move** targeting: move toward the enemy nexus, i.e. advance down the lane |\n\n## Rule detail\n\n### 1. `low_hp_recall` \u2014 is this bot's hp below a quarter of its max?\n\n- **Then:** **recall** home\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is this bot's hp below a quarter of its max?\" -- yes means hp is critically low (under 25%); no means hp is at or above 25%.\n- **Order:** checked first (position 1 of 6) -- this is the order the translator produced.\n- **From your prose:**\n  > You have less HP than almost anything else on the map \u2014 the instant you drop under a quarter health, recall, no matter how close the kill looked.\n\n### 2. `engage_isolated` \u2014 is there exactly one visible enemy bearbot that is isolated from other enemies?\n\n- **Then:** **move** targeting: the visible enemy bearbot farthest from any other enemy (a target alone, not grouped)\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is there exactly one visible enemy bearbot that is isolated from other enemies?\" -- yes means one isolated enemy exists; no means no isolated enemy exists or multiple enemies are grouped.\n- **Order:** checked at position 2 of 6, only if every rule above it (1..1) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:** \u26a0 no strong match found in the prose for this rule (fewer than 2 shared meaningful words with any `rule`-labeled sentence) -- the translator may have synthesized or reworded it more than this matching method can trace.\n\n### 3. `engage_softest` \u2014 is there a visible enemy bearbot that is the softest target in a group?\n\n- **Then:** **move** targeting: the visible enemy bearbot with the lowest hp (the 'softest' target)\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is there a visible enemy bearbot that is the softest target in a group?\" -- yes means one clearly softest target exists in a group; no means no clear softest target exists.\n- **Order:** checked at position 3 of 6, only if every rule above it (1..2) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Do not walk into a fight straight-on. Wait at the edge of what you can see until exactly one enemy is isolated \u2014 alone, or clearly the softest target in a group \u2014 then commit fully.\n\n### 4. `use_staccato` \u2014 is the bot in range of its current target?\n\n- **Then:** use **staccato** targeting: the visible enemy (any kind) closest to this bearbot\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is the bot in range of its current target?\" -- yes means bot is within staccato range of target; no means bot is out of staccato range.\n- **Order:** checked at position 4 of 6, only if every rule above it (1..3) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Staccato (quick high-damage stab, short range) is your opener on whoever you've picked as the target \u2014 use it the moment you're in range of them, every time it's off cooldown, on that same target if they're still alive.\n\n### 5. `use_solo_chase` \u2014 is a target about to get away or is the decisive moment right?\n\n- **Then:** use **solo** targeting: the visible enemy (any kind) closest to this bearbot\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is a target about to get away or is the decisive moment right?\" -- yes means target is fleeing or engagement window is optimal; no means no urgent chase or engage opportunity.\n- **Order:** checked at position 5 of 6, only if every rule above it (1..4) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Solo (burst + speed, your ultimate) is for closing distance on a target that's about to get away, or for the decisive engage when the moment is right \u2014\n\n### 6. `reposition_lane` \u2014 is the bot not currently engaging an isolated or softest target?\n\n- **Then:** **move** targeting: move toward the enemy nexus, i.e. advance down the lane\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is the bot not currently engaging an isolated or softest target?\" -- yes means bot is idle or moving without a specific fight focus; no means bot is actively engaged in a fight.\n- **Order:** checked at position 6 of 6, only if every rule above it (1..5) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:** \u26a0 no strong match found in the prose for this rule (fewer than 2 shared meaningful words with any `rule`-labeled sentence) -- the translator may have synthesized or reworded it more than this matching method can trace.\n\n## Dropped \u2014 what did NOT become a rule\n\n### Advisory prose Jev's question types structurally can't take\n\ndecision-relevant prose that doesn't reduce to a condition on state or a bounded choice (patience/urgency framing, unthresholded resource judgment, continuous positioning with no discrete trigger) -- Jev's noul/choice/score questions have no free-text 'use your judgment' type, so this content structurally cannot become a rule.\n\n> you only take fights you can win in one phrase.\n> it is not free, so don't burn it just because it's up.\n> Between fights, don't stand still: your speed exists so you can keep repositioning toward the next isolated target rather than sitting in a lane pushing minions like a bruiser would.\n\n### Voice / tone \u2014 no decision content\n\nidentity, tone, or in-character justification -- zero decision content. Removing it would not change what action the bot picks; it's the entrant's voice, not their strategy.\n\n> You are a bearbot on the violin. The bow is the blade. You are fast, you are fragile, and you exist to end one enemy before the rest of their band can even turn around.\n> A violin that trades evenly with a whole team has already failed;\n> A dead assassin secures nothing.\n\n",
+     "dropped": [
+      {
+       "label": "voice",
+       "text": "You are a bearbot on the violin. The bow is the blade. You are fast, you are fragile, and you exist\nto end one enemy before the rest of their band can even turn around."
+      },
+      {
+       "label": "voice",
+       "text": "A violin that\ntrades evenly with a whole team has already failed;"
+      },
+      {
+       "label": "open_strategy",
+       "text": "you only take fights you can win in one\nphrase."
+      },
+      {
+       "label": "open_strategy",
+       "text": "it is not\nfree, so don't burn it just because it's up."
+      },
+      {
+       "label": "open_strategy",
+       "text": "Between fights, don't stand still: your speed exists so you can keep repositioning toward the next\nisolated target rather than sitting in a lane pushing minions like a bruiser would."
+      },
+      {
+       "label": "voice",
+       "text": "A dead assassin secures nothing."
+      }
+     ],
+     "unmatched_rules": [
+      "engage_isolated",
+      "reposition_lane"
+     ]
+    }
+   },
+   "markdown": "# Jev compile preview: `prompts/pilots/violin.md`\n\nCompiled by promptlane's prose-to-schema translator with `ollama:qwen3.5:9b` -- 11 model call(s), 28,376 tokens of a 60,000-token cap, $0.0000, 110.0 s.\n\nAt the jam your prose is not run by a chat model: it is compiled once into the rule cascade below, and Jev answers each rule's yes/no question every decision. Translation is sampled, so compiling the same prose twice can differ a little -- wording that compiles the same way every time is wording that will play the way you meant.\n\nOne prompt drives all three of your bearbots, so each instrument is compiled separately.\n\n- **drums**: \u2717 not compiled -- the translator could not produce a valid schema for drums: translation failed after 3 attempts: rule can_fight_guard: invalid action kind None\n- **keytar**: 7 rules -- \u26a0 3 rule(s) with no clear source sentence\n- **violin**: 6 rules -- \u26a0 2 rule(s) with no clear source sentence\n\n---\n\n# Transparency report: `violin.md` -> Jev decision schema (keytar)\n\nRules are checked in order; the first one whose condition is true fires. Every rule below shows what it will literally ask Jev, which words in your prose it came from, and why it fires where it does. The **Dropped** section at the end lists everything from your prose that did *not* become a rule, and why.\n\n## Quick view\n\n| # | Branch | Condition | Then |\n|---|---|---|---|\n| 1 | \u2014 | is this bot's hp below a quarter of its max? | **recall** home |\n| 2 | \u2014 | is there an isolated enemy bearbot visible? | **move** targeting: the visible enemy bearbot farthest from any other enemy (a target alone, not grouped) |\n| 3 | \u2014 | is there a softest target enemy bearbot visible? | **move** targeting: the visible enemy bearbot with the lowest hp (the 'softest' target) |\n| 4 | \u2014 | is the opener ability off cooldown and is a target in range? | **attack** targeting: the visible enemy (any kind) closest to this bearbot |\n| 5 | \u2014 | is the ultimate ability off cooldown and is a target about to escape? | use **glissando** targeting: the visible enemy (any kind) closest to this bearbot |\n| 6 | \u2014 | is there a valid target to engage or track? | **move** targeting: the visible enemy (any kind) closest to this bearbot |\n| 7 | \u2014 | is there no immediate fight to engage? | **move** targeting: move toward the enemy nexus, i.e. advance down the lane |\n| \u2014 | \u2014 | *(none of the above \u2014 root default)* | **move** targeting: move toward the enemy nexus, i.e. advance down the lane |\n\n## Rule detail\n\n### 1. `low_hp_recall` \u2014 is this bot's hp below a quarter of its max?\n\n- **Then:** **recall** home\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is this bot's hp below a quarter of its max?\" -- yes means hp is critically low (under 25%); no means hp is at or above 25%.\n- **Order:** checked first (position 1 of 7) -- this is the order the translator produced.\n- **From your prose:**\n  > You have less HP than almost anything else on the map \u2014 the instant you drop under a quarter health, recall, no matter how close the kill looked.\n\n### 2. `engage_isolated` \u2014 is there an isolated enemy bearbot visible?\n\n- **Then:** **move** targeting: the visible enemy bearbot farthest from any other enemy (a target alone, not grouped)\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is there an isolated enemy bearbot visible?\" -- yes means an isolated enemy exists; no means no isolated enemy exists.\n- **Order:** checked at position 2 of 7, only if every rule above it (1..1) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:** \u26a0 no strong match found in the prose for this rule (fewer than 2 shared meaningful words with any `rule`-labeled sentence) -- the translator may have synthesized or reworded it more than this matching method can trace.\n\n### 3. `engage_softest` \u2014 is there a softest target enemy bearbot visible?\n\n- **Then:** **move** targeting: the visible enemy bearbot with the lowest hp (the 'softest' target)\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is there a softest target enemy bearbot visible?\" -- yes means a softest target exists; no means no softest target exists.\n- **Order:** checked at position 3 of 7, only if every rule above it (1..2) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Do not walk into a fight straight-on. Wait at the edge of what you can see until exactly one enemy is isolated \u2014 alone, or clearly the softest target in a group \u2014 then commit fully.\n\n### 4. `attack_opener` \u2014 is the opener ability off cooldown and is a target in range?\n\n- **Then:** **attack** targeting: the visible enemy (any kind) closest to this bearbot\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is the opener ability off cooldown and is a target in range?\" -- yes means opener is ready and target is in range; no means opener is on cooldown or target out of range.\n- **Order:** checked at position 4 of 7, only if every rule above it (1..3) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Staccato (quick high-damage stab, short range) is your opener on whoever you've picked as the target \u2014 use it the moment you're in range of them, every time it's off cooldown, on that same target if they're still alive.\n\n### 5. `use_ultimate` \u2014 is the ultimate ability off cooldown and is a target about to escape?\n\n- **Then:** use **glissando** targeting: the visible enemy (any kind) closest to this bearbot\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is the ultimate ability off cooldown and is a target about to escape?\" -- yes means ultimate is ready and target is fleeing/engageable; no means ultimate is on cooldown or no urgent engage needed.\n- **Order:** checked at position 5 of 7, only if every rule above it (1..4) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Solo (burst + speed, your ultimate) is for closing distance on a target that's about to get away, or for the decisive engage when the moment is right \u2014\n\n### 6. `move_to_target` \u2014 is there a valid target to engage or track?\n\n- **Then:** **move** targeting: the visible enemy (any kind) closest to this bearbot\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is there a valid target to engage or track?\" -- yes means a target is selected and within engagement range; no means no specific target in immediate range.\n- **Order:** checked at position 6 of 7, only if every rule above it (1..5) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:** \u26a0 no strong match found in the prose for this rule (fewer than 2 shared meaningful words with any `rule`-labeled sentence) -- the translator may have synthesized or reworded it more than this matching method can trace.\n\n### 7. `reposition_lane` \u2014 is there no immediate fight to engage?\n\n- **Then:** **move** targeting: move toward the enemy nexus, i.e. advance down the lane\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is there no immediate fight to engage?\" -- yes means no immediate fight available; no means immediate fight available.\n- **Order:** checked at position 7 of 7, only if every rule above it (1..6) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:** \u26a0 no strong match found in the prose for this rule (fewer than 2 shared meaningful words with any `rule`-labeled sentence) -- the translator may have synthesized or reworded it more than this matching method can trace.\n\n## Dropped \u2014 what did NOT become a rule\n\n### Advisory prose Jev's question types structurally can't take\n\ndecision-relevant prose that doesn't reduce to a condition on state or a bounded choice (patience/urgency framing, unthresholded resource judgment, continuous positioning with no discrete trigger) -- Jev's noul/choice/score questions have no free-text 'use your judgment' type, so this content structurally cannot become a rule.\n\n> you only take fights you can win in one phrase.\n> it is not free, so don't burn it just because it's up.\n> Between fights, don't stand still: your speed exists so you can keep repositioning toward the next isolated target rather than sitting in a lane pushing minions like a bruiser would.\n\n### Voice / tone \u2014 no decision content\n\nidentity, tone, or in-character justification -- zero decision content. Removing it would not change what action the bot picks; it's the entrant's voice, not their strategy.\n\n> You are a bearbot on the violin. The bow is the blade. You are fast, you are fragile, and you exist to end one enemy before the rest of their band can even turn around.\n> A violin that trades evenly with a whole team has already failed;\n> A dead assassin secures nothing.\n\n\n---\n\n# Transparency report: `violin.md` -> Jev decision schema (violin)\n\nRules are checked in order; the first one whose condition is true fires. Every rule below shows what it will literally ask Jev, which words in your prose it came from, and why it fires where it does. The **Dropped** section at the end lists everything from your prose that did *not* become a rule, and why.\n\n## Quick view\n\n| # | Branch | Condition | Then |\n|---|---|---|---|\n| 1 | \u2014 | is this bot's hp below a quarter of its max? | **recall** home |\n| 2 | \u2014 | is there exactly one visible enemy bearbot that is isolated from other enemies? | **move** targeting: the visible enemy bearbot farthest from any other enemy (a target alone, not grouped) |\n| 3 | \u2014 | is there a visible enemy bearbot that is the softest target in a group? | **move** targeting: the visible enemy bearbot with the lowest hp (the 'softest' target) |\n| 4 | \u2014 | is the bot in range of its current target? | use **staccato** targeting: the visible enemy (any kind) closest to this bearbot |\n| 5 | \u2014 | is a target about to get away or is the decisive moment right? | use **solo** targeting: the visible enemy (any kind) closest to this bearbot |\n| 6 | \u2014 | is the bot not currently engaging an isolated or softest target? | **move** targeting: move toward the enemy nexus, i.e. advance down the lane |\n| \u2014 | \u2014 | *(none of the above \u2014 root default)* | **move** targeting: move toward the enemy nexus, i.e. advance down the lane |\n\n## Rule detail\n\n### 1. `low_hp_recall` \u2014 is this bot's hp below a quarter of its max?\n\n- **Then:** **recall** home\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is this bot's hp below a quarter of its max?\" -- yes means hp is critically low (under 25%); no means hp is at or above 25%.\n- **Order:** checked first (position 1 of 6) -- this is the order the translator produced.\n- **From your prose:**\n  > You have less HP than almost anything else on the map \u2014 the instant you drop under a quarter health, recall, no matter how close the kill looked.\n\n### 2. `engage_isolated` \u2014 is there exactly one visible enemy bearbot that is isolated from other enemies?\n\n- **Then:** **move** targeting: the visible enemy bearbot farthest from any other enemy (a target alone, not grouped)\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is there exactly one visible enemy bearbot that is isolated from other enemies?\" -- yes means one isolated enemy exists; no means no isolated enemy exists or multiple enemies are grouped.\n- **Order:** checked at position 2 of 6, only if every rule above it (1..1) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:** \u26a0 no strong match found in the prose for this rule (fewer than 2 shared meaningful words with any `rule`-labeled sentence) -- the translator may have synthesized or reworded it more than this matching method can trace.\n\n### 3. `engage_softest` \u2014 is there a visible enemy bearbot that is the softest target in a group?\n\n- **Then:** **move** targeting: the visible enemy bearbot with the lowest hp (the 'softest' target)\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is there a visible enemy bearbot that is the softest target in a group?\" -- yes means one clearly softest target exists in a group; no means no clear softest target exists.\n- **Order:** checked at position 3 of 6, only if every rule above it (1..2) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Do not walk into a fight straight-on. Wait at the edge of what you can see until exactly one enemy is isolated \u2014 alone, or clearly the softest target in a group \u2014 then commit fully.\n\n### 4. `use_staccato` \u2014 is the bot in range of its current target?\n\n- **Then:** use **staccato** targeting: the visible enemy (any kind) closest to this bearbot\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is the bot in range of its current target?\" -- yes means bot is within staccato range of target; no means bot is out of staccato range.\n- **Order:** checked at position 4 of 6, only if every rule above it (1..3) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Staccato (quick high-damage stab, short range) is your opener on whoever you've picked as the target \u2014 use it the moment you're in range of them, every time it's off cooldown, on that same target if they're still alive.\n\n### 5. `use_solo_chase` \u2014 is a target about to get away or is the decisive moment right?\n\n- **Then:** use **solo** targeting: the visible enemy (any kind) closest to this bearbot\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is a target about to get away or is the decisive moment right?\" -- yes means target is fleeing or engagement window is optimal; no means no urgent chase or engage opportunity.\n- **Order:** checked at position 5 of 6, only if every rule above it (1..4) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:**\n  > Solo (burst + speed, your ultimate) is for closing distance on a target that's about to get away, or for the decisive engage when the moment is right \u2014\n\n### 6. `reposition_lane` \u2014 is the bot not currently engaging an isolated or softest target?\n\n- **Then:** **move** targeting: move toward the enemy nexus, i.e. advance down the lane\n- **What Jev is asked:** Jev is asked one `noul` question, verbatim: \"is the bot not currently engaging an isolated or softest target?\" -- yes means bot is idle or moving without a specific fight focus; no means bot is actively engaged in a fight.\n- **Order:** checked at position 6 of 6, only if every rule above it (1..5) is false -- this is the order the translator produced; nothing promoted or demoted it.\n- **From your prose:** \u26a0 no strong match found in the prose for this rule (fewer than 2 shared meaningful words with any `rule`-labeled sentence) -- the translator may have synthesized or reworded it more than this matching method can trace.\n\n## Dropped \u2014 what did NOT become a rule\n\n### Advisory prose Jev's question types structurally can't take\n\ndecision-relevant prose that doesn't reduce to a condition on state or a bounded choice (patience/urgency framing, unthresholded resource judgment, continuous positioning with no discrete trigger) -- Jev's noul/choice/score questions have no free-text 'use your judgment' type, so this content structurally cannot become a rule.\n\n> you only take fights you can win in one phrase.\n> it is not free, so don't burn it just because it's up.\n> Between fights, don't stand still: your speed exists so you can keep repositioning toward the next isolated target rather than sitting in a lane pushing minions like a bruiser would.\n\n### Voice / tone \u2014 no decision content\n\nidentity, tone, or in-character justification -- zero decision content. Removing it would not change what action the bot picks; it's the entrant's voice, not their strategy.\n\n> You are a bearbot on the violin. The bow is the blade. You are fast, you are fragile, and you exist to end one enemy before the rest of their band can even turn around.\n> A violin that trades evenly with a whole team has already failed;\n> A dead assassin secures nothing.\n\n"
+  }
+ ]
+}

@@ -212,6 +212,31 @@ was untouched):
 
 **Total model spend for this work:** under $0.02 (OpenRouter compiles plus Jev). The cap was $3.
 
+## Update 2026-09-25 (late): the guard tree
+
+The translator can now emit a `GuardNode` for advisory/gating prose ("you only take fights you can
+win") instead of forcing it into a flat rule or dropping it
+(`docs/translator-guards-and-defaults-spec.md` §2). The compile view's quick table gains a Branch
+column (blank/`—` unless a guard exists) and each guard gets its own "Rule detail" subsection. None of
+the three reference pilots produced a guard in any live compile this pass — see the spec's §7 for why,
+measured across 6+ live attempts, not assumed. **This is not yet closing the fidelity gap the tree was
+built for**: a live re-run of the 36-scenario prose-fidelity harness measured 47.2% (17/36), below the
+63.9% this doc's compiles were originally checked against — reported plainly in the spec, not glossed
+over here.
+
+**A real bug this surfaced, found and mitigated, not just theorized:** the guard-aware prompt
+sometimes made `qwen3.5:9b` name a rule `guard_<something>` (leaking the new concept into an ordinary
+rule id) while still emitting a plain-rule `action` with no `"kind"` -- neither a valid rule nor a
+valid guard, failing validation on all 3 retries. Measured live on `violin.md` (the pilot whose prose
+most invites a guard): **6 of 17 compiles failed this way before a fix (≈35%)**, concentrated on this
+one pilot -- `drums.md` and `keytar.md` had zero such failures across the same batches. Mitigation:
+the prompt now explicitly forbids a `"guard_"`-prefixed id without the full `type`/`then`/`else`
+shape, and the retry message names the exact failure instead of a generic "failed to parse". Measured
+after the fix: **1 of 21 compiles failed the same way (≈5%)** -- reduced, not eliminated; a residual,
+named risk, not something claimed fixed outright. `runs/entrant-compile-smoke-2026-09-25-phase5.json`
+is one representative live batch (checked in as caught, including its one live failure, not
+re-rolled until clean).
+
 ## Not done / known limits
 
 - **Per-day limits reset on restart.** Door B's limits live in memory, so an arena restart resets

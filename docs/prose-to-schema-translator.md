@@ -8,6 +8,18 @@ with the code that produced the number checked in) or an inference from those me
 (labelled **inferred**). No arena, backend, model_server, or sim code was touched — per the task's
 scope boundary, this is translator + offline harness code only, in `tools/jev/`.*
 
+**Update 2026-09-25 (late): the schema is now a tree, and the 63.9% below did not hold on re-measure.**
+`translator.py` gained the guard-question tree
+(`docs/translator-guards-and-defaults-spec.md` §2) — `TranslatedSchema.root: Cascade` is the
+canonical representation now, with `rules`/`default_kind`/etc. kept as a backward-compatible view, so
+everything below describing the flat rule-cascade design is still accurate for a schema with zero
+guards, which is what every live translation in this pass actually produced. Re-running this memo's
+own 36-scenario harness live after that change measured **47.2% (17/36) translator-vs-prose fidelity,
+twice** — below the 63.9% this memo reports in §4.4, not above it. See
+`docs/translator-guards-and-defaults-spec.md` §7 for the full result, the per-scenario misses, and why
+(qwen3.5:9b never emitted a guard live, so this is ordinary flat-rule variance, not a guard-specific
+regression — but also not the improvement the tree was built to produce).
+
 ## The short answer
 
 **Better than the raw numbers first suggested, once translator error is separated from ground-truth

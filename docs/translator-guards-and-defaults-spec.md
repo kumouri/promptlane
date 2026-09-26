@@ -369,11 +369,86 @@ actually moving. This is scoped as part of Phase 4 below, not built in this chan
 | Phase | What | Status |
 |---|---|---|
 | 0 | Guard-noul calibration (§2.4) — measure whether Jev can answer a judgment guard question before writing any tree code | **Done, this change.** 4/4 (100%) main wording and majority vote; 33% cross-wording unanimity flagged as a real design constraint. `runs/guard-noul-calibration-2026-09-25.{md,json}`. |
-| 1 | Implement the tree schema (§2.2) in `translator.py`: `Cascade`/`RuleNode`/`GuardNode` dataclasses, tree-walk evaluation, translation-prompt changes so the model can emit a guard for class-1-shaped prose. Re-run Phase 0's calibration shape against the translator's *actual* guard wording per pilot before trusting it (§2.4). | Not started — gated on this spec. |
-| 2 | Implement default ordering (§3) in `translator.py`/`transparency.py`: innermost-branch binding, root escalation, same-level tie-break plus the transparency flag (§3.3). | Not started — gated on Phase 1 existing (defaults need branches to bind to). |
+| 1 | Implement the tree schema (§2.2) in `translator.py`: `Cascade`/`RuleNode`/`GuardNode` dataclasses, tree-walk evaluation, translation-prompt changes so the model can emit a guard for class-1-shaped prose. Re-run Phase 0's calibration shape against the translator's *actual* guard wording per pilot before trusting it (§2.4). | **Built and tested, 2026-09-25 late.** `Cascade`/`GuardNode`/`evaluate_cascade`/`collect_nodes`/`display_rows`, full backward compatibility (all 269 pre-existing tests pass unmodified). **The re-calibration step could not run**: qwen3.5:9b (`think:false`, matching the shipped translator) produced zero guards across 6 live attempts on violin.md (the clearest class-1 pilot), across two prompt variants including a worked JSON example — see §7. |
+| 2 | Implement default ordering (§3) in `translator.py`/`transparency.py`: innermost-branch binding, root escalation, same-level tie-break plus the transparency flag (§3.3). | **Built and tested, 2026-09-25 late.** Innermost-binding/escalation were structural properties of Phase 1's `Cascade.default` (`EvaluateCascadeTests`); `resolve_default_tie` implements §3.3's tie-break, tested against the spec's own illustrative example -- not wired into `translate_pilot`/`parse_schema` (no real pilot has this shape, and the wire format needs a translation-time detector this pass didn't build). |
 | 3 | Numeric tracer (§4) | **Done, this change.** `tools/jev/number_normalize.py`, wired into `translator._tokenize`, 10 new tests (`test_number_normalize.py`) plus the `transparency._significant` fix it required; full existing suite still green (269 Python tests via `npm run test:tools`, 96 Node tests via `npm run test:arena`, run 2026-09-25). |
-| 4 | Re-run the 36-scenario prose-fidelity harness (§5) with Phases 1–3 shipped; confirm ≥29/36 or report the honest shortfall; add the per-guard diagnostic breakdown. | Not started — gated on Phases 1–2. |
-| 5 | Update `docs/prose-to-schema-translator.md`, `docs/translator-transparency.md`, `docs/entrant-compile-preview.md` for the new schema shape; re-run live entrant-compile smoke checks for all three reference pilots (`tools/jev/test_compile.py`'s byte-exact reproduction test will need new checked-in fixtures once the schema shape changes). | Not started — gated on Phase 4. |
+| 4 | Re-run the 36-scenario prose-fidelity harness (§5) with Phases 1–3 shipped; confirm ≥29/36 or report the honest shortfall; add the per-guard diagnostic breakdown. | **Measured live, 2026-09-25 late — falls short.** Two live runs both landed at **17/36 (47.2%)**, below the 63.9% (23/36) baseline and well short of the 29/36 (80%) target, a 12-scenario shortfall. Zero guards fired in either run (per §7, the translator never emitted one). Per-guard diagnostic breakdown (`fidelity_harness.guard_diagnostics`) is built and tested; it reports `{}` for every pilot this run since none produced a guard. See §7 for the honest read. |
+| 5 | Update `docs/prose-to-schema-translator.md`, `docs/translator-transparency.md`, `docs/entrant-compile-preview.md` for the new schema shape; re-run live entrant-compile smoke checks for all three reference pilots (`tools/jev/test_compile.py`'s byte-exact reproduction test will need new checked-in fixtures once the schema shape changes). | **Done, this change.** Docs updated with dated addenda; fixtures regenerated for the Branch-column render shape; live entrant-compile smoke checks re-run for drums/keytar/violin (§7). |
+
+## 7. What Phases 1, 2, and 4 actually measured (2026-09-25 late, following up on §0–§6 above)
+
+**The guard tree is built and correct, verified against hand-built fixtures — but qwen3.5:9b
+essentially never chooses to use it.** `translator.py` now has `Cascade`/`GuardNode`, a completed
+`evaluate_cascade` (the spec's own §2.2 pseudocode only ever recurses into a guard's `then` branch,
+never `else` — literally read, it can never produce the "no" branch's action at all, which
+contradicts §3.2's own worked example; implemented here as a guard always committing to one of its
+two branches, symmetrically, and tested at every escalation depth), and rendering/transparency
+support for the Branch column and guard subsections from §2.3. All backward-compatible: the full
+pre-existing 269-test suite passed unmodified throughout.
+
+**Live guard emission, measured:** the translation prompt describes the guard option in prose and,
+after the first attempt produced zero guards, gained a worked JSON example of exactly the shape
+violin.md's "you only take fights you can win" should produce. Both versions were tried live against
+violin.md, `qwen3.5:9b`, `think:false` (matching the shipped translator's own setting) — **0 of 6
+attempts (3 per prompt version) produced a guard node.** A quick diagnostic (`think:true` on the same
+prompt) shows why enabling reasoning isn't a cheap fix: the model spent its entire 4,000-token budget
+in `<thinking>` and produced zero output tokens (`done_reason: "length"`), so this would need a much
+larger, slower, and more expensive call, not a one-line config flip. **Read honestly: whether the
+*translator* can reliably recognize class-1 prose and choose to phrase a guard for it — §2.4's own
+stated scope note, "this is Phase 1's job to measure" — comes back negative for this exact model and
+prompt.** The guard-tree machinery itself is not shown to be wrong; it has simply not yet been
+exercised live by anything past a hand-built test fixture.
+
+**36-scenario live fidelity, measured, twice:**
+
+| | run 1 | run 2 |
+|---|---:|---:|
+| drums vs. prose | 41.7% (5/12) | 66.7% (8/12) |
+| keytar vs. prose | 33.3% (4/12) | 8.3% (1/12) |
+| violin vs. prose | 66.7% (8/12) | 66.7% (8/12) |
+| **overall** | **47.2% (17/36)** | **47.2% (17/36)** |
+
+Both runs used the same guard-aware translator on the same three pilots and landed on the identical
+overall count by a different per-pilot route (keytar collapsed in run 2 where it had been mid-pack in
+run 1) — the same kind of run-to-run instability `docs/prose-to-schema-translator.md` §4.3 already
+documented for `qwen3.5:9b` at temperature 0.2 (drums and violin moved by double digits between runs
+A and B there too), not a new phenomenon this change introduced. **Neither run reaches the 63.9%
+(23/36) baseline, let alone the 29/36 (80%) target — a real, measured shortfall, not a rounding
+artifact.** Zero guards fired in either run, so none of this shortfall is guard-specific; it is
+ordinary flat-rule translation quality, the same class of variance already on record.
+
+**Best read of why, stated as a hypothesis, not a confirmed cause (no controlled ablation was run —
+that would need a third live run on the OLD, pre-guard prompt, which this pass didn't budget for):**
+the guard-related prompt additions (a new paragraph plus a worked JSON example) make the translation
+prompt meaningfully longer without ever being used by this model, which may be diluting the
+instruction density around ordinary rule quality for pilots that end up producing none. This is
+plausible, not proven; it is reported as a hypothesis precisely so it isn't quietly used to justify
+shrinking the guard prompt without measuring the effect first (the same overfitting risk this spec
+already flags for prompt changes made after seeing harness numbers). **This spec's prompt was
+finalized before any harness run in this pass — no prompt edits were made after seeing the 47.2%
+number**, so the shortfall is reported as-is rather than chased.
+
+**Concrete per-scenario misses (run 1), for the record:** drums missed `empty_lane_push`,
+`melee_range_enemy_ability_ready`, `ranged_enemy_far`, `ally_under_threat`,
+`isolated_vs_grouped_enemy`, `enemy_tower_only`, `minion_wave_poke` — several against a spurious
+extra `hold` rule (`"is there a valid target to interact with?"`) the translator invented instead of
+using `default_action` for the same purpose. keytar missed 8 of 12, most through an overbroad
+"avoid melee/attack range" rule pre-empting ability rules the prose calls for — the same shape of
+bug §4.2 diagnosed before the priority guard existed, on a different rule this time. violin missed 4
+of 12, mostly `move` where `ability`/`hold` was called for — the same "move toward" vocabulary gap
+§4.3 already named as a structural, not guard-related, limitation.
+
+**A second, real bug the guard prompt introduced, found live and mitigated (not just theorized):**
+`qwen3.5:9b` sometimes named a rule `guard_<something>` (leaking the new concept's vocabulary) while
+still emitting a plain-rule `action` with no `"kind"` — neither a valid rule nor a valid guard, and
+every one of `translate_pilot`'s 3 retries repeated the same mistake. Measured on `violin.md` (the
+pilot whose prose most invites a guard): **6 of 17 live compiles failed this way before a fix
+(≈35%)**, with zero such failures on `drums.md`/`keytar.md` across the same batches. The prompt now
+explicitly forbids a `"guard_"`-prefixed id without the full `type`/`then`/`else` shape, and the retry
+message names the exact failure instead of a generic "failed to parse". Measured after: **1 of 21
+failed the same way (≈5%)** — reduced, not eliminated, and reported as a residual risk rather than a
+closed one. Full detail and the checked-in sample batch: `docs/entrant-compile-preview.md`'s
+2026-09-25 (late) update.
 
 ## Sources
 

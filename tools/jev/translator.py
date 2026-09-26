@@ -211,7 +211,10 @@ be checked instead). For prose like that ONLY, emit a GUARD instead of a rule:
 Do NOT use a guard for an ordinary threshold or presence check (hp below X, enemy in range) -- those
 are rules. Use a guard ONLY for prose that reads as a strategic verdict partitioning behavior into two
 different sets of rules. Most pilots need zero guards; use one only when the prose clearly calls for
-it. Every rule/guard needs a UNIQUE "id" across the whole tree, including inside "then"/"else".
+it. Every rule/guard needs a UNIQUE "id" across the whole tree, including inside "then"/"else". If you
+are not going to include "type": "guard", "then", and "else", do not name the node "guard_..." either
+-- an "id" starting with "guard_" with no "then"/"else" is always wrong; either commit to the full
+guard shape above or write it as a plain rule with a normal "action".
 
 Also include one top-level "default_action" (same "action" shape) for when nothing above matches at
 all -- the prose's overall fallback behavior (usually push the lane or go home).
@@ -541,8 +544,10 @@ def translate_pilot(
             last_err = err
             prompt = (
                 _translation_prompt(pilot_text, instrument, primary_ability, ultimate_ability)
-                + f"\n\nYour previous attempt failed to parse: {err}. Output ONLY the JSON object, "
-                "no other text."
+                + f"\n\nYour previous attempt was invalid: {err}. If this mentions a 'guard_'-named "
+                "rule, you emitted a plain rule action for something that needed the full guard shape "
+                "(type/then/else) -- either finish the guard shape or use a normal rule instead. "
+                "Output ONLY the JSON object, no other text."
             )
     raise RuntimeError(f"translation failed after {max_attempts} attempts: {last_err}")
 
