@@ -216,7 +216,16 @@ it. Every rule/guard needs a UNIQUE "id" across the whole tree, including inside
 Also include one top-level "default_action" (same "action" shape) for when nothing above matches at
 all -- the prose's overall fallback behavior (usually push the lane or go home).
 
-Use between 3 and 8 top-level nodes. Output ONLY this JSON object, nothing else, no markdown fences:
+Worked example of a guard, for prose like "you only take fights you can win" (a verdict, not a
+threshold) -- this is what a guard node looks like inline in the "rules" list, at whatever position
+the prose's priority order calls for:
+
+{{"type": "guard", "id": "can_win_fight", "condition": "can this bot win the fight it is in or about to enter, by itself, right now?", "criteria": {{"true": "a winnable fight is present", "false": "no winnable fight is present"}},
+ "then": {{"nodes": [{{"id": "opener_ready", "condition": "...", "criteria": {{"true": "...", "false": "..."}}, "action": {{"kind": "ability", "ability": null, "target_selector": null}}}}], "default_action": {{"kind": "move", "ability": null, "target_selector": null}}}},
+ "else": {{"nodes": [], "default_action": {{"kind": "move", "ability": null, "target_selector": null}}}}}}
+
+Use between 3 and 8 top-level nodes. Output ONLY this JSON object, nothing else, no markdown fences.
+If the prose has NO strategic-verdict content, output only plain rules -- do not force a guard in:
 
 {{"rules": [{{"id": "...", "condition": "...", "criteria": {{"true": "...", "false": "..."}}, "action": {{"kind": "...", "ability": null, "target_selector": null}}}}],
  "default_action": {{"kind": "...", "ability": null, "target_selector": null}}}}
@@ -335,6 +344,39 @@ def evaluate_schema(schema: TranslatedSchema, answers: dict[str, bool]) -> Actio
     if schema.root.default is not None:
         return schema.root.default
     raise ValueError("schema evaluation produced no action: no rule, guard-branch default, or root default fired")
+
+
+@dataclass(frozen=True)
+class DefaultTie:
+    """The result of `resolve_default_tie` (spec §3.3): two or more prose sentences read as the SAME
+    cascade level's default, with no guard between them to tell them apart. Not observed in any of
+    the three reference pilots -- designed for, not measured against real prose (spec §3.3 says so
+    explicitly). The schema's own wire shape only ever carries ONE `default_action` per cascade
+    level, so this can only ever be applied at TRANSLATION time, before a schema is built (a future
+    translation step that detects two default-shaped candidate sentences would call this to pick one
+    and record the alternative); it is not wired into `translate_pilot` or `parse_schema` today."""
+
+    winner: Action
+    winner_segment: str
+    alternatives: tuple[str, ...]
+    note: str
+
+
+def resolve_default_tie(candidates: list[tuple[str, Action]]) -> DefaultTie:
+    """`candidates` is `[(prose_segment, action), ...]` in the order they appear in the file. Per
+    spec §3.3: prose order is the tiebreak (the sentence appearing earlier wins the position), and
+    the alternative(s) are recorded for a transparency-view flag rather than silently discarded.
+    Raises `ValueError` for fewer than two candidates -- there is no tie to resolve."""
+    if len(candidates) < 2:
+        raise ValueError("resolve_default_tie needs at least two candidate default sentences to break a tie between")
+    winner_segment, winner = candidates[0]
+    alternatives = tuple(seg for seg, _ in candidates[1:])
+    note = (
+        f'these {len(candidates)} sentences all read as this branch\'s default, with no guard '
+        "distinguishing them -- the earliest one in your prose was used; check the others by hand: "
+        + "; ".join(f'"{seg.strip()}"' for seg in alternatives)
+    )
+    return DefaultTie(winner=winner, winner_segment=winner_segment, alternatives=alternatives, note=note)
 
 
 class SchemaValidationError(ValueError):

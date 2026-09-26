@@ -355,5 +355,28 @@ class DisplayRowsTests(unittest.TestCase):
         self.assertIn("2a", md)
 
 
+class DefaultTieTests(unittest.TestCase):
+    """§3.3 -- not observed in any of the three reference pilots, so this exercises the spec's own
+    illustrative (not real) example: "When nothing else is going on, poke the wave" vs., elsewhere,
+    "If nothing else is happening, advance down the lane.\""""
+
+    def test_earlier_sentence_in_prose_order_wins(self):
+        poke = T.Action("attack", None, "nearby_minion")
+        advance = T.Action("move", None, "push_lane")
+        tie = T.resolve_default_tie(
+            [
+                ("When nothing else is going on, poke the wave", poke),
+                ("If nothing else is happening, advance down the lane", advance),
+            ]
+        )
+        self.assertEqual(tie.winner, poke)
+        self.assertEqual(tie.alternatives, ("If nothing else is happening, advance down the lane",))
+        self.assertIn("advance down the lane", tie.note)
+
+    def test_single_candidate_raises(self):
+        with self.assertRaises(ValueError):
+            T.resolve_default_tie([("only one", T.Action("hold", None, None))])
+
+
 if __name__ == "__main__":
     unittest.main()
