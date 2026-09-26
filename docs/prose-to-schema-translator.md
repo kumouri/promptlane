@@ -15,10 +15,16 @@ canonical representation now, with `rules`/`default_kind`/etc. kept as a backwar
 everything below describing the flat rule-cascade design is still accurate for a schema with zero
 guards, which is what every live translation in this pass actually produced. Re-running this memo's
 own 36-scenario harness live after that change measured **47.2% (17/36) translator-vs-prose fidelity,
-twice** — below the 63.9% this memo reports in §4.4, not above it. See
-`docs/translator-guards-and-defaults-spec.md` §7 for the full result, the per-scenario misses, and why
-(qwen3.5:9b never emitted a guard live, so this is ordinary flat-rule variance, not a guard-specific
-regression — but also not the improvement the tree was built to produce).
+twice** — below the 63.9% this memo reports in §4.4, not above it. §7 first read this as "ordinary
+flat-rule variance, not a guard-specific regression" — **that reading did not hold up.**
+
+**Update 2026-09-26: a controlled A/B (`docs/translator-guards-and-defaults-spec.md` §8) shows it
+*is* guard-prompt-specific, not just variance.** Old prompt (Arm A, `origin/develop`'s wording) vs.
+new prompt (Arm B, this branch's guard-aware wording), same model, same harness, 4 interleaved live
+runs each: Arm A mean 61.8% (range 58.3–69.4%, reproducing this memo's 63.9% baseline) vs. Arm B mean
+49.3% (range 41.7–58.3%) — a real 12.5-point drop, concentrated almost entirely in `keytar.md`. See
+§8 for the full per-run table, the per-pilot breakdown, and the harness-parity cross-check that rules
+out a scoring-code discrepancy.
 
 ## The short answer
 

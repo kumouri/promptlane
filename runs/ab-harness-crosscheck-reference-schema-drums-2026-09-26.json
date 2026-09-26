@@ -1,0 +1,75 @@
+{
+  "_provenance": "Arm A (old prompt) live translation, captured for the harness cross-check requested 2026-09-26.",
+  "rules": [
+    {
+      "id": "critical_health_retreat",
+      "condition": "is this bot's hp below a quarter of its max?",
+      "criteria": {
+        "true": "bot health is critically low (<25% max)",
+        "false": "bot health is at or above 25% max"
+      },
+      "action": {
+        "kind": "recall",
+        "ability": null,
+        "target_selector": "home"
+      }
+    },
+    {
+      "id": "threatened_ally_taunt",
+      "condition": "is an enemy bearbot within melee range of a threatened ally?",
+      "criteria": {
+        "true": "an enemy is close to an ally in danger",
+        "false": "no enemy is threatening an ally"
+      },
+      "action": {
+        "kind": "ability",
+        "ability": "kick",
+        "target_selector": "threatened_ally_enemy"
+      }
+    },
+    {
+      "id": "aoe_slow_fill",
+      "condition": "are multiple enemy bearbots bunched up near this bot?",
+      "criteria": {
+        "true": "multiple enemies are clustered nearby",
+        "false": "only one or no enemies are clustered"
+      },
+      "action": {
+        "kind": "ability",
+        "ability": "fill",
+        "target_selector": "densest_cluster_enemy"
+      }
+    },
+    {
+      "id": "nearest_enemy_attack",
+      "condition": "is there a visible enemy bearbot?",
+      "criteria": {
+        "true": "at least one enemy bearbot is visible",
+        "false": "no enemy bearbots are visible"
+      },
+      "action": {
+        "kind": "attack",
+        "ability": null,
+        "target_selector": "nearest_enemy"
+      }
+    },
+    {
+      "id": "minion_push",
+      "condition": "is there a nearby allied minion?",
+      "criteria": {
+        "true": "an allied minion is nearby",
+        "false": "no allied minions are nearby"
+      },
+      "action": {
+        "kind": "move",
+        "ability": null,
+        "target_selector": "nearby_minion"
+      }
+    }
+  ],
+  "default_action": {
+    "kind": "move",
+    "ability": null,
+    "target_selector": "push_lane"
+  }
+}

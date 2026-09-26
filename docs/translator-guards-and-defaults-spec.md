@@ -374,6 +374,7 @@ actually moving. This is scoped as part of Phase 4 below, not built in this chan
 | 3 | Numeric tracer (§4) | **Done, this change.** `tools/jev/number_normalize.py`, wired into `translator._tokenize`, 10 new tests (`test_number_normalize.py`) plus the `transparency._significant` fix it required; full existing suite still green (269 Python tests via `npm run test:tools`, 96 Node tests via `npm run test:arena`, run 2026-09-25). |
 | 4 | Re-run the 36-scenario prose-fidelity harness (§5) with Phases 1–3 shipped; confirm ≥29/36 or report the honest shortfall; add the per-guard diagnostic breakdown. | **Measured live, 2026-09-25 late — falls short.** Two live runs both landed at **17/36 (47.2%)**, below the 63.9% (23/36) baseline and well short of the 29/36 (80%) target, a 12-scenario shortfall. Zero guards fired in either run (per §7, the translator never emitted one). Per-guard diagnostic breakdown (`fidelity_harness.guard_diagnostics`) is built and tested; it reports `{}` for every pilot this run since none produced a guard. See §7 for the honest read. |
 | 5 | Update `docs/prose-to-schema-translator.md`, `docs/translator-transparency.md`, `docs/entrant-compile-preview.md` for the new schema shape; re-run live entrant-compile smoke checks for all three reference pilots (`tools/jev/test_compile.py`'s byte-exact reproduction test will need new checked-in fixtures once the schema shape changes). | **Done, this change.** Docs updated with dated addenda; fixtures regenerated for the Branch-column render shape; live entrant-compile smoke checks re-run for drums/keytar/violin (§7). |
+| 6 | Controlled A/B (§8, 2026-09-26): is §7's 47.2% shortfall caused by the guard-aware prompt itself, or ordinary model variance? Old prompt (Arm A) vs. new prompt (Arm B), same harness, 4 interleaved live runs each. | **Measured live, 2026-09-26.** Arm A mean 61.8% (range 58.3–69.4%, reproduces the 63.9% baseline); Arm B mean 49.3% (range 41.7–58.3%) — a real, if noisy, 12.5-point drop concentrated almost entirely in keytar. Harness-parity cross-check confirmed this branch scores a flat schema identically to `develop`'s. See §8 for full detail and the recommendation. |
 
 ## 7. What Phases 1, 2, and 4 actually measured (2026-09-25 late, following up on §0–§6 above)
 
@@ -450,6 +451,105 @@ failed the same way (≈5%)** — reduced, not eliminated, and reported as a res
 closed one. Full detail and the checked-in sample batch: `docs/entrant-compile-preview.md`'s
 2026-09-25 (late) update.
 
+## 8. The A/B: is the 47.2% shortfall guard-specific? (measured, 2026-09-26)
+
+**Ceryce's ruling, 2026-09-26 00:14 CT: §7's "not a guard-specific regression" claim was untested —
+the branch changed the translation prompt (a new guard paragraph plus a worked JSON example) and that
+prompt change already produced one new failure mode. "Job it": run the controlled A/B.** Arm A is
+the translation prompt exactly as on `origin/develop` at `b927d7f` (copied verbatim into
+`tools/jev/ab_prompt_harness.py::old_translation_prompt`, verified byte-for-byte identical to
+`git show origin/develop:tools/jev/translator.py`'s `_translation_prompt` for a fixed input, since
+`TARGET_SELECTORS`/`ACTION_KINDS` are unchanged between branches). Arm B is this branch's HEAD
+prompt (`translator._translation_prompt`, imported directly, unmodified). Both arms use the same
+model (`qwen3.5:9b`, `think:false`), the same three pilots, the same 36 scenarios, and the same
+downstream harness/scoring (`fidelity_harness.run_pilot`/`summarize`/`prose_fidelity_report.py`,
+imported unchanged — the new script only swaps which prompt-builder produces the translation
+request). Four live runs per arm, interleaved (A1, B1, A2, B2, A3, B3, A4, B4), not batched by arm,
+so drift in the local Ollama/Jev servers hits both arms alike.
+
+**Verdict: the new prompt measurably lowers prose fidelity, and it is not just re-hitting the same
+47.2% twice — it is a real, if noisy, drop relative to a same-day Arm A baseline that itself
+reproduces the original 63.9% number.**
+
+| | Arm A (old prompt) | Arm B (new, guard-aware prompt) |
+|---|---:|---:|
+| run 1 | 22/36 (61.1%) | 21/36 (58.3%) |
+| run 2 | 21/36 (58.3%) | 15/36 (41.7%) |
+| run 3 | 25/36 (69.4%) | 16/36 (44.4%) |
+| run 4 | 21/36 (58.3%) | 19/36 (52.8%) |
+| **mean** | **61.8%** | **49.3%** |
+| **range** | **58.3% – 69.4%** | **41.7% – 58.3%** |
+
+Gap between arm means: **12.5 points**, or 4.5 scenarios' worth at n=36 (2.8 points/scenario) — real,
+though every individual run sits inside normal `qwen3.5:9b`-at-temperature-0.2 variance (§4.3 already
+documented double-digit per-pilot swings on identical prose), and the ranges touch at 58.3%. Read
+honestly: this is a moderate-confidence signal from 4 runs per arm, not a proof at the scenario level
+— but the direction is consistent (Arm A ≥ Arm B in 7 of 8 same-numbered-run comparisons) and the
+magnitude is in the same neighborhood as §7's original single-draw 63.9%-vs-47.2% (16.7-point) gap,
+not a different phenomenon.
+
+**Does Arm A reproduce the 23/36 (63.9%) baseline?** Yes, closely — mean 61.8%, and 23/36 (63.9%)
+itself sits inside Arm A's [58.3%, 69.4%] range. The baseline was not stale and the environment did
+not move; §7's own two live runs on the new prompt (both landing at exactly 17/36/47.2%) turn out, by
+this A/B, to have been an unlucky-but-real pair from Arm B's distribution, not an artifact of a
+broken harness.
+
+**Per-pilot detail, all 4 runs each arm** (translator-vs-prose fidelity rate):
+
+| pilot | Arm A (4 runs) | Arm B (4 runs) |
+|---|---|---|
+| drums | 50.0%, 50.0%, 66.7%, 58.3% | 58.3%, 66.7%, 50.0%, 58.3% |
+| keytar | 75.0%, 75.0%, 75.0%, 66.7% | 50.0%, 8.3%, 33.3%, 33.3% |
+| violin | 58.3%, 50.0%, 66.7%, 50.0% | 66.7%, 50.0%, 50.0%, 66.7% |
+
+**keytar is where the whole gap lives.** drums and violin are statistically indistinguishable
+between arms (both arms bounce around the same 50–67% band on both pilots). keytar alone drops from
+a consistent 67–75% under the old prompt to 8–50% under the new one — the same pilot §4.2 already
+flagged as the one whose base translation behaves differently from the other two for reasons that
+were never root-caused. This A/B does not explain *why* keytar specifically destabilizes under the
+longer, guard-aware prompt; it only confirms that it does, consistently, across four independent
+live runs.
+
+**Compile failures, `guard_`-named-no-action failures, guard nodes emitted (both arms, 4 runs × 3
+pilots = 12 translations each):** zero of any of the three, in both arms. No guard-shaped node was
+ever emitted by either prompt in this A/B's 24 total live translations, and the
+retry-message fix from §7 (forbidding a `guard_`-prefixed id without the full `type`/`then`/`else`
+shape) produced zero repeats of that failure mode here — consistent with, not a contradiction of,
+§7's own "reduced to ≈5%" residual-risk figure at this much smaller n.
+
+**Harness cross-check (requested explicitly, to rule out "the new harness scores flat schemas
+differently"):** one Arm A schema (`drums`, captured live from `ab_prompt_harness.py`, saved as
+`runs/ab-harness-crosscheck-reference-schema-drums-2026-09-26.json`) was run through **both**
+this branch's `fidelity_harness.py --reference-schemas-dir` (`runs/ab-harness-crosscheck-
+head-2026-09-26.json`) and `origin/develop`'s own unmodified `fidelity_harness.py` (via a temporary
+detached worktree at `b927d7f`, `runs/ab-harness-crosscheck-develop-2026-09-26.json`), same schema,
+two separate live Jev calls. **The predicted action matched on all 12/12 scenarios between the two
+harnesses** — the one scenario where the two runs' `kind_agreement` differed
+(`ability_on_cooldown_enemy_present`, HEAD 6/12 vs develop 5/12 overall) was a difference in the
+*ground-truth* qwen-on-prose call (an independent, unrelated live model call each harness makes
+fresh), not in the schema-evaluation/scoring code — `ground_truth.py` is untouched by this branch and
+is exactly the kind of run-to-run model variance §4.3 already put on record. **This branch's harness
+scores a flat cascade identically to develop's**, confirmed by this direct comparison, not assumed.
+
+**What this does and does not settle.** It settles the question this section exists to answer: the
+guard-aware prompt is not innocent — it correlates with a real, repeated prose-fidelity drop,
+concentrated in one pilot (keytar), on a model that (per §7) never actually uses the guard shape it
+was given room for. It does not identify a root cause inside the prompt diff (more text? the worked
+JSON example specifically? something keytar-shaped that interacts badly with either?) — that would
+need an ablation between "guard prose paragraph, no JSON example" and "JSON example, no guard prose,"
+which this pass did not run. Four runs per arm is more than one, but still a small-n live measurement
+on a non-deterministic model; a stronger future test would run 8–10 per arm and/or hold `keytar.md`
+out as its own comparison given it carries the entire measured effect here.
+
+**Recommendation, stated as a recommendation, not a decision:** given a mean 12.5-point drop
+concentrated entirely in one of three reference pilots, on a model that never exercises the new guard
+machinery the prompt asks it to consider, shipping the guard-aware prompt as the *default* trades a
+measured fidelity cost for a feature this model does not use. Merging the guard-tree machinery itself
+(`Cascade`/`GuardNode`/`evaluate_cascade`/rendering — all correct, tested, and backward-compatible per
+§7) is not in question; what this section argues against is defaulting *every* pilot's translation
+prompt to guard-aware wording when nothing in this repo's three reference pilots, on this model,
+currently benefits from it, and keytar measurably loses from it.
+
 ## Sources
 
 - This repo, this change: `tools/jev/guard_noul_calibration.py` (new, Phase 0, live-run),
@@ -458,12 +558,19 @@ closed one. Full detail and the checked-in sample batch: `docs/entrant-compile-p
   (`_tokenize` now normalizes numbers for the trace check only — the rest of the file, including
   `enforce_absolute_priority`'s scope and `render_markdown`, is unmodified); `tools/jev/transparency.py`
   (`_significant` now exempts pure-digit tokens from its length filter — the rest of the file,
-  including `build_report`'s scope, is unmodified).
+  including `build_report`'s scope, is unmodified); `tools/jev/ab_prompt_harness.py` (new, §8's A/B —
+  measurement only, does not edit `translator.py`/`fidelity_harness.py`/`transparency.py`; reuses
+  `fidelity_harness.run_pilot`/`summarize` and `translator.parse_schema`/`enforce_absolute_priority`
+  unchanged, and carries `origin/develop`'s pre-guard-tree translation prompt verbatim as a local
+  constant for Arm A).
 - Read and reused, not modified: `tools/jev/{client,scenarios,fidelity_harness,rules,target_resolve,
-  expressibility,segment}.py`; `prompts/pilots/{drums,keytar,violin}.md`;
-  `runs/prose-ground-truth-{drums,keytar,violin}.json`; `runs/jev-prose-fidelity-2026-09-23.json`.
+  expressibility,segment,prose_fidelity_report,ground_truth}.py`; `prompts/pilots/{drums,keytar,
+  violin}.md`; `runs/prose-ground-truth-{drums,keytar,violin}.json`;
+  `runs/jev-prose-fidelity-2026-09-23.json`.
 - New artifacts, this change: `runs/guard-noul-calibration-2026-09-25.{md,json}` (Phase 0's live
-  result).
+  result); `runs/ab-arm-{a,b}-run{1,2,3,4}.json` and `runs/ab-arm-{a,b}-run{1,2,3,4}-prose-fidelity.
+  json` (§8's 8 live A/B runs, raw and scored); `runs/ab-harness-crosscheck-{reference-schema-drums,
+  head,develop}-2026-09-26.json` (§8's harness-parity cross-check).
 - Prior work this spec extends: `docs/prose-to-schema-translator.md` (PR #25 — the translator, the
   priority guard, the 63.9%/47.2% prose-fidelity split this spec's §5 target is drawn from);
   `docs/translator-transparency.md` (the transparency view, the keytar revision loop, the jam-rule
