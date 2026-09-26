@@ -41,6 +41,7 @@ from dataclasses import dataclass, field
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ground_truth import _ollama_generate, resolve_ollama_url  # noqa: E402
+from number_normalize import normalize_numbers_for_trace  # noqa: E402
 
 DEFAULT_MODEL = "qwen3.5:9b"
 
@@ -208,7 +209,14 @@ _STOPWORDS = frozenset(
 
 
 def _tokenize(text: str) -> set[str]:
-    return {t for t in re.findall(r"[a-z0-9]+", text.lower()) if t not in _STOPWORDS}
+    """Tokens for the trace/overlap check (`enforce_absolute_priority`'s paragraph matching, and
+    `transparency.py`'s finer-grained rule-provenance matching, which imports this function
+    directly). Runs `normalize_numbers_for_trace` first so "a quarter health" and "25%" share a token
+    -- see `number_normalize.py` for why and its non-quantity exclusions. This never touches prose
+    shown to an entrant: `render_markdown`/`render_report_markdown` quote the original text, not this
+    normalized form."""
+    normalized = normalize_numbers_for_trace(text)
+    return {t for t in re.findall(r"[a-z0-9]+", normalized) if t not in _STOPWORDS}
 
 
 def _find_absolute_paragraphs(pilot_text: str) -> list[str]:
