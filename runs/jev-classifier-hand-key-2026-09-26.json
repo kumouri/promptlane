@@ -1,0 +1,268 @@
+{
+  "_provenance": "Hand-authored by the Claude agent working docs/translator-guards-and-defaults-spec.md task 1b, 2026-09-26, BEFORE running the Jev classifier live -- committed in its own commit before any classifier code that calls Jev, so this key cannot have been fitted to Jev's answers. Clauses are segment.py's own auto_segments() sentence split (paragraph-then-sentence, boilerplate excluded) -- reused for the split, NOT for its rule/open_strategy/voice LABEL, which two entries below (violin #2, #5) show is not reliable for this purpose (a false positive and a false negative on the repo's own canonical guard example). hand_class is one of guard/default/rule (task 1b's three target classes) or voice (no decision content -- not one of the three, kept so the classifier's negative case is tested too, not just the positives).",
+  "drums": [
+    {
+      "clause_index": 0,
+      "segment_py_label": "voice",
+      "text": "You are a bearbot on the drums.",
+      "hand_class": "voice",
+      "rationale": "pure identity/flavor framing, no decision content"
+    },
+    {
+      "clause_index": 1,
+      "segment_py_label": "voice",
+      "text": "You are the beat everyone else plays over — if you drop out, the\nwhole band falls apart.",
+      "hand_class": "voice",
+      "rationale": "flavor framing"
+    },
+    {
+      "clause_index": 2,
+      "segment_py_label": "voice",
+      "text": "You are slow and you are heavy and that is the point.",
+      "hand_class": "voice",
+      "rationale": "flavor framing"
+    },
+    {
+      "clause_index": 3,
+      "segment_py_label": "open_strategy",
+      "text": "Your job is not to win the fight.",
+      "hand_class": "voice",
+      "rationale": "philosophical framing of the bot's role, no discrete trigger or action named"
+    },
+    {
+      "clause_index": 4,
+      "segment_py_label": "open_strategy",
+      "text": "Your job is to BE the fight, so your squishier allies don't have\nto be.",
+      "hand_class": "voice",
+      "rationale": "same framing, restates 3"
+    },
+    {
+      "clause_index": 5,
+      "segment_py_label": "open_strategy",
+      "text": "Walk in front.",
+      "hand_class": "voice",
+      "rationale": "continuous positioning advice with no discrete trigger -- the spec's own class-1 'advisory, structurally can't hold' example (§0's table), not a guard (it doesn't gate a set of other rules)"
+    },
+    {
+      "clause_index": 6,
+      "segment_py_label": "voice",
+      "text": "Take the hits meant for someone else.",
+      "hand_class": "voice",
+      "rationale": "same framing as 5, restated"
+    },
+    {
+      "clause_index": 7,
+      "segment_py_label": "rule",
+      "text": "When an enemy gets close to an ally,\nthat enemy is now your problem.",
+      "hand_class": "rule",
+      "rationale": "condition (enemy close to an ally) -> action (make it this bot's problem); ordinary presence-check rule"
+    },
+    {
+      "clause_index": 8,
+      "segment_py_label": "open_strategy",
+      "text": "Kick (taunt/knockback, short range) is your favorite word.",
+      "hand_class": "voice",
+      "rationale": "names the ability by nickname, no condition"
+    },
+    {
+      "clause_index": 9,
+      "segment_py_label": "rule",
+      "text": "Use it the instant an enemy bearbot is\nclose enough to touch — on cooldown, always, no hesitation, no overthinking.",
+      "hand_class": "rule",
+      "rationale": "condition (enemy in melee range, Kick off cooldown) -> action (use Kick)"
+    },
+    {
+      "clause_index": 10,
+      "segment_py_label": "rule",
+      "text": "Fill (AoE slow) is\nfor when more than one of them is bunched up near you; drop it under their feet, not yours.",
+      "hand_class": "rule",
+      "rationale": "condition (>=2 enemies bunched) -> action (use Fill)"
+    },
+    {
+      "clause_index": 11,
+      "segment_py_label": "open_strategy",
+      "text": "Push the lane.",
+      "hand_class": "default",
+      "rationale": "header of the lane-push fallback -- paired with 12, the spec's own class-2 example (§0's table quotes 11+12 together verbatim)"
+    },
+    {
+      "clause_index": 12,
+      "segment_py_label": "rule",
+      "text": "march toward the enemy nexus alongside your minions unless a fight has started —\nthen the fight is the lane.",
+      "hand_class": "default",
+      "rationale": "the operative fallback action ('push the lane... unless a fight has started') -- spec §0's class-2 example, a real default rule the flat translator tends to drop or misplace"
+    },
+    {
+      "clause_index": 13,
+      "segment_py_label": "rule",
+      "text": "Attack whatever's nearest and threatening an ally first, the nearest\nenemy bearbot second, minions last.",
+      "hand_class": "rule",
+      "rationale": "ordinary targeting-priority rule (threatened ally first, nearest enemy second, minions last)"
+    },
+    {
+      "clause_index": 14,
+      "segment_py_label": "rule",
+      "text": "Retreat only when you're really hurt — below a quarter health — because your whole reason for\nexisting is to be the thing that's still standing when the smoke clears.",
+      "hand_class": "rule",
+      "rationale": "ordinary threshold rule (hp below a quarter -> recall); high-priority via the override-phrase guard elsewhere, but structurally still a plain rule, not a guard that gates other rules"
+    },
+    {
+      "clause_index": 15,
+      "segment_py_label": "open_strategy",
+      "text": "A drummer who recalls too\nearly let the band down.",
+      "hand_class": "voice",
+      "rationale": "justification/flavor, no new decision content beyond 14"
+    }
+  ],
+  "keytar": [
+    {
+      "clause_index": 0,
+      "segment_py_label": "voice",
+      "text": "You are a bearbot on the keytar.",
+      "hand_class": "voice",
+      "rationale": "flavor framing"
+    },
+    {
+      "clause_index": 1,
+      "segment_py_label": "voice",
+      "text": "Loud, flashy, and made of paper — you win fights from a distance\nor you don't win them at all.",
+      "hand_class": "voice",
+      "rationale": "flavor framing"
+    },
+    {
+      "clause_index": 2,
+      "segment_py_label": "rule",
+      "text": "Never be the closest thing to an enemy.",
+      "hand_class": "rule",
+      "rationale": "general statement of the melee-avoidance rule, restated concretely in 3"
+    },
+    {
+      "clause_index": 3,
+      "segment_py_label": "rule",
+      "text": "If a visible enemy is inside your attack range, that is too\nclose; if one is inside melee range of you, you are already losing and should be leaving.",
+      "hand_class": "rule",
+      "rationale": "condition (enemy inside attack/melee range) -> action (leave); concrete version of 2"
+    },
+    {
+      "clause_index": 4,
+      "segment_py_label": "voice",
+      "text": "Your\nwhole game is standing just outside their reach while they cannot stand outside yours.",
+      "hand_class": "voice",
+      "rationale": "flavor recap of the standoff idea, no new condition"
+    },
+    {
+      "clause_index": 5,
+      "segment_py_label": "rule",
+      "text": "Chord (AoE burst, long range) is your headline move — throw it at the densest cluster of enemies or\nminions you can see the instant it's off cooldown, don't wait for a \"perfect\" moment, waiting is\nhow it goes to waste.",
+      "hand_class": "rule",
+      "rationale": "condition (Chord off cooldown, enemies visible) -> action (use Chord); 'don't wait for a perfect moment' is urgency framing riding along, not a separate guard"
+    },
+    {
+      "clause_index": 6,
+      "segment_py_label": "rule",
+      "text": "Glissando (short dash, no target needed) is your panic button and your\nopener both: dash OUT when something gets close, dash IN-range-but-not-close when you want a Chord\nangle you don't have yet.",
+      "hand_class": "rule",
+      "rationale": "two conditions (something close / want a Chord angle) -> Glissando dash out/in"
+    },
+    {
+      "clause_index": 7,
+      "segment_py_label": "rule",
+      "text": "Poke minion waves with your basic attack while nothing else demands attention — free damage, free\nlane pressure, no risk from that range.",
+      "hand_class": "default",
+      "rationale": "'poke minion waves ... while nothing else demands attention' -- spec §0's class-2 example verbatim (a real default rule, not a state-triggered rule)"
+    },
+    {
+      "clause_index": 8,
+      "segment_py_label": "rule",
+      "text": "When a real fight starts, Chord first, basic-attack second,\nnever melee.",
+      "hand_class": "rule",
+      "rationale": "condition (a real fight has started) -> ability-priority ordering (Chord, then basic attack, never melee)"
+    },
+    {
+      "clause_index": 9,
+      "segment_py_label": "rule",
+      "text": "Recall the moment you're below a quarter health, no exceptions — you have no way to survive a\nfollow-up hit and a dead mage is a silent one.",
+      "hand_class": "rule",
+      "rationale": "ordinary threshold rule (hp below a quarter -> recall); override-priority elsewhere, but structurally a plain rule"
+    }
+  ],
+  "violin": [
+    {
+      "clause_index": 0,
+      "segment_py_label": "voice",
+      "text": "You are a bearbot on the violin.",
+      "hand_class": "voice",
+      "rationale": "flavor framing"
+    },
+    {
+      "clause_index": 1,
+      "segment_py_label": "voice",
+      "text": "The bow is the blade.",
+      "hand_class": "voice",
+      "rationale": "flavor framing"
+    },
+    {
+      "clause_index": 2,
+      "segment_py_label": "rule",
+      "text": "You are fast, you are fragile, and you exist\nto end one enemy before the rest of their band can even turn around.",
+      "hand_class": "voice",
+      "rationale": "identity/flavor characterization ('fast, fragile, exists to end one enemy'); segment.py mislabels this 'rule' (false positive -- no actual condition/threshold named)"
+    },
+    {
+      "clause_index": 3,
+      "segment_py_label": "open_strategy",
+      "text": "Do not walk into a fight straight-on.",
+      "hand_class": "voice",
+      "rationale": "advisory framing tied to the guard concept below, but no explicit condition of its own -- the operative statement is 4"
+    },
+    {
+      "clause_index": 4,
+      "segment_py_label": "rule",
+      "text": "Wait at the edge of what you can see until exactly one enemy\nis isolated — alone, or clearly the softest target in a group — then commit fully.",
+      "hand_class": "guard",
+      "rationale": "'wait until exactly one enemy is isolated ... then commit fully' -- the operative phrasing of the can-win/isolated-target judgment gate that decides which whole set of rules (opener/ultimate vs. reposition) applies"
+    },
+    {
+      "clause_index": 5,
+      "segment_py_label": "voice",
+      "text": "A violin that\ntrades evenly with a whole team has already failed; you only take fights you can win in one\nphrase.",
+      "hand_class": "guard",
+      "rationale": "'you only take fights you can win in one phrase' -- the spec's own canonical class-1 guard example (§0, §2.4's Phase-0 calibration target). segment.py mislabels this 'voice' -- a real false negative in that heuristic, flagged here rather than silently relied on"
+    },
+    {
+      "clause_index": 6,
+      "segment_py_label": "rule",
+      "text": "Staccato (quick high-damage stab, short range) is your opener on whoever you've picked as the\ntarget — use it the moment you're in range of them, every time it's off cooldown, on that same\ntarget if they're still alive.",
+      "hand_class": "rule",
+      "rationale": "condition (Staccato off cooldown, target in range) -> action (use Staccato)"
+    },
+    {
+      "clause_index": 7,
+      "segment_py_label": "rule",
+      "text": "Solo (burst + speed, your ultimate) is for closing distance on a\ntarget that's about to get away, or for the decisive engage when the moment is right — it is not\nfree, so don't burn it just because it's up.",
+      "hand_class": "rule",
+      "rationale": "condition (target about to escape, or the decisive moment) -> action (use Solo); the trailing 'it is not free, don't burn it' is an unthresholded resource judgment riding along (spec §2.3 flags this exact clause as remaining advisory even after the guard fix), not enough to make the whole clause non-actionable"
+    },
+    {
+      "clause_index": 8,
+      "segment_py_label": "rule",
+      "text": "Between fights, don't stand still: your speed exists so you can keep repositioning toward the next\nisolated target rather than sitting in a lane pushing minions like a bruiser would.",
+      "hand_class": "default",
+      "rationale": "'keep repositioning toward the next isolated target' -- spec §3.2 names this exact sentence as guard 2's own 'no' branch local default, not a guard itself and not an ordinary triggered rule"
+    },
+    {
+      "clause_index": 9,
+      "segment_py_label": "rule",
+      "text": "You have less HP than almost anything else on the map — the instant you drop under a quarter\nhealth, recall, no matter how close the kill looked.",
+      "hand_class": "rule",
+      "rationale": "ordinary threshold rule (hp below a quarter -> recall); override-priority elsewhere, but structurally a plain rule"
+    },
+    {
+      "clause_index": 10,
+      "segment_py_label": "voice",
+      "text": "A dead assassin secures nothing.",
+      "hand_class": "voice",
+      "rationale": "justification/flavor, no new decision content"
+    }
+  ]
+}
