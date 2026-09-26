@@ -26,6 +26,17 @@ runs each: Arm A mean 61.8% (range 58.3–69.4%, reproducing this memo's 63.9% b
 §8 for the full per-run table, the per-pilot breakdown, and the harness-parity cross-check that rules
 out a scoring-code discrepancy.
 
+**Update 2026-09-26 (§9): a Claude backend and a Jev classifier stage, tested partially, blocked by
+a live billing failure.** A Haiku translator backend (subscription CLI, translator step only) and a
+Jev clause classifier (guard/default/rule confidence per sentence) were added and measured as far as
+a Cloudflare Workers AI `402 Payment error` allowed: qwen + Jev-hints (3 runs/arm, complete) moves
+*both* arms down by ~11–12 points versus the no-hints baseline, not just Arm B — hints don't fix the
+guard-prompt drop, they just add noise to both arms alike. Haiku alone (2 of 3 runs/arm before the
+402) shows the opposite direction from every qwen result so far — Arm B (59.7%) above Arm A
+(54.2%) — and produced this project's first-ever live guard node, but n=2/arm is one run short of
+plan and not yet a settled result. Haiku+hints and a Sonnet ceiling check never started. See §9 for
+the full accounting, including exactly what's needed to finish once the billing issue clears.
+
 ## The short answer
 
 **Better than the raw numbers first suggested, once translator error is separated from ground-truth
