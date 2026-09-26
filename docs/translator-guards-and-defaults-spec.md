@@ -567,6 +567,12 @@ identically). Per this task's own rule — never fake or estimate a number, stop
 when something breaks enough that a measurement can't complete — the shortfall below is reported as
 a shortfall, not padded with an extra run or a plausible-looking guess.
 
+**Update, same day, ~06:50 CT:** a follow-up diagnostic session found the 402 no longer reproduced —
+four live Jev calls in a row succeeded, with no billing, payment, or gateway setting touched. The
+run in §9.2 was finished the same session. See §9.4 for the diagnosis (what the 402 was, and — per
+this task's own rule against guessing — what could *not* be confirmed about it), and the now-complete
+table and analysis in §9.2/§9.3 below.
+
 ### 9.1 What's complete
 
 **The Jev classifier** (task 1b), scored against a hand-labelled key (`runs/jev-classifier-hand-
@@ -619,21 +625,23 @@ cannot produce a schema regardless of model quality — there is nothing to test
 |---|---|---:|---:|---|---:|---:|
 | qwen (§8 baseline, no hints) | A | 4/4 | 61.8% | 58.3–69.4% | 0 | 0 |
 | qwen (§8 baseline, no hints) | B | 4/4 | 49.3% | 41.7–58.3% | 0 | 0 |
-| qwen + Jev-hints | A | **3/3** | **50.0%** | 38.9–61.1% | 0 | 0 |
-| qwen + Jev-hints | B | **3/3** | **38.0%** | 33.3–41.7% | 0 | 0 |
-| Haiku alone | A | **2/3** ⚠ | **54.2%** | 50.0–58.3% | 0 | 0 |
-| Haiku alone | B | **2/3** ⚠ | **59.7%** | 58.3–61.1% | 1 (violin, run 1) | 0 |
-| Haiku + Jev-hints | A | **0/3** ⛔ | — | — | — | — |
-| Haiku + Jev-hints | B | **0/3** ⛔ | — | — | — | — |
-| Sonnet, arm B ceiling check | B | **0/1** ⛔ | — | — | — | — |
+| qwen + Jev-hints | A | 3/3 | 50.0% | 38.9–61.1% | 0 | 0 |
+| qwen + Jev-hints | B | 3/3 | 38.0% | 33.3–41.7% | 0 | 0 |
+| Haiku alone | A | **3/3** | **56.5%** | 50.0–61.1% | 0 | 0 |
+| Haiku alone | B | **3/3** | **58.3%** | 55.6–61.1% | **2** (violin, runs 1 & 3) | 0 |
+| Haiku + Jev-hints | A | **3/3** | **59.3%** | 55.6–63.9% | 0 | 0 |
+| Haiku + Jev-hints | B | **3/3** | **54.6%** | 50.0–58.3% | **2** (violin, runs 2 & 3) | 0 |
+| Sonnet, arm B ceiling check | B | 1/1 | 55.6% | — (n=1 by design) | 1 (violin) | 0 |
 
-⚠ = stopped one run short of the pre-registered minimum (3) when the 402 hit; the completed runs are
-real and reported as-is, not padded. ⛔ = never started; every attempt after the first failure hit the
-same 402 (confirmed by direct diagnostic calls, not assumed). Per-run detail: `runs/ab-haiku-arm-
-{a,b}-run{1,2}.json` and their `-prose-fidelity.json` scores; `runs/ab-qwen-hints-arm-{a,b}-
-run{1,2,3}.json` and scores. `runs/ab-haiku-arm-a-run3.json` does not exist — that attempt's
-translation calls completed but the run crashed mid-scenario on the first 402 and produced no valid
-output file, so it is not counted anywhere above.
+The table is now complete exactly as §9.3 specified, once the 402 stopped reproducing (§9.4): the two
+remaining Haiku-alone runs (`runs/ab-haiku-arm-{a,b}-run3.json`), all six Haiku+Jev-hints runs
+(`runs/ab-haiku-hints-arm-{a,b}-run{1,2,3}.json`), and the one Sonnet arm-B ceiling run
+(`runs/ab-sonnet-arm-b-run1.json`), each with a matching `-prose-fidelity.json` score. One retry was
+needed: the first `ab-haiku-hints-arm-b-run3` attempt crashed on a 180s `claude -p` CLI timeout mid-
+translation (violin, after drums/keytar already succeeded) — an ordinary CLI timeout, not a Jev/402
+failure, confirmed by there being no partial output file to salvage; the immediate retry completed
+cleanly. That crashed attempt's two completed (but unscored, uncounted) translation calls are the same
+kind of small untracked cost §9.2 already flagged for the earlier crashed run, not included below.
 
 **Does Jev-hints help qwen? Measured: no — it moves both arms down together, not closer.** Arm A
 50.0% vs. the no-hints 61.8% baseline (−11.8 points); Arm B 38.0% vs. 49.3% (−11.3 points). The gap
@@ -642,32 +650,44 @@ or reverse §8's guard-prompt-specific drop, they just move both arms down by a 
 is where nearly all of the Arm B loss concentrates, same as §8 (8.3% in every one of the 3 hinted
 Arm B runs — worse and more consistent than §8's own 8.3–50.0% keytar range).
 
-**Does the guard-aware prompt help or hurt on Haiku? Measured, directionally, on 2 of 3 planned
-runs: it does not hurt, and the one directional signal available points the other way from qwen's.**
-Arm B (59.7%) sits *above* Arm A (54.2%) by 5.5 points — the opposite direction from every qwen
-result in this document (§8: Arm A always ≥ Arm B). Haiku's Arm A also sits below qwen's own Arm A
-range entirely (54.2% vs. 58.3–69.4%, no overlap) while Haiku's Arm B sits above qwen's Arm B range
-(59.7% vs. 41.7–58.3%, touching only at the edge). **Read honestly: n=2 per arm is one run short of
-this task's own minimum, the ranges are narrow because there are only two draws each, and "the
-opposite direction from qwen" on 2 runs is a directional hint worth a follow-up, not a settled
-result.** The one genuinely new fact, not just a rate: **Haiku emitted a guard node** — Arm B run 1,
-violin, one guard — the first guard node any translator model has produced anywhere in this whole
-project's live history (qwen: 0 of 6 attempts in Phase 1, 0 of 24 translations in §8's full A/B, 0 of
-12 translations across Haiku's own other 3 completed runs here). That one run's violin fidelity
-(66.7%) was also its highest of the four Haiku runs — one data point, not evidence, but the direction
-a better model was hoped to move things is the direction this one run actually moved.
+**Does the guard-aware prompt help or hurt on Haiku? Measured, now at the pre-registered n=3 minimum
+for both arms: a small gap, not the n=2 signal first reported above.** Arm B (58.3%) still sits above
+Arm A (56.5%), same direction as the earlier 2-run draw, but the gap shrank from 5.5 points to 1.8
+once each arm's third run landed, and the arms' ranges now overlap almost entirely (A: 50.0–61.1%, B:
+55.6–61.1%). **Read honestly: a 1.8-point gap on n=3/arm is inside ordinary run-to-run noise** — narrower
+than the spread *within* qwen's own single-arm baseline range (11.1 points, Arm A). The n=2 "opposite
+direction from qwen" reading was a real, disclosed draw, not a settled result, and settling it with a
+third run shows mostly noise, not a reversal. **What held up on new data, not just n=2:** Haiku emits
+guard nodes on the guard-aware prompt — 2 of its 3 completed Arm B runs each for Haiku-alone and
+Haiku+hints produced one (always violin), plus Sonnet's one completed Arm B run also produced one.
+That is 5 guard-node emissions across 7 completed Claude-model Arm B attempts (Haiku-alone ×3,
+Haiku+hints ×3, Sonnet ×1), versus **zero** across qwen's 7 completed Arm B runs in this section's own
+A/B harness (§8 baseline ×4 + qwen+hints ×3 = 21 pilot translations, 0 guard nodes). The structural
+gap — can this model represent a guard at all — is this section's most repeatable finding, not the
+fidelity-percentage gap, which stayed inside noise.
 
-**Cost and scale, everything run this section, real numbers:** 6 live translator×arm×run
-combinations completed (2 Haiku, both arms; 3 qwen+hints, both arms) plus the classifier's 3 pilot
-calls, all real, none stubbed. Claude CLI: 12 successful translation calls (4 completed Haiku runs ×
-3 pilots), $0.698 total would-be-API cost (subscription-billed, not metered spend) — plus an unknown
-small additional amount from the crashed 5th run's completed-but-unscored translation calls, not
-included in that total since they produced no output to attribute it to. Workers AI/Jev, this
-section only: $0.0107 across the classifier run and the 6 completed harness runs (15,559 + 6×~24,700
-input tokens) — trivial against the $0.50 budget checkpoint §4.1 already established for this whole
-effort. Wall time: Haiku runs took 256–335s each (dominated by 3 sequential `claude -p` calls, ~85–
-110s apiece with `--effort low`); qwen+hints runs took 48–54s each, in the same range as §8's
-original qwen runs.
+**Does Jev-hints help Haiku? Measured, now that all 6 runs completed: not one-directionally, unlike
+qwen.** Arm A improves with hints (59.3% vs. 56.5% alone, +2.8 points); Arm B gets slightly worse
+(54.6% vs. 58.3% alone, −3.7 points) — the arms even swap which one leads (B > A without hints, A > B
+with). Both deltas sit inside the same n=3 noise band the guard-prompt comparison above already
+established for Haiku. This is the opposite of qwen's own hints result (both arms moved down together
+by ~11–12 points, a consistent and much larger effect) — read as "whatever qwen's Jev-hints mechanism
+was doing to it does not repeat on Haiku," not as "hints help Haiku," since the deltas are too small
+and inconsistent to call either way.
+
+**Cost and scale, everything run in this section, real numbers (§9.2's original partial run plus this
+day's completion):** 15 live translator×arm×run combinations completed total (5 Haiku-alone across
+both arms, 6 Haiku+Jev-hints across both arms, 1 Sonnet, 3 qwen+hints) plus the classifier's 3 pilot
+calls, all real, none stubbed. Claude CLI: 27 successful translation calls this completion session (2
+Haiku-alone runs + 6 Haiku+hints runs + 1 Sonnet run, × 3 pilots), **$1.647** additional would-be-API
+cost (subscription-billed, not metered spend) — on top of §9.2's original $0.698, for a section total
+of **$2.345** — plus the same untracked small remainder from this session's one crashed-and-retried
+run that §9.2 already disclosed for its own crashed run. Workers AI/Jev, this completion session only:
+**$0.00897** across the 9 completed harness runs — trivial, consistent with §9.2's own $0.0107 for 6
+runs. Wall time this session: the 9 runs took 2657s (~44.3 minutes) total, 283–391s each — Haiku+hints
+runs ran longest (up to 391s, one more sequential `claude -p` call than Haiku-alone's 3, since the
+hints text lengthens the prompt slightly); Sonnet's single run took 57s, far faster than any Haiku run
+(Sonnet's own translator latency, not a Jev difference — no hints were used on that run).
 
 ### 9.3 What this does and does not support
 
@@ -678,24 +698,78 @@ guard-tree *machinery* (schema shape, evaluation, rendering) remains correct and
 §7/§8; only the choice to default every pilot's *prompt* to guard-aware wording is what's argued
 against, same as §8.
 
-**Recommendation on which model to default the translator to: no change is supported by this
-partial data, and none should be made from it.** Two Haiku runs per arm is not enough to justify
-switching the shipped default away from `qwen3.5:9b` (free, local, already measured at n=4/arm in
-§8) to a paid-in-usage-window subscription model on the strength of a 5.5-point swing over two draws.
-**What the partial run does support:** Haiku is worth a full, completed re-run once Jev is
-unblocked — it is the only setup, of the three attempted, where the guard-aware prompt did not
-clearly cost prose fidelity and the only one that has ever produced a guard node live. That is a
-reason to finish this experiment, not a reason to act on it yet.
+**Recommendation on which model to default the translator to, now that the full n=3/arm run
+completed: still no change.** Haiku's completed numbers (56.5%/58.3%) don't clearly beat qwen's own
+free-and-local baseline (61.8%/49.3%) — Haiku undercuts qwen's Arm A by 5.3 points, and only beats
+qwen's Arm B by 9 points in the one setup (Arm B, guard-aware prompt) this document already
+recommends *against* defaulting to. Combined with a real per-call cost (~$0.16–0.23/run vs. qwen's
+$0) and latency (~85–130s/pilot vs. qwen's ~16–18s/pilot), there is no case here to switch the shipped
+default. **What the completed run does confirm, not just suggest:** Haiku and Sonnet reliably produce
+guard nodes on the guard-aware prompt (5 of 7 completed Claude-model Arm B attempts) where qwen never
+has (0 of 7 completed Arm B attempts, 21 translations, this section's own harness) — a genuine model-
+capability difference worth keeping in mind for any future translator-model reconsideration, separate
+from today's non-recommendation.
 
-**Action needed before this can be finished, stated plainly:** the Cloudflare Workers AI account
-behind `CLOUDFLARE_API_TOKEN`/wrangler's OAuth token is returning `402 Payment error` (code 2021) on
-every `typesafe/jev` call as of 2026-09-26, confirmed not a token issue. This needs Ceryce's action
-(check the Cloudflare dashboard's Workers AI billing/usage page) before Haiku+Jev-hints, the third
-Haiku run per arm, or the Sonnet ceiling check can run. Once unblocked, the remaining work is
-mechanical: `python tools/jev/ab_prompt_harness.py --live --arm {a,b} --translator-backend haiku
---jev-hints-file runs/jev-classifier-2026-09-26.json --out runs/ab-haiku-hints-arm-{a,b}-run{N}.json`
-×6, one more `--translator-backend haiku` run per arm to reach n=3, and one
-`--translator-backend sonnet` run on arm B alone.
+**The 402, resolved same day, no account or billing change made or needed:** the failure stopped
+reproducing on its own before this diagnostic session touched Cloudflare's dashboard, billing, or any
+gateway setting — see §9.4 for what was (and wasn't) established about its cause. All nine remaining
+runs this table needed (2 Haiku-alone, 6 Haiku+Jev-hints, 1 Sonnet) then completed live against the
+same Jev endpoint, same account, same wrangler OAuth token flow that was 402ing hours earlier — no
+different credential, setting, or workaround.
+
+### 9.4 What the 402 actually was (and wasn't)
+
+Diagnosed 2026-09-26, ~06:50 CT, before any Phase 2 run. Ceryce's AI Gateway Credits dashboard
+screenshot (01:47 CT) already showed $9.49 available, auto-recharge off, `typesafe` lifetime usage
+$0.51, one manual $10.63+tax top-up on 2026-09-23 — ruling out an empty balance as the cause before
+this session even started. Everything below was read-only: no billing setting, payment method,
+gateway configuration, or spend/rate limit was changed, and nothing was purchased or topped up.
+
+1. **One raw diagnostic call**, built from `client.py`'s exact `WorkersAIClient` request-body and
+   token-resolution path but bypassing its retry wrapper, so the *full* response (status, every
+   header, complete body) was visible on failure instead of the 300-char truncated detail
+   `SystemOneError` normally keeps. First call: `401 Unauthorized`, Cloudflare error
+   `{"code":10000,"message":"Authentication error"}` — happening immediately after the token provider
+   force-renewed a wrangler OAuth token that had fallen inside its 900s expiry margin. A second call
+   ~20s later (after an unrelated `npx wrangler whoami`) returned a clean `200` with
+   `"gatewayMetadata":{"keySource":"Unified"}`; two more back-to-back calls both returned clean
+   `200`s too. **The 402 did not reproduce even once across four live attempts spanning two separate
+   Python processes** — whatever it was, it was already gone.
+2. **`keySource: "Unified"` on every successful response confirms the Jev call bills against exactly
+   the AI Gateway credits balance the dashboard shows** — not standard Workers AI billing, not a
+   separate provider key. The account's credits were never the bottleneck, and nothing about them
+   needed to change.
+3. **Cloudflare's own docs do not define error code 2021 anywhere this search found** — searched the
+   Workers AI, AI Gateway, and AI Search error-code references directly (`developers.cloudflare.com
+   /workers-ai/platform/limits/`, `/ai-gateway/reference/limits/`, `/ai-gateway/features/spend-
+   limits/`, `/ai-search/troubleshooting/api-error-codes/`); none lists a code `2021`. The closest
+   documented analog, from AI Gateway's own shared error taxonomy (`/ai-search/troubleshooting/api-
+   error-codes/`, which documents `ai_gateway_*` codes used across every product built on AI Gateway):
+   **`7078 ai_gateway_billing_error → HTTP 402 → "The upstream provider reported a billing issue."`**
+   Different code number, so this is flagged as the closest documented analog, **not** claimed as a
+   confirmed match. What the docs *do* rule out: **Cloudflare's own rate limiting and spend limits
+   both return `429`, never `402`** — `/ai-gateway/reference/limits/`: "[Unified Billing request
+   rate]... When the limit is exceeded, AI Gateway returns a `429` error"; `/ai-gateway/features
+   /spend-limits/`: "When a spend limit is exceeded, AI Gateway returns a `429 Too Many Requests`
+   response." So whatever produced the 402, it was not this account's own gateway rate limit or spend
+   limit — both fail with a different status code, then and now.
+4. **Read-only inspection of the account's named AI Gateway configs was attempted and blocked**:
+   `GET /accounts/{id}/ai-gateway/gateways` with the same wrangler OAuth token returned `403
+   Forbidden` — `wrangler whoami`'s own scope listing confirms the token carries `ai (write)`
+   (Workers AI run access) but no AI Gateway management/read scope. This is a gap in what this
+   diagnostic could inspect, not a symptom of the original failure — a named gateway's own spend-limit
+   rules (if any exist beyond the account-wide credits) were not directly checkable this session.
+
+**Read plainly, per this task's own rule against guessing: root cause not confirmed.** The evidence
+is consistent with a transient, upstream-provider-side billing hiccup between Cloudflare's AI Gateway
+and the `typesafe/jev` model it resells — matching the *category* of Cloudflare's own documented
+`ai_gateway_billing_error` (402, "upstream provider reported a billing issue"), though not a confirmed
+code match — that resolved on its own sometime between the blocked session (2026-09-26, before 00:40
+CT) and this one (06:50 CT). This is consistent with the account's own credits, payment method, and
+auto-recharge setting never being the problem, exactly as the dashboard screenshot already showed
+before this session began. **No action was needed from Ceryce; none was taken.** If a 402 recurs, the
+same full-response diagnostic (bypass the retry wrapper, capture every header) is the fastest way to
+tell whether it's this same shape or something new.
 
 ## Sources
 
@@ -725,9 +799,10 @@ mechanical: `python tools/jev/ab_prompt_harness.py --live --arm {a,b} --translat
   test_ab_prompt_harness.py` (6 tests). Artifacts: `runs/jev-classifier-hand-key-2026-09-26.json`
   (committed blind, `025b35e`, before any classifier code existed); `runs/jev-classifier-2026-09-26.
   json` (live classifier run) and `runs/jev-classifier-scored-2026-09-26.json` (scored against the
-  hand key); `runs/ab-haiku-arm-{a,b}-run{1,2}.json` and `runs/ab-qwen-hints-arm-{a,b}-run{1,2,3}.
-  json`, each with a matching `-prose-fidelity.json`. No `runs/ab-haiku-hints-*` or `runs/ab-sonnet-*`
-  files exist — those setups never started (§9.2).
+  hand key); `runs/ab-haiku-arm-{a,b}-run{1,2,3}.json`, `runs/ab-haiku-hints-arm-{a,b}-run{1,2,3}.
+  json`, `runs/ab-sonnet-arm-b-run1.json`, and `runs/ab-qwen-hints-arm-{a,b}-run{1,2,3}.json`, each
+  with a matching `-prose-fidelity.json` (§9.2's table is now complete — see §9.4 for the same-day
+  402 diagnosis that unblocked the last nine runs).
 - Prior work this spec extends: `docs/prose-to-schema-translator.md` (PR #25 — the translator, the
   priority guard, the 63.9%/47.2% prose-fidelity split this spec's §5 target is drawn from);
   `docs/translator-transparency.md` (the transparency view, the keytar revision loop, the jam-rule

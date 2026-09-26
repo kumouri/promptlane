@@ -26,16 +26,21 @@ runs each: Arm A mean 61.8% (range 58.3–69.4%, reproducing this memo's 63.9% b
 §8 for the full per-run table, the per-pilot breakdown, and the harness-parity cross-check that rules
 out a scoring-code discrepancy.
 
-**Update 2026-09-26 (§9): a Claude backend and a Jev classifier stage, tested partially, blocked by
-a live billing failure.** A Haiku translator backend (subscription CLI, translator step only) and a
-Jev clause classifier (guard/default/rule confidence per sentence) were added and measured as far as
-a Cloudflare Workers AI `402 Payment error` allowed: qwen + Jev-hints (3 runs/arm, complete) moves
-*both* arms down by ~11–12 points versus the no-hints baseline, not just Arm B — hints don't fix the
-guard-prompt drop, they just add noise to both arms alike. Haiku alone (2 of 3 runs/arm before the
-402) shows the opposite direction from every qwen result so far — Arm B (59.7%) above Arm A
-(54.2%) — and produced this project's first-ever live guard node, but n=2/arm is one run short of
-plan and not yet a settled result. Haiku+hints and a Sonnet ceiling check never started. See §9 for
-the full accounting, including exactly what's needed to finish once the billing issue clears.
+**Update 2026-09-26 (§9): a Claude backend and a Jev classifier stage — complete, after a same-day
+Cloudflare 402 that stopped reproducing before anyone touched billing.** A Haiku/Sonnet translator
+backend (subscription CLI, translator step only) and a Jev clause classifier (guard/default/rule
+confidence per sentence) were added; all nine planned live A/B combinations completed. **qwen +
+Jev-hints** (3 runs/arm) moves *both* arms down by ~11–12 points versus the no-hints baseline, not
+just Arm B — hints don't fix the guard-prompt drop, they add noise to both arms alike. **Haiku alone**
+(3/3 runs/arm): Arm B (58.3%) vs. Arm A (56.5%), a 1.8-point gap that's inside ordinary run-to-run
+noise once the third run landed (an earlier 2-run draw had shown a much larger 5.5-point gap).
+**Haiku + Jev-hints** (3/3 runs/arm) flips which arm leads (A 59.3% > B 54.6%) but by a similarly
+noise-sized margin. **What held up across every completed setup, not just one draw:** Claude-model
+Arm B runs produced a guard node 5 times out of 7 attempts (Haiku-alone, Haiku+hints, and the one
+Sonnet ceiling run) — qwen has never produced one, in 0 of 7 Arm B attempts in this same A/B harness.
+See §9 for the full table, the same-day 402 diagnosis (root cause not confirmed; no billing action
+was taken or needed), and the recommendation (no change to §8's "don't ship the guard-aware prompt
+as qwen's default," no change to the shipped translator model).
 
 ## The short answer
 

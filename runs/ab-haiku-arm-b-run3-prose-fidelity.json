@@ -1,0 +1,335 @@
+{
+  "source_fidelity_report": "runs/ab-haiku-arm-b-run3.json",
+  "source_reference_dir": "runs",
+  "per_pilot": {
+    "drums": {
+      "n_scenarios": 12,
+      "translator_prose_fidelity_rate": 0.5,
+      "qwen_prose_fidelity_rate": 0.5
+    },
+    "keytar": {
+      "n_scenarios": 12,
+      "translator_prose_fidelity_rate": 0.5833333333333334,
+      "qwen_prose_fidelity_rate": 0.3333333333333333
+    },
+    "violin": {
+      "n_scenarios": 12,
+      "translator_prose_fidelity_rate": 0.5833333333333334,
+      "qwen_prose_fidelity_rate": 0.5833333333333334
+    }
+  },
+  "overall_n": 36,
+  "overall_translator_prose_fidelity_rate": 0.5555555555555556,
+  "overall_qwen_prose_fidelity_rate": 0.4722222222222222,
+  "detail": {
+    "drums": {
+      "n_scenarios": 12,
+      "translator_prose_fidelity_rate": 0.5,
+      "qwen_prose_fidelity_rate": 0.5,
+      "rows": [
+        {
+          "scenario": "empty_lane_push",
+          "prose_label_kind": "move",
+          "translator_kind": "move",
+          "translator_matches_prose": true,
+          "qwen_kind": "move",
+          "qwen_matches_prose": true
+        },
+        {
+          "scenario": "low_hp_recall_under_pressure",
+          "prose_label_kind": "recall",
+          "translator_kind": "recall",
+          "translator_matches_prose": true,
+          "qwen_kind": "attack",
+          "qwen_matches_prose": false
+        },
+        {
+          "scenario": "melee_range_enemy_ability_ready",
+          "prose_label_kind": "ability",
+          "translator_kind": "ability",
+          "translator_matches_prose": true,
+          "qwen_kind": "attack",
+          "qwen_matches_prose": false
+        },
+        {
+          "scenario": "ranged_enemy_far",
+          "prose_label_kind": "move",
+          "translator_kind": "attack",
+          "translator_matches_prose": false,
+          "qwen_kind": "move",
+          "qwen_matches_prose": true
+        },
+        {
+          "scenario": "clustered_enemies",
+          "prose_label_kind": "ability",
+          "translator_kind": "ability",
+          "translator_matches_prose": true,
+          "qwen_kind": "attack",
+          "qwen_matches_prose": false
+        },
+        {
+          "scenario": "ability_on_cooldown_enemy_present",
+          "prose_label_kind": "attack",
+          "translator_kind": "ability",
+          "translator_matches_prose": false,
+          "qwen_kind": "attack",
+          "qwen_matches_prose": true
+        },
+        {
+          "scenario": "ally_under_threat",
+          "prose_label_kind": "move",
+          "translator_kind": "attack",
+          "translator_matches_prose": false,
+          "qwen_kind": "attack",
+          "qwen_matches_prose": false
+        },
+        {
+          "scenario": "isolated_vs_grouped_enemy",
+          "prose_label_kind": "move",
+          "translator_kind": "ability",
+          "translator_matches_prose": false,
+          "qwen_kind": "move",
+          "qwen_matches_prose": true
+        },
+        {
+          "scenario": "enemy_tower_only",
+          "prose_label_kind": "attack",
+          "translator_kind": "move",
+          "translator_matches_prose": false,
+          "qwen_kind": "move",
+          "qwen_matches_prose": false
+        },
+        {
+          "scenario": "hp_exactly_at_threshold",
+          "prose_label_kind": "attack",
+          "translator_kind": "ability",
+          "translator_matches_prose": false,
+          "qwen_kind": "attack",
+          "qwen_matches_prose": true
+        },
+        {
+          "scenario": "minion_wave_poke",
+          "prose_label_kind": "move",
+          "translator_kind": "move",
+          "translator_matches_prose": true,
+          "qwen_kind": "move",
+          "qwen_matches_prose": true
+        },
+        {
+          "scenario": "softest_target_selection",
+          "prose_label_kind": "ability",
+          "translator_kind": "ability",
+          "translator_matches_prose": true,
+          "qwen_kind": "attack",
+          "qwen_matches_prose": false
+        }
+      ]
+    },
+    "keytar": {
+      "n_scenarios": 12,
+      "translator_prose_fidelity_rate": 0.5833333333333334,
+      "qwen_prose_fidelity_rate": 0.3333333333333333,
+      "rows": [
+        {
+          "scenario": "empty_lane_push",
+          "prose_label_kind": "move",
+          "translator_kind": "move",
+          "translator_matches_prose": true,
+          "qwen_kind": "move",
+          "qwen_matches_prose": true
+        },
+        {
+          "scenario": "low_hp_recall_under_pressure",
+          "prose_label_kind": "recall",
+          "translator_kind": "recall",
+          "translator_matches_prose": true,
+          "qwen_kind": "move",
+          "qwen_matches_prose": false
+        },
+        {
+          "scenario": "melee_range_enemy_ability_ready",
+          "prose_label_kind": "ability",
+          "translator_kind": "ability",
+          "translator_matches_prose": true,
+          "qwen_kind": "move",
+          "qwen_matches_prose": false
+        },
+        {
+          "scenario": "ranged_enemy_far",
+          "prose_label_kind": "move",
+          "translator_kind": "ability",
+          "translator_matches_prose": false,
+          "qwen_kind": "move",
+          "qwen_matches_prose": true
+        },
+        {
+          "scenario": "clustered_enemies",
+          "prose_label_kind": "ability",
+          "translator_kind": "ability",
+          "translator_matches_prose": true,
+          "qwen_kind": "ability",
+          "qwen_matches_prose": true
+        },
+        {
+          "scenario": "ability_on_cooldown_enemy_present",
+          "prose_label_kind": "attack",
+          "translator_kind": "move",
+          "translator_matches_prose": false,
+          "qwen_kind": "move",
+          "qwen_matches_prose": false
+        },
+        {
+          "scenario": "ally_under_threat",
+          "prose_label_kind": "move",
+          "translator_kind": "ability",
+          "translator_matches_prose": false,
+          "qwen_kind": "ability",
+          "qwen_matches_prose": false
+        },
+        {
+          "scenario": "isolated_vs_grouped_enemy",
+          "prose_label_kind": "ability",
+          "translator_kind": "ability",
+          "translator_matches_prose": true,
+          "qwen_kind": "ability",
+          "qwen_matches_prose": true
+        },
+        {
+          "scenario": "enemy_tower_only",
+          "prose_label_kind": "attack",
+          "translator_kind": "ability",
+          "translator_matches_prose": false,
+          "qwen_kind": "move",
+          "qwen_matches_prose": false
+        },
+        {
+          "scenario": "hp_exactly_at_threshold",
+          "prose_label_kind": "ability",
+          "translator_kind": "ability",
+          "translator_matches_prose": true,
+          "qwen_kind": "move",
+          "qwen_matches_prose": false
+        },
+        {
+          "scenario": "minion_wave_poke",
+          "prose_label_kind": "move",
+          "translator_kind": "ability",
+          "translator_matches_prose": false,
+          "qwen_kind": "attack",
+          "qwen_matches_prose": false
+        },
+        {
+          "scenario": "softest_target_selection",
+          "prose_label_kind": "ability",
+          "translator_kind": "ability",
+          "translator_matches_prose": true,
+          "qwen_kind": "move",
+          "qwen_matches_prose": false
+        }
+      ]
+    },
+    "violin": {
+      "n_scenarios": 12,
+      "translator_prose_fidelity_rate": 0.5833333333333334,
+      "qwen_prose_fidelity_rate": 0.5833333333333334,
+      "rows": [
+        {
+          "scenario": "empty_lane_push",
+          "prose_label_kind": "move",
+          "translator_kind": "move",
+          "translator_matches_prose": true,
+          "qwen_kind": "move",
+          "qwen_matches_prose": true
+        },
+        {
+          "scenario": "low_hp_recall_under_pressure",
+          "prose_label_kind": "recall",
+          "translator_kind": "recall",
+          "translator_matches_prose": true,
+          "qwen_kind": "attack",
+          "qwen_matches_prose": false
+        },
+        {
+          "scenario": "melee_range_enemy_ability_ready",
+          "prose_label_kind": "ability",
+          "translator_kind": "ability",
+          "translator_matches_prose": true,
+          "qwen_kind": "attack",
+          "qwen_matches_prose": false
+        },
+        {
+          "scenario": "ranged_enemy_far",
+          "prose_label_kind": "move",
+          "translator_kind": "move",
+          "translator_matches_prose": true,
+          "qwen_kind": "move",
+          "qwen_matches_prose": true
+        },
+        {
+          "scenario": "clustered_enemies",
+          "prose_label_kind": "hold",
+          "translator_kind": "ability",
+          "translator_matches_prose": false,
+          "qwen_kind": "move",
+          "qwen_matches_prose": false
+        },
+        {
+          "scenario": "ability_on_cooldown_enemy_present",
+          "prose_label_kind": "move",
+          "translator_kind": "move",
+          "translator_matches_prose": true,
+          "qwen_kind": "move",
+          "qwen_matches_prose": true
+        },
+        {
+          "scenario": "ally_under_threat",
+          "prose_label_kind": "move",
+          "translator_kind": "move",
+          "translator_matches_prose": true,
+          "qwen_kind": "move",
+          "qwen_matches_prose": true
+        },
+        {
+          "scenario": "isolated_vs_grouped_enemy",
+          "prose_label_kind": "ability",
+          "translator_kind": "move",
+          "translator_matches_prose": false,
+          "qwen_kind": "move",
+          "qwen_matches_prose": false
+        },
+        {
+          "scenario": "enemy_tower_only",
+          "prose_label_kind": "hold",
+          "translator_kind": "ability",
+          "translator_matches_prose": false,
+          "qwen_kind": "move",
+          "qwen_matches_prose": false
+        },
+        {
+          "scenario": "hp_exactly_at_threshold",
+          "prose_label_kind": "move",
+          "translator_kind": "ability",
+          "translator_matches_prose": false,
+          "qwen_kind": "move",
+          "qwen_matches_prose": true
+        },
+        {
+          "scenario": "minion_wave_poke",
+          "prose_label_kind": "move",
+          "translator_kind": "move",
+          "translator_matches_prose": true,
+          "qwen_kind": "move",
+          "qwen_matches_prose": true
+        },
+        {
+          "scenario": "softest_target_selection",
+          "prose_label_kind": "move",
+          "translator_kind": "ability",
+          "translator_matches_prose": false,
+          "qwen_kind": "move",
+          "qwen_matches_prose": true
+        }
+      ]
+    }
+  }
+}
