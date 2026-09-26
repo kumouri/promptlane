@@ -309,7 +309,7 @@ def collect_nodes(cascade: Cascade) -> list[Node]:
     return out
 
 
-def evaluate_cascade(cascade: Cascade, answers: dict[str, bool]) -> Action | None:
+def evaluate_cascade(cascade: Cascade, answers: dict[str, bool], trace: list[dict] | None = None) -> Action | None:
     """Depth-first, first-true-wins (spec §2.2's `evaluate`, completed: the spec's own pseudocode
     only ever recurses into a guard's `then` branch, never `else` -- a literal reading of it can
     never produce the "no" branch's action at all, which contradicts the worked example (§3.2's 2c)
@@ -320,25 +320,34 @@ def evaluate_cascade(cascade: Cascade, answers: dict[str, bool]) -> Action | Non
     Returns `None` when nothing anywhere along the committed path had an action -- including no local
     default at any level entered -- so the caller can apply the OUTERMOST (root) default exactly once
     (see `evaluate_schema`); a `None` here must never be silently treated as this cascade's own
-    default, or an escalation would be skipped past a level that had one (spec §3.1)."""
+    default, or an escalation would be skipped past a level that had one (spec §3.1).
+
+    `trace`, when given, is appended to with one dict per guard consulted (`{"guard_id", "answer"}`)
+    and, if a rule fires, one more (`{"fired_id"}`) -- a caller (Phase 4's per-guard diagnostic
+    breakdown, `fidelity_harness.py`) can read it back without duplicating this walk."""
     for node in cascade.nodes:
         if isinstance(node, GuardNode):
-            branch = node.then if answers.get(node.id) else node.else_
-            result = evaluate_cascade(branch, answers)
+            ans = bool(answers.get(node.id))
+            if trace is not None:
+                trace.append({"guard_id": node.id, "answer": ans})
+            branch = node.then if ans else node.else_
+            result = evaluate_cascade(branch, answers, trace)
             return result if result is not None else branch.default
         if answers.get(node.id):
+            if trace is not None:
+                trace.append({"fired_id": node.id})
             return Action(node.action_kind, node.action_ability, node.action_target_selector)
     return cascade.default
 
 
-def evaluate_schema(schema: TranslatedSchema, answers: dict[str, bool]) -> Action:
+def evaluate_schema(schema: TranslatedSchema, answers: dict[str, bool], trace: list[dict] | None = None) -> Action:
     """`evaluate_cascade(schema.root, ...)` already applies `root.default` in the plain
     all-false/no-guards case (that's the same object as `cascade.default` at the bottom of the
     function). It does NOT apply `root.default` when a committed guard branch escalates with no
     default of its own anywhere along the path -- that early return never reaches root's own
     trailing-default line. This function is what actually makes `root.default` the outermost,
     last-resort fallback "for the whole tree" (spec §3.1), applied exactly once, here."""
-    result = evaluate_cascade(schema.root, answers)
+    result = evaluate_cascade(schema.root, answers, trace)
     if result is not None:
         return result
     if schema.root.default is not None:
