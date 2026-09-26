@@ -1,0 +1,360 @@
+{
+  "instrument": "violin",
+  "guard_questions": [
+    {
+      "id": "guard_can_win",
+      "instructions": "Given everything visible right now, can this bearbot win the fight it is currently in or about to enter, by itself, right now?",
+      "criteria": {
+        "true": "yes -- there is a fight this bearbot can win alone right now",
+        "false": "no -- there is no fight right now that this bearbot can win alone (no target, or the odds are bad)"
+      }
+    },
+    {
+      "id": "guard_commit_now",
+      "instructions": "Should this bearbot commit fully to engaging the enemy it can currently see, because the fight is winnable?",
+      "criteria": {
+        "true": "yes, commit and engage now -- this is a fight worth finishing",
+        "false": "no, do not commit right now -- wait, reposition, or retreat instead"
+      }
+    },
+    {
+      "id": "guard_favorable_target",
+      "instructions": "Is there a visible enemy right now that this bearbot could defeat alone, either because it is isolated or because it is clearly the weakest target present?",
+      "criteria": {
+        "true": "yes, a beatable target (isolated or clearly the softest) is visible",
+        "false": "no beatable target is visible right now"
+      }
+    }
+  ],
+  "n_scenarios": 12,
+  "n_scored": 4,
+  "scored_scenarios": [
+    "melee_range_enemy_ability_ready",
+    "clustered_enemies",
+    "isolated_vs_grouped_enemy",
+    "enemy_tower_only"
+  ],
+  "main_wording_agreement_rate": 1.0,
+  "main_wording_agreement_n": "4/4",
+  "majority_vote_agreement_rate": 1.0,
+  "majority_vote_agreement_n": "4/4",
+  "wording_unanimous_rate": 0.3333333333333333,
+  "wording_unanimous_n": "4/12",
+  "total_input_tokens": 7814,
+  "estimated_cost_usd": 0.00032818800000000004,
+  "rows": [
+    {
+      "scenario": "empty_lane_push",
+      "description": "Nothing visible; early clock. Tests baseline lane-push / positioning with no threats.",
+      "per_wording": {
+        "guard_can_win": {
+          "noul": 0.11,
+          "answer": false
+        },
+        "guard_commit_now": {
+          "noul": 0.05,
+          "answer": false
+        },
+        "guard_favorable_target": {
+          "noul": 0.07,
+          "answer": false
+        }
+      },
+      "majority_answer": false,
+      "wording_agreement": true,
+      "expected": null,
+      "scored": false,
+      "main_wording_match": null,
+      "majority_match": null,
+      "input_tokens": 651,
+      "latency_sec": 2.560243800002354
+    },
+    {
+      "scenario": "low_hp_recall_under_pressure",
+      "description": "Self below the quarter-health line, an enemy bearbot nearby, ability ready. Tests whether hp overrides everything else.",
+      "per_wording": {
+        "guard_can_win": {
+          "noul": 0.15,
+          "answer": false
+        },
+        "guard_commit_now": {
+          "noul": 0.13,
+          "answer": false
+        },
+        "guard_favorable_target": {
+          "noul": 0.33,
+          "answer": false
+        }
+      },
+      "majority_answer": false,
+      "wording_agreement": true,
+      "expected": null,
+      "scored": false,
+      "main_wording_match": null,
+      "majority_match": null,
+      "input_tokens": 632,
+      "latency_sec": 0.3515425999976287
+    },
+    {
+      "scenario": "melee_range_enemy_ability_ready",
+      "description": "One enemy bearbot essentially adjacent (small dx/dy), ability ready, self healthy. Tests close-range engagement vs. flee-the-melee-range logic.",
+      "per_wording": {
+        "guard_can_win": {
+          "noul": 0.62,
+          "answer": true
+        },
+        "guard_commit_now": {
+          "noul": 0.46,
+          "answer": false
+        },
+        "guard_favorable_target": {
+          "noul": 0.79,
+          "answer": true
+        }
+      },
+      "majority_answer": true,
+      "wording_agreement": false,
+      "expected": true,
+      "scored": true,
+      "main_wording_match": true,
+      "majority_match": true,
+      "input_tokens": 634,
+      "latency_sec": 0.8287511999988055
+    },
+    {
+      "scenario": "ranged_enemy_far",
+      "description": "One enemy bearbot far away (large dx/dy), ability ready, self healthy. Tests ranged engagement / closing distance.",
+      "per_wording": {
+        "guard_can_win": {
+          "noul": 0.4,
+          "answer": false
+        },
+        "guard_commit_now": {
+          "noul": 0.25,
+          "answer": false
+        },
+        "guard_favorable_target": {
+          "noul": 0.66,
+          "answer": true
+        }
+      },
+      "majority_answer": false,
+      "wording_agreement": false,
+      "expected": null,
+      "scored": false,
+      "main_wording_match": null,
+      "majority_match": null,
+      "input_tokens": 633,
+      "latency_sec": 0.9414475000012317
+    },
+    {
+      "scenario": "clustered_enemies",
+      "description": "Two enemy bearbots plus a minion, all close together. Tests AoE / densest-cluster target selection (drums Fill, keytar Chord).",
+      "per_wording": {
+        "guard_can_win": {
+          "noul": 0.41,
+          "answer": false
+        },
+        "guard_commit_now": {
+          "noul": 0.34,
+          "answer": false
+        },
+        "guard_favorable_target": {
+          "noul": 0.63,
+          "answer": true
+        }
+      },
+      "majority_answer": false,
+      "wording_agreement": false,
+      "expected": false,
+      "scored": true,
+      "main_wording_match": true,
+      "majority_match": true,
+      "input_tokens": 683,
+      "latency_sec": 1.202334300000075
+    },
+    {
+      "scenario": "ability_on_cooldown_enemy_present",
+      "description": "Enemy bearbot at medium range, ability NOT ready. Tests fallback (basic attack only) behavior.",
+      "per_wording": {
+        "guard_can_win": {
+          "noul": 0.62,
+          "answer": true
+        },
+        "guard_commit_now": {
+          "noul": 0.38,
+          "answer": false
+        },
+        "guard_favorable_target": {
+          "noul": 0.81,
+          "answer": true
+        }
+      },
+      "majority_answer": true,
+      "wording_agreement": false,
+      "expected": null,
+      "scored": false,
+      "main_wording_match": null,
+      "majority_match": null,
+      "input_tokens": 633,
+      "latency_sec": 0.6777996000018902
+    },
+    {
+      "scenario": "ally_under_threat",
+      "description": "Self is far from the action and full hp; an ally is low hp with an enemy bearbot near that ally (not near self). Tests drums.md's 'enemy near ally is my problem' rule specifically.",
+      "per_wording": {
+        "guard_can_win": {
+          "noul": 0.27,
+          "answer": false
+        },
+        "guard_commit_now": {
+          "noul": 0.23,
+          "answer": false
+        },
+        "guard_favorable_target": {
+          "noul": 0.52,
+          "answer": true
+        }
+      },
+      "majority_answer": false,
+      "wording_agreement": false,
+      "expected": null,
+      "scored": false,
+      "main_wording_match": null,
+      "majority_match": null,
+      "input_tokens": 680,
+      "latency_sec": 1.0486653999978444
+    },
+    {
+      "scenario": "isolated_vs_grouped_enemy",
+      "description": "One enemy bearbot alone far away; two enemy bearbots grouped together at similar distance. Tests violin.md's isolated-target preference.",
+      "per_wording": {
+        "guard_can_win": {
+          "noul": 0.55,
+          "answer": true
+        },
+        "guard_commit_now": {
+          "noul": 0.31,
+          "answer": false
+        },
+        "guard_favorable_target": {
+          "noul": 0.83,
+          "answer": true
+        }
+      },
+      "majority_answer": true,
+      "wording_agreement": false,
+      "expected": true,
+      "scored": true,
+      "main_wording_match": true,
+      "majority_match": true,
+      "input_tokens": 693,
+      "latency_sec": 1.1995421999999962
+    },
+    {
+      "scenario": "enemy_tower_only",
+      "description": "No enemy bearbot; one enemy tower visible. Tests tower engagement / poke-only behavior.",
+      "per_wording": {
+        "guard_can_win": {
+          "noul": 0.31,
+          "answer": false
+        },
+        "guard_commit_now": {
+          "noul": 0.26,
+          "answer": false
+        },
+        "guard_favorable_target": {
+          "noul": 0.51,
+          "answer": true
+        }
+      },
+      "majority_answer": false,
+      "wording_agreement": false,
+      "expected": false,
+      "scored": true,
+      "main_wording_match": true,
+      "majority_match": true,
+      "input_tokens": 632,
+      "latency_sec": 1.1604096000010031
+    },
+    {
+      "scenario": "hp_exactly_at_threshold",
+      "description": "Self hp exactly at the quarter-health boundary, enemy present, ability ready. Edge case for the recall threshold.",
+      "per_wording": {
+        "guard_can_win": {
+          "noul": 0.21,
+          "answer": false
+        },
+        "guard_commit_now": {
+          "noul": 0.17,
+          "answer": false
+        },
+        "guard_favorable_target": {
+          "noul": 0.45,
+          "answer": false
+        }
+      },
+      "majority_answer": false,
+      "wording_agreement": true,
+      "expected": null,
+      "scored": false,
+      "main_wording_match": null,
+      "majority_match": null,
+      "input_tokens": 633,
+      "latency_sec": 1.0193724999990081
+    },
+    {
+      "scenario": "minion_wave_poke",
+      "description": "Several allied minions nearby, no visible enemies. Tests lane-push / poke-the-wave baseline, distinguished from empty_lane_push by minion presence.",
+      "per_wording": {
+        "guard_can_win": {
+          "noul": 0.13,
+          "answer": false
+        },
+        "guard_commit_now": {
+          "noul": 0.05,
+          "answer": false
+        },
+        "guard_favorable_target": {
+          "noul": 0.07,
+          "answer": false
+        }
+      },
+      "majority_answer": false,
+      "wording_agreement": true,
+      "expected": null,
+      "scored": false,
+      "main_wording_match": null,
+      "majority_match": null,
+      "input_tokens": 645,
+      "latency_sec": 0.8350386999991315
+    },
+    {
+      "scenario": "softest_target_selection",
+      "description": "Two enemy bearbots visible: one close but nearly full hp, one far but almost dead. Tests nearest-vs-lowest-hp target selection.",
+      "per_wording": {
+        "guard_can_win": {
+          "noul": 0.55,
+          "answer": true
+        },
+        "guard_commit_now": {
+          "noul": 0.33,
+          "answer": false
+        },
+        "guard_favorable_target": {
+          "noul": 0.89,
+          "answer": true
+        }
+      },
+      "majority_answer": true,
+      "wording_agreement": false,
+      "expected": null,
+      "scored": false,
+      "main_wording_match": null,
+      "majority_match": null,
+      "input_tokens": 665,
+      "latency_sec": 0.40314239999861456
+    }
+  ],
+  "mode": "live (workers-ai, model=typesafe/jev)"
+}
