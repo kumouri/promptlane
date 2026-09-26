@@ -50,7 +50,12 @@ MIN_TOKEN_LEN = 3  # drops contraction remnants ("it's" -> "it", "s") that cause
 
 
 def _significant(tokens: set[str]) -> set[str]:
-    return {t for t in tokens if len(t) >= MIN_TOKEN_LEN}
+    """Drops short word-token remnants (`it's` -> `it`, `s`) that caused spurious ties -- see module
+    docstring. Never drops a pure-digit token (`25`, `2`): those are exactly what
+    `number_normalize.normalize_numbers_for_trace` produces from a fraction/count word ("quarter" ->
+    "25"), and a 2-character threshold like "25" is the whole point of that normalization, not noise
+    to filter out the way a short word fragment is."""
+    return {t for t in tokens if len(t) >= MIN_TOKEN_LEN or t.isdigit()}
 
 DROPPED_REASONS = {
     "open_strategy": (
