@@ -115,6 +115,57 @@ class RenderReportMarkdownTests(unittest.TestCase):
             self.assertNotIn(token, rendered)
 
 
+class BuildReportGuardTests(unittest.TestCase):
+    """Exercises build_report against a violin-shaped schema WITH a guard node, using violin.md's
+    real segments -- the guard's condition should trace back to "you only take fights you can win in
+    one phrase" (an open_strategy segment in expressibility.py, since the flat translator can't take
+    it -- the whole reason class 1 needs a guard, spec §2.1)."""
+
+    def setUp(self):
+        from translator import Cascade, GuardNode
+
+        opener = _rule("staccato_opener", "is staccato off cooldown and a target in range?", kind="ability", ability="staccato", selector="isolated_enemy")
+        guard = GuardNode(
+            id="can_win_fight",
+            condition="can this bearbot win the fight it is in or about to enter, by itself, right now?",
+            criteria_true="yes, a winnable fight is present",
+            criteria_false="no, nothing winnable is present",
+            then=Cascade(nodes=(opener,), default=X.Action("move", None, "isolated_enemy")),
+            else_=Cascade(nodes=(), default=X.Action("move", None, "isolated_enemy")),
+        )
+        recall = _rule("recall_low_hp", "is hp below a quarter of max?", kind="recall", selector="none")
+        self.schema = TranslatedSchema(
+            pilot_file="violin.md",
+            instrument="violin",
+            rules=(recall, guard),  # a mixed root: constructing directly still works via root=None
+            default_kind="move", default_ability=None, default_target_selector="push_lane",
+            raw_model_output="{}",
+        )
+        self.report = X.build_report(self.schema, "violin.md")
+
+    def test_guard_traces_to_the_class_one_sentence(self):
+        self.assertEqual(len(self.report.guards), 1)
+        gp = self.report.guards[0]
+        self.assertEqual(gp.label, "2")
+        self.assertTrue(any("one\nphrase" in s or "one phrase" in s for s in gp.source_segments))
+
+    def test_nested_rule_gets_a_lettered_position_and_branch_context(self):
+        nested = next(rp for rp in self.report.rules if rp.rule.id == "staccato_opener")
+        self.assertEqual(nested.position, "2a")
+        self.assertIn("if guard 2 = yes", nested.order_why)
+
+    def test_root_rule_position_is_unaffected_by_the_guard(self):
+        root_rule = next(rp for rp in self.report.rules if rp.rule.id == "recall_low_hp")
+        self.assertEqual(root_rule.position, "1")
+
+    def test_render_includes_guard_subsection_with_if_yes_if_no(self):
+        rendered = X.render_report_markdown(self.report)
+        self.assertIn("can_win_fight", rendered)
+        self.assertIn("If yes →", rendered)
+        self.assertIn("If no →", rendered)
+        self.assertIn("| # | Branch | Condition | Then |", rendered)
+
+
 class UnknownPilotFileTests(unittest.TestCase):
     def test_build_report_raises_for_a_pilot_with_no_hand_labeled_segments(self):
         schema = TranslatedSchema(

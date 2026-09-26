@@ -4,16 +4,16 @@ Rules are checked in order; the first one whose condition is true fires. Every r
 
 ## Quick view
 
-| # | Condition | Then |
-|---|---|---|
-| 1 | is this bot's hp below a quarter of its max? | **recall** home |
-| 2 | is there an isolated enemy bearbot or the softest target in a group within range? | use **staccato** targeting: the visible enemy bearbot farthest from any other enemy (a target alone, not grouped) |
-| 3 | is there a visible enemy bearbot with the lowest hp that is not currently isolated? | use **staccato** targeting: the visible enemy bearbot with the lowest hp (the 'softest' target) |
-| 4 | is a target about to get away or is the decisive moment right? | use **solo** targeting: the visible enemy (any kind) closest to this bearbot |
-| 5 | is a target within attack range? | **attack** targeting: the visible enemy (any kind) closest to this bearbot |
-| 6 | is there a next isolated target to reposition toward? | **move** targeting: the visible enemy bearbot farthest from any other enemy (a target alone, not grouped) |
-| 7 | is there no immediate fight or isolated target? | **move** targeting: move toward the enemy nexus, i.e. advance down the lane |
-| — | *(none of the above)* | **move** targeting: move toward the enemy nexus, i.e. advance down the lane |
+| # | Branch | Condition | Then |
+|---|---|---|---|
+| 1 | — | is this bot's hp below a quarter of its max? | **recall** home |
+| 2 | — | is there an isolated enemy bearbot or the softest target in a group within range? | use **staccato** targeting: the visible enemy bearbot farthest from any other enemy (a target alone, not grouped) |
+| 3 | — | is there a visible enemy bearbot with the lowest hp that is not currently isolated? | use **staccato** targeting: the visible enemy bearbot with the lowest hp (the 'softest' target) |
+| 4 | — | is a target about to get away or is the decisive moment right? | use **solo** targeting: the visible enemy (any kind) closest to this bearbot |
+| 5 | — | is a target within attack range? | **attack** targeting: the visible enemy (any kind) closest to this bearbot |
+| 6 | — | is there a next isolated target to reposition toward? | **move** targeting: the visible enemy bearbot farthest from any other enemy (a target alone, not grouped) |
+| 7 | — | is there no immediate fight or isolated target? | **move** targeting: move toward the enemy nexus, i.e. advance down the lane |
+| — | — | *(none of the above — root default)* | **move** targeting: move toward the enemy nexus, i.e. advance down the lane |
 
 ## Rule detail
 

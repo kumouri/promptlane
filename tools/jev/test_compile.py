@@ -65,7 +65,7 @@ def schema_from_report(md: str, instrument: str) -> TranslatedSchema:
         ask = re.search(r"^- \*\*What Jev is asked:\*\* .*? -- yes means (.*); no means (.*)\.$", block, re.M)
         kind, ability, selector = _parse_action(then)
         rules.append(TranslatedRule(m.group(1), m.group(2), ask.group(1), ask.group(2), kind, ability, selector))
-    default = re.search(r"^\| — \| \*\(none of the above\)\* \| (.*) \|$", md, re.M).group(1)
+    default = re.search(r"^\| — \| — \| \*\(none of the above.*?\)\* \| (.*) \|$", md, re.M).group(1)
     dkind, dability, dselector = _parse_action(default)
     notes = ()
     if "## Automatic priority fixes applied to this schema" in md:

@@ -40,7 +40,17 @@ from dataclasses import dataclass
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from expressibility import FILES as PILOT_SEGMENTS  # noqa: E402
-from translator import TranslatedSchema, TranslatedRule, _rule_tokens, _tokenize  # noqa: E402
+from translator import (  # noqa: E402
+    Action,
+    Cascade,
+    GuardNode,
+    TranslatedRule,
+    TranslatedSchema,
+    collect_nodes,
+    display_rows,
+    _rule_tokens,
+    _tokenize,
+)
 
 MIN_OVERLAP = 2  # same threshold translator.enforce_absolute_priority uses for paragraph matching
 MIN_TOKEN_LEN = 3  # drops contraction remnants ("it's" -> "it", "s") that caused spurious ties --
@@ -80,11 +90,27 @@ DROPPED_REASONS = {
 @dataclass(frozen=True)
 class RuleProvenance:
     rule: TranslatedRule
-    position: int  # 1-based, firing order
+    position: str  # display label, e.g. "1" at the root or "2a" inside guard 2's "yes" branch
     jev_ask: str
     source_segments: tuple[str, ...]
     source_note: str
     order_why: str
+
+
+@dataclass(frozen=True)
+class GuardProvenance:
+    """One `GuardNode`'s provenance -- the tree-shaped analogue of `RuleProvenance`. `if_yes`/
+    `if_no` summarize what each branch does (its own rules, then its own default or the escalation
+    note) without duplicating the full nested rendering, per §2.3's worked mock-up."""
+
+    guard: GuardNode
+    label: str
+    branch: str | None  # None at the root; "if guard N = yes/no" inside another guard's branch
+    jev_ask: str
+    source_segments: tuple[str, ...]
+    source_note: str
+    if_yes: str
+    if_no: str
 
 
 @dataclass(frozen=True)
@@ -99,6 +125,7 @@ class TransparencyReport:
     schema: TranslatedSchema
     rules: tuple[RuleProvenance, ...]
     dropped: tuple[DroppedSegment, ...]
+    guards: tuple[GuardProvenance, ...] = ()
     labels: str = "hand"  # "hand" (expressibility.FILES) or "auto" (segment.auto_segments)
 
 
@@ -107,6 +134,41 @@ def _describe_jev_ask(rule: TranslatedRule) -> str:
         f'Jev is asked one `noul` question, verbatim: "{rule.condition}" -- '
         f"yes means {rule.criteria_true}; no means {rule.criteria_false}."
     )
+
+
+def _describe_jev_ask_guard(guard: GuardNode) -> str:
+    return (
+        f'Jev is asked one `noul` JUDGMENT question, verbatim: "{guard.condition}" -- this is a '
+        f"strategic verdict, not a state-presence/threshold fact (spec §2.4). Yes means "
+        f"{guard.criteria_true}; no means {guard.criteria_false}."
+    )
+
+
+def _describe_action(kind: str, ability: str | None, selector: str | None) -> str:
+    from translator import TARGET_SELECTORS
+
+    if kind == "ability":
+        base = f"use **{ability}**"
+    elif kind == "recall":
+        return "**recall** home"
+    elif kind == "hold":
+        return "**hold** (do nothing this tick)"
+    else:
+        base = f"**{kind}**"
+    if selector and selector != "none":
+        base += f" targeting: {TARGET_SELECTORS[selector]}"
+    return base
+
+
+def _branch_summary(labels: list[str], default_label: str, default_action: Action | None) -> str:
+    tail = (
+        _describe_action(default_action.kind, default_action.ability, default_action.target_selector)
+        if default_action
+        else "escalates to the nearest enclosing default (spec §3.1)"
+    )
+    if labels:
+        return f"checks {', '.join(labels)} below; if none match, ({default_label}, this branch's own default) {tail}"
+    return f"({default_label}, this branch's own default) {tail}"
 
 
 def _promoted_note_for(rule_id: str, validation_notes: tuple[str, ...]) -> str | None:
@@ -135,41 +197,90 @@ def _order_why(rule: TranslatedRule, position: int, total: int, validation_notes
     )
 
 
-def _best_match(tokens: set[str], rules: list[TranslatedRule]) -> int | None:
+def _node_tokens(node) -> set[str]:
+    if isinstance(node, GuardNode):
+        return _tokenize(" ".join([node.condition, node.criteria_true, node.criteria_false]))
+    return _rule_tokens(node)
+
+
+def _best_match(tokens: set[str], nodes: list) -> int | None:
     tokens = _significant(tokens)
     best_idx, best_score = None, MIN_OVERLAP - 1
-    for i, rule in enumerate(rules):
-        score = len(tokens & _significant(_rule_tokens(rule)))
+    for i, node in enumerate(nodes):
+        score = len(tokens & _significant(_node_tokens(node)))
         if score > best_score:
             best_idx, best_score = i, score
     return best_idx
+
+
+def _order_why_for(rule: TranslatedRule, label: str, branch: str | None, total_root: int, validation_notes: tuple[str, ...]) -> str:
+    """Root-level wording (`branch is None`) is byte-identical to the pre-tree `_order_why` -- same
+    text, just driven by the node's display `label` instead of a bare int, since a flat schema's
+    labels are exactly `"1"`, `"2"`, ... A nested rule (inside a guard's branch) gets wording that
+    names its branch instead of a root-wide position, per §2.3's Order column."""
+    promoted = _promoted_note_for(rule.id, validation_notes)
+    if promoted:
+        return (
+            f"moved to position {label} of {total_root} by the automatic priority guard -- the prose "
+            "uses unconditional-override language for this rule, so it is checked before every other "
+            "rule regardless of where the translator originally placed it (see the note below)."
+        )
+    if branch is None:
+        if label == "1":
+            return f"checked first (position 1 of {total_root}) -- this is the order the translator produced."
+        return (
+            f"checked at position {label} of {total_root}, only if every rule above it (1..{int(label) - 1}) "
+            "is false -- this is the order the translator produced; nothing promoted or demoted it."
+        )
+    return (
+        f"checked at position {label}, {branch} -- only if every rule above it in that branch is "
+        "false; this is the order the translator produced."
+    )
 
 
 def build_report(schema: TranslatedSchema, pilot_file: str, segments=None, labels: str = "hand") -> TransparencyReport:
     """`pilot_file` must be one of `expressibility.FILES`'s keys (drums.md/keytar.md/violin.md)
     unless `segments` is given -- see module docstring for why there is no silent fallback for
     unlabeled prose. Pass `labels="auto"` with automatically labelled segments so the rendered view
-    says so."""
+    says so.
+
+    Walks the WHOLE tree (`translator.collect_nodes`), not just the root's flat rules -- a rule
+    nested inside a guard's branch gets provenance/order exactly like a root-level one, and each
+    `GuardNode` gets its own `GuardProvenance` (§2.3)."""
     if segments is None:
         segments = PILOT_SEGMENTS[pilot_file]
 
-    claims: dict[int, list[str]] = {i: [] for i in range(len(schema.rules))}
+    all_nodes = collect_nodes(schema.root)
+    rows_by_node_id = {id(row["node"]): row for row in display_rows(schema.root) if row["kind"] in ("rule", "guard")}
+    total_root = len(schema.root.nodes)
+
+    guard_indices = [i for i, n in enumerate(all_nodes) if isinstance(n, GuardNode)]
+    claims: dict[int, list[str]] = {i: [] for i in range(len(all_nodes))}
     dropped: list[DroppedSegment] = []
     for label, text in segments:
         if label == "boilerplate":
             continue
-        if label != "rule":
-            dropped.append(DroppedSegment(label=label, text=text, reason=DROPPED_REASONS[label]))
+        if label == "rule":
+            idx = _best_match(_tokenize(text), all_nodes)
+            if idx is None:
+                dropped.append(DroppedSegment(label="unclaimed_rule", text=text, reason=DROPPED_REASONS["unclaimed_rule"]))
+            else:
+                claims[idx].append(text)
             continue
-        idx = _best_match(_tokenize(text), schema.rules)
-        if idx is None:
-            dropped.append(DroppedSegment(label="unclaimed_rule", text=text, reason=DROPPED_REASONS["unclaimed_rule"]))
-        else:
-            claims[idx].append(text)
+        if label == "open_strategy" and guard_indices:
+            # class-1 prose (a judgment that gates a whole sub-cascade) is hand-labeled open_strategy,
+            # same as genuinely un-schema-able advisory prose -- but if a guard exists, this is exactly
+            # the content it exists to reclaim (spec §2.1), so try it before giving up on the sentence.
+            local_idx = _best_match(_tokenize(text), [all_nodes[i] for i in guard_indices])
+            if local_idx is not None:
+                claims[guard_indices[local_idx]].append(text)
+                continue
+        dropped.append(DroppedSegment(label=label, text=text, reason=DROPPED_REASONS[label]))
 
-    rule_reports = []
-    total = len(schema.rules)
-    for i, rule in enumerate(schema.rules):
+    rule_reports: list[RuleProvenance] = []
+    guard_reports: list[GuardProvenance] = []
+    for i, node in enumerate(all_nodes):
+        row = rows_by_node_id[id(node)]
         sources = tuple(claims[i])
         note = (
             "no strong match found in the prose for this rule (fewer than 2 shared meaningful words "
@@ -178,34 +289,34 @@ def build_report(schema: TranslatedSchema, pilot_file: str, segments=None, label
             if not sources
             else "matched by shared wording with the prose segment(s) below."
         )
-        rule_reports.append(
-            RuleProvenance(
-                rule=rule,
-                position=i + 1,
-                jev_ask=_describe_jev_ask(rule),
-                source_segments=sources,
-                source_note=note,
-                order_why=_order_why(rule, i + 1, total, schema.validation_notes),
+        if isinstance(node, GuardNode):
+            guard_reports.append(
+                GuardProvenance(
+                    guard=node,
+                    label=row["label"],
+                    branch=row["branch"],
+                    jev_ask=_describe_jev_ask_guard(node),
+                    source_segments=sources,
+                    source_note=note,
+                    if_yes=_branch_summary(row["then_labels"], row["then_default_label"], node.then.default),
+                    if_no=_branch_summary(row["else_labels"], row["else_default_label"], node.else_.default),
+                )
             )
-        )
+        else:
+            rule_reports.append(
+                RuleProvenance(
+                    rule=node,
+                    position=row["label"],
+                    jev_ask=_describe_jev_ask(node),
+                    source_segments=sources,
+                    source_note=note,
+                    order_why=_order_why_for(node, row["label"], row["branch"], total_root, schema.validation_notes),
+                )
+            )
 
-    return TransparencyReport(schema=schema, rules=tuple(rule_reports), dropped=tuple(dropped), labels=labels)
-
-
-def _describe_action(kind: str, ability: str | None, selector: str | None) -> str:
-    from translator import TARGET_SELECTORS
-
-    if kind == "ability":
-        base = f"use **{ability}**"
-    elif kind == "recall":
-        return "**recall** home"
-    elif kind == "hold":
-        return "**hold** (do nothing this tick)"
-    else:
-        base = f"**{kind}**"
-    if selector and selector != "none":
-        base += f" targeting: {TARGET_SELECTORS[selector]}"
-    return base
+    return TransparencyReport(
+        schema=schema, rules=tuple(rule_reports), guards=tuple(guard_reports), dropped=tuple(dropped), labels=labels
+    )
 
 
 def render_report_markdown(report: TransparencyReport) -> str:
@@ -234,18 +345,39 @@ def render_report_markdown(report: TransparencyReport) -> str:
     lines += [
         "## Quick view",
         "",
-        "| # | Condition | Then |",
-        "|---|---|---|",
+        "| # | Branch | Condition | Then |",
+        "|---|---|---|---|",
     ]
-    for rp in report.rules:
-        r = rp.rule
-        action_desc = _describe_action(r.action_kind, r.action_ability, r.action_target_selector)
-        lines.append(f"| {rp.position} | {r.condition} | {action_desc} |")
+    for row in display_rows(schema.root):
+        lines.append(f"| {row['label']} | {row['branch'] or '—'} | {row['condition']} | {row['then']} |")
     default_desc = _describe_action(schema.default_kind, schema.default_ability, schema.default_target_selector)
-    lines.append(f"| — | *(none of the above)* | {default_desc} |")
+    lines.append(f"| — | — | *(none of the above — root default)* | {default_desc} |")
 
+    rule_by_label = {rp.position: rp for rp in report.rules}
+    guard_by_label = {gp.label: gp for gp in report.guards}
     lines += ["", "## Rule detail", ""]
-    for rp in report.rules:
+    for row in display_rows(schema.root):
+        if row["kind"] == "branch_default":
+            continue  # summarized inside the owning guard's If yes/If no, not a separate block
+        label = row["label"]
+        if row["kind"] == "guard":
+            gp = guard_by_label[label]
+            g = gp.guard
+            lines.append(f"### {label}. `{g.id}` — {g.condition}")
+            lines.append("")
+            lines.append(f"- **What Jev is asked:** {gp.jev_ask}")
+            if gp.source_segments:
+                lines.append("- **From your prose:**")
+                for seg in gp.source_segments:
+                    quoted = seg.strip().replace("\n", " ")
+                    lines.append(f"  > {quoted}")
+            else:
+                lines.append(f"- **From your prose:** ⚠ {gp.source_note}")
+            lines.append(f"- **If yes →** {gp.if_yes}")
+            lines.append(f"- **If no →** {gp.if_no}")
+            lines.append("")
+            continue
+        rp = rule_by_label[label]
         r = rp.rule
         action_desc = _describe_action(r.action_kind, r.action_ability, r.action_target_selector)
         lines.append(f"### {rp.position}. `{r.id}` — {r.condition}")

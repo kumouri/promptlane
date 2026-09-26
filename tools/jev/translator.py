@@ -73,15 +73,88 @@ class TranslatedRule:
 
 
 @dataclass(frozen=True)
+class Action:
+    """A cascade's own trailing default action -- same three fields a `TranslatedRule`'s action
+    carries, just not attached to a condition (`docs/translator-guards-and-defaults-spec.md` §2.2's
+    `Action` shape)."""
+
+    kind: str
+    ability: str | None
+    target_selector: str | None
+
+
+@dataclass(frozen=True)
+class GuardNode:
+    """Answers one `noul` JUDGMENT question (not a state-presence/threshold fact) and hands control
+    to one of two `Cascade`s -- `then` when the answer is true, `else_` when false (named `else_`:
+    `else` is a Python keyword). Unlike a `TranslatedRule` (this module's `RuleNode`, per the spec's
+    naming -- kept as `TranslatedRule` rather than a new wrapper class so every existing reader of
+    `.condition`/`.action_kind`/etc keeps working unchanged), a guard always *fires*: both answers
+    route somewhere. There is no third option of "skip this node, check the next sibling" the way a
+    `False` rule condition does -- a guard partitions the decision space, it doesn't compete with
+    siblings for first-match position (spec §2.2)."""
+
+    id: str
+    condition: str
+    criteria_true: str
+    criteria_false: str
+    then: "Cascade"
+    else_: "Cascade"
+
+
+Node = TranslatedRule | GuardNode
+
+
+@dataclass(frozen=True)
+class Cascade:
+    """An ordered sequence of `Node`s (first-true-wins, depth-first) plus this cascade's own optional
+    trailing `default` -- the generalization of today's flat rule list (spec §2.2). A `Cascade` with
+    zero `GuardNode`s in `nodes` is exactly today's flat list; `evaluate_cascade` below degenerates to
+    plain first-match-else-default for such a cascade, which is a compatibility property, not a
+    different code path."""
+
+    nodes: tuple[Node, ...]
+    default: Action | None = None
+
+
+@dataclass(frozen=True)
 class TranslatedSchema:
+    """The tree is the canonical representation (`root: Cascade`, spec §2.2). `rules`/`default_kind`/
+    `default_ability`/`default_target_selector` are kept as a backward-compatible VIEW: every reader
+    that only ever looked at a flat rule list (`fidelity_harness.py`, `compile.py`'s
+    schema_to_dict/schema_from_dict, every pre-existing test fixture that constructs a
+    `TranslatedSchema(rules=[...], default_kind=..., ...)` directly) keeps working unchanged, because
+    `__post_init__` derives whichever side (`root` <-> `rules`+`default_*`) wasn't given explicitly.
+    `rules` for a tree WITH guards is the root cascade's own top-level `TranslatedRule` nodes only
+    (guard nodes and everything nested inside a branch are not in it) -- `root` is the only
+    representation that sees the whole tree."""
+
     pilot_file: str
     instrument: str
-    rules: list[TranslatedRule]
-    default_kind: str
-    default_ability: str | None
-    default_target_selector: str | None
     raw_model_output: str
+    rules: tuple[TranslatedRule, ...] = ()
+    default_kind: str | None = None
+    default_ability: str | None = None
+    default_target_selector: str | None = None
     validation_notes: tuple[str, ...] = ()
+    root: Cascade | None = None
+
+    def __post_init__(self):
+        if self.root is None:
+            default = (
+                Action(self.default_kind, self.default_ability, self.default_target_selector)
+                if self.default_kind is not None
+                else None
+            )
+            object.__setattr__(self, "root", Cascade(nodes=tuple(self.rules), default=default))
+            return
+        if not self.rules:
+            object.__setattr__(self, "rules", tuple(n for n in self.root.nodes if isinstance(n, TranslatedRule)))
+        if self.default_kind is None and self.root.default is not None:
+            d = self.root.default
+            object.__setattr__(self, "default_kind", d.kind)
+            object.__setattr__(self, "default_ability", d.ability)
+            object.__setattr__(self, "default_target_selector", d.target_selector)
 
 
 def _extract_json_object(text: str) -> dict:
@@ -110,8 +183,8 @@ The bot plays {instrument}. Its two abilities are named "{primary_ability}" (pri
 "{ultimate_ability}" (secondary/ultimate) -- use exactly these strings for "ability" fields, never
 invent a different name.
 
-Read this prose pilot below and extract its strategy as an ORDERED list of rules, evaluated top to
-bottom, FIRST MATCH WINS -- exactly like a priority list. Each rule has:
+Read this prose pilot below and extract its strategy as an ORDERED list of nodes, evaluated top to
+bottom, FIRST MATCH WINS -- exactly like a priority list. Most nodes are RULES. A rule has:
   "id": a short snake_case id
   "condition": one yes/no question about the bot's current game state (a threshold comparison or a
       presence check -- e.g. "is this bot's hp below a quarter of its max?", "is an enemy bearbot
@@ -124,10 +197,26 @@ bottom, FIRST MATCH WINS -- exactly like a priority list. Each rule has:
 target_selector meanings (pick the closest match to what the prose says; do not invent a new one):
 {selectors_desc}
 
-Also include one "default_action" (same "action" shape) for when none of the rules match -- the
-prose's fallback behavior (usually push the lane or go home).
+SOMETIMES the prose states a JUDGMENT that decides which whole SET of rules applies, not a single
+fact about the state -- e.g. "you only take fights you can win" (this decides whether the
+opener/finisher rules matter at all, or whether a completely different retreat/reposition set should
+be checked instead). For prose like that ONLY, emit a GUARD instead of a rule:
+  "type": "guard"
+  "id", "condition", "criteria": same shape as a rule -- one yes/no judgment question, in the same
+      strategic terms the prose itself uses (not a state-presence/threshold fact -- that's a rule).
+  "then": {{"nodes": [...same rule/guard node shape, checked if the guard answers yes...],
+            "default_action": (same "action" shape, or null) -- this branch's OWN fallback if none
+                of its own nodes match; null means "escalate to the nearest enclosing default"}}
+  "else": same shape as "then", for when the guard answers no.
+Do NOT use a guard for an ordinary threshold or presence check (hp below X, enemy in range) -- those
+are rules. Use a guard ONLY for prose that reads as a strategic verdict partitioning behavior into two
+different sets of rules. Most pilots need zero guards; use one only when the prose clearly calls for
+it. Every rule/guard needs a UNIQUE "id" across the whole tree, including inside "then"/"else".
 
-Use between 3 and 8 rules. Output ONLY this JSON object, nothing else, no markdown fences:
+Also include one top-level "default_action" (same "action" shape) for when nothing above matches at
+all -- the prose's overall fallback behavior (usually push the lane or go home).
+
+Use between 3 and 8 top-level nodes. Output ONLY this JSON object, nothing else, no markdown fences:
 
 {{"rules": [{{"id": "...", "condition": "...", "criteria": {{"true": "...", "false": "..."}}, "action": {{"kind": "...", "ability": null, "target_selector": null}}}}],
  "default_action": {{"kind": "...", "ability": null, "target_selector": null}}}}
@@ -150,38 +239,102 @@ def _validate_action(action: dict, context: str) -> tuple[str, str | None, str |
     return kind, ability, selector
 
 
-def parse_schema(raw_json: dict, pilot_file: str, instrument: str, raw_text: str) -> TranslatedSchema:
-    rules_out = []
-    for i, r in enumerate(raw_json.get("rules") or []):
-        rid = r.get("id") or f"r{i+1}"
-        cond = r.get("condition")
-        if not cond or not isinstance(cond, str):
-            raise ValueError(f"rule {rid}: missing/invalid condition")
-        kind, ability, selector = _validate_action(r.get("action") or {}, f"rule {rid}")
-        criteria = r.get("criteria") or {}
-        rules_out.append(
-            TranslatedRule(
-                id=rid,
-                condition=cond,
-                criteria_true=criteria.get("true", "the condition holds"),
-                criteria_false=criteria.get("false", "the condition does not hold"),
-                action_kind=kind,
-                action_ability=ability,
-                action_target_selector=selector,
-            )
-        )
-    if not rules_out:
-        raise ValueError("translator produced zero rules")
-    dkind, dability, dselector = _validate_action(raw_json.get("default_action") or {}, "default_action")
-    return TranslatedSchema(
-        pilot_file=pilot_file,
-        instrument=instrument,
-        rules=rules_out,
-        default_kind=dkind,
-        default_ability=dability,
-        default_target_selector=dselector,
-        raw_model_output=raw_text,
+def _parse_node(raw: dict, idx: int) -> Node:
+    rid = raw.get("id") or f"r{idx+1}"
+    cond = raw.get("condition")
+    if not cond or not isinstance(cond, str):
+        raise ValueError(f"node {rid}: missing/invalid condition")
+    criteria = raw.get("criteria") or {}
+    ct = criteria.get("true", "the condition holds")
+    cf = criteria.get("false", "the condition does not hold")
+    if raw.get("type") == "guard":
+        then_raw = raw.get("then")
+        else_raw = raw.get("else")
+        if not isinstance(then_raw, dict) or not isinstance(else_raw, dict):
+            raise ValueError(f"guard {rid}: 'then' and 'else' must both be present cascade objects")
+        then_cascade = _parse_cascade(then_raw.get("nodes") or [], then_raw.get("default_action"), default_required=False)
+        else_cascade = _parse_cascade(else_raw.get("nodes") or [], else_raw.get("default_action"), default_required=False)
+        return GuardNode(id=rid, condition=cond, criteria_true=ct, criteria_false=cf, then=then_cascade, else_=else_cascade)
+    kind, ability, selector = _validate_action(raw.get("action") or {}, f"rule {rid}")
+    return TranslatedRule(
+        id=rid,
+        condition=cond,
+        criteria_true=ct,
+        criteria_false=cf,
+        action_kind=kind,
+        action_ability=ability,
+        action_target_selector=selector,
     )
+
+
+def _parse_cascade(nodes_raw: list, default_raw: dict | None, default_required: bool) -> Cascade:
+    nodes = tuple(_parse_node(r, i) for i, r in enumerate(nodes_raw or []))
+    if default_required:
+        kind, ability, selector = _validate_action(default_raw or {}, "default_action")
+        default = Action(kind, ability, selector)
+    elif default_raw is not None:
+        kind, ability, selector = _validate_action(default_raw, "default_action")
+        default = Action(kind, ability, selector)
+    else:
+        default = None
+    return Cascade(nodes=nodes, default=default)
+
+
+def parse_schema(raw_json: dict, pilot_file: str, instrument: str, raw_text: str) -> TranslatedSchema:
+    root = _parse_cascade(raw_json.get("rules"), raw_json.get("default_action"), default_required=True)
+    if not root.nodes:
+        raise ValueError("translator produced zero rules")
+    return TranslatedSchema(pilot_file=pilot_file, instrument=instrument, raw_model_output=raw_text, root=root)
+
+
+def collect_nodes(cascade: Cascade) -> list[Node]:
+    """Every node anywhere in the tree, depth-first, root first -- what a caller batches into one
+    `systemone` call's worth of `noul` questions (spec §2.2: "evaluation stays one systemone call per
+    decision" no matter how deep the tree gets)."""
+    out: list[Node] = []
+    for node in cascade.nodes:
+        out.append(node)
+        if isinstance(node, GuardNode):
+            out.extend(collect_nodes(node.then))
+            out.extend(collect_nodes(node.else_))
+    return out
+
+
+def evaluate_cascade(cascade: Cascade, answers: dict[str, bool]) -> Action | None:
+    """Depth-first, first-true-wins (spec §2.2's `evaluate`, completed: the spec's own pseudocode
+    only ever recurses into a guard's `then` branch, never `else` -- a literal reading of it can
+    never produce the "no" branch's action at all, which contradicts the worked example (§3.2's 2c)
+    and the design's own stated intent ("a guard partitions the decision space"). Implemented here as
+    a guard ALWAYS committing to one of its two branches (unlike a rule, which is simply skipped when
+    its condition is false) -- both answers route somewhere, symmetrically.
+
+    Returns `None` when nothing anywhere along the committed path had an action -- including no local
+    default at any level entered -- so the caller can apply the OUTERMOST (root) default exactly once
+    (see `evaluate_schema`); a `None` here must never be silently treated as this cascade's own
+    default, or an escalation would be skipped past a level that had one (spec §3.1)."""
+    for node in cascade.nodes:
+        if isinstance(node, GuardNode):
+            branch = node.then if answers.get(node.id) else node.else_
+            result = evaluate_cascade(branch, answers)
+            return result if result is not None else branch.default
+        if answers.get(node.id):
+            return Action(node.action_kind, node.action_ability, node.action_target_selector)
+    return cascade.default
+
+
+def evaluate_schema(schema: TranslatedSchema, answers: dict[str, bool]) -> Action:
+    """`evaluate_cascade(schema.root, ...)` already applies `root.default` in the plain
+    all-false/no-guards case (that's the same object as `cascade.default` at the bottom of the
+    function). It does NOT apply `root.default` when a committed guard branch escalates with no
+    default of its own anywhere along the path -- that early return never reaches root's own
+    trailing-default line. This function is what actually makes `root.default` the outermost,
+    last-resort fallback "for the whole tree" (spec §3.1), applied exactly once, here."""
+    result = evaluate_cascade(schema.root, answers)
+    if result is not None:
+        return result
+    if schema.root.default is not None:
+        return schema.root.default
+    raise ValueError("schema evaluation produced no action: no rule, guard-branch default, or root default fired")
 
 
 class SchemaValidationError(ValueError):
@@ -255,31 +408,41 @@ def enforce_absolute_priority(schema: TranslatedSchema, pilot_text: str) -> Tran
     rule by plain token overlap (`_match_rule_for_paragraph`) -- so it fires (or doesn't) the same way
     for any pilot with this shape of prose, not just the three checked into this repo.
 
-    Raises `SchemaValidationError` if an override paragraph doesn't match any rule well enough
-    (the translator dropped the override rule entirely -- reordering can't fix a missing rule).
-    Otherwise returns a schema with the matched rule(s) stably sorted to the front, and a plain-
-    English note recorded in `validation_notes` (surfaced to the entrant via `render_markdown`) when
-    that actually changed the order."""
+    Unchanged in scope by the guard tree (spec §2.2): this only ever reorders `schema.root.nodes` --
+    the ROOT cascade's own top-level nodes, never anything nested inside a `GuardNode`'s branches, and
+    only `TranslatedRule` nodes are ever match candidates (a guard's own judgment question is never an
+    override target). If the translator mis-nests an override rule inside a branch instead of the
+    root, this still won't find it there and raises exactly as if the rule were missing entirely --
+    a safe, loud failure, not a silent one (spec §2.2's stated, deferred edge case).
+
+    Raises `SchemaValidationError` if an override paragraph doesn't match any root-level rule well
+    enough (the translator dropped the override rule entirely -- reordering can't fix a missing rule).
+    Otherwise returns a schema with the matched rule(s) stably sorted to the front of the root cascade,
+    and a plain-English note recorded in `validation_notes` (surfaced to the entrant via
+    `render_markdown`) when that actually changed the order."""
     paragraphs = _find_absolute_paragraphs(pilot_text)
     if not paragraphs:
         return schema
 
+    root_nodes = list(schema.root.nodes)
+    rule_candidates = [(i, n) for i, n in enumerate(root_nodes) if isinstance(n, TranslatedRule)]
+
     matched_indices: set[int] = set()
     for paragraph in paragraphs:
-        idx = _match_rule_for_paragraph(paragraph, schema.rules)
+        idx = _match_rule_for_paragraph(paragraph, [n for _, n in rule_candidates])
         if idx is None:
             phrase = next(p for p in ABSOLUTE_OVERRIDE_PHRASES if p in paragraph.lower())
             raise SchemaValidationError(
                 f"the prose uses override language ({phrase!r}) in a paragraph with no matching "
                 f"translated rule -- the schema is missing this override entirely: {paragraph[:160]!r}"
             )
-        matched_indices.add(idx)
+        matched_indices.add(rule_candidates[idx][0])
 
-    order = sorted(range(len(schema.rules)), key=lambda i: (i not in matched_indices, i))
-    if order == list(range(len(schema.rules))):
+    order = sorted(range(len(root_nodes)), key=lambda i: (i not in matched_indices, i))
+    if order == list(range(len(root_nodes))):
         return schema
 
-    moved_ids = [schema.rules[i].id for i in order if i in matched_indices]
+    moved_ids = [root_nodes[i].id for i in order if i in matched_indices]
     note = (
         "priority guard: promoted rule(s) "
         + ", ".join(moved_ids)
@@ -287,14 +450,12 @@ def enforce_absolute_priority(schema: TranslatedSchema, pilot_text: str) -> Tran
         "(" + ", ".join(sorted({p for p in ABSOLUTE_OVERRIDE_PHRASES if any(p in para.lower() for para in paragraphs)})) + ") "
         "but the translator placed them lower, where an earlier rule could pre-empt them."
     )
+    new_root = Cascade(nodes=tuple(root_nodes[i] for i in order), default=schema.root.default)
     return TranslatedSchema(
         pilot_file=schema.pilot_file,
         instrument=schema.instrument,
-        rules=[schema.rules[i] for i in order],
-        default_kind=schema.default_kind,
-        default_ability=schema.default_ability,
-        default_target_selector=schema.default_target_selector,
         raw_model_output=schema.raw_model_output,
+        root=new_root,
         validation_notes=schema.validation_notes + (note,),
     )
 
@@ -335,23 +496,117 @@ def translate_pilot(
     raise RuntimeError(f"translation failed after {max_attempts} attempts: {last_err}")
 
 
+def _branch_letter(idx: int) -> str:
+    return chr(ord("a") + idx)
+
+
+def _guard_default_condition_text(which: str) -> str:
+    return f'*(guard\'s own "{"yes" if which == "then" else "no"}" default)*'
+
+
+def display_rows(root: Cascade) -> list[dict]:
+    """Flattens a `Cascade` into ordered display rows: `translator.render_markdown` and
+    `transparency.render_report_markdown` (§2.3's quick-view table) share this so both views number
+    a tree the same way. Each `GuardNode` gets one row, immediately followed by its `then` branch's
+    rows, `then`'s own trailing-default row, `else`'s rows, and `else`'s own trailing-default row --
+    the shape `docs/translator-guards-and-defaults-spec.md` §2.3's worked table uses. Labels are
+    `'1'`, `'2'`, ... at the root; inside guard `N`'s branches they are `'Na'`, `'Nb'`, ... continuing
+    ONE letter sequence across `then` then `else` (so `then`'s own default and `else`'s rows/default
+    keep counting up from wherever `then`'s rules left off -- exactly `2a`/`2b`/`2c` in the spec's own
+    example, where `then` has one rule and `else` has none).
+
+    For a `Cascade` with zero `GuardNode`s (the flat case), this is exactly the old numbered list --
+    a compatibility property, not a different code path, matching `evaluate_cascade`'s own posture."""
+
+    def build(cascade: Cascade, numbering: list[str], branch_ctx: str | None) -> list[dict]:
+        rows: list[dict] = []
+        for label, node in zip(numbering, cascade.nodes):
+            if isinstance(node, GuardNode):
+                n_then, n_else = len(node.then.nodes), len(node.else_.nodes)
+                sub = [f"{label}{_branch_letter(i)}" for i in range(n_then + n_else + 2)]
+                then_labels, then_default_label = sub[:n_then], sub[n_then]
+                else_labels = sub[n_then + 1 : n_then + 1 + n_else]
+                else_default_label = sub[n_then + 1 + n_else]
+                first_then = then_labels[0] if then_labels else then_default_label
+                first_else = else_labels[0] if else_labels else else_default_label
+                rows.append(
+                    {
+                        "label": label,
+                        "branch": branch_ctx,
+                        "kind": "guard",
+                        "node": node,
+                        "condition": f"*(guard)* {node.condition}",
+                        "then": f"→ {first_then} if yes, {first_else} if no",
+                        "then_labels": then_labels,
+                        "then_default_label": then_default_label,
+                        "else_labels": else_labels,
+                        "else_default_label": else_default_label,
+                    }
+                )
+                then_ctx = f"if guard {label} = yes"
+                else_ctx = f"if guard {label} = no"
+                rows.extend(build(node.then, then_labels, then_ctx))
+                rows.append(
+                    {
+                        "label": then_default_label,
+                        "branch": then_ctx + (f", none of {', '.join(then_labels)} matched" if then_labels else ""),
+                        "kind": "branch_default",
+                        "guard": node,
+                        "condition": _guard_default_condition_text("then"),
+                        "then": _describe_action(node.then.default.kind, node.then.default.ability, node.then.default.target_selector)
+                        if node.then.default
+                        else "*(no default here — escalates to the nearest enclosing default)*",
+                    }
+                )
+                rows.extend(build(node.else_, else_labels, else_ctx))
+                rows.append(
+                    {
+                        "label": else_default_label,
+                        "branch": else_ctx + (f", none of {', '.join(else_labels)} matched" if else_labels else ""),
+                        "kind": "branch_default",
+                        "guard": node,
+                        "condition": _guard_default_condition_text("else"),
+                        "then": _describe_action(node.else_.default.kind, node.else_.default.ability, node.else_.default.target_selector)
+                        if node.else_.default
+                        else "*(no default here — escalates to the nearest enclosing default)*",
+                    }
+                )
+            else:
+                rows.append(
+                    {
+                        "label": label,
+                        "branch": branch_ctx,
+                        "kind": "rule",
+                        "node": node,
+                        "condition": node.condition,
+                        "then": _describe_action(node.action_kind, node.action_ability, node.action_target_selector),
+                    }
+                )
+        return rows
+
+    return build(root, [str(i + 1) for i in range(len(root.nodes))], None)
+
+
 def render_markdown(schema: TranslatedSchema) -> str:
     """The entrant-readable rendering -- what an entrant actually reads back, per this module's
-    design requirement. Plain prose table, no Jev wire format, no code."""
+    design requirement. Plain prose table, no Jev wire format, no code. A schema with no guards
+    renders a Branch column of all "—"; this is the same view, not a different one, for the flat
+    case (spec §2.2/§2.3)."""
     lines = [
         f"# Decision schema translated from `{schema.pilot_file}` ({schema.instrument})",
         "",
-        "Rules are checked in order; the first one whose condition is true fires. If none fire, "
-        "the default action at the bottom runs.",
+        "Rules are checked in order; the first one whose condition is true fires. A guard question "
+        "routes to one of two branches, each checked the same way and falling back to its own "
+        "default before escalating outward. If nothing above fires, the default action at the "
+        "bottom runs.",
         "",
-        "| # | Condition | Then |",
-        "|---|---|---|",
+        "| # | Branch | Condition | Then |",
+        "|---|---|---|---|",
     ]
-    for i, r in enumerate(schema.rules, start=1):
-        action_desc = _describe_action(r.action_kind, r.action_ability, r.action_target_selector)
-        lines.append(f"| {i} | {r.condition} | {action_desc} |")
+    for row in display_rows(schema.root):
+        lines.append(f"| {row['label']} | {row['branch'] or '—'} | {row['condition']} | {row['then']} |")
     default_desc = _describe_action(schema.default_kind, schema.default_ability, schema.default_target_selector)
-    lines.append(f"| — | *(none of the above)* | {default_desc} |")
+    lines.append(f"| — | — | *(none of the above — root default)* | {default_desc} |")
     if schema.validation_notes:
         lines += ["", "**Automatic priority fixes applied to this schema:**", ""]
         lines += [f"- {note}" for note in schema.validation_notes]
