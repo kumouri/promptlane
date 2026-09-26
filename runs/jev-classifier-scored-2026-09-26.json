@@ -1,0 +1,369 @@
+{
+  "per_pilot": {
+    "drums": {
+      "pilot": "drums",
+      "n_clauses": 16,
+      "n_correct": 14,
+      "accuracy": 0.875,
+      "confidence_distribution": [
+        0.79,
+        0.8,
+        0.87,
+        0.87,
+        0.88,
+        0.93
+      ],
+      "rows": [
+        {
+          "clause_index": 0,
+          "text": "You are a bearbot on the drums.",
+          "hand_class": "voice",
+          "predicted_class": null,
+          "confidence": null,
+          "correct": true
+        },
+        {
+          "clause_index": 1,
+          "text": "You are the beat everyone else plays over \u2014 if you drop out, the\nwhole band falls apart.",
+          "hand_class": "voice",
+          "predicted_class": null,
+          "confidence": null,
+          "correct": true
+        },
+        {
+          "clause_index": 2,
+          "text": "You are slow and you are heavy and that is the point.",
+          "hand_class": "voice",
+          "predicted_class": null,
+          "confidence": null,
+          "correct": true
+        },
+        {
+          "clause_index": 3,
+          "text": "Your job is not to win the fight.",
+          "hand_class": "voice",
+          "predicted_class": null,
+          "confidence": null,
+          "correct": true
+        },
+        {
+          "clause_index": 4,
+          "text": "Your job is to BE the fight, so your squishier allies don't have\nto be.",
+          "hand_class": "voice",
+          "predicted_class": null,
+          "confidence": null,
+          "correct": true
+        },
+        {
+          "clause_index": 5,
+          "text": "Walk in front.",
+          "hand_class": "voice",
+          "predicted_class": null,
+          "confidence": null,
+          "correct": true
+        },
+        {
+          "clause_index": 6,
+          "text": "Take the hits meant for someone else.",
+          "hand_class": "voice",
+          "predicted_class": null,
+          "confidence": null,
+          "correct": true
+        },
+        {
+          "clause_index": 7,
+          "text": "When an enemy gets close to an ally,\nthat enemy is now your problem.",
+          "hand_class": "rule",
+          "predicted_class": "rule",
+          "confidence": 0.79,
+          "correct": true
+        },
+        {
+          "clause_index": 8,
+          "text": "Kick (taunt/knockback, short range) is your favorite word.",
+          "hand_class": "voice",
+          "predicted_class": null,
+          "confidence": null,
+          "correct": true
+        },
+        {
+          "clause_index": 9,
+          "text": "Use it the instant an enemy bearbot is\nclose enough to touch \u2014 on cooldown, always, no hesitation, no overthinking.",
+          "hand_class": "rule",
+          "predicted_class": "rule",
+          "confidence": 0.87,
+          "correct": true
+        },
+        {
+          "clause_index": 10,
+          "text": "Fill (AoE slow) is\nfor when more than one of them is bunched up near you; drop it under their feet, not yours.",
+          "hand_class": "rule",
+          "predicted_class": "rule",
+          "confidence": 0.93,
+          "correct": true
+        },
+        {
+          "clause_index": 11,
+          "text": "Push the lane.",
+          "hand_class": "default",
+          "predicted_class": null,
+          "confidence": null,
+          "correct": false
+        },
+        {
+          "clause_index": 12,
+          "text": "march toward the enemy nexus alongside your minions unless a fight has started \u2014\nthen the fight is the lane.",
+          "hand_class": "default",
+          "predicted_class": "rule",
+          "confidence": 0.8,
+          "correct": false
+        },
+        {
+          "clause_index": 13,
+          "text": "Attack whatever's nearest and threatening an ally first, the nearest\nenemy bearbot second, minions last.",
+          "hand_class": "rule",
+          "predicted_class": "rule",
+          "confidence": 0.87,
+          "correct": true
+        },
+        {
+          "clause_index": 14,
+          "text": "Retreat only when you're really hurt \u2014 below a quarter health \u2014 because your whole reason for\nexisting is to be the thing that's still standing when the smoke clears.",
+          "hand_class": "rule",
+          "predicted_class": "rule",
+          "confidence": 0.88,
+          "correct": true
+        },
+        {
+          "clause_index": 15,
+          "text": "A drummer who recalls too\nearly let the band down.",
+          "hand_class": "voice",
+          "predicted_class": null,
+          "confidence": null,
+          "correct": true
+        }
+      ]
+    },
+    "keytar": {
+      "pilot": "keytar",
+      "n_clauses": 10,
+      "n_correct": 8,
+      "accuracy": 0.8,
+      "confidence_distribution": [
+        0.81,
+        0.82,
+        0.82,
+        0.83,
+        0.85,
+        0.88
+      ],
+      "rows": [
+        {
+          "clause_index": 0,
+          "text": "You are a bearbot on the keytar.",
+          "hand_class": "voice",
+          "predicted_class": null,
+          "confidence": null,
+          "correct": true
+        },
+        {
+          "clause_index": 1,
+          "text": "Loud, flashy, and made of paper \u2014 you win fights from a distance\nor you don't win them at all.",
+          "hand_class": "voice",
+          "predicted_class": null,
+          "confidence": null,
+          "correct": true
+        },
+        {
+          "clause_index": 2,
+          "text": "Never be the closest thing to an enemy.",
+          "hand_class": "rule",
+          "predicted_class": null,
+          "confidence": null,
+          "correct": false
+        },
+        {
+          "clause_index": 3,
+          "text": "If a visible enemy is inside your attack range, that is too\nclose; if one is inside melee range of you, you are already losing and should be leaving.",
+          "hand_class": "rule",
+          "predicted_class": "rule",
+          "confidence": 0.82,
+          "correct": true
+        },
+        {
+          "clause_index": 4,
+          "text": "Your\nwhole game is standing just outside their reach while they cannot stand outside yours.",
+          "hand_class": "voice",
+          "predicted_class": null,
+          "confidence": null,
+          "correct": true
+        },
+        {
+          "clause_index": 5,
+          "text": "Chord (AoE burst, long range) is your headline move \u2014 throw it at the densest cluster of enemies or\nminions you can see the instant it's off cooldown, don't wait for a \"perfect\" moment, waiting is\nhow it goes to waste.",
+          "hand_class": "rule",
+          "predicted_class": "rule",
+          "confidence": 0.88,
+          "correct": true
+        },
+        {
+          "clause_index": 6,
+          "text": "Glissando (short dash, no target needed) is your panic button and your\nopener both: dash OUT when something gets close, dash IN-range-but-not-close when you want a Chord\nangle you don't have yet.",
+          "hand_class": "rule",
+          "predicted_class": "rule",
+          "confidence": 0.81,
+          "correct": true
+        },
+        {
+          "clause_index": 7,
+          "text": "Poke minion waves with your basic attack while nothing else demands attention \u2014 free damage, free\nlane pressure, no risk from that range.",
+          "hand_class": "default",
+          "predicted_class": "rule",
+          "confidence": 0.82,
+          "correct": false
+        },
+        {
+          "clause_index": 8,
+          "text": "When a real fight starts, Chord first, basic-attack second,\nnever melee.",
+          "hand_class": "rule",
+          "predicted_class": "rule",
+          "confidence": 0.83,
+          "correct": true
+        },
+        {
+          "clause_index": 9,
+          "text": "Recall the moment you're below a quarter health, no exceptions \u2014 you have no way to survive a\nfollow-up hit and a dead mage is a silent one.",
+          "hand_class": "rule",
+          "predicted_class": "rule",
+          "confidence": 0.85,
+          "correct": true
+        }
+      ]
+    },
+    "violin": {
+      "pilot": "violin",
+      "n_clauses": 11,
+      "n_correct": 8,
+      "accuracy": 0.7272727272727273,
+      "confidence_distribution": [
+        0.53,
+        0.71,
+        0.94,
+        0.95
+      ],
+      "rows": [
+        {
+          "clause_index": 0,
+          "text": "You are a bearbot on the violin.",
+          "hand_class": "voice",
+          "predicted_class": null,
+          "confidence": null,
+          "correct": true
+        },
+        {
+          "clause_index": 1,
+          "text": "The bow is the blade.",
+          "hand_class": "voice",
+          "predicted_class": null,
+          "confidence": null,
+          "correct": true
+        },
+        {
+          "clause_index": 2,
+          "text": "You are fast, you are fragile, and you exist\nto end one enemy before the rest of their band can even turn around.",
+          "hand_class": "voice",
+          "predicted_class": null,
+          "confidence": null,
+          "correct": true
+        },
+        {
+          "clause_index": 3,
+          "text": "Do not walk into a fight straight-on.",
+          "hand_class": "voice",
+          "predicted_class": null,
+          "confidence": null,
+          "correct": true
+        },
+        {
+          "clause_index": 4,
+          "text": "Wait at the edge of what you can see until exactly one enemy\nis isolated \u2014 alone, or clearly the softest target in a group \u2014 then commit fully.",
+          "hand_class": "guard",
+          "predicted_class": "rule",
+          "confidence": 0.71,
+          "correct": false
+        },
+        {
+          "clause_index": 5,
+          "text": "A violin that\ntrades evenly with a whole team has already failed; you only take fights you can win in one\nphrase.",
+          "hand_class": "guard",
+          "predicted_class": null,
+          "confidence": null,
+          "correct": false
+        },
+        {
+          "clause_index": 6,
+          "text": "Staccato (quick high-damage stab, short range) is your opener on whoever you've picked as the\ntarget \u2014 use it the moment you're in range of them, every time it's off cooldown, on that same\ntarget if they're still alive.",
+          "hand_class": "rule",
+          "predicted_class": "rule",
+          "confidence": 0.94,
+          "correct": true
+        },
+        {
+          "clause_index": 7,
+          "text": "Solo (burst + speed, your ultimate) is for closing distance on a\ntarget that's about to get away, or for the decisive engage when the moment is right \u2014 it is not\nfree, so don't burn it just because it's up.",
+          "hand_class": "rule",
+          "predicted_class": null,
+          "confidence": null,
+          "correct": false
+        },
+        {
+          "clause_index": 8,
+          "text": "Between fights, don't stand still: your speed exists so you can keep repositioning toward the next\nisolated target rather than sitting in a lane pushing minions like a bruiser would.",
+          "hand_class": "default",
+          "predicted_class": "default",
+          "confidence": 0.53,
+          "correct": true
+        },
+        {
+          "clause_index": 9,
+          "text": "You have less HP than almost anything else on the map \u2014 the instant you drop under a quarter\nhealth, recall, no matter how close the kill looked.",
+          "hand_class": "rule",
+          "predicted_class": "rule",
+          "confidence": 0.95,
+          "correct": true
+        },
+        {
+          "clause_index": 10,
+          "text": "A dead assassin secures nothing.",
+          "hand_class": "voice",
+          "predicted_class": null,
+          "confidence": null,
+          "correct": true
+        }
+      ]
+    }
+  },
+  "overall": {
+    "n_clauses": 37,
+    "n_correct": 30,
+    "accuracy": 0.8108108108108109,
+    "confidence_distribution": [
+      0.53,
+      0.71,
+      0.79,
+      0.8,
+      0.81,
+      0.82,
+      0.82,
+      0.83,
+      0.85,
+      0.87,
+      0.87,
+      0.88,
+      0.88,
+      0.93,
+      0.94,
+      0.95
+    ]
+  }
+}
