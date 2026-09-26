@@ -1,0 +1,451 @@
+{
+  "mode": "live (workers-ai, model=typesafe/jev)",
+  "pilots": [
+    "drums",
+    "keytar",
+    "violin"
+  ],
+  "total_input_tokens": 15559,
+  "estimated_cost_usd": 0.0006534780000000001,
+  "per_pilot_hints": {
+    "drums": "Jev-classifier hints (a separate model's confidence that specific sentences in the prose below read as a guard / an unconditional default / an ordinary rule -- informational only; translate the whole prose yourself, these are hints, not instructions to follow blindly):\n- clause 7 (\"When an enemy gets close to an ally, that enemy is now your problem.\") reads as a rule, p=0.79\n- clause 9 (\"Use it the instant an enemy bearbot is close enough to touch \u2014 on cooldown, always, no hesitation, \u2026\") reads as a rule, p=0.87\n- clause 10 (\"Fill (AoE slow) is for when more than one of them is bunched up near you; drop it under their feet,\u2026\") reads as a rule, p=0.93\n- clause 12 (\"march toward the enemy nexus alongside your minions unless a fight has started \u2014 then the fight is \u2026\") reads as a rule, p=0.80\n- clause 13 (\"Attack whatever's nearest and threatening an ally first, the nearest enemy bearbot second, minions \u2026\") reads as a rule, p=0.87\n- clause 14 (\"Retreat only when you're really hurt \u2014 below a quarter health \u2014 because your whole reason for exist\u2026\") reads as a rule, p=0.88",
+    "keytar": "Jev-classifier hints (a separate model's confidence that specific sentences in the prose below read as a guard / an unconditional default / an ordinary rule -- informational only; translate the whole prose yourself, these are hints, not instructions to follow blindly):\n- clause 3 (\"If a visible enemy is inside your attack range, that is too close; if one is inside melee range of \u2026\") reads as a rule, p=0.82\n- clause 5 (\"Chord (AoE burst, long range) is your headline move \u2014 throw it at the densest cluster of enemies or\u2026\") reads as a rule, p=0.88\n- clause 6 (\"Glissando (short dash, no target needed) is your panic button and your opener both: dash OUT when s\u2026\") reads as a rule, p=0.81\n- clause 7 (\"Poke minion waves with your basic attack while nothing else demands attention \u2014 free damage, free l\u2026\") reads as a rule, p=0.82\n- clause 8 (\"When a real fight starts, Chord first, basic-attack second, never melee.\") reads as a rule, p=0.83\n- clause 9 (\"Recall the moment you're below a quarter health, no exceptions \u2014 you have no way to survive a follo\u2026\") reads as a rule, p=0.85",
+    "violin": "Jev-classifier hints (a separate model's confidence that specific sentences in the prose below read as a guard / an unconditional default / an ordinary rule -- informational only; translate the whole prose yourself, these are hints, not instructions to follow blindly):\n- clause 4 (\"Wait at the edge of what you can see until exactly one enemy is isolated \u2014 alone, or clearly the so\u2026\") reads as a rule, p=0.71\n- clause 6 (\"Staccato (quick high-damage stab, short range) is your opener on whoever you've picked as the targe\u2026\") reads as a rule, p=0.94\n- clause 8 (\"Between fights, don't stand still: your speed exists so you can keep repositioning toward the next \u2026\") reads as a default, p=0.53\n- clause 9 (\"You have less HP than almost anything else on the map \u2014 the instant you drop under a quarter health\u2026\") reads as a rule, p=0.95"
+  },
+  "per_pilot_detail": [
+    {
+      "pilot": "drums",
+      "n_clauses": 16,
+      "rows": [
+        {
+          "clause_index": 0,
+          "text": "You are a bearbot on the drums.",
+          "per_class": {
+            "guard": 0.07,
+            "default": 0.04,
+            "rule": 0.04
+          },
+          "predicted_class": null,
+          "confidence": null
+        },
+        {
+          "clause_index": 1,
+          "text": "You are the beat everyone else plays over \u2014 if you drop out, the\nwhole band falls apart.",
+          "per_class": {
+            "guard": 0.08,
+            "default": 0.05,
+            "rule": 0.1
+          },
+          "predicted_class": null,
+          "confidence": null
+        },
+        {
+          "clause_index": 2,
+          "text": "You are slow and you are heavy and that is the point.",
+          "per_class": {
+            "guard": 0.07,
+            "default": 0.04,
+            "rule": 0.05
+          },
+          "predicted_class": null,
+          "confidence": null
+        },
+        {
+          "clause_index": 3,
+          "text": "Your job is not to win the fight.",
+          "per_class": {
+            "guard": 0.13,
+            "default": 0.04,
+            "rule": 0.05
+          },
+          "predicted_class": null,
+          "confidence": null
+        },
+        {
+          "clause_index": 4,
+          "text": "Your job is to BE the fight, so your squishier allies don't have\nto be.",
+          "per_class": {
+            "guard": 0.09,
+            "default": 0.06,
+            "rule": 0.07
+          },
+          "predicted_class": null,
+          "confidence": null
+        },
+        {
+          "clause_index": 5,
+          "text": "Walk in front.",
+          "per_class": {
+            "guard": 0.08,
+            "default": 0.11,
+            "rule": 0.12
+          },
+          "predicted_class": null,
+          "confidence": null
+        },
+        {
+          "clause_index": 6,
+          "text": "Take the hits meant for someone else.",
+          "per_class": {
+            "guard": 0.09,
+            "default": 0.07,
+            "rule": 0.18
+          },
+          "predicted_class": null,
+          "confidence": null
+        },
+        {
+          "clause_index": 7,
+          "text": "When an enemy gets close to an ally,\nthat enemy is now your problem.",
+          "per_class": {
+            "guard": 0.28,
+            "default": 0.04,
+            "rule": 0.79
+          },
+          "predicted_class": "rule",
+          "confidence": 0.79
+        },
+        {
+          "clause_index": 8,
+          "text": "Kick (taunt/knockback, short range) is your favorite word.",
+          "per_class": {
+            "guard": 0.06,
+            "default": 0.05,
+            "rule": 0.37
+          },
+          "predicted_class": null,
+          "confidence": null
+        },
+        {
+          "clause_index": 9,
+          "text": "Use it the instant an enemy bearbot is\nclose enough to touch \u2014 on cooldown, always, no hesitation, no overthinking.",
+          "per_class": {
+            "guard": 0.11,
+            "default": 0.05,
+            "rule": 0.87
+          },
+          "predicted_class": "rule",
+          "confidence": 0.87
+        },
+        {
+          "clause_index": 10,
+          "text": "Fill (AoE slow) is\nfor when more than one of them is bunched up near you; drop it under their feet, not yours.",
+          "per_class": {
+            "guard": 0.18,
+            "default": 0.03,
+            "rule": 0.93
+          },
+          "predicted_class": "rule",
+          "confidence": 0.93
+        },
+        {
+          "clause_index": 11,
+          "text": "Push the lane.",
+          "per_class": {
+            "guard": 0.11,
+            "default": 0.21,
+            "rule": 0.15
+          },
+          "predicted_class": null,
+          "confidence": null
+        },
+        {
+          "clause_index": 12,
+          "text": "march toward the enemy nexus alongside your minions unless a fight has started \u2014\nthen the fight is the lane.",
+          "per_class": {
+            "guard": 0.72,
+            "default": 0.17,
+            "rule": 0.8
+          },
+          "predicted_class": "rule",
+          "confidence": 0.8
+        },
+        {
+          "clause_index": 13,
+          "text": "Attack whatever's nearest and threatening an ally first, the nearest\nenemy bearbot second, minions last.",
+          "per_class": {
+            "guard": 0.1,
+            "default": 0.18,
+            "rule": 0.87
+          },
+          "predicted_class": "rule",
+          "confidence": 0.87
+        },
+        {
+          "clause_index": 14,
+          "text": "Retreat only when you're really hurt \u2014 below a quarter health \u2014 because your whole reason for\nexisting is to be the thing that's still standing when the smoke clears.",
+          "per_class": {
+            "guard": 0.29,
+            "default": 0.05,
+            "rule": 0.88
+          },
+          "predicted_class": "rule",
+          "confidence": 0.88
+        },
+        {
+          "clause_index": 15,
+          "text": "A drummer who recalls too\nearly let the band down.",
+          "per_class": {
+            "guard": 0.14,
+            "default": 0.05,
+            "rule": 0.23
+          },
+          "predicted_class": null,
+          "confidence": null
+        }
+      ],
+      "input_tokens": 6237,
+      "estimated_cost_usd": 0.000261954,
+      "latency_sec": 2.1229341000071145
+    },
+    {
+      "pilot": "keytar",
+      "n_clauses": 10,
+      "rows": [
+        {
+          "clause_index": 0,
+          "text": "You are a bearbot on the keytar.",
+          "per_class": {
+            "guard": 0.07,
+            "default": 0.04,
+            "rule": 0.04
+          },
+          "predicted_class": null,
+          "confidence": null
+        },
+        {
+          "clause_index": 1,
+          "text": "Loud, flashy, and made of paper \u2014 you win fights from a distance\nor you don't win them at all.",
+          "per_class": {
+            "guard": 0.19,
+            "default": 0.05,
+            "rule": 0.09
+          },
+          "predicted_class": null,
+          "confidence": null
+        },
+        {
+          "clause_index": 2,
+          "text": "Never be the closest thing to an enemy.",
+          "per_class": {
+            "guard": 0.25,
+            "default": 0.14,
+            "rule": 0.41
+          },
+          "predicted_class": null,
+          "confidence": null
+        },
+        {
+          "clause_index": 3,
+          "text": "If a visible enemy is inside your attack range, that is too\nclose; if one is inside melee range of you, you are already losing and should be leaving.",
+          "per_class": {
+            "guard": 0.31,
+            "default": 0.06,
+            "rule": 0.82
+          },
+          "predicted_class": "rule",
+          "confidence": 0.82
+        },
+        {
+          "clause_index": 4,
+          "text": "Your\nwhole game is standing just outside their reach while they cannot stand outside yours.",
+          "per_class": {
+            "guard": 0.12,
+            "default": 0.15,
+            "rule": 0.2
+          },
+          "predicted_class": null,
+          "confidence": null
+        },
+        {
+          "clause_index": 5,
+          "text": "Chord (AoE burst, long range) is your headline move \u2014 throw it at the densest cluster of enemies or\nminions you can see the instant it's off cooldown, don't wait for a \"perfect\" moment, waiting is\nhow it goes to waste.",
+          "per_class": {
+            "guard": 0.08,
+            "default": 0.08,
+            "rule": 0.88
+          },
+          "predicted_class": "rule",
+          "confidence": 0.88
+        },
+        {
+          "clause_index": 6,
+          "text": "Glissando (short dash, no target needed) is your panic button and your\nopener both: dash OUT when something gets close, dash IN-range-but-not-close when you want a Chord\nangle you don't have yet.",
+          "per_class": {
+            "guard": 0.13,
+            "default": 0.05,
+            "rule": 0.81
+          },
+          "predicted_class": "rule",
+          "confidence": 0.81
+        },
+        {
+          "clause_index": 7,
+          "text": "Poke minion waves with your basic attack while nothing else demands attention \u2014 free damage, free\nlane pressure, no risk from that range.",
+          "per_class": {
+            "guard": 0.19,
+            "default": 0.78,
+            "rule": 0.82
+          },
+          "predicted_class": "rule",
+          "confidence": 0.82
+        },
+        {
+          "clause_index": 8,
+          "text": "When a real fight starts, Chord first, basic-attack second,\nnever melee.",
+          "per_class": {
+            "guard": 0.24,
+            "default": 0.07,
+            "rule": 0.83
+          },
+          "predicted_class": "rule",
+          "confidence": 0.83
+        },
+        {
+          "clause_index": 9,
+          "text": "Recall the moment you're below a quarter health, no exceptions \u2014 you have no way to survive a\nfollow-up hit and a dead mage is a silent one.",
+          "per_class": {
+            "guard": 0.2,
+            "default": 0.05,
+            "rule": 0.85
+          },
+          "predicted_class": "rule",
+          "confidence": 0.85
+        }
+      ],
+      "input_tokens": 4474,
+      "estimated_cost_usd": 0.000187908,
+      "latency_sec": 0.3511528999952134
+    },
+    {
+      "pilot": "violin",
+      "n_clauses": 11,
+      "rows": [
+        {
+          "clause_index": 0,
+          "text": "You are a bearbot on the violin.",
+          "per_class": {
+            "guard": 0.07,
+            "default": 0.04,
+            "rule": 0.04
+          },
+          "predicted_class": null,
+          "confidence": null
+        },
+        {
+          "clause_index": 1,
+          "text": "The bow is the blade.",
+          "per_class": {
+            "guard": 0.05,
+            "default": 0.03,
+            "rule": 0.05
+          },
+          "predicted_class": null,
+          "confidence": null
+        },
+        {
+          "clause_index": 2,
+          "text": "You are fast, you are fragile, and you exist\nto end one enemy before the rest of their band can even turn around.",
+          "per_class": {
+            "guard": 0.09,
+            "default": 0.04,
+            "rule": 0.11
+          },
+          "predicted_class": null,
+          "confidence": null
+        },
+        {
+          "clause_index": 3,
+          "text": "Do not walk into a fight straight-on.",
+          "per_class": {
+            "guard": 0.22,
+            "default": 0.05,
+            "rule": 0.19
+          },
+          "predicted_class": null,
+          "confidence": null
+        },
+        {
+          "clause_index": 4,
+          "text": "Wait at the edge of what you can see until exactly one enemy\nis isolated \u2014 alone, or clearly the softest target in a group \u2014 then commit fully.",
+          "per_class": {
+            "guard": 0.34,
+            "default": 0.09,
+            "rule": 0.71
+          },
+          "predicted_class": "rule",
+          "confidence": 0.71
+        },
+        {
+          "clause_index": 5,
+          "text": "A violin that\ntrades evenly with a whole team has already failed; you only take fights you can win in one\nphrase.",
+          "per_class": {
+            "guard": 0.48,
+            "default": 0.05,
+            "rule": 0.12
+          },
+          "predicted_class": null,
+          "confidence": null
+        },
+        {
+          "clause_index": 6,
+          "text": "Staccato (quick high-damage stab, short range) is your opener on whoever you've picked as the\ntarget \u2014 use it the moment you're in range of them, every time it's off cooldown, on that same\ntarget if they're still alive.",
+          "per_class": {
+            "guard": 0.07,
+            "default": 0.06,
+            "rule": 0.94
+          },
+          "predicted_class": "rule",
+          "confidence": 0.94
+        },
+        {
+          "clause_index": 7,
+          "text": "Solo (burst + speed, your ultimate) is for closing distance on a\ntarget that's about to get away, or for the decisive engage when the moment is right \u2014 it is not\nfree, so don't burn it just because it's up.",
+          "per_class": {
+            "guard": 0.2,
+            "default": 0.03,
+            "rule": 0.33
+          },
+          "predicted_class": null,
+          "confidence": null
+        },
+        {
+          "clause_index": 8,
+          "text": "Between fights, don't stand still: your speed exists so you can keep repositioning toward the next\nisolated target rather than sitting in a lane pushing minions like a bruiser would.",
+          "per_class": {
+            "guard": 0.13,
+            "default": 0.53,
+            "rule": 0.3
+          },
+          "predicted_class": "default",
+          "confidence": 0.53
+        },
+        {
+          "clause_index": 9,
+          "text": "You have less HP than almost anything else on the map \u2014 the instant you drop under a quarter\nhealth, recall, no matter how close the kill looked.",
+          "per_class": {
+            "guard": 0.2,
+            "default": 0.04,
+            "rule": 0.95
+          },
+          "predicted_class": "rule",
+          "confidence": 0.95
+        },
+        {
+          "clause_index": 10,
+          "text": "A dead assassin secures nothing.",
+          "per_class": {
+            "guard": 0.13,
+            "default": 0.04,
+            "rule": 0.11
+          },
+          "predicted_class": null,
+          "confidence": null
+        }
+      ],
+      "input_tokens": 4848,
+      "estimated_cost_usd": 0.000203616,
+      "latency_sec": 0.6219987000004039
+    }
+  ]
+}

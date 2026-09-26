@@ -68,6 +68,17 @@ automatic word-list labels for any prose, and a report built on them says so at 
 entrant compile preview (`tools/jev/compile.py`, [`entrant-compile-preview.md`](entrant-compile-preview.md))
 is where that happens, with the labeller's measured agreement against these hand labels.
 
+**Update 2026-09-25 (late):** the quick-view table gains a **Branch** column (`—` for every row on a
+schema with no guards, which is every live translation this pass produced — see
+`docs/translator-guards-and-defaults-spec.md` §7), and each `GuardNode` gets its own "Rule detail"
+subsection (what Jev is asked, source sentence, **If yes →** / **If no →** branch summaries) in place
+of the plain condition/action block. `build_report` now also tries an `open_strategy`-labeled
+segment against a guard node before dropping it as advisory — that's the whole reason a guard exists:
+class-1 prose (§0 of the spec) is, by construction, exactly the content the hand labels call
+`open_strategy`, not `rule`, so without this a guard's own source sentence could never be traced at
+all. The four checked-in transparency runs referenced above were regenerated for this render shape;
+`tools/jev/test_compile.py`'s byte-exact reproduction test still passes against the new fixtures.
+
 **One real rendered rule** (from `runs/jev-translator-transparency-keytar-2026-09-23.md`, drums'
 recall rule, chosen because it shows every part of the view working at once):
 

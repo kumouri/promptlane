@@ -369,11 +369,407 @@ actually moving. This is scoped as part of Phase 4 below, not built in this chan
 | Phase | What | Status |
 |---|---|---|
 | 0 | Guard-noul calibration (§2.4) — measure whether Jev can answer a judgment guard question before writing any tree code | **Done, this change.** 4/4 (100%) main wording and majority vote; 33% cross-wording unanimity flagged as a real design constraint. `runs/guard-noul-calibration-2026-09-25.{md,json}`. |
-| 1 | Implement the tree schema (§2.2) in `translator.py`: `Cascade`/`RuleNode`/`GuardNode` dataclasses, tree-walk evaluation, translation-prompt changes so the model can emit a guard for class-1-shaped prose. Re-run Phase 0's calibration shape against the translator's *actual* guard wording per pilot before trusting it (§2.4). | Not started — gated on this spec. |
-| 2 | Implement default ordering (§3) in `translator.py`/`transparency.py`: innermost-branch binding, root escalation, same-level tie-break plus the transparency flag (§3.3). | Not started — gated on Phase 1 existing (defaults need branches to bind to). |
+| 1 | Implement the tree schema (§2.2) in `translator.py`: `Cascade`/`RuleNode`/`GuardNode` dataclasses, tree-walk evaluation, translation-prompt changes so the model can emit a guard for class-1-shaped prose. Re-run Phase 0's calibration shape against the translator's *actual* guard wording per pilot before trusting it (§2.4). | **Built and tested, 2026-09-25 late.** `Cascade`/`GuardNode`/`evaluate_cascade`/`collect_nodes`/`display_rows`, full backward compatibility (all 269 pre-existing tests pass unmodified). **The re-calibration step could not run**: qwen3.5:9b (`think:false`, matching the shipped translator) produced zero guards across 6 live attempts on violin.md (the clearest class-1 pilot), across two prompt variants including a worked JSON example — see §7. |
+| 2 | Implement default ordering (§3) in `translator.py`/`transparency.py`: innermost-branch binding, root escalation, same-level tie-break plus the transparency flag (§3.3). | **Built and tested, 2026-09-25 late.** Innermost-binding/escalation were structural properties of Phase 1's `Cascade.default` (`EvaluateCascadeTests`); `resolve_default_tie` implements §3.3's tie-break, tested against the spec's own illustrative example -- not wired into `translate_pilot`/`parse_schema` (no real pilot has this shape, and the wire format needs a translation-time detector this pass didn't build). |
 | 3 | Numeric tracer (§4) | **Done, this change.** `tools/jev/number_normalize.py`, wired into `translator._tokenize`, 10 new tests (`test_number_normalize.py`) plus the `transparency._significant` fix it required; full existing suite still green (269 Python tests via `npm run test:tools`, 96 Node tests via `npm run test:arena`, run 2026-09-25). |
-| 4 | Re-run the 36-scenario prose-fidelity harness (§5) with Phases 1–3 shipped; confirm ≥29/36 or report the honest shortfall; add the per-guard diagnostic breakdown. | Not started — gated on Phases 1–2. |
-| 5 | Update `docs/prose-to-schema-translator.md`, `docs/translator-transparency.md`, `docs/entrant-compile-preview.md` for the new schema shape; re-run live entrant-compile smoke checks for all three reference pilots (`tools/jev/test_compile.py`'s byte-exact reproduction test will need new checked-in fixtures once the schema shape changes). | Not started — gated on Phase 4. |
+| 4 | Re-run the 36-scenario prose-fidelity harness (§5) with Phases 1–3 shipped; confirm ≥29/36 or report the honest shortfall; add the per-guard diagnostic breakdown. | **Measured live, 2026-09-25 late — falls short.** Two live runs both landed at **17/36 (47.2%)**, below the 63.9% (23/36) baseline and well short of the 29/36 (80%) target, a 12-scenario shortfall. Zero guards fired in either run (per §7, the translator never emitted one). Per-guard diagnostic breakdown (`fidelity_harness.guard_diagnostics`) is built and tested; it reports `{}` for every pilot this run since none produced a guard. See §7 for the honest read. |
+| 5 | Update `docs/prose-to-schema-translator.md`, `docs/translator-transparency.md`, `docs/entrant-compile-preview.md` for the new schema shape; re-run live entrant-compile smoke checks for all three reference pilots (`tools/jev/test_compile.py`'s byte-exact reproduction test will need new checked-in fixtures once the schema shape changes). | **Done, this change.** Docs updated with dated addenda; fixtures regenerated for the Branch-column render shape; live entrant-compile smoke checks re-run for drums/keytar/violin (§7). |
+| 6 | Controlled A/B (§8, 2026-09-26): is §7's 47.2% shortfall caused by the guard-aware prompt itself, or ordinary model variance? Old prompt (Arm A) vs. new prompt (Arm B), same harness, 4 interleaved live runs each. | **Measured live, 2026-09-26.** Arm A mean 61.8% (range 58.3–69.4%, reproduces the 63.9% baseline); Arm B mean 49.3% (range 41.7–58.3%) — a real, if noisy, 12.5-point drop concentrated almost entirely in keytar. Harness-parity cross-check confirmed this branch scores a flat schema identically to `develop`'s. See §8 for full detail and the recommendation. |
+
+## 7. What Phases 1, 2, and 4 actually measured (2026-09-25 late, following up on §0–§6 above)
+
+**The guard tree is built and correct, verified against hand-built fixtures — but qwen3.5:9b
+essentially never chooses to use it.** `translator.py` now has `Cascade`/`GuardNode`, a completed
+`evaluate_cascade` (the spec's own §2.2 pseudocode only ever recurses into a guard's `then` branch,
+never `else` — literally read, it can never produce the "no" branch's action at all, which
+contradicts §3.2's own worked example; implemented here as a guard always committing to one of its
+two branches, symmetrically, and tested at every escalation depth), and rendering/transparency
+support for the Branch column and guard subsections from §2.3. All backward-compatible: the full
+pre-existing 269-test suite passed unmodified throughout.
+
+**Live guard emission, measured:** the translation prompt describes the guard option in prose and,
+after the first attempt produced zero guards, gained a worked JSON example of exactly the shape
+violin.md's "you only take fights you can win" should produce. Both versions were tried live against
+violin.md, `qwen3.5:9b`, `think:false` (matching the shipped translator's own setting) — **0 of 6
+attempts (3 per prompt version) produced a guard node.** A quick diagnostic (`think:true` on the same
+prompt) shows why enabling reasoning isn't a cheap fix: the model spent its entire 4,000-token budget
+in `<thinking>` and produced zero output tokens (`done_reason: "length"`), so this would need a much
+larger, slower, and more expensive call, not a one-line config flip. **Read honestly: whether the
+*translator* can reliably recognize class-1 prose and choose to phrase a guard for it — §2.4's own
+stated scope note, "this is Phase 1's job to measure" — comes back negative for this exact model and
+prompt.** The guard-tree machinery itself is not shown to be wrong; it has simply not yet been
+exercised live by anything past a hand-built test fixture.
+
+**36-scenario live fidelity, measured, twice:**
+
+| | run 1 | run 2 |
+|---|---:|---:|
+| drums vs. prose | 41.7% (5/12) | 66.7% (8/12) |
+| keytar vs. prose | 33.3% (4/12) | 8.3% (1/12) |
+| violin vs. prose | 66.7% (8/12) | 66.7% (8/12) |
+| **overall** | **47.2% (17/36)** | **47.2% (17/36)** |
+
+Both runs used the same guard-aware translator on the same three pilots and landed on the identical
+overall count by a different per-pilot route (keytar collapsed in run 2 where it had been mid-pack in
+run 1) — the same kind of run-to-run instability `docs/prose-to-schema-translator.md` §4.3 already
+documented for `qwen3.5:9b` at temperature 0.2 (drums and violin moved by double digits between runs
+A and B there too), not a new phenomenon this change introduced. **Neither run reaches the 63.9%
+(23/36) baseline, let alone the 29/36 (80%) target — a real, measured shortfall, not a rounding
+artifact.** Zero guards fired in either run, so none of this shortfall is guard-specific; it is
+ordinary flat-rule translation quality, the same class of variance already on record.
+
+**Best read of why, stated as a hypothesis, not a confirmed cause (no controlled ablation was run —
+that would need a third live run on the OLD, pre-guard prompt, which this pass didn't budget for):**
+the guard-related prompt additions (a new paragraph plus a worked JSON example) make the translation
+prompt meaningfully longer without ever being used by this model, which may be diluting the
+instruction density around ordinary rule quality for pilots that end up producing none. This is
+plausible, not proven; it is reported as a hypothesis precisely so it isn't quietly used to justify
+shrinking the guard prompt without measuring the effect first (the same overfitting risk this spec
+already flags for prompt changes made after seeing harness numbers). **This spec's prompt was
+finalized before any harness run in this pass — no prompt edits were made after seeing the 47.2%
+number**, so the shortfall is reported as-is rather than chased.
+
+**Concrete per-scenario misses (run 1), for the record:** drums missed `empty_lane_push`,
+`melee_range_enemy_ability_ready`, `ranged_enemy_far`, `ally_under_threat`,
+`isolated_vs_grouped_enemy`, `enemy_tower_only`, `minion_wave_poke` — several against a spurious
+extra `hold` rule (`"is there a valid target to interact with?"`) the translator invented instead of
+using `default_action` for the same purpose. keytar missed 8 of 12, most through an overbroad
+"avoid melee/attack range" rule pre-empting ability rules the prose calls for — the same shape of
+bug §4.2 diagnosed before the priority guard existed, on a different rule this time. violin missed 4
+of 12, mostly `move` where `ability`/`hold` was called for — the same "move toward" vocabulary gap
+§4.3 already named as a structural, not guard-related, limitation.
+
+**A second, real bug the guard prompt introduced, found live and mitigated (not just theorized):**
+`qwen3.5:9b` sometimes named a rule `guard_<something>` (leaking the new concept's vocabulary) while
+still emitting a plain-rule `action` with no `"kind"` — neither a valid rule nor a valid guard, and
+every one of `translate_pilot`'s 3 retries repeated the same mistake. Measured on `violin.md` (the
+pilot whose prose most invites a guard): **6 of 17 live compiles failed this way before a fix
+(≈35%)**, with zero such failures on `drums.md`/`keytar.md` across the same batches. The prompt now
+explicitly forbids a `"guard_"`-prefixed id without the full `type`/`then`/`else` shape, and the retry
+message names the exact failure instead of a generic "failed to parse". Measured after: **1 of 21
+failed the same way (≈5%)** — reduced, not eliminated, and reported as a residual risk rather than a
+closed one. Full detail and the checked-in sample batch: `docs/entrant-compile-preview.md`'s
+2026-09-25 (late) update.
+
+## 8. The A/B: is the 47.2% shortfall guard-specific? (measured, 2026-09-26)
+
+**Ceryce's ruling, 2026-09-26 00:14 CT: §7's "not a guard-specific regression" claim was untested —
+the branch changed the translation prompt (a new guard paragraph plus a worked JSON example) and that
+prompt change already produced one new failure mode. "Job it": run the controlled A/B.** Arm A is
+the translation prompt exactly as on `origin/develop` at `b927d7f` (copied verbatim into
+`tools/jev/ab_prompt_harness.py::old_translation_prompt`, verified byte-for-byte identical to
+`git show origin/develop:tools/jev/translator.py`'s `_translation_prompt` for a fixed input, since
+`TARGET_SELECTORS`/`ACTION_KINDS` are unchanged between branches). Arm B is this branch's HEAD
+prompt (`translator._translation_prompt`, imported directly, unmodified). Both arms use the same
+model (`qwen3.5:9b`, `think:false`), the same three pilots, the same 36 scenarios, and the same
+downstream harness/scoring (`fidelity_harness.run_pilot`/`summarize`/`prose_fidelity_report.py`,
+imported unchanged — the new script only swaps which prompt-builder produces the translation
+request). Four live runs per arm, interleaved (A1, B1, A2, B2, A3, B3, A4, B4), not batched by arm,
+so drift in the local Ollama/Jev servers hits both arms alike.
+
+**Verdict: the new prompt measurably lowers prose fidelity, and it is not just re-hitting the same
+47.2% twice — it is a real, if noisy, drop relative to a same-day Arm A baseline that itself
+reproduces the original 63.9% number.**
+
+| | Arm A (old prompt) | Arm B (new, guard-aware prompt) |
+|---|---:|---:|
+| run 1 | 22/36 (61.1%) | 21/36 (58.3%) |
+| run 2 | 21/36 (58.3%) | 15/36 (41.7%) |
+| run 3 | 25/36 (69.4%) | 16/36 (44.4%) |
+| run 4 | 21/36 (58.3%) | 19/36 (52.8%) |
+| **mean** | **61.8%** | **49.3%** |
+| **range** | **58.3% – 69.4%** | **41.7% – 58.3%** |
+
+Gap between arm means: **12.5 points**, or 4.5 scenarios' worth at n=36 (2.8 points/scenario) — real,
+though every individual run sits inside normal `qwen3.5:9b`-at-temperature-0.2 variance (§4.3 already
+documented double-digit per-pilot swings on identical prose), and the ranges touch at 58.3%. Read
+honestly: this is a moderate-confidence signal from 4 runs per arm, not a proof at the scenario level
+— but the direction is consistent (Arm A ≥ Arm B in 7 of 8 same-numbered-run comparisons) and the
+magnitude is in the same neighborhood as §7's original single-draw 63.9%-vs-47.2% (16.7-point) gap,
+not a different phenomenon.
+
+**Does Arm A reproduce the 23/36 (63.9%) baseline?** Yes, closely — mean 61.8%, and 23/36 (63.9%)
+itself sits inside Arm A's [58.3%, 69.4%] range. The baseline was not stale and the environment did
+not move; §7's own two live runs on the new prompt (both landing at exactly 17/36/47.2%) turn out, by
+this A/B, to have been an unlucky-but-real pair from Arm B's distribution, not an artifact of a
+broken harness.
+
+**Per-pilot detail, all 4 runs each arm** (translator-vs-prose fidelity rate):
+
+| pilot | Arm A (4 runs) | Arm B (4 runs) |
+|---|---|---|
+| drums | 50.0%, 50.0%, 66.7%, 58.3% | 58.3%, 66.7%, 50.0%, 58.3% |
+| keytar | 75.0%, 75.0%, 75.0%, 66.7% | 50.0%, 8.3%, 33.3%, 33.3% |
+| violin | 58.3%, 50.0%, 66.7%, 50.0% | 66.7%, 50.0%, 50.0%, 66.7% |
+
+**keytar is where the whole gap lives.** drums and violin are statistically indistinguishable
+between arms (both arms bounce around the same 50–67% band on both pilots). keytar alone drops from
+a consistent 67–75% under the old prompt to 8–50% under the new one — the same pilot §4.2 already
+flagged as the one whose base translation behaves differently from the other two for reasons that
+were never root-caused. This A/B does not explain *why* keytar specifically destabilizes under the
+longer, guard-aware prompt; it only confirms that it does, consistently, across four independent
+live runs.
+
+**Compile failures, `guard_`-named-no-action failures, guard nodes emitted (both arms, 4 runs × 3
+pilots = 12 translations each):** zero of any of the three, in both arms. No guard-shaped node was
+ever emitted by either prompt in this A/B's 24 total live translations, and the
+retry-message fix from §7 (forbidding a `guard_`-prefixed id without the full `type`/`then`/`else`
+shape) produced zero repeats of that failure mode here — consistent with, not a contradiction of,
+§7's own "reduced to ≈5%" residual-risk figure at this much smaller n.
+
+**Harness cross-check (requested explicitly, to rule out "the new harness scores flat schemas
+differently"):** one Arm A schema (`drums`, captured live from `ab_prompt_harness.py`, saved as
+`runs/ab-harness-crosscheck-reference-schema-drums-2026-09-26.json`) was run through **both**
+this branch's `fidelity_harness.py --reference-schemas-dir` (`runs/ab-harness-crosscheck-
+head-2026-09-26.json`) and `origin/develop`'s own unmodified `fidelity_harness.py` (via a temporary
+detached worktree at `b927d7f`, `runs/ab-harness-crosscheck-develop-2026-09-26.json`), same schema,
+two separate live Jev calls. **The predicted action matched on all 12/12 scenarios between the two
+harnesses** — the one scenario where the two runs' `kind_agreement` differed
+(`ability_on_cooldown_enemy_present`, HEAD 6/12 vs develop 5/12 overall) was a difference in the
+*ground-truth* qwen-on-prose call (an independent, unrelated live model call each harness makes
+fresh), not in the schema-evaluation/scoring code — `ground_truth.py` is untouched by this branch and
+is exactly the kind of run-to-run model variance §4.3 already put on record. **This branch's harness
+scores a flat cascade identically to develop's**, confirmed by this direct comparison, not assumed.
+
+**What this does and does not settle.** It settles the question this section exists to answer: the
+guard-aware prompt is not innocent — it correlates with a real, repeated prose-fidelity drop,
+concentrated in one pilot (keytar), on a model that (per §7) never actually uses the guard shape it
+was given room for. It does not identify a root cause inside the prompt diff (more text? the worked
+JSON example specifically? something keytar-shaped that interacts badly with either?) — that would
+need an ablation between "guard prose paragraph, no JSON example" and "JSON example, no guard prose,"
+which this pass did not run. Four runs per arm is more than one, but still a small-n live measurement
+on a non-deterministic model; a stronger future test would run 8–10 per arm and/or hold `keytar.md`
+out as its own comparison given it carries the entire measured effect here.
+
+**Recommendation, stated as a recommendation, not a decision:** given a mean 12.5-point drop
+concentrated entirely in one of three reference pilots, on a model that never exercises the new guard
+machinery the prompt asks it to consider, shipping the guard-aware prompt as the *default* trades a
+measured fidelity cost for a feature this model does not use. Merging the guard-tree machinery itself
+(`Cascade`/`GuardNode`/`evaluate_cascade`/rendering — all correct, tested, and backward-compatible per
+§7) is not in question; what this section argues against is defaulting *every* pilot's translation
+prompt to guard-aware wording when nothing in this repo's three reference pilots, on this model,
+currently benefits from it, and keytar measurably loses from it.
+
+## 9. A better translator model and a Jev classifier stage — measured, partially (2026-09-26)
+
+**Why this section exists.** Ceryce, 2026-09-26 00:38–00:40 CT, following §8's finding that the
+guard-aware prompt measurably hurts `qwen3.5:9b`: "Test it against something better, a haiku agent
+or something," and separately, "this seems like something Jev would be relatively good at, it emits
+a confidence that the given prose is a specific type of rule or something like that." This section
+adds a Claude CLI translator backend (subscription, translator step only — `tools/jev/llm_backends.
+py::ClaudeCliBackend`, `tools/jev/test_llm_backends.py`) and a Jev classifier stage (`tools/jev/
+jev_classifier.py`, `tools/jev/test_jev_classifier.py`), and reruns §8's A/B across three translator
+setups. **It does not finish that rerun**: a live Cloudflare Workers AI billing failure (HTTP 402,
+`"Model execution failed (Payment error)"`, code 2021) stopped all further Jev calls partway through,
+confirmed not to be a token/auth problem (`npx wrangler whoami` succeeded, a fresh token still 402s,
+three consecutive attempts including a single-question diagnostic outside the harness all fail
+identically). Per this task's own rule — never fake or estimate a number, stop and report plainly
+when something breaks enough that a measurement can't complete — the shortfall below is reported as
+a shortfall, not padded with an extra run or a plausible-looking guess.
+
+**Update, same day, ~06:50 CT:** a follow-up diagnostic session found the 402 no longer reproduced —
+four live Jev calls in a row succeeded, with no billing, payment, or gateway setting touched. The
+run in §9.2 was finished the same session. See §9.4 for the diagnosis (what the 402 was, and — per
+this task's own rule against guessing — what could *not* be confirmed about it), and the now-complete
+table and analysis in §9.2/§9.3 below.
+
+### 9.1 What's complete
+
+**The Jev classifier** (task 1b), scored against a hand-labelled key (`runs/jev-classifier-hand-
+key-2026-09-26.json`) written and committed (`025b35e`) *before* the classifier code that calls Jev
+existed on this branch. Method: `tools/jev/segment.py`'s existing sentence splitter, reused for the
+split only (not its own `rule`/`open_strategy`/`voice` label — checked against the hand key, that
+label is a false positive on violin's identity sentence and a false NEGATIVE on violin's own
+canonical guard sentence, "you only take fights you can win in one phrase," which it calls `voice`).
+37 clauses across the three pilots; Jev answers three `noul` questions per clause (guard / default /
+rule), one `systemone` call per pilot (`runs/jev-classifier-2026-09-26.json`).
+
+**Live result:** 30/37 (81.1%) overall accuracy against the hand key
+(`runs/jev-classifier-scored-2026-09-26.json`) — drums 87.5%, keytar 80.0%, violin 72.7%. Confusion
+by hand-labelled class: **voice 17/17 (100%)** — Jev correctly assigns no class at all to every pure-
+flavor clause, a real negative-recognition strength `segment.py`'s own heuristic doesn't have. **rule
+12/14 (85.7%)**. **default 1/4 (25%)** — two of drums'/keytar's own class-2 examples get called
+`rule` instead. **guard 0/2 (0%)** — violin's own "wait until exactly one enemy is isolated... then
+commit fully" is called `rule` (p=0.71); its restatement, "you only take fights you can win in one
+phrase," gets no class at all (every one of the three nouls ≤ 0.5). **Read plainly: the classifier
+does not solve the "recognize class-1 guard prose" problem either.** This is the same gap §7 already
+measured in the translator model itself (qwen never emits a guard), now independently measured in
+Jev's own confidence-scoring — two different mechanisms, one converging finding. A consequence,
+observed live and not designed for: because Jev never classifies anything as `guard` across all 37
+clauses in these three pilots, every "Jev-hints" run below carries only `rule`/`default` hints,
+never a `guard` hint — §9.2's setups (ii)/(iii) are not a test of whether a guard hint helps, only of
+whether rule/default hints do.
+
+**The Claude CLI backend** (task 1). Checked first, per the task: `tools/model_server.py` already
+has a `claude -p` leg, for the game/arena model path — reused for its subprocess/env-scrub pattern,
+not imported (this backend is translator-only and lives entirely in `tools/jev/`). `ANTHROPIC_API_KEY`
+is always popped from the child env. Measured live: a trivial smoke-test call costs ~37k cache-
+creation input tokens/$0.0745 (would-be API cost) with the CLI's full default tool/agent context;
+`--tools ""`/`--safe-mode`/`--no-session-persistence` (this backend's defaults) cut that to ~4k plain
+input tokens/$0.0043. Unlike Ollama's `think: false`, there is no flag to disable Claude's own
+extended thinking — only turn it down (`--effort low`, this backend's default): one violin.md
+translation cost 84.5s/10,678 completion tokens/$0.065 at the CLI's default effort vs.
+71.1s/8,691/$0.044 at `--effort low`. This is a real, uncontrolled cost/latency difference from the
+free local `qwen3.5:9b` path, reported rather than hidden.
+
+### 9.2 The A/B, as far as it got before the 402
+
+Same 36-scenario harness, same scoring, same downstream path as §8 — `ab_prompt_harness.py` gained
+`--translator-backend {qwen,haiku,sonnet}` and `--jev-hints-file`, both additive; the `qwen`, no-hints
+path is byte-for-byte the same call §8 already made. **Jev-as-full-translator was not attempted**:
+checked against this repo's own prior finding (`docs/jev-decision-model-research.md` §1,
+`translator.py`'s own docstring) that Jev has no free-text output primitive at all, so it structurally
+cannot produce a schema regardless of model quality — there is nothing to test.
+
+| setup | arm | runs completed | mean | range | guard nodes | compile failures |
+|---|---|---:|---:|---|---:|---:|
+| qwen (§8 baseline, no hints) | A | 4/4 | 61.8% | 58.3–69.4% | 0 | 0 |
+| qwen (§8 baseline, no hints) | B | 4/4 | 49.3% | 41.7–58.3% | 0 | 0 |
+| qwen + Jev-hints | A | 3/3 | 50.0% | 38.9–61.1% | 0 | 0 |
+| qwen + Jev-hints | B | 3/3 | 38.0% | 33.3–41.7% | 0 | 0 |
+| Haiku alone | A | **3/3** | **56.5%** | 50.0–61.1% | 0 | 0 |
+| Haiku alone | B | **3/3** | **58.3%** | 55.6–61.1% | **2** (violin, runs 1 & 3) | 0 |
+| Haiku + Jev-hints | A | **3/3** | **59.3%** | 55.6–63.9% | 0 | 0 |
+| Haiku + Jev-hints | B | **3/3** | **54.6%** | 50.0–58.3% | **2** (violin, runs 2 & 3) | 0 |
+| Sonnet, arm B ceiling check | B | 1/1 | 55.6% | — (n=1 by design) | 1 (violin) | 0 |
+
+The table is now complete exactly as §9.3 specified, once the 402 stopped reproducing (§9.4): the two
+remaining Haiku-alone runs (`runs/ab-haiku-arm-{a,b}-run3.json`), all six Haiku+Jev-hints runs
+(`runs/ab-haiku-hints-arm-{a,b}-run{1,2,3}.json`), and the one Sonnet arm-B ceiling run
+(`runs/ab-sonnet-arm-b-run1.json`), each with a matching `-prose-fidelity.json` score. One retry was
+needed: the first `ab-haiku-hints-arm-b-run3` attempt crashed on a 180s `claude -p` CLI timeout mid-
+translation (violin, after drums/keytar already succeeded) — an ordinary CLI timeout, not a Jev/402
+failure, confirmed by there being no partial output file to salvage; the immediate retry completed
+cleanly. That crashed attempt's two completed (but unscored, uncounted) translation calls are the same
+kind of small untracked cost §9.2 already flagged for the earlier crashed run, not included below.
+
+**Does Jev-hints help qwen? Measured: no — it moves both arms down together, not closer.** Arm A
+50.0% vs. the no-hints 61.8% baseline (−11.8 points); Arm B 38.0% vs. 49.3% (−11.3 points). The gap
+*between* arms is essentially unchanged (12.5 points without hints, 12.0 with) — hints do not narrow
+or reverse §8's guard-prompt-specific drop, they just move both arms down by a similar amount. keytar
+is where nearly all of the Arm B loss concentrates, same as §8 (8.3% in every one of the 3 hinted
+Arm B runs — worse and more consistent than §8's own 8.3–50.0% keytar range).
+
+**Does the guard-aware prompt help or hurt on Haiku? Measured, now at the pre-registered n=3 minimum
+for both arms: a small gap, not the n=2 signal first reported above.** Arm B (58.3%) still sits above
+Arm A (56.5%), same direction as the earlier 2-run draw, but the gap shrank from 5.5 points to 1.8
+once each arm's third run landed, and the arms' ranges now overlap almost entirely (A: 50.0–61.1%, B:
+55.6–61.1%). **Read honestly: a 1.8-point gap on n=3/arm is inside ordinary run-to-run noise** — narrower
+than the spread *within* qwen's own single-arm baseline range (11.1 points, Arm A). The n=2 "opposite
+direction from qwen" reading was a real, disclosed draw, not a settled result, and settling it with a
+third run shows mostly noise, not a reversal. **What held up on new data, not just n=2:** Haiku emits
+guard nodes on the guard-aware prompt — 2 of its 3 completed Arm B runs each for Haiku-alone and
+Haiku+hints produced one (always violin), plus Sonnet's one completed Arm B run also produced one.
+That is 5 guard-node emissions across 7 completed Claude-model Arm B attempts (Haiku-alone ×3,
+Haiku+hints ×3, Sonnet ×1), versus **zero** across qwen's 7 completed Arm B runs in this section's own
+A/B harness (§8 baseline ×4 + qwen+hints ×3 = 21 pilot translations, 0 guard nodes). The structural
+gap — can this model represent a guard at all — is this section's most repeatable finding, not the
+fidelity-percentage gap, which stayed inside noise.
+
+**Does Jev-hints help Haiku? Measured, now that all 6 runs completed: not one-directionally, unlike
+qwen.** Arm A improves with hints (59.3% vs. 56.5% alone, +2.8 points); Arm B gets slightly worse
+(54.6% vs. 58.3% alone, −3.7 points) — the arms even swap which one leads (B > A without hints, A > B
+with). Both deltas sit inside the same n=3 noise band the guard-prompt comparison above already
+established for Haiku. This is the opposite of qwen's own hints result (both arms moved down together
+by ~11–12 points, a consistent and much larger effect) — read as "whatever qwen's Jev-hints mechanism
+was doing to it does not repeat on Haiku," not as "hints help Haiku," since the deltas are too small
+and inconsistent to call either way.
+
+**Cost and scale, everything run in this section, real numbers (§9.2's original partial run plus this
+day's completion):** 15 live translator×arm×run combinations completed total (5 Haiku-alone across
+both arms, 6 Haiku+Jev-hints across both arms, 1 Sonnet, 3 qwen+hints) plus the classifier's 3 pilot
+calls, all real, none stubbed. Claude CLI: 27 successful translation calls this completion session (2
+Haiku-alone runs + 6 Haiku+hints runs + 1 Sonnet run, × 3 pilots), **$1.647** additional would-be-API
+cost (subscription-billed, not metered spend) — on top of §9.2's original $0.698, for a section total
+of **$2.345** — plus the same untracked small remainder from this session's one crashed-and-retried
+run that §9.2 already disclosed for its own crashed run. Workers AI/Jev, this completion session only:
+**$0.00897** across the 9 completed harness runs — trivial, consistent with §9.2's own $0.0107 for 6
+runs. Wall time this session: the 9 runs took 2657s (~44.3 minutes) total, 283–391s each — Haiku+hints
+runs ran longest (up to 391s, one more sequential `claude -p` call than Haiku-alone's 3, since the
+hints text lengthens the prompt slightly); Sonnet's single run took 57s, far faster than any Haiku run
+(Sonnet's own translator latency, not a Jev difference — no hints were used on that run).
+
+### 9.3 What this does and does not support
+
+**Recommendation for PR #33 (the guard-tree prompt as qwen's default): unchanged from §8 —
+don't ship it as qwen's default.** Nothing measured in this section rescues the guard-aware prompt on
+`qwen3.5:9b`; Jev-hints make both arms worse, not just Arm B, so hints are not a fix either. The
+guard-tree *machinery* (schema shape, evaluation, rendering) remains correct and worth keeping per
+§7/§8; only the choice to default every pilot's *prompt* to guard-aware wording is what's argued
+against, same as §8.
+
+**Recommendation on which model to default the translator to, now that the full n=3/arm run
+completed: still no change.** Haiku's completed numbers (56.5%/58.3%) don't clearly beat qwen's own
+free-and-local baseline (61.8%/49.3%) — Haiku undercuts qwen's Arm A by 5.3 points, and only beats
+qwen's Arm B by 9 points in the one setup (Arm B, guard-aware prompt) this document already
+recommends *against* defaulting to. Combined with a real per-call cost (~$0.16–0.23/run vs. qwen's
+$0) and latency (~85–130s/pilot vs. qwen's ~16–18s/pilot), there is no case here to switch the shipped
+default. **What the completed run does confirm, not just suggest:** Haiku and Sonnet reliably produce
+guard nodes on the guard-aware prompt (5 of 7 completed Claude-model Arm B attempts) where qwen never
+has (0 of 7 completed Arm B attempts, 21 translations, this section's own harness) — a genuine model-
+capability difference worth keeping in mind for any future translator-model reconsideration, separate
+from today's non-recommendation.
+
+**The 402, resolved same day, no account or billing change made or needed:** the failure stopped
+reproducing on its own before this diagnostic session touched Cloudflare's dashboard, billing, or any
+gateway setting — see §9.4 for what was (and wasn't) established about its cause. All nine remaining
+runs this table needed (2 Haiku-alone, 6 Haiku+Jev-hints, 1 Sonnet) then completed live against the
+same Jev endpoint, same account, same wrangler OAuth token flow that was 402ing hours earlier — no
+different credential, setting, or workaround.
+
+### 9.4 What the 402 actually was (and wasn't)
+
+Diagnosed 2026-09-26, ~06:50 CT, before any Phase 2 run. Ceryce's AI Gateway Credits dashboard
+screenshot (01:47 CT) already showed $9.49 available, auto-recharge off, `typesafe` lifetime usage
+$0.51, one manual $10.63+tax top-up on 2026-09-23 — ruling out an empty balance as the cause before
+this session even started. Everything below was read-only: no billing setting, payment method,
+gateway configuration, or spend/rate limit was changed, and nothing was purchased or topped up.
+
+1. **One raw diagnostic call**, built from `client.py`'s exact `WorkersAIClient` request-body and
+   token-resolution path but bypassing its retry wrapper, so the *full* response (status, every
+   header, complete body) was visible on failure instead of the 300-char truncated detail
+   `SystemOneError` normally keeps. First call: `401 Unauthorized`, Cloudflare error
+   `{"code":10000,"message":"Authentication error"}` — happening immediately after the token provider
+   force-renewed a wrangler OAuth token that had fallen inside its 900s expiry margin. A second call
+   ~20s later (after an unrelated `npx wrangler whoami`) returned a clean `200` with
+   `"gatewayMetadata":{"keySource":"Unified"}`; two more back-to-back calls both returned clean
+   `200`s too. **The 402 did not reproduce even once across four live attempts spanning two separate
+   Python processes** — whatever it was, it was already gone.
+2. **`keySource: "Unified"` on every successful response confirms the Jev call bills against exactly
+   the AI Gateway credits balance the dashboard shows** — not standard Workers AI billing, not a
+   separate provider key. The account's credits were never the bottleneck, and nothing about them
+   needed to change.
+3. **Cloudflare's own docs do not define error code 2021 anywhere this search found** — searched the
+   Workers AI, AI Gateway, and AI Search error-code references directly (`developers.cloudflare.com
+   /workers-ai/platform/limits/`, `/ai-gateway/reference/limits/`, `/ai-gateway/features/spend-
+   limits/`, `/ai-search/troubleshooting/api-error-codes/`); none lists a code `2021`. The closest
+   documented analog, from AI Gateway's own shared error taxonomy (`/ai-search/troubleshooting/api-
+   error-codes/`, which documents `ai_gateway_*` codes used across every product built on AI Gateway):
+   **`7078 ai_gateway_billing_error → HTTP 402 → "The upstream provider reported a billing issue."`**
+   Different code number, so this is flagged as the closest documented analog, **not** claimed as a
+   confirmed match. What the docs *do* rule out: **Cloudflare's own rate limiting and spend limits
+   both return `429`, never `402`** — `/ai-gateway/reference/limits/`: "[Unified Billing request
+   rate]... When the limit is exceeded, AI Gateway returns a `429` error"; `/ai-gateway/features
+   /spend-limits/`: "When a spend limit is exceeded, AI Gateway returns a `429 Too Many Requests`
+   response." So whatever produced the 402, it was not this account's own gateway rate limit or spend
+   limit — both fail with a different status code, then and now.
+4. **Read-only inspection of the account's named AI Gateway configs was attempted and blocked**:
+   `GET /accounts/{id}/ai-gateway/gateways` with the same wrangler OAuth token returned `403
+   Forbidden` — `wrangler whoami`'s own scope listing confirms the token carries `ai (write)`
+   (Workers AI run access) but no AI Gateway management/read scope. This is a gap in what this
+   diagnostic could inspect, not a symptom of the original failure — a named gateway's own spend-limit
+   rules (if any exist beyond the account-wide credits) were not directly checkable this session.
+
+**Read plainly, per this task's own rule against guessing: root cause not confirmed.** The evidence
+is consistent with a transient, upstream-provider-side billing hiccup between Cloudflare's AI Gateway
+and the `typesafe/jev` model it resells — matching the *category* of Cloudflare's own documented
+`ai_gateway_billing_error` (402, "upstream provider reported a billing issue"), though not a confirmed
+code match — that resolved on its own sometime between the blocked session (2026-09-26, before 00:40
+CT) and this one (06:50 CT). This is consistent with the account's own credits, payment method, and
+auto-recharge setting never being the problem, exactly as the dashboard screenshot already showed
+before this session began. **No action was needed from Ceryce; none was taken.** If a 402 recurs, the
+same full-response diagnostic (bypass the retry wrapper, capture every header) is the fastest way to
+tell whether it's this same shape or something new.
 
 ## Sources
 
@@ -383,12 +779,30 @@ actually moving. This is scoped as part of Phase 4 below, not built in this chan
   (`_tokenize` now normalizes numbers for the trace check only — the rest of the file, including
   `enforce_absolute_priority`'s scope and `render_markdown`, is unmodified); `tools/jev/transparency.py`
   (`_significant` now exempts pure-digit tokens from its length filter — the rest of the file,
-  including `build_report`'s scope, is unmodified).
+  including `build_report`'s scope, is unmodified); `tools/jev/ab_prompt_harness.py` (new, §8's A/B —
+  measurement only, does not edit `translator.py`/`fidelity_harness.py`/`transparency.py`; reuses
+  `fidelity_harness.run_pilot`/`summarize` and `translator.parse_schema`/`enforce_absolute_priority`
+  unchanged, and carries `origin/develop`'s pre-guard-tree translation prompt verbatim as a local
+  constant for Arm A).
 - Read and reused, not modified: `tools/jev/{client,scenarios,fidelity_harness,rules,target_resolve,
-  expressibility,segment}.py`; `prompts/pilots/{drums,keytar,violin}.md`;
-  `runs/prose-ground-truth-{drums,keytar,violin}.json`; `runs/jev-prose-fidelity-2026-09-23.json`.
+  expressibility,segment,prose_fidelity_report,ground_truth}.py`; `prompts/pilots/{drums,keytar,
+  violin}.md`; `runs/prose-ground-truth-{drums,keytar,violin}.json`;
+  `runs/jev-prose-fidelity-2026-09-23.json`.
 - New artifacts, this change: `runs/guard-noul-calibration-2026-09-25.{md,json}` (Phase 0's live
-  result).
+  result); `runs/ab-arm-{a,b}-run{1,2,3,4}.json` and `runs/ab-arm-{a,b}-run{1,2,3,4}-prose-fidelity.
+  json` (§8's 8 live A/B runs, raw and scored); `runs/ab-harness-crosscheck-{reference-schema-drums,
+  head,develop}-2026-09-26.json` (§8's harness-parity cross-check).
+- New this change, §9: `tools/jev/llm_backends.py` (`ClaudeCliBackend`, new), `tools/jev/
+  test_llm_backends.py` (14 tests); `tools/jev/jev_classifier.py` (new), `tools/jev/
+  test_jev_classifier.py` (8 tests); `tools/jev/ab_prompt_harness.py` (`--translator-backend`,
+  `--jev-hints-file`, additive — the `qwen`/no-hints path is unchanged), `tools/jev/
+  test_ab_prompt_harness.py` (6 tests). Artifacts: `runs/jev-classifier-hand-key-2026-09-26.json`
+  (committed blind, `025b35e`, before any classifier code existed); `runs/jev-classifier-2026-09-26.
+  json` (live classifier run) and `runs/jev-classifier-scored-2026-09-26.json` (scored against the
+  hand key); `runs/ab-haiku-arm-{a,b}-run{1,2,3}.json`, `runs/ab-haiku-hints-arm-{a,b}-run{1,2,3}.
+  json`, `runs/ab-sonnet-arm-b-run1.json`, and `runs/ab-qwen-hints-arm-{a,b}-run{1,2,3}.json`, each
+  with a matching `-prose-fidelity.json` (§9.2's table is now complete — see §9.4 for the same-day
+  402 diagnosis that unblocked the last nine runs).
 - Prior work this spec extends: `docs/prose-to-schema-translator.md` (PR #25 — the translator, the
   priority guard, the 63.9%/47.2% prose-fidelity split this spec's §5 target is drawn from);
   `docs/translator-transparency.md` (the transparency view, the keytar revision loop, the jam-rule

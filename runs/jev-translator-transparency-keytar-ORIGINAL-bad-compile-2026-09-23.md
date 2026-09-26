@@ -4,13 +4,13 @@ Rules are checked in order; the first one whose condition is true fires. Every r
 
 ## Quick view
 
-| # | Condition | Then |
-|---|---|---|
-| 1 | is this bot's current health below 25% of its maximum health? | **recall** home |
-| 2 | is there a visible enemy inside melee range of this bot? | use **glissando** |
-| 3 | is the cooldown of 'chord' ready? | use **chord** targeting: the visible enemy with the most other enemies near it (an AoE target) |
-| 4 | is there no immediate threat requiring retreat or engagement? | **move** targeting: move toward the enemy nexus, i.e. advance down the lane |
-| — | *(none of the above)* | **move** targeting: move toward the enemy nexus, i.e. advance down the lane |
+| # | Branch | Condition | Then |
+|---|---|---|---|
+| 1 | — | is this bot's current health below 25% of its maximum health? | **recall** home |
+| 2 | — | is there a visible enemy inside melee range of this bot? | use **glissando** |
+| 3 | — | is the cooldown of 'chord' ready? | use **chord** targeting: the visible enemy with the most other enemies near it (an AoE target) |
+| 4 | — | is there no immediate threat requiring retreat or engagement? | **move** targeting: move toward the enemy nexus, i.e. advance down the lane |
+| — | — | *(none of the above — root default)* | **move** targeting: move toward the enemy nexus, i.e. advance down the lane |
 
 ## Rule detail
 

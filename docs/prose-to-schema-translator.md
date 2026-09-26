@@ -8,6 +8,40 @@ with the code that produced the number checked in) or an inference from those me
 (labelled **inferred**). No arena, backend, model_server, or sim code was touched — per the task's
 scope boundary, this is translator + offline harness code only, in `tools/jev/`.*
 
+**Update 2026-09-25 (late): the schema is now a tree, and the 63.9% below did not hold on re-measure.**
+`translator.py` gained the guard-question tree
+(`docs/translator-guards-and-defaults-spec.md` §2) — `TranslatedSchema.root: Cascade` is the
+canonical representation now, with `rules`/`default_kind`/etc. kept as a backward-compatible view, so
+everything below describing the flat rule-cascade design is still accurate for a schema with zero
+guards, which is what every live translation in this pass actually produced. Re-running this memo's
+own 36-scenario harness live after that change measured **47.2% (17/36) translator-vs-prose fidelity,
+twice** — below the 63.9% this memo reports in §4.4, not above it. §7 first read this as "ordinary
+flat-rule variance, not a guard-specific regression" — **that reading did not hold up.**
+
+**Update 2026-09-26: a controlled A/B (`docs/translator-guards-and-defaults-spec.md` §8) shows it
+*is* guard-prompt-specific, not just variance.** Old prompt (Arm A, `origin/develop`'s wording) vs.
+new prompt (Arm B, this branch's guard-aware wording), same model, same harness, 4 interleaved live
+runs each: Arm A mean 61.8% (range 58.3–69.4%, reproducing this memo's 63.9% baseline) vs. Arm B mean
+49.3% (range 41.7–58.3%) — a real 12.5-point drop, concentrated almost entirely in `keytar.md`. See
+§8 for the full per-run table, the per-pilot breakdown, and the harness-parity cross-check that rules
+out a scoring-code discrepancy.
+
+**Update 2026-09-26 (§9): a Claude backend and a Jev classifier stage — complete, after a same-day
+Cloudflare 402 that stopped reproducing before anyone touched billing.** A Haiku/Sonnet translator
+backend (subscription CLI, translator step only) and a Jev clause classifier (guard/default/rule
+confidence per sentence) were added; all nine planned live A/B combinations completed. **qwen +
+Jev-hints** (3 runs/arm) moves *both* arms down by ~11–12 points versus the no-hints baseline, not
+just Arm B — hints don't fix the guard-prompt drop, they add noise to both arms alike. **Haiku alone**
+(3/3 runs/arm): Arm B (58.3%) vs. Arm A (56.5%), a 1.8-point gap that's inside ordinary run-to-run
+noise once the third run landed (an earlier 2-run draw had shown a much larger 5.5-point gap).
+**Haiku + Jev-hints** (3/3 runs/arm) flips which arm leads (A 59.3% > B 54.6%) but by a similarly
+noise-sized margin. **What held up across every completed setup, not just one draw:** Claude-model
+Arm B runs produced a guard node 5 times out of 7 attempts (Haiku-alone, Haiku+hints, and the one
+Sonnet ceiling run) — qwen has never produced one, in 0 of 7 Arm B attempts in this same A/B harness.
+See §9 for the full table, the same-day 402 diagnosis (root cause not confirmed; no billing action
+was taken or needed), and the recommendation (no change to §8's "don't ship the guard-aware prompt
+as qwen's default," no change to the shipped translator model).
+
 ## The short answer
 
 **Better than the raw numbers first suggested, once translator error is separated from ground-truth

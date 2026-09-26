@@ -49,7 +49,15 @@ from client import (  # noqa: E402
 from ground_truth import ground_truth_action  # noqa: E402
 from scenarios import all_scenarios, build_observation, ABILITIES  # noqa: E402
 from target_resolve import resolve_target  # noqa: E402
-from translator import TranslatedSchema, parse_schema, render_markdown, translate_pilot  # noqa: E402
+from translator import (  # noqa: E402
+    GuardNode,
+    TranslatedSchema,
+    collect_nodes,
+    evaluate_schema,
+    parse_schema,
+    render_markdown,
+    translate_pilot,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PILOTS = {
@@ -139,10 +147,14 @@ def describe_observation(obs: dict) -> str:
 
 
 def run_prediction(client, schema: TranslatedSchema, obs: dict) -> dict:
-    """One systemone call (all rule conditions batched), then the rule cascade in Python -- first
-    "yes" wins, same posture as `rules.first_match` and as house-violet.md's own prose ("Take the
-    FIRST rule that matches")."""
-    questions = [BoundQuestion(r.id, r.condition, {"true": r.criteria_true, "false": r.criteria_false}) for r in schema.rules]
+    """One systemone call, EVERY node's condition anywhere in the tree batched together (spec §2.2:
+    "evaluation stays one systemone call per decision" no matter how deep the tree gets --
+    `translator.collect_nodes`), then the tree-walk in Python (`translator.evaluate_schema`) --
+    same posture as `rules.first_match` and as house-violet.md's own prose ("Take the FIRST rule
+    that matches"), generalized to guards. For a schema with zero guards this is exactly the old
+    flat first-match behavior; `all_nodes == schema.rules` in that case."""
+    all_nodes = collect_nodes(schema.root)
+    questions = [BoundQuestion(n.id, n.condition, {"true": n.criteria_true, "false": n.criteria_false}) for n in all_nodes]
     state = describe_observation(obs)
     start = time.perf_counter()
     response = client.ask(state, questions)
@@ -150,22 +162,22 @@ def run_prediction(client, schema: TranslatedSchema, obs: dict) -> dict:
     answers = response.get("answers", {})
     usage = response.get("usage", {})
 
-    fired = None
     per_question = {}
-    for r in schema.rules:
-        cell = answers.get(r.id)
+    bool_answers = {}
+    for n in all_nodes:
+        cell = answers.get(n.id)
         if cell is None or "noul" not in cell:
-            raise ValueError(f"systemone response missing a noul answer for {r.id!r}: {response!r}")
+            raise ValueError(f"systemone response missing a noul answer for {n.id!r}: {response!r}")
         val = cell["noul"]
         answered = val > 0.5
-        per_question[r.id] = {"noul": val, "answered": answered}
-        if answered and fired is None:
-            fired = r
+        per_question[n.id] = {"noul": val, "answered": answered}
+        bool_answers[n.id] = answered
 
-    if fired is not None:
-        kind, ability, selector = fired.action_kind, fired.action_ability, fired.action_target_selector
-    else:
-        kind, ability, selector = schema.default_kind, schema.default_ability, schema.default_target_selector
+    guard_trace: list[dict] = []
+    result_action = evaluate_schema(schema, bool_answers, trace=guard_trace)
+    kind, ability, selector = result_action.kind, result_action.ability, result_action.target_selector
+    fired_id = next((t["fired_id"] for t in guard_trace if "fired_id" in t), None)
+    guard_answers = [t for t in guard_trace if "guard_id" in t]
 
     target = resolve_target(selector, obs)
     action = {"kind": kind}
@@ -177,7 +189,8 @@ def run_prediction(client, schema: TranslatedSchema, obs: dict) -> dict:
     input_tokens = usage.get("input_tokens") or estimate_request_tokens(state, questions)
     return {
         "action": action,
-        "fired_rule": fired.id if fired else None,
+        "fired_rule": fired_id,
+        "guard_answers": guard_answers,
         "per_question": per_question,
         "input_tokens": input_tokens,
         "latency_sec": latency_sec,
@@ -217,6 +230,7 @@ def run_pilot(pilot_name: str, pilot_text: str, schema: TranslatedSchema, client
                     "ability": pred_ability,
                     "fired_rule": pred["fired_rule"],
                 },
+                "guard_answers": pred["guard_answers"],
                 "kind_match": pred_kind == gt_kind,
                 "ability_match": (pred_ability == gt_ability) if (pred_kind == "ability" and gt_kind == "ability") else None,
                 "target_id_match": target_match,
@@ -225,6 +239,32 @@ def run_pilot(pilot_name: str, pilot_text: str, schema: TranslatedSchema, client
             }
         )
     return {"pilot": pilot_name, "rows": rows}
+
+
+def guard_diagnostics(pilot_report: dict) -> dict:
+    """Phase 4's recommended addition (spec §5): a per-guard breakdown -- which guard nodes existed,
+    what they answered per scenario, and whether `kind_agreement` on that scenario matched ground
+    truth, split by the guard's answer. Without this, a regression concentrated in one guard's
+    accuracy could hide inside an unchanged aggregate `kind_agreement` number, the same way §4.3 of
+    `docs/prose-to-schema-translator.md` already showed run-to-run variance can mask what's actually
+    moving. `{}` for a pilot whose schema had no guards -- there's nothing to break down."""
+    by_guard: dict[str, dict] = {}
+    for row in pilot_report["rows"]:
+        for g in row["guard_answers"]:
+            gid = g["guard_id"]
+            bucket = by_guard.setdefault(gid, {"guard_id": gid, "yes": [], "no": []})
+            bucket["yes" if g["answer"] else "no"].append(row["kind_match"])
+    out = {}
+    for gid, bucket in by_guard.items():
+        yes, no = bucket["yes"], bucket["no"]
+        out[gid] = {
+            "n_scenarios_consulted": len(yes) + len(no),
+            "answered_yes_n": len(yes),
+            "answered_no_n": len(no),
+            "kind_agreement_when_yes": (sum(yes) / len(yes)) if yes else None,
+            "kind_agreement_when_no": (sum(no) / len(no)) if no else None,
+        }
+    return out
 
 
 def summarize(pilot_report: dict) -> dict:
@@ -246,6 +286,7 @@ def summarize(pilot_report: dict) -> dict:
         "target_id_agreement_n": len(target_rows),
         "total_input_tokens": sum(r["input_tokens"] for r in rows),
         "mean_latency_sec": statistics.mean(latencies) if latencies else None,
+        "guard_diagnostics": guard_diagnostics(pilot_report),
     }
 
 

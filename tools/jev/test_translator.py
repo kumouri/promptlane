@@ -230,5 +230,153 @@ class RenderMarkdownTests(unittest.TestCase):
         self.assertIn("none of the above", md)
 
 
+GUARD_SCHEMA = {
+    "rules": [
+        {
+            "id": "low_hp_recall",
+            "condition": "is hp below a quarter of max?",
+            "action": {"kind": "recall", "ability": None, "target_selector": "home"},
+        },
+        {
+            "type": "guard",
+            "id": "can_win_fight",
+            "condition": "can this bot win the fight it is in?",
+            "criteria": {"true": "yes, winnable", "false": "no, not winnable"},
+            "then": {
+                "nodes": [
+                    {
+                        "id": "opener_ready",
+                        "condition": "is staccato off cooldown and a target in range?",
+                        "action": {"kind": "ability", "ability": "staccato", "target_selector": "isolated_enemy"},
+                    }
+                ],
+                "default_action": {"kind": "move", "ability": None, "target_selector": "isolated_enemy"},
+            },
+            "else": {
+                "nodes": [],
+                "default_action": {"kind": "move", "ability": None, "target_selector": "isolated_enemy"},
+            },
+        },
+    ],
+    "default_action": {"kind": "move", "ability": None, "target_selector": "push_lane"},
+}
+
+
+class GuardTreeParseTests(unittest.TestCase):
+    def test_parses_a_guard_node_with_two_branches(self):
+        schema = T.parse_schema(GUARD_SCHEMA, "prompts/pilots/violin.md", "violin", "raw")
+        self.assertEqual(len(schema.root.nodes), 2)
+        guard = schema.root.nodes[1]
+        self.assertIsInstance(guard, T.GuardNode)
+        self.assertEqual(guard.id, "can_win_fight")
+        self.assertEqual(len(guard.then.nodes), 1)
+        self.assertEqual(guard.then.default.kind, "move")
+        self.assertEqual(guard.else_.nodes, ())
+        self.assertEqual(guard.else_.default.target_selector, "isolated_enemy")
+
+    def test_flat_view_excludes_guard_and_nested_rules(self):
+        # backward compatibility: `schema.rules` is the ROOT cascade's own plain rule nodes only.
+        schema = T.parse_schema(GUARD_SCHEMA, "prompts/pilots/violin.md", "violin", "raw")
+        self.assertEqual([r.id for r in schema.rules], ["low_hp_recall"])
+
+    def test_a_flat_schema_is_a_cascade_with_zero_guards(self):
+        schema = T.parse_schema(VALID_SCHEMA, "prompts/pilots/drums.md", "drums", "raw")
+        self.assertEqual(len(schema.root.nodes), 2)
+        self.assertTrue(all(isinstance(n, T.TranslatedRule) for n in schema.root.nodes))
+        self.assertEqual([r.id for r in schema.rules], [n.id for n in schema.root.nodes])
+
+    def test_nested_guard_needs_both_then_and_else_as_cascade_objects(self):
+        bad = json.loads(json.dumps(GUARD_SCHEMA))
+        del bad["rules"][1]["else"]
+        with self.assertRaises(ValueError):
+            T.parse_schema(bad, "x", "violin", "raw")
+
+
+class CollectNodesTests(unittest.TestCase):
+    def test_collects_root_and_both_branches_depth_first(self):
+        schema = T.parse_schema(GUARD_SCHEMA, "prompts/pilots/violin.md", "violin", "raw")
+        ids = [n.id for n in T.collect_nodes(schema.root)]
+        self.assertEqual(ids, ["low_hp_recall", "can_win_fight", "opener_ready"])
+
+
+class EvaluateCascadeTests(unittest.TestCase):
+    def setUp(self):
+        self.schema = T.parse_schema(GUARD_SCHEMA, "prompts/pilots/violin.md", "violin", "raw")
+
+    def test_a_root_rule_firing_wins_before_the_guard_is_even_consulted(self):
+        answers = {"low_hp_recall": True, "can_win_fight": True, "opener_ready": True}
+        action = T.evaluate_schema(self.schema, answers)
+        self.assertEqual(action.kind, "recall")
+
+    def test_guard_yes_with_a_nested_rule_firing(self):
+        answers = {"low_hp_recall": False, "can_win_fight": True, "opener_ready": True}
+        action = T.evaluate_schema(self.schema, answers)
+        self.assertEqual((action.kind, action.ability), ("ability", "staccato"))
+
+    def test_guard_yes_with_no_nested_rule_firing_uses_the_thens_own_default_not_root_default(self):
+        answers = {"low_hp_recall": False, "can_win_fight": True, "opener_ready": False}
+        action = T.evaluate_schema(self.schema, answers)
+        self.assertEqual((action.kind, action.target_selector), ("move", "isolated_enemy"))
+
+    def test_guard_no_commits_to_the_else_branch_not_the_root_default(self):
+        # else has zero rules -- its own default should fire, NOT root's push_lane default. This is
+        # the case the spec's own pseudocode omits (it never evaluates `else` at all); see
+        # `evaluate_cascade`'s docstring for why the completed semantics must be symmetric.
+        answers = {"low_hp_recall": False, "can_win_fight": False}
+        action = T.evaluate_schema(self.schema, answers)
+        self.assertEqual(action.target_selector, "isolated_enemy")
+        self.assertNotEqual(action.target_selector, "push_lane")
+
+    def test_guard_branch_with_no_default_escalates_to_the_nearest_enclosing_default(self):
+        no_default_else = json.loads(json.dumps(GUARD_SCHEMA))
+        no_default_else["rules"][1]["else"]["default_action"] = None
+        schema = T.parse_schema(no_default_else, "x", "violin", "raw")
+        answers = {"low_hp_recall": False, "can_win_fight": False}
+        action = T.evaluate_schema(schema, answers)
+        self.assertEqual(action.target_selector, "push_lane")  # root.default, the outermost fallback
+
+
+class DisplayRowsTests(unittest.TestCase):
+    def test_root_rows_are_plain_digits_and_guard_branches_letter_off_the_guards_label(self):
+        schema = T.parse_schema(GUARD_SCHEMA, "prompts/pilots/violin.md", "violin", "raw")
+        rows = T.display_rows(schema.root)
+        labels = [r["label"] for r in rows]
+        self.assertEqual(labels, ["1", "2", "2a", "2b", "2c"])
+        self.assertEqual(rows[0]["branch"], None)
+        self.assertEqual(rows[2]["branch"], "if guard 2 = yes")
+        self.assertEqual(rows[3]["branch"], "if guard 2 = yes, none of 2a matched")
+        self.assertEqual(rows[4]["branch"], "if guard 2 = no")
+
+    def test_render_markdown_includes_branch_column_and_guard_row(self):
+        schema = T.parse_schema(GUARD_SCHEMA, "prompts/pilots/violin.md", "violin", "raw")
+        md = T.render_markdown(schema)
+        self.assertIn("| # | Branch | Condition | Then |", md)
+        self.assertIn("*(guard)* can this bot win the fight it is in?", md)
+        self.assertIn("2a", md)
+
+
+class DefaultTieTests(unittest.TestCase):
+    """§3.3 -- not observed in any of the three reference pilots, so this exercises the spec's own
+    illustrative (not real) example: "When nothing else is going on, poke the wave" vs., elsewhere,
+    "If nothing else is happening, advance down the lane.\""""
+
+    def test_earlier_sentence_in_prose_order_wins(self):
+        poke = T.Action("attack", None, "nearby_minion")
+        advance = T.Action("move", None, "push_lane")
+        tie = T.resolve_default_tie(
+            [
+                ("When nothing else is going on, poke the wave", poke),
+                ("If nothing else is happening, advance down the lane", advance),
+            ]
+        )
+        self.assertEqual(tie.winner, poke)
+        self.assertEqual(tie.alternatives, ("If nothing else is happening, advance down the lane",))
+        self.assertIn("advance down the lane", tie.note)
+
+    def test_single_candidate_raises(self):
+        with self.assertRaises(ValueError):
+            T.resolve_default_tie([("only one", T.Action("hold", None, None))])
+
+
 if __name__ == "__main__":
     unittest.main()

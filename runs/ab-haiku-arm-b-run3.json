@@ -1,0 +1,1058 @@
+{
+  "arm": "b",
+  "translator_backend": "haiku",
+  "translator_model": "claude-haiku-4-5-20251001",
+  "jev_hints_used": false,
+  "translator_usage": {
+    "calls": 3,
+    "prompt_tokens": 27,
+    "completion_tokens": 37543,
+    "total_tokens": 37570,
+    "cost_usd": 0.223318,
+    "seconds": 294.59
+  },
+  "wall_sec": 326.2,
+  "ollama_model": "qwen3.5:9b",
+  "pilots": [
+    "drums",
+    "keytar",
+    "violin"
+  ],
+  "n_scenarios_per_pilot": 12,
+  "per_pilot": [
+    {
+      "pilot": "drums",
+      "n_scenarios": 12,
+      "kind_agreement_rate": 0.3333333333333333,
+      "ability_agreement_rate": null,
+      "ability_agreement_n": 0,
+      "target_id_agreement_rate": 1.0,
+      "target_id_agreement_n": 6,
+      "total_input_tokens": 7886,
+      "mean_latency_sec": 0.42401396666658303,
+      "guard_diagnostics": {}
+    },
+    {
+      "pilot": "keytar",
+      "n_scenarios": 12,
+      "kind_agreement_rate": 0.4166666666666667,
+      "ability_agreement_rate": 1.0,
+      "ability_agreement_n": 3,
+      "target_id_agreement_rate": null,
+      "target_id_agreement_n": 0,
+      "total_input_tokens": 7454,
+      "mean_latency_sec": 0.48920538333368313,
+      "guard_diagnostics": {}
+    },
+    {
+      "pilot": "violin",
+      "n_scenarios": 12,
+      "kind_agreement_rate": 0.5,
+      "ability_agreement_rate": null,
+      "ability_agreement_n": 0,
+      "target_id_agreement_rate": 1.0,
+      "target_id_agreement_n": 1,
+      "total_input_tokens": 9182,
+      "mean_latency_sec": 0.516420008332716,
+      "guard_diagnostics": {
+        "isolated_target_present": {
+          "n_scenarios_consulted": 11,
+          "answered_yes_n": 9,
+          "answered_no_n": 2,
+          "kind_agreement_when_yes": 0.4444444444444444,
+          "kind_agreement_when_no": 1.0
+        }
+      }
+    }
+  ],
+  "per_pilot_translation_diagnostics": {
+    "drums": {
+      "attempts": 1,
+      "compile_failures": 0,
+      "guard_named_no_action_failures": 0,
+      "guard_nodes_emitted": 0
+    },
+    "keytar": {
+      "attempts": 1,
+      "compile_failures": 0,
+      "guard_named_no_action_failures": 0,
+      "guard_nodes_emitted": 0
+    },
+    "violin": {
+      "attempts": 1,
+      "compile_failures": 0,
+      "guard_named_no_action_failures": 0,
+      "guard_nodes_emitted": 1
+    }
+  },
+  "overall_kind_agreement_rate": 0.4166666666666667,
+  "overall_n": 36,
+  "total_input_tokens": 24522,
+  "estimated_cost_usd": 0.001029924,
+  "detail": [
+    {
+      "pilot": "drums",
+      "rows": [
+        {
+          "scenario": "empty_lane_push",
+          "description": "Nothing visible; early clock. Tests baseline lane-push / positioning with no threats.",
+          "ground_truth": {
+            "kind": "move",
+            "target": {
+              "x": 305,
+              "y": 495
+            },
+            "ability": null,
+            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":305,\"y\":495}}"
+          },
+          "predicted": {
+            "kind": "move",
+            "target": {
+              "x": 900,
+              "y": 100
+            },
+            "ability": null,
+            "fired_rule": null
+          },
+          "guard_answers": [],
+          "kind_match": true,
+          "ability_match": null,
+          "target_id_match": null,
+          "input_tokens": 657,
+          "latency_sec": 0.5069560999982059
+        },
+        {
+          "scenario": "low_hp_recall_under_pressure",
+          "description": "Self below the quarter-health line, an enemy bearbot nearby, ability ready. Tests whether hp overrides everything else.",
+          "ground_truth": {
+            "kind": "attack",
+            "target": "enemy-near",
+            "ability": null,
+            "raw_reply": "{\"kind\":\"attack\",\"target\":\"enemy-near\"}"
+          },
+          "predicted": {
+            "kind": "recall",
+            "target": null,
+            "ability": null,
+            "fired_rule": "critical_health_retreat"
+          },
+          "guard_answers": [],
+          "kind_match": false,
+          "ability_match": null,
+          "target_id_match": null,
+          "input_tokens": 638,
+          "latency_sec": 0.6558119999972405
+        },
+        {
+          "scenario": "melee_range_enemy_ability_ready",
+          "description": "One enemy bearbot essentially adjacent (small dx/dy), ability ready, self healthy. Tests close-range engagement vs. flee-the-melee-range logic.",
+          "ground_truth": {
+            "kind": "attack",
+            "target": "enemy-adjacent",
+            "ability": null,
+            "raw_reply": "{\"kind\":\"attack\",\"target\":\"enemy-adjacent\"}"
+          },
+          "predicted": {
+            "kind": "ability",
+            "target": "enemy-adjacent",
+            "ability": "kick",
+            "fired_rule": "kick_on_close_enemy"
+          },
+          "guard_answers": [],
+          "kind_match": false,
+          "ability_match": null,
+          "target_id_match": true,
+          "input_tokens": 640,
+          "latency_sec": 0.33700430000317283
+        },
+        {
+          "scenario": "ranged_enemy_far",
+          "description": "One enemy bearbot far away (large dx/dy), ability ready, self healthy. Tests ranged engagement / closing distance.",
+          "ground_truth": {
+            "kind": "move",
+            "target": {
+              "x": 350,
+              "y": 500
+            },
+            "ability": null,
+            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":350,\"y\":500}}"
+          },
+          "predicted": {
+            "kind": "attack",
+            "target": "enemy-far",
+            "ability": null,
+            "fired_rule": "attack_nearest_bearbot"
+          },
+          "guard_answers": [],
+          "kind_match": false,
+          "ability_match": null,
+          "target_id_match": null,
+          "input_tokens": 639,
+          "latency_sec": 0.6855981999979122
+        },
+        {
+          "scenario": "clustered_enemies",
+          "description": "Two enemy bearbots plus a minion, all close together. Tests AoE / densest-cluster target selection (drums Fill, keytar Chord).",
+          "ground_truth": {
+            "kind": "attack",
+            "target": "enemy-clusterA",
+            "ability": null,
+            "raw_reply": "{\"kind\":\"attack\",\"target\":\"enemy-clusterA\"}"
+          },
+          "predicted": {
+            "kind": "ability",
+            "target": "enemy-clusterA",
+            "ability": "kick",
+            "fired_rule": "kick_on_close_enemy"
+          },
+          "guard_answers": [],
+          "kind_match": false,
+          "ability_match": null,
+          "target_id_match": true,
+          "input_tokens": 689,
+          "latency_sec": 0.38490140000067186
+        },
+        {
+          "scenario": "ability_on_cooldown_enemy_present",
+          "description": "Enemy bearbot at medium range, ability NOT ready. Tests fallback (basic attack only) behavior.",
+          "ground_truth": {
+            "kind": "attack",
+            "target": "enemy-mid",
+            "ability": "kick",
+            "raw_reply": "{\"kind\":\"attack\",\"target\":\"enemy-mid\",\"ability\":\"kick\"}"
+          },
+          "predicted": {
+            "kind": "ability",
+            "target": "enemy-mid",
+            "ability": "kick",
+            "fired_rule": "kick_on_close_enemy"
+          },
+          "guard_answers": [],
+          "kind_match": false,
+          "ability_match": null,
+          "target_id_match": true,
+          "input_tokens": 639,
+          "latency_sec": 0.31155220000073314
+        },
+        {
+          "scenario": "ally_under_threat",
+          "description": "Self is far from the action and full hp; an ally is low hp with an enemy bearbot near that ally (not near self). Tests drums.md's 'enemy near ally is my problem' rule specifically.",
+          "ground_truth": {
+            "kind": "attack",
+            "target": "enemy-near-ally",
+            "ability": "kick",
+            "raw_reply": "{\"kind\":\"attack\",\"target\":\"enemy-near-ally\",\"ability\":\"kick\"}"
+          },
+          "predicted": {
+            "kind": "attack",
+            "target": "enemy-near-ally",
+            "ability": null,
+            "fired_rule": "attack_threatening_ally"
+          },
+          "guard_answers": [],
+          "kind_match": true,
+          "ability_match": null,
+          "target_id_match": true,
+          "input_tokens": 686,
+          "latency_sec": 0.6433109999998123
+        },
+        {
+          "scenario": "isolated_vs_grouped_enemy",
+          "description": "One enemy bearbot alone far away; two enemy bearbots grouped together at similar distance. Tests violin.md's isolated-target preference.",
+          "ground_truth": {
+            "kind": "move",
+            "target": {
+              "x": 640,
+              "y": 520
+            },
+            "ability": null,
+            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":640,\"y\":520}}"
+          },
+          "predicted": {
+            "kind": "ability",
+            "target": "enemy-groupA",
+            "ability": "fill",
+            "fired_rule": "fill_on_cluster"
+          },
+          "guard_answers": [],
+          "kind_match": false,
+          "ability_match": null,
+          "target_id_match": null,
+          "input_tokens": 699,
+          "latency_sec": 0.30532099999982165
+        },
+        {
+          "scenario": "enemy_tower_only",
+          "description": "No enemy bearbot; one enemy tower visible. Tests tower engagement / poke-only behavior.",
+          "ground_truth": {
+            "kind": "move",
+            "target": {
+              "x": 400,
+              "y": 500
+            },
+            "ability": null,
+            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":400,\"y\":500}}"
+          },
+          "predicted": {
+            "kind": "move",
+            "target": {
+              "x": 900,
+              "y": 100
+            },
+            "ability": null,
+            "fired_rule": null
+          },
+          "guard_answers": [],
+          "kind_match": true,
+          "ability_match": null,
+          "target_id_match": null,
+          "input_tokens": 638,
+          "latency_sec": 0.2881684000021778
+        },
+        {
+          "scenario": "hp_exactly_at_threshold",
+          "description": "Self hp exactly at the quarter-health boundary, enemy present, ability ready. Edge case for the recall threshold.",
+          "ground_truth": {
+            "kind": "attack",
+            "target": "enemy-boundary",
+            "ability": "kick",
+            "raw_reply": "{\"kind\":\"attack\",\"target\":\"enemy-boundary\",\"ability\":\"kick\"}"
+          },
+          "predicted": {
+            "kind": "ability",
+            "target": "enemy-boundary",
+            "ability": "kick",
+            "fired_rule": "kick_on_close_enemy"
+          },
+          "guard_answers": [],
+          "kind_match": false,
+          "ability_match": null,
+          "target_id_match": true,
+          "input_tokens": 639,
+          "latency_sec": 0.3351970000003348
+        },
+        {
+          "scenario": "minion_wave_poke",
+          "description": "Several allied minions nearby, no visible enemies. Tests lane-push / poke-the-wave baseline, distinguished from empty_lane_push by minion presence.",
+          "ground_truth": {
+            "kind": "move",
+            "target": {
+              "x": 340,
+              "y": 520
+            },
+            "ability": null,
+            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":340,\"y\":520}}"
+          },
+          "predicted": {
+            "kind": "move",
+            "target": {
+              "x": 900,
+              "y": 100
+            },
+            "ability": null,
+            "fired_rule": null
+          },
+          "guard_answers": [],
+          "kind_match": true,
+          "ability_match": null,
+          "target_id_match": null,
+          "input_tokens": 651,
+          "latency_sec": 0.31533260000287555
+        },
+        {
+          "scenario": "softest_target_selection",
+          "description": "Two enemy bearbots visible: one close but nearly full hp, one far but almost dead. Tests nearest-vs-lowest-hp target selection.",
+          "ground_truth": {
+            "kind": "attack",
+            "target": "enemy-close-healthy",
+            "ability": null,
+            "raw_reply": "{\"kind\":\"attack\",\"target\":\"enemy-close-healthy\"}"
+          },
+          "predicted": {
+            "kind": "ability",
+            "target": "enemy-close-healthy",
+            "ability": "kick",
+            "fired_rule": "kick_on_close_enemy"
+          },
+          "guard_answers": [],
+          "kind_match": false,
+          "ability_match": null,
+          "target_id_match": true,
+          "input_tokens": 671,
+          "latency_sec": 0.31901339999603806
+        }
+      ]
+    },
+    {
+      "pilot": "keytar",
+      "rows": [
+        {
+          "scenario": "empty_lane_push",
+          "description": "Nothing visible; early clock. Tests baseline lane-push / positioning with no threats.",
+          "ground_truth": {
+            "kind": "move",
+            "target": {
+              "x": 350,
+              "y": 500
+            },
+            "ability": null,
+            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":350,\"y\":500}}"
+          },
+          "predicted": {
+            "kind": "move",
+            "target": {
+              "x": 900,
+              "y": 100
+            },
+            "ability": null,
+            "fired_rule": null
+          },
+          "guard_answers": [],
+          "kind_match": true,
+          "ability_match": null,
+          "target_id_match": null,
+          "input_tokens": 621,
+          "latency_sec": 0.44336610000027576
+        },
+        {
+          "scenario": "low_hp_recall_under_pressure",
+          "description": "Self below the quarter-health line, an enemy bearbot nearby, ability ready. Tests whether hp overrides everything else.",
+          "ground_truth": {
+            "kind": "move",
+            "target": {
+              "x": 290,
+              "y": 490
+            },
+            "ability": null,
+            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":290,\"y\":490}}"
+          },
+          "predicted": {
+            "kind": "recall",
+            "target": null,
+            "ability": null,
+            "fired_rule": "critical_health"
+          },
+          "guard_answers": [],
+          "kind_match": false,
+          "ability_match": null,
+          "target_id_match": null,
+          "input_tokens": 602,
+          "latency_sec": 0.3307591999982833
+        },
+        {
+          "scenario": "melee_range_enemy_ability_ready",
+          "description": "One enemy bearbot essentially adjacent (small dx/dy), ability ready, self healthy. Tests close-range engagement vs. flee-the-melee-range logic.",
+          "ground_truth": {
+            "kind": "move",
+            "target": {
+              "x": 280,
+              "y": 490
+            },
+            "ability": null,
+            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":280,\"y\":490}}"
+          },
+          "predicted": {
+            "kind": "ability",
+            "target": null,
+            "ability": "glissando",
+            "fired_rule": "melee_threat"
+          },
+          "guard_answers": [],
+          "kind_match": false,
+          "ability_match": null,
+          "target_id_match": null,
+          "input_tokens": 604,
+          "latency_sec": 0.7092421999986982
+        },
+        {
+          "scenario": "ranged_enemy_far",
+          "description": "One enemy bearbot far away (large dx/dy), ability ready, self healthy. Tests ranged engagement / closing distance.",
+          "ground_truth": {
+            "kind": "move",
+            "target": {
+              "x": 300,
+              "y": 500
+            },
+            "ability": null,
+            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":300,\"y\":500}}"
+          },
+          "predicted": {
+            "kind": "ability",
+            "target": "enemy-far",
+            "ability": "chord",
+            "fired_rule": "chord_available"
+          },
+          "guard_answers": [],
+          "kind_match": false,
+          "ability_match": null,
+          "target_id_match": null,
+          "input_tokens": 603,
+          "latency_sec": 0.3404771999994409
+        },
+        {
+          "scenario": "clustered_enemies",
+          "description": "Two enemy bearbots plus a minion, all close together. Tests AoE / densest-cluster target selection (drums Fill, keytar Chord).",
+          "ground_truth": {
+            "kind": "ability",
+            "target": {
+              "x": 420,
+              "y": 460
+            },
+            "ability": "chord",
+            "raw_reply": "{\"kind\":\"ability\",\"ability\":\"chord\",\"target\":{\"x\":420,\"y\":460}}"
+          },
+          "predicted": {
+            "kind": "ability",
+            "target": "enemy-clusterA",
+            "ability": "chord",
+            "fired_rule": "chord_available"
+          },
+          "guard_answers": [],
+          "kind_match": true,
+          "ability_match": true,
+          "target_id_match": null,
+          "input_tokens": 653,
+          "latency_sec": 0.43125639999925625
+        },
+        {
+          "scenario": "ability_on_cooldown_enemy_present",
+          "description": "Enemy bearbot at medium range, ability NOT ready. Tests fallback (basic attack only) behavior.",
+          "ground_truth": {
+            "kind": "move",
+            "target": {
+              "x": 350,
+              "y": 500
+            },
+            "ability": null,
+            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":350,\"y\":500}}"
+          },
+          "predicted": {
+            "kind": "move",
+            "target": {
+              "x": 900,
+              "y": 100
+            },
+            "ability": null,
+            "fired_rule": null
+          },
+          "guard_answers": [],
+          "kind_match": true,
+          "ability_match": null,
+          "target_id_match": null,
+          "input_tokens": 603,
+          "latency_sec": 0.32000730000436306
+        },
+        {
+          "scenario": "ally_under_threat",
+          "description": "Self is far from the action and full hp; an ally is low hp with an enemy bearbot near that ally (not near self). Tests drums.md's 'enemy near ally is my problem' rule specifically.",
+          "ground_truth": {
+            "kind": "ability",
+            "target": {
+              "x": 715,
+              "y": 210
+            },
+            "ability": "chord",
+            "raw_reply": "{\"kind\":\"ability\",\"ability\":\"chord\",\"target\":{\"x\":715,\"y\":210}}"
+          },
+          "predicted": {
+            "kind": "ability",
+            "target": "enemy-near-ally",
+            "ability": "chord",
+            "fired_rule": "chord_available"
+          },
+          "guard_answers": [],
+          "kind_match": true,
+          "ability_match": true,
+          "target_id_match": null,
+          "input_tokens": 650,
+          "latency_sec": 0.33844479999970645
+        },
+        {
+          "scenario": "isolated_vs_grouped_enemy",
+          "description": "One enemy bearbot alone far away; two enemy bearbots grouped together at similar distance. Tests violin.md's isolated-target preference.",
+          "ground_truth": {
+            "kind": "ability",
+            "target": {
+              "x": 307.5,
+              "y": 855
+            },
+            "ability": "chord",
+            "raw_reply": "{\"kind\":\"ability\",\"ability\":\"chord\",\"target\":{\"x\":307.5,\"y\":855}}"
+          },
+          "predicted": {
+            "kind": "ability",
+            "target": "enemy-groupA",
+            "ability": "chord",
+            "fired_rule": "chord_available"
+          },
+          "guard_answers": [],
+          "kind_match": true,
+          "ability_match": true,
+          "target_id_match": null,
+          "input_tokens": 663,
+          "latency_sec": 0.3479256999999052
+        },
+        {
+          "scenario": "enemy_tower_only",
+          "description": "No enemy bearbot; one enemy tower visible. Tests tower engagement / poke-only behavior.",
+          "ground_truth": {
+            "kind": "move",
+            "target": {
+              "x": 400,
+              "y": 500
+            },
+            "ability": null,
+            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":400,\"y\":500}}"
+          },
+          "predicted": {
+            "kind": "ability",
+            "target": "tower-enemy",
+            "ability": "chord",
+            "fired_rule": "chord_available"
+          },
+          "guard_answers": [],
+          "kind_match": false,
+          "ability_match": null,
+          "target_id_match": null,
+          "input_tokens": 602,
+          "latency_sec": 0.3131264999974519
+        },
+        {
+          "scenario": "hp_exactly_at_threshold",
+          "description": "Self hp exactly at the quarter-health boundary, enemy present, ability ready. Edge case for the recall threshold.",
+          "ground_truth": {
+            "kind": "move",
+            "target": {
+              "x": 350,
+              "y": 500
+            },
+            "ability": null,
+            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":350,\"y\":500}}"
+          },
+          "predicted": {
+            "kind": "ability",
+            "target": "enemy-boundary",
+            "ability": "chord",
+            "fired_rule": "chord_available"
+          },
+          "guard_answers": [],
+          "kind_match": false,
+          "ability_match": null,
+          "target_id_match": null,
+          "input_tokens": 603,
+          "latency_sec": 0.9009541999985231
+        },
+        {
+          "scenario": "minion_wave_poke",
+          "description": "Several allied minions nearby, no visible enemies. Tests lane-push / poke-the-wave baseline, distinguished from empty_lane_push by minion presence.",
+          "ground_truth": {
+            "kind": "attack",
+            "target": {
+              "x": 340,
+              "y": 520
+            },
+            "ability": null,
+            "raw_reply": "{\"kind\":\"attack\",\"target\":{\"x\":340,\"y\":520}}"
+          },
+          "predicted": {
+            "kind": "ability",
+            "target": null,
+            "ability": "chord",
+            "fired_rule": "chord_available"
+          },
+          "guard_answers": [],
+          "kind_match": false,
+          "ability_match": null,
+          "target_id_match": null,
+          "input_tokens": 615,
+          "latency_sec": 0.34917240000504535
+        },
+        {
+          "scenario": "softest_target_selection",
+          "description": "Two enemy bearbots visible: one close but nearly full hp, one far but almost dead. Tests nearest-vs-lowest-hp target selection.",
+          "ground_truth": {
+            "kind": "move",
+            "target": {
+              "x": 295,
+              "y": 495
+            },
+            "ability": null,
+            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":295,\"y\":495}}"
+          },
+          "predicted": {
+            "kind": "ability",
+            "target": null,
+            "ability": "glissando",
+            "fired_rule": "melee_threat"
+          },
+          "guard_answers": [],
+          "kind_match": false,
+          "ability_match": null,
+          "target_id_match": null,
+          "input_tokens": 635,
+          "latency_sec": 1.045732600003248
+        }
+      ]
+    },
+    {
+      "pilot": "violin",
+      "rows": [
+        {
+          "scenario": "empty_lane_push",
+          "description": "Nothing visible; early clock. Tests baseline lane-push / positioning with no threats.",
+          "ground_truth": {
+            "kind": "move",
+            "target": {
+              "x": 350,
+              "y": 500
+            },
+            "ability": null,
+            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":350,\"y\":500}}"
+          },
+          "predicted": {
+            "kind": "move",
+            "target": {
+              "x": 900,
+              "y": 100
+            },
+            "ability": null,
+            "fired_rule": null
+          },
+          "guard_answers": [
+            {
+              "guard_id": "isolated_target_present",
+              "answer": false
+            }
+          ],
+          "kind_match": true,
+          "ability_match": null,
+          "target_id_match": null,
+          "input_tokens": 765,
+          "latency_sec": 0.8055931999988388
+        },
+        {
+          "scenario": "low_hp_recall_under_pressure",
+          "description": "Self below the quarter-health line, an enemy bearbot nearby, ability ready. Tests whether hp overrides everything else.",
+          "ground_truth": {
+            "kind": "attack",
+            "target": "enemy-near",
+            "ability": "staccato",
+            "raw_reply": "{\"kind\":\"attack\",\"target\":\"enemy-near\",\"ability\":\"staccato\"}"
+          },
+          "predicted": {
+            "kind": "recall",
+            "target": null,
+            "ability": null,
+            "fired_rule": "critical_low_hp"
+          },
+          "guard_answers": [],
+          "kind_match": false,
+          "ability_match": null,
+          "target_id_match": null,
+          "input_tokens": 746,
+          "latency_sec": 0.3467132000005222
+        },
+        {
+          "scenario": "melee_range_enemy_ability_ready",
+          "description": "One enemy bearbot essentially adjacent (small dx/dy), ability ready, self healthy. Tests close-range engagement vs. flee-the-melee-range logic.",
+          "ground_truth": {
+            "kind": "attack",
+            "target": "enemy-adjacent",
+            "ability": "staccato",
+            "raw_reply": "{\"kind\":\"attack\",\"target\":\"enemy-adjacent\",\"ability\":\"staccato\"}"
+          },
+          "predicted": {
+            "kind": "ability",
+            "target": "enemy-adjacent",
+            "ability": "staccato",
+            "fired_rule": "staccato_on_isolated"
+          },
+          "guard_answers": [
+            {
+              "guard_id": "isolated_target_present",
+              "answer": true
+            }
+          ],
+          "kind_match": false,
+          "ability_match": null,
+          "target_id_match": true,
+          "input_tokens": 748,
+          "latency_sec": 0.3425589999969816
+        },
+        {
+          "scenario": "ranged_enemy_far",
+          "description": "One enemy bearbot far away (large dx/dy), ability ready, self healthy. Tests ranged engagement / closing distance.",
+          "ground_truth": {
+            "kind": "move",
+            "target": {
+              "x": 820,
+              "y": 140
+            },
+            "ability": null,
+            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":820,\"y\":140}}"
+          },
+          "predicted": {
+            "kind": "move",
+            "target": "enemy-far",
+            "ability": null,
+            "fired_rule": "approach_isolated"
+          },
+          "guard_answers": [
+            {
+              "guard_id": "isolated_target_present",
+              "answer": true
+            }
+          ],
+          "kind_match": true,
+          "ability_match": null,
+          "target_id_match": null,
+          "input_tokens": 747,
+          "latency_sec": 0.31305710000015097
+        },
+        {
+          "scenario": "clustered_enemies",
+          "description": "Two enemy bearbots plus a minion, all close together. Tests AoE / densest-cluster target selection (drums Fill, keytar Chord).",
+          "ground_truth": {
+            "kind": "move",
+            "target": {
+              "x": 435,
+              "y": 470
+            },
+            "ability": null,
+            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":435,\"y\":470}}"
+          },
+          "predicted": {
+            "kind": "ability",
+            "target": "enemy-clusterA",
+            "ability": "staccato",
+            "fired_rule": "staccato_on_isolated"
+          },
+          "guard_answers": [
+            {
+              "guard_id": "isolated_target_present",
+              "answer": true
+            }
+          ],
+          "kind_match": false,
+          "ability_match": null,
+          "target_id_match": null,
+          "input_tokens": 797,
+          "latency_sec": 0.28411570000025677
+        },
+        {
+          "scenario": "ability_on_cooldown_enemy_present",
+          "description": "Enemy bearbot at medium range, ability NOT ready. Tests fallback (basic attack only) behavior.",
+          "ground_truth": {
+            "kind": "move",
+            "target": {
+              "x": 480,
+              "y": 480
+            },
+            "ability": null,
+            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":480,\"y\":480}}"
+          },
+          "predicted": {
+            "kind": "move",
+            "target": "enemy-mid",
+            "ability": null,
+            "fired_rule": "approach_isolated"
+          },
+          "guard_answers": [
+            {
+              "guard_id": "isolated_target_present",
+              "answer": true
+            }
+          ],
+          "kind_match": true,
+          "ability_match": null,
+          "target_id_match": null,
+          "input_tokens": 747,
+          "latency_sec": 0.3255609000043478
+        },
+        {
+          "scenario": "ally_under_threat",
+          "description": "Self is far from the action and full hp; an ally is low hp with an enemy bearbot near that ally (not near self). Tests drums.md's 'enemy near ally is my problem' rule specifically.",
+          "ground_truth": {
+            "kind": "move",
+            "target": {
+              "x": 715,
+              "y": 210
+            },
+            "ability": null,
+            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":715,\"y\":210}}"
+          },
+          "predicted": {
+            "kind": "move",
+            "target": "enemy-near-ally",
+            "ability": null,
+            "fired_rule": "approach_isolated"
+          },
+          "guard_answers": [
+            {
+              "guard_id": "isolated_target_present",
+              "answer": true
+            }
+          ],
+          "kind_match": true,
+          "ability_match": null,
+          "target_id_match": null,
+          "input_tokens": 794,
+          "latency_sec": 0.6691444000025513
+        },
+        {
+          "scenario": "isolated_vs_grouped_enemy",
+          "description": "One enemy bearbot alone far away; two enemy bearbots grouped together at similar distance. Tests violin.md's isolated-target preference.",
+          "ground_truth": {
+            "kind": "move",
+            "target": {
+              "x": 640,
+              "y": 520
+            },
+            "ability": null,
+            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":640,\"y\":520}}"
+          },
+          "predicted": {
+            "kind": "move",
+            "target": "enemy-isolated",
+            "ability": null,
+            "fired_rule": "approach_isolated"
+          },
+          "guard_answers": [
+            {
+              "guard_id": "isolated_target_present",
+              "answer": true
+            }
+          ],
+          "kind_match": true,
+          "ability_match": null,
+          "target_id_match": null,
+          "input_tokens": 807,
+          "latency_sec": 0.6677748999936739
+        },
+        {
+          "scenario": "enemy_tower_only",
+          "description": "No enemy bearbot; one enemy tower visible. Tests tower engagement / poke-only behavior.",
+          "ground_truth": {
+            "kind": "move",
+            "target": {
+              "x": 400,
+              "y": 500
+            },
+            "ability": null,
+            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":400,\"y\":500}}"
+          },
+          "predicted": {
+            "kind": "ability",
+            "target": "tower-enemy",
+            "ability": "staccato",
+            "fired_rule": "staccato_on_isolated"
+          },
+          "guard_answers": [
+            {
+              "guard_id": "isolated_target_present",
+              "answer": true
+            }
+          ],
+          "kind_match": false,
+          "ability_match": null,
+          "target_id_match": null,
+          "input_tokens": 746,
+          "latency_sec": 0.9436945999987074
+        },
+        {
+          "scenario": "hp_exactly_at_threshold",
+          "description": "Self hp exactly at the quarter-health boundary, enemy present, ability ready. Edge case for the recall threshold.",
+          "ground_truth": {
+            "kind": "move",
+            "target": {
+              "x": 420,
+              "y": 480
+            },
+            "ability": null,
+            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":420,\"y\":480}}"
+          },
+          "predicted": {
+            "kind": "ability",
+            "target": "enemy-boundary",
+            "ability": "staccato",
+            "fired_rule": "staccato_on_isolated"
+          },
+          "guard_answers": [
+            {
+              "guard_id": "isolated_target_present",
+              "answer": true
+            }
+          ],
+          "kind_match": false,
+          "ability_match": null,
+          "target_id_match": null,
+          "input_tokens": 747,
+          "latency_sec": 0.3630252000002656
+        },
+        {
+          "scenario": "minion_wave_poke",
+          "description": "Several allied minions nearby, no visible enemies. Tests lane-push / poke-the-wave baseline, distinguished from empty_lane_push by minion presence.",
+          "ground_truth": {
+            "kind": "move",
+            "target": {
+              "x": 340,
+              "y": 520
+            },
+            "ability": null,
+            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":340,\"y\":520}}"
+          },
+          "predicted": {
+            "kind": "move",
+            "target": {
+              "x": 900,
+              "y": 100
+            },
+            "ability": null,
+            "fired_rule": null
+          },
+          "guard_answers": [
+            {
+              "guard_id": "isolated_target_present",
+              "answer": false
+            }
+          ],
+          "kind_match": true,
+          "ability_match": null,
+          "target_id_match": null,
+          "input_tokens": 759,
+          "latency_sec": 0.4323565000013332
+        },
+        {
+          "scenario": "softest_target_selection",
+          "description": "Two enemy bearbots visible: one close but nearly full hp, one far but almost dead. Tests nearest-vs-lowest-hp target selection.",
+          "ground_truth": {
+            "kind": "move",
+            "target": {
+              "x": 780,
+              "y": 160
+            },
+            "ability": null,
+            "raw_reply": "{\"kind\":\"move\",\"target\":{\"x\":780,\"y\":160}}"
+          },
+          "predicted": {
+            "kind": "ability",
+            "target": "enemy-close-healthy",
+            "ability": "staccato",
+            "fired_rule": "staccato_on_isolated"
+          },
+          "guard_answers": [
+            {
+              "guard_id": "isolated_target_present",
+              "answer": true
+            }
+          ],
+          "kind_match": false,
+          "ability_match": null,
+          "target_id_match": null,
+          "input_tokens": 779,
+          "latency_sec": 0.7034453999949619
+        }
+      ]
+    }
+  ]
+}

@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
-"""The text-generation backends the entrant compile preview (`compile.py`) can translate prose with:
-host **Ollama** (free, local) or **OpenRouter** (hosted, key from `$OPENROUTER_API_KEY`). Both run
-the same model by default -- `qwen3.5:9b` locally, `qwen/qwen3.5-9b` on OpenRouter -- so the three
-entrant-facing doors (`docs/entrant-compile-preview.md`) compile with the model the translator was
-measured on (`docs/prose-to-schema-translator.md` §2), whichever door an entrant uses.
+"""The text-generation backends the prose-to-schema translator can run on: host **Ollama** (free,
+local, the shipped default), **OpenRouter** (hosted, key from `$OPENROUTER_API_KEY`, what the
+entrant compile preview's `compile.py` uses for entrants without a GPU), and **Claude**, added
+2026-09-26 for the translator A/B in `docs/translator-guards-and-defaults-spec.md` §9 -- shells out to
+the `claude` CLI on a subscription (never the metered API; see `ClaudeCliBackend`), for the
+translator step only, never the game/arena model path (`tools/model_server.py`'s own, separate
+`ClaudeBackend`). Ollama and OpenRouter run the same model by default -- `qwen3.5:9b` locally,
+`qwen/qwen3.5-9b` on OpenRouter -- so the three entrant-facing doors
+(`docs/entrant-compile-preview.md`) compile with the model the translator was measured on
+(`docs/prose-to-schema-translator.md` §2), whichever door an entrant uses.
 
 Each backend exposes one call, `generate(prompt) -> str`, which is exactly the shape
 `translator.translate_pilot(generate=...)` takes, and keeps a running `Usage` (calls, prompt and
@@ -12,14 +17,20 @@ completion tokens, USD) so a caller can report real spend, not an estimate.
 SPEND CAP. `TokenBudget` is checked *before* every call: a call is refused (`BudgetExceeded`) unless
 the tokens already spent plus this call's worst case (its estimated prompt tokens plus `max_tokens`
 of completion) fit under the cap. So a run can never overshoot its cap by more than zero -- the cap
-is the ceiling the PR bot and the Elysium panel promise, not a target they drift past.
+is the ceiling the PR bot and the Elysium panel promise, not a target they drift past. `ClaudeCliBackend`
+reports `total_cost_usd` the same way (what the call would have billed on the metered API) for
+comparability, even though it is drawn from a subscription's usage window, not real API dollars.
 
-Standard library only, so the PR bot's runner needs nothing but Python.
+Standard library only for Ollama/OpenRouter, so the PR bot's runner needs nothing but Python;
+`ClaudeCliBackend` additionally needs the `claude` CLI on PATH.
 """
 from __future__ import annotations
 
 import json
 import os
+import shutil
+import subprocess
+import sys
 import threading
 import time
 import urllib.error
@@ -28,6 +39,7 @@ from dataclasses import dataclass
 
 DEFAULT_OLLAMA_MODEL = "qwen3.5:9b"
 DEFAULT_OPENROUTER_MODEL = "qwen/qwen3.5-9b"
+DEFAULT_CLAUDE_MODEL = "claude-haiku-4-5-20251001"
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 # USD per million tokens for the default OpenRouter model (openrouter.ai/api/v1/models, 2026-09-25).
 # Used only when a response doesn't carry OpenRouter's own `usage.cost`.
@@ -229,6 +241,88 @@ class OpenRouterBackend(Backend):
         return text, prompt_tokens, completion_tokens, float(cost)
 
 
+class ClaudeCliBackend(Backend):
+    """Shells out to the `claude` CLI on Ceryce's own subscription (`claude -p --model <model>
+    --output-format json`), for the prose-to-schema TRANSLATOR step only -- the same shape
+    `tools/model_server.py::ClaudeBackend` already uses for the arena/game model path, reimplemented
+    here rather than imported so this module never has to import from `tools/` outside `tools/jev/`
+    and so the translator's backend list stays self-contained (`docs/prose-to-schema-translator.md`).
+
+    `--tools ""` / `--safe-mode` / `--no-session-persistence` skip loading this repo's own tool
+    defs, CLAUDE.md, hooks, and skills, none of which a plain text-in/text-out translation prompt
+    needs -- measured live 2026-09-26, this drops a trivial smoke-test call from ~37k cache-creation
+    input tokens (the full agent system prompt) to ~4k plain input tokens, at $0.0745 -> $0.0043
+    reported `total_cost_usd` per call (that figure is what the API would have billed, not a
+    subscription charge -- see below).
+
+    `ANTHROPIC_API_KEY` is always popped from the child's environment before every call, whether or
+    not it was set in this process, so a translation run can never silently fall back to metered API
+    billing instead of drawing from the subscription's own usage window -- the one hard requirement
+    on this backend, not a guess. `CLAUDECODE`/`CLAUDE_CODE_ENTRYPOINT` are popped too, the same fix
+    `ClaudeBackend` already carries: a nested `claude` refuses to start inside another Claude Code
+    session unless those go first.
+
+    `effort`, default `"low"`: the CLI has no flag to disable Claude's own extended thinking the way
+    Ollama's `think: false` disables qwen's (checked -- there is none), so a translation call spends
+    an uncontrolled number of tokens reasoning before it ever writes JSON. Measured live 2026-09-26,
+    one violin.md translation cost 84.5s/10,678 completion tokens/$0.065 (would-be API cost) at the
+    CLI's default effort, and 71.1s/8,691/$0.044 at `--effort low` -- lower, not eliminated. Kept
+    configurable rather than hardcoded so a caller can trade it off explicitly; `"low"` is the default
+    because the task this backend was built for ("keep subscription use proportionate") argues for it."""
+
+    kind = "claude"
+
+    def __init__(
+        self,
+        model: str = DEFAULT_CLAUDE_MODEL,
+        budget: TokenBudget | None = None,
+        max_tokens: int = MAX_COMPLETION_TOKENS,
+        timeout: float = 180.0,
+        executable: str | None = None,
+        effort: str | None = "low",
+    ):
+        super().__init__(model, budget=budget, max_tokens=max_tokens, timeout=timeout)
+        self.executable = executable or shutil.which("claude") or "claude"
+        self.effort = effort
+
+    def _command(self) -> list[str]:
+        cmd = [
+            self.executable, "-p", "--model", self.model, "--output-format", "json",
+            "--tools", "", "--safe-mode", "--no-session-persistence",
+        ]
+        if self.effort:
+            cmd += ["--effort", self.effort]
+        return cmd
+
+    def _call(self, prompt: str) -> tuple[str, int, int, float]:
+        env = dict(os.environ)
+        env.pop("CLAUDECODE", None)
+        env.pop("CLAUDE_CODE_ENTRYPOINT", None)
+        env.pop("ANTHROPIC_API_KEY", None)
+        try:
+            proc = subprocess.run(
+                self._command(), input=prompt, capture_output=True, text=True, encoding="utf-8",
+                env=env, timeout=self.timeout, shell=sys.platform == "win32",
+            )
+        except subprocess.TimeoutExpired as err:
+            raise BackendError(f"claude timed out after {self.timeout}s") from err
+        if proc.returncode != 0:
+            raise BackendError(f"claude exited {proc.returncode}: {proc.stderr.strip()[:300]}")
+        try:
+            payload = json.loads(proc.stdout)
+        except json.JSONDecodeError:
+            text = proc.stdout
+            return text, estimate_tokens(prompt), estimate_tokens(text), 0.0
+        if payload.get("is_error"):
+            raise BackendError(f"claude reported an error: {str(payload.get('result'))[:300]}")
+        text = payload.get("result", "")
+        usage = payload.get("usage") or {}
+        prompt_tokens = int(usage.get("input_tokens") or estimate_tokens(prompt))
+        completion_tokens = int(usage.get("output_tokens") or estimate_tokens(text))
+        cost = float(payload.get("total_cost_usd") or 0.0)
+        return text, prompt_tokens, completion_tokens, cost
+
+
 class ScriptedBackend(Backend):
     """Offline stand-in for tests and dry runs: replays canned replies in order (cycling), with
     token counts estimated from the text. Never touches the network."""
@@ -248,9 +342,12 @@ class ScriptedBackend(Backend):
 
 
 def make_backend(kind: str, model: str | None = None, budget: TokenBudget | None = None, *, ollama_url: str | None = None,
-                 api_key_env: str = "OPENROUTER_API_KEY", timeout: float = 120.0) -> Backend:
+                 api_key_env: str = "OPENROUTER_API_KEY", timeout: float = 120.0, executable: str | None = None,
+                 effort: str | None = "low") -> Backend:
     if kind == "ollama":
         return OllamaBackend(model or DEFAULT_OLLAMA_MODEL, url=ollama_url, budget=budget, timeout=timeout)
     if kind == "openrouter":
         return OpenRouterBackend(os.environ.get(api_key_env, ""), model or DEFAULT_OPENROUTER_MODEL, budget=budget, timeout=timeout)
-    raise ValueError(f"unknown backend {kind!r} (ollama or openrouter)")
+    if kind == "claude":
+        return ClaudeCliBackend(model or DEFAULT_CLAUDE_MODEL, budget=budget, timeout=timeout if timeout != 120.0 else 180.0, executable=executable, effort=effort)
+    raise ValueError(f"unknown backend {kind!r} (ollama, openrouter, or claude)")
