@@ -72,10 +72,13 @@ function mergeDeep(base, over) {
 }
 
 /**
- * Create a campaign: pre-registered config, the seed genomes, and the starting state. The first
- * seed prompt is the first opponent (Ceryce's loop: you start by trying to beat a prompt).
+ * Create a campaign: pre-registered config, the seed genomes, and the starting state. You start by
+ * trying to beat a prompt (Ceryce's loop). With `opponentPrompts`, those are the first opponents
+ * and are never evolved: the seed prompts are the lineage, the only parents (a single-archetype
+ * lineage run as its own campaign, spec §6). Without them the first seed prompt is the first
+ * opponent and also a parent.
  */
-export function initCampaign(store, { name, overrides = {}, seedPrompts }) {
+export function initCampaign(store, { name, overrides = {}, seedPrompts, opponentPrompts = [] }) {
   if (store.exists('campaign.json')) throw new Error(`a campaign already exists in ${store.dir}`);
   if (!seedPrompts?.length) throw new Error('init needs at least one seed prompt');
   const campaign = mergeDeep(DEFAULT_CAMPAIGN, overrides);
@@ -84,22 +87,27 @@ export function initCampaign(store, { name, overrides = {}, seedPrompts }) {
   if (!['latest', 'hall-of-fame'].includes(campaign.epoch.opponents)) throw new Error('epoch.opponents is "latest" or "hall-of-fame"');
   const cap = campaign.epoch.hallOfFameCap;
   if (cap !== null && cap !== undefined && !(Number.isInteger(cap) && cap >= 1)) throw new Error('epoch.hallOfFameCap is a whole number >= 1, or null for no cap');
-  const ids = seedPrompts.map(({ file, text }) => {
+  const add = (operator, what) => ({ file, text }) => {
     const problems = validatePromptText(text);
-    if (problems.length) throw new Error(`seed prompt ${file}: ${problems.join('; ')}`);
-    return store.addGenome(text, { parent: null, generation: null, operator: 'seed', source: file });
-  });
-  const unique = [...new Set(ids)];
+    if (problems.length) throw new Error(`${what} ${file}: ${problems.join('; ')}`);
+    return store.addGenome(text, { parent: null, generation: null, operator, source: file });
+  };
+  const unique = [...new Set(seedPrompts.map(add('seed', 'seed prompt')))];
+  const opponents = [...new Set(opponentPrompts.map(add('opponent', 'opponent prompt')))];
+  const both = opponents.filter((id) => unique.includes(id));
+  if (both.length) throw new Error(`a prompt can't be both a seed and an opponent: ${both.join(', ')}`);
   campaign.seedGenomes = unique;
+  if (opponents.length) campaign.opponentGenomes = opponents;
+  const first = opponents.length ? opponents : [unique[0]];
   store.writeJson('campaign.json', campaign);
   store.writeJson('state.json', {
     generation: 0,
     epoch: 0,
-    opponents: [unique[0]],
+    opponents: first,
     survivors: unique,
-    champions: [{ id: unique[0], epoch: 0, generation: null, reason: 'seed: the first opponent' }],
+    champions: first.map((id) => ({ id, epoch: 0, generation: null, reason: opponents.length ? 'the first opponent, never evolved' : 'seed: the first opponent' })),
   });
-  return { campaign, ids: unique };
+  return { campaign, ids: unique, opponents: first };
 }
 
 export function epochSeeds(campaign, epoch) {

@@ -6,11 +6,11 @@
  * identical, and the epoch's promotion test replaces (or joins) the opponents only when it passes.
  */
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
-import { CampaignStop, DEFAULT_BUDGET, SPEND_FILE, assertMayContinue, guardDeps, spendTotals } from './budget.mjs';
+import { CampaignStop, DEFAULT_BUDGET, SPEND_FILE, assertMayContinue, epochCapUsd, guardDeps, spendTotals } from './budget.mjs';
 import { awayWeight, bootstrapCI, eloFold, fitnessOf, jamScore, moveBearing, promotionDecision, summarizeSide, towardWeight } from './fitness.mjs';
 import { DEFAULT_CAMPAIGN, diagnosticsFor, epochSeeds, initCampaign, matchKey, pairings, runGeneration, sentences } from './generation.mjs';
 import { deriveSeed, mulberry32, pick } from './seeds.mjs';
@@ -271,6 +271,63 @@ test('runGeneration: one generation end to end on fakes', async () => {
   }
 });
 
+test('opponent prompts: the opponent is played, never evolved; the seeds are the only lineage', async () => {
+  const { store, cleanup } = tempStore();
+  try {
+    const opp = 'You are the opponent. Be BRAVE. Attack the nearest enemy.\n';
+    const { ids, opponents } = initCampaign(store, {
+      name: 't',
+      overrides: SMALL,
+      seedPrompts: [{ file: 'seed.md', text: SEED_PROSE }],
+      opponentPrompts: [{ file: 'opp.md', text: opp }],
+    });
+    assert.equal(opponents.length, 1);
+    assert.notEqual(opponents[0], ids[0]);
+    const state = store.readJson('state.json');
+    assert.deepEqual(state.opponents, opponents);
+    assert.deepEqual(state.survivors, ids, 'only the seed is a parent');
+    assert.deepEqual(store.readJson('campaign.json').opponentGenomes, opponents);
+
+    const deps = fakeDeps();
+    const gen = await runGeneration(store, deps.bind(store));
+    assert.deepEqual(gen.parents, ids);
+    assert.ok(gen.slots.every((s) => s.parent === ids[0]));
+    assert.ok(!gen.candidates.includes(opponents[0]));
+    assert.equal(deps.calls.play, 3 * 2 * 2, 'the seed and its two children, each vs the opponent on 2 seeds x 2 sides');
+    assert.ok(!gen.survivors.includes(opponents[0]));
+
+    const other = tempStore();
+    try {
+      assert.throws(
+        () => initCampaign(other.store, { name: 'x', seedPrompts: [{ file: 'a.md', text: opp }], opponentPrompts: [{ file: 'b.md', text: opp }] }),
+        /both a seed and an opponent/,
+      );
+    } finally {
+      other.cleanup();
+    }
+  } finally {
+    cleanup();
+  }
+});
+
+test('campaign 1 (ruled 2026-09-30 07:34-07:35 CT): the hard lineage vs the medium house tier initialises', () => {
+  const { store, cleanup } = tempStore();
+  try {
+    const read = (rel) => ({ file: rel, text: readFileSync(new URL(`../../${rel}`, import.meta.url), 'utf8') });
+    const { ids, opponents } = initCampaign(store, {
+      name: 'campaign-1-hard',
+      seedPrompts: [read('prompts/pilots/house-hard.prose.md')],
+      opponentPrompts: [read('prompts/pilots/house-violet.md')],
+    });
+    assert.equal(ids.length, 1);
+    assert.equal(store.genomeMeta(ids[0]).source, 'prompts/pilots/house-hard.prose.md');
+    assert.equal(store.genomeMeta(opponents[0]).source, 'prompts/pilots/house-violet.md');
+    assert.deepEqual(store.readJson('state.json').survivors, ids);
+  } finally {
+    cleanup();
+  }
+});
+
 test('runGeneration: a crash mid-play resumes without re-mutating, re-compiling or replaying', async () => {
   const clean = tempStore();
   const crashy = tempStore();
@@ -488,7 +545,7 @@ test('budget: the epoch cap stops before the call that would pass it; nothing is
   try {
     initCampaign(store, {
       name: 't',
-      overrides: { ...SMALL, budget: { epochCapUsd: 0.3, reserveUsd: { match: 0.05 } } },
+      overrides: { ...SMALL, budget: { firstEpochCapUsd: 0.3, reserveUsd: { match: 0.05 } } },
       seedPrompts: [{ file: 'seed.md', text: SEED_PROSE }],
     });
     const p = pricedDeps(store);
@@ -503,11 +560,37 @@ test('budget: the epoch cap stops before the call that would pass it; nothing is
     assert.ok(spendTotals(store).byEpoch[0] <= 0.3);
 
     const campaign = store.readJson('campaign.json');
-    store.writeJson('campaign.json', { ...campaign, budget: { ...campaign.budget, epochCapUsd: 15 } });
+    store.writeJson('campaign.json', { ...campaign, budget: { ...campaign.budget, firstEpochCapUsd: 15 } });
     const done = await runGeneration(store, guarded());
     assert.equal(done.phase, 'done');
     assert.equal(p.calls.play, 8, 'the resume plays only the matches that were refused');
     assert.equal(p.calls.mutate, 2);
+  } finally {
+    cleanup();
+  }
+});
+
+test("budget: epoch 2's cap is what's left of the $25 after epoch 1, not another $15", () => {
+  const { store, cleanup } = tempStore();
+  try {
+    const { campaign } = initCampaign(store, { name: 't', overrides: SMALL, seedPrompts: [{ file: 'seed.md', text: SEED_PROSE }] });
+    const budget = campaign.budget;
+    const totals = (byEpoch) => ({ byEpoch: Object.fromEntries(byEpoch.map((v, e) => [e, v])) });
+    assert.equal(epochCapUsd(budget, totals([]), 0), 15);
+    assert.equal(epochCapUsd(budget, totals([9]), 1), 16);
+    assert.ok(near(epochCapUsd(budget, totals([14.9]), 1), 10.1));
+
+    const at = (epoch, byEpoch) => {
+      store.writeJson('state.json', { ...store.readJson('state.json'), epoch });
+      store.writeJson(SPEND_FILE, { entries: byEpoch.map((usd, e) => ({ kind: 'match', epoch: e, usd })), pending: null });
+    };
+    const now = NOON();
+    at(1, [9, 15.8]); // past a flat $15, still inside the $16 epoch 1 left
+    assert.doesNotThrow(() => assertMayContinue(store, campaign, { now, kind: 'mutate' }));
+    at(1, [9, 15.9]);
+    assert.throws(() => assertMayContinue(store, campaign, { now, kind: 'match' }), /\$24\.9000.*\$25\.0000 total cap/);
+    at(1, [15, 0]); // epoch 1 took its whole $15: no epoch 2
+    assert.throws(() => assertMayContinue(store, campaign, { now, kind: 'mutate' }), /no further epoch/);
   } finally {
     cleanup();
   }
@@ -592,9 +675,9 @@ test('budget: unreadable Jev spend refuses the match; unknown costs and interrup
   }
 });
 
-test('defaults carry the budget rulings: $15 an epoch, $25 in all, two epochs, the moved blackout, a private Jev port', () => {
+test('defaults carry the budget rulings: $15 for epoch 1, $25 in all, two epochs, the moved blackout, a private Jev port', () => {
   const b = DEFAULT_CAMPAIGN.budget;
-  assert.equal(b.epochCapUsd, 15);
+  assert.equal(b.firstEpochCapUsd, 15);
   assert.equal(b.totalCapUsd, 25);
   assert.equal(b.maxEpochs, 2);
   assert.equal(Date.parse(b.blackouts[0].start), Date.parse('2026-10-15T22:00:00Z'));

@@ -1,8 +1,10 @@
 /**
  * The campaign's spend caps and its blackout, enforced in code (docs/prompt-evolution-spec.md §7).
  * Ceryce's rulings: a $15 cap on the first epoch (Q6, 2026-09-30 01:50 CT); "if epoch 1 doesn't take
- * $15, you can go on to epoch 2 ... but don't use more than $25 total" (03:07 CT); no campaign
- * activity from Thu 2026-10-15 17:00 CT through the end of the Jam (Fri 2026-10-16; the Jam moved).
+ * $15, you can go on to epoch 2 ... but don't use more than $25 total" (03:07 CT); epoch 2's cap is
+ * what's left of the $25 after epoch 1, not another flat $15 ("Epoch 2 = what's left of $25",
+ * 07:34 CT); no campaign activity from Thu 2026-10-15 17:00 CT through the end of the Jam
+ * (Fri 2026-10-16; the Jam moved).
  *
  * `guardDeps` wraps the real (or fake) dependencies `runGeneration` takes. Every paid call goes
  * through a check first, and its cost is written to `spend.json` in the store as soon as it is known:
@@ -19,8 +21,8 @@
  * its kind's `reserveUsd`, the most one call of that kind is expected to cost. So is a call the
  * process died in the middle of: it is written as pending before it starts, and the next guard
  * charges it. The check refuses a call unless its reserve still fits under both the epoch's cap
- * and the total, and refuses anything that could still be running when a blackout starts. A refusal
- * throws `CampaignStop`. `runGeneration` never records it as a failed mutation or compile, so the
+ * (`epochCapUsd`) and the total, and refuses anything that could still be running when a blackout
+ * starts. A refusal throws `CampaignStop`. `runGeneration` never records it as a failed mutation or compile, so the
  * store stays resumable exactly where it stopped.
  */
 export const SPEND_FILE = 'spend.json';
@@ -33,7 +35,8 @@ export const DEFAULT_WALL_MARGIN_MS = 30 * 60_000;
 
 /** The ruled caps. `init` copies them into campaign.json; a campaign without them gets these. */
 export const DEFAULT_BUDGET = {
-  epochCapUsd: 15,
+  // the first epoch's cap; every later epoch's is what the total leaves after the epochs before it
+  firstEpochCapUsd: 15,
   totalCapUsd: 25,
   // epoch 2 is allowed only after an epoch 1 that stayed under its cap; nothing past it was ruled
   maxEpochs: 2,
@@ -72,6 +75,17 @@ export function spendTotals(store) {
   return out;
 }
 
+/**
+ * The cap on `epoch` (0-based): `firstEpochCapUsd` for the first, and for any later one whatever
+ * `totalCapUsd` leaves after the epochs before it. Epoch 1 spends $9, so epoch 2 may spend $16.
+ */
+export function epochCapUsd(budget, totals, epoch) {
+  if (epoch === 0) return budget.firstEpochCapUsd;
+  let before = 0;
+  for (let e = 0; e < epoch; e++) before += totals.byEpoch[e] ?? 0;
+  return Math.max(0, budget.totalCapUsd - before);
+}
+
 function charge(store, entry) {
   const ledger = readLedger(store);
   ledger.entries.push(entry);
@@ -100,13 +114,16 @@ export function assertMayContinue(store, campaign, { now = new Date(), kind = nu
   const totals = spendTotals(store);
   for (let e = 0; e < epoch; e++) {
     const spent = totals.byEpoch[e] ?? 0;
-    if (spent >= budget.epochCapUsd) throw new CampaignStop(`epoch ${e} spent ${usd(spent)}, not under its ${usd(budget.epochCapUsd)} cap, so no further epoch`);
+    const cap = epochCapUsd(budget, totals, e);
+    if (spent >= cap) throw new CampaignStop(`epoch ${e} spent ${usd(spent)}, not under its ${usd(cap)} cap, so no further epoch`);
   }
   if (epoch >= budget.maxEpochs) throw new CampaignStop(`${budget.maxEpochs} epoch(s) done, the most the budget ruling allows`);
   const reserve = kind ? budget.reserveUsd[kind] : 0;
   const epochSpent = totals.byEpoch[epoch] ?? 0;
-  if (epochSpent + reserve > budget.epochCapUsd) throw new CampaignStop(`epoch ${epoch} has spent ${usd(epochSpent)}; a ${kind ?? 'call'} (reserve ${usd(reserve)}) would pass its ${usd(budget.epochCapUsd)} cap`);
+  const cap = epochCapUsd(budget, totals, epoch);
+  // after the first epoch the two checks are the same limit; the total's message is the ruling's words
   if (totals.totalUsd + reserve > budget.totalCapUsd) throw new CampaignStop(`the campaign has spent ${usd(totals.totalUsd)}; a ${kind ?? 'call'} (reserve ${usd(reserve)}) would pass the ${usd(budget.totalCapUsd)} total cap`);
+  if (epochSpent + reserve > cap) throw new CampaignStop(`epoch ${epoch} has spent ${usd(epochSpent)}; a ${kind ?? 'call'} (reserve ${usd(reserve)}) would pass its ${usd(cap)} cap`);
 }
 
 /** The campaign's own Jev spend so far, from its schema server's `/health`; null if unreadable. */

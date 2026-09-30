@@ -4,7 +4,9 @@
  * Spec, open decisions and budget: docs/prompt-evolution-spec.md. The loop is Ceryce's design.
  *
  *   npm run evolve -- init   --name smoke --seed-prompt prompts/pilots/drums.md [--seed-prompt …]
- *                            [--config overrides.json] [--store DIR]
+ *                            [--opponent-prompt FILE …] [--config overrides.json] [--store DIR]
+ *        --opponent-prompt: the first opponents, never evolved (the seeds are then the only parents).
+ *        Without it the first seed prompt is the first opponent. Campaign 1's invocation: spec §10.
  *   npm run evolve -- step   --name smoke [--generations 1]     run / resume the next generation(s)
  *   npm run evolve -- status --name smoke                       where the campaign is
  *   npm run evolve -- report --name smoke --out runs/x.md       Markdown summary of every generation
@@ -16,18 +18,19 @@
  *
  * Spend caps and the blackout are enforced here (budget.mjs): every paid call is checked first and
  * charged to spend.json. When a cap or the blackout refuses one, `step` stops cleanly and exits 3,
- * so a runner can tell "stopped by the rules" (3) from "broke" (2). `status` prints the spend too.
+ * so a runner can tell "stopped by the rules" (3) from "broke" (2). `status` prints the spend and
+ * the current epoch's cap too.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { ROOT, matchWallCapMs, realDeps } from './adapters.mjs';
-import { CampaignStop, assertMayContinue, guardDeps, spendTotals } from './budget.mjs';
+import { CampaignStop, assertMayContinue, budgetOf, epochCapUsd, guardDeps, spendTotals } from './budget.mjs';
 import { initCampaign, runGeneration } from './generation.mjs';
 import { Store } from './store.mjs';
 import { renderReport } from './report.mjs';
 
 function parseArgs(argv) {
-  const args = { command: argv[0], seedPrompts: [], generations: 1 };
+  const args = { command: argv[0], seedPrompts: [], opponentPrompts: [], generations: 1 };
   for (let i = 1; i < argv.length; i++) {
     const a = argv[i];
     const next = () => {
@@ -38,6 +41,7 @@ function parseArgs(argv) {
       case '--name': args.name = next(); break;
       case '--store': args.store = next(); break;
       case '--seed-prompt': args.seedPrompts.push(next()); break;
+      case '--opponent-prompt': args.opponentPrompts.push(next()); break;
       case '--config': args.config = next(); break;
       case '--generations': args.generations = Number(next()); break;
       case '--out': args.out = next(); break;
@@ -61,9 +65,14 @@ async function main() {
   switch (args.command) {
     case 'init': {
       const overrides = args.config ? JSON.parse(readFileSync(args.config, 'utf8')) : {};
-      const seedPrompts = args.seedPrompts.map((file) => ({ file: file.replace(/\\/g, '/'), text: readFileSync(file, 'utf8') }));
-      const { ids } = initCampaign(store, { name: args.name ?? path.basename(store.dir), overrides, seedPrompts });
-      console.log(`campaign ${store.dir}: seed genome(s) ${ids.join(', ')}; first opponent ${ids[0]}`);
+      const read = (file) => ({ file: file.replace(/\\/g, '/'), text: readFileSync(file, 'utf8') });
+      const { ids, opponents } = initCampaign(store, {
+        name: args.name ?? path.basename(store.dir),
+        overrides,
+        seedPrompts: args.seedPrompts.map(read),
+        opponentPrompts: args.opponentPrompts.map(read),
+      });
+      console.log(`campaign ${store.dir}: seed genome(s) ${ids.join(', ')}; first opponent(s) ${opponents.join(', ')}`);
       return 0;
     }
     case 'step': {
@@ -82,7 +91,10 @@ async function main() {
       return 0;
     }
     case 'status': {
-      console.log(JSON.stringify({ ...store.readJson('state.json'), spend: spendTotals(store) }, null, 1));
+      const state = store.readJson('state.json');
+      const spend = spendTotals(store);
+      const epochCap = epochCapUsd(budgetOf(store.readJson('campaign.json')), spend, state.epoch);
+      console.log(JSON.stringify({ ...state, spend: { ...spend, epochCapUsd: epochCap } }, null, 1));
       return 0;
     }
     case 'report': {
