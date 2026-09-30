@@ -167,7 +167,9 @@ times out with no deaths is reported as exactly that. The fix, if wanted, is a v
 **The house bot.** `prompts/pilots/house-violet.md` / `house-green.md` is the arena's placement
 opponent, written for `qwen3.5:9b` specifically (one file per side, a worksheet inside the reply);
 what it does and how it measured against `drums.md` is in
-[`runs/house-prompt-2026-09-21.md`](runs/house-prompt-2026-09-21.md).
+[`runs/house-prompt-2026-09-21.md`](runs/house-prompt-2026-09-21.md). It is the *medium* of three
+strategy tiers (easy / medium / hard, [`prompts/pilots/README.md`](prompts/pilots/README.md));
+`npm run match -- --a house:hard --b house` plays any two.
 
 ## Generate and compare
 

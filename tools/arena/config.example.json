@@ -53,6 +53,8 @@
       "prompts/pilots/house.md",
       "prompts/pilots/drums.md"
     ],
+    "_comment_tier": "null = files above (medium first). Set files to null and tier to easy | medium | hard to play that pair (runs/house-tiers-2026-09-30.md); --house-tier does both. A different house is a different placement bar",
+    "tier": null,
     "_comment_backend": "unset = today's default (house plays tournament.backend, like every entrant); set to 'jev-house' to make the house bot play Jev instead -- entrants are never affected either way",
     "backend": null
   },

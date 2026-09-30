@@ -1,7 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
-import { DEFAULT_HOUSE_FILES, bundleHouse, candidateFiles, candidateLabel, houseTextForSide, pickHouse } from './house.mjs';
+import {
+  DEFAULT_HOUSE_FILES, DEFAULT_HOUSE_TIER, HOUSE_TIERS, bundleHouse, candidateFiles, candidateLabel, houseCandidates, houseSpecFile,
+  houseTextForSide, pickHouse,
+} from './house.mjs';
+import { DEFAULT_CONFIG, loadConfig } from './server.mjs';
 
 const PAIR = { violet: 'prompts/pilots/house-violet.md', green: 'prompts/pilots/house-green.md' };
 
@@ -39,4 +43,66 @@ test('the checked-in pair really exists and bundles from disk', () => {
   const bundle = bundleHouse(PAIR, root);
   assert.ok(houseTextForSide(bundle, 'violet').startsWith('You are a VIOLET bearbot'));
   assert.ok(houseTextForSide(bundle, 'green').startsWith('You are a GREEN bearbot'));
+});
+
+test('tiers: the default is still medium, which is still the original pair', () => {
+  assert.equal(DEFAULT_HOUSE_TIER, 'medium');
+  assert.deepEqual(HOUSE_TIERS.medium, PAIR);
+  assert.deepEqual(DEFAULT_HOUSE_FILES[0], PAIR);
+  for (const unset of [undefined, null, {}, { tier: null, files: null }, { handle: 'house', backend: null }]) {
+    assert.equal(houseCandidates(unset), DEFAULT_HOUSE_FILES);
+  }
+});
+
+test('tiers: config.house.tier names exactly one pair; files still work; both or an unknown tier throw', () => {
+  assert.deepEqual(houseCandidates({ tier: 'hard' }), [HOUSE_TIERS.hard]);
+  assert.deepEqual(houseCandidates({ tier: 'easy', files: null }), [HOUSE_TIERS.easy]);
+  assert.deepEqual(houseCandidates({ files: ['prompts/pilots/drums.md'] }), ['prompts/pilots/drums.md']);
+  assert.throws(() => houseCandidates({ tier: 'hard', files: [PAIR] }), /set tier or files, not both/);
+  assert.throws(() => houseCandidates({ tier: 'nightmare' }), /house tier must be one of easy, medium, hard/);
+  // No silent fallback: a tier whose files are missing picks nothing (startup then fails).
+  assert.equal(pickHouse(houseCandidates({ tier: 'hard' }), '/r', () => false), null);
+});
+
+test('tiers: --house-tier on the arena replaces the config files; an unknown tier fails at load', () => {
+  assert.equal(loadConfig(DEFAULT_CONFIG).house.tier, null);
+  const cfg = loadConfig(DEFAULT_CONFIG, { houseTier: 'easy' });
+  assert.deepEqual(houseCandidates(cfg.house), [HOUSE_TIERS.easy]);
+  assert.equal(cfg.house.handle, 'house');
+  assert.throws(() => loadConfig(DEFAULT_CONFIG, { houseTier: 'bogus' }), /house tier must be one of/);
+});
+
+test('tiers: the match CLI shorthand gives each side its own file', () => {
+  assert.equal(houseSpecFile('house', 'violet'), PAIR.violet);
+  assert.equal(houseSpecFile('house:hard', 'green'), 'prompts/pilots/house-hard-green.md');
+  assert.equal(houseSpecFile('house:easy', 'violet'), 'prompts/pilots/house-easy-violet.md');
+  assert.equal(houseSpecFile('prompts/pilots/drums.md', 'violet'), null);
+  assert.equal(houseSpecFile('entrants/house/pilot.md', 'violet'), null);
+  assert.throws(() => houseSpecFile('house:', 'violet'), /house tier must be one of/);
+});
+
+test('tiers: every checked-in pair exists, bundles, and its sides differ only in team literals', () => {
+  const root = path.resolve(import.meta.dirname, '..', '..');
+  for (const [tier, pair] of Object.entries(HOUSE_TIERS)) {
+    assert.deepEqual(pickHouse(houseCandidates({ tier }), root), pair, tier);
+    const bundle = bundleHouse(pair, root);
+    const violet = houseTextForSide(bundle, 'violet');
+    const green = houseTextForSide(bundle, 'green');
+    assert.ok(violet.startsWith('You are a VIOLET bearbot'), tier);
+    assert.ok(green.startsWith('You are a GREEN bearbot'), tier);
+    // Swap the team literals and the two base corners in the green file; it must read as violet
+    // (example tower ids name an enemy tower, so they differ per side too -- compared as tw-N;
+    // line endings follow the checkout's core.autocrlf, so they are not compared either).
+    const towerIds = (s) => s.replaceAll('\r\n', '\n').replaceAll(/"tw-\d+"/g, '"tw-N"');
+    const swapped = green
+      .replace('GREEN bearbot', 'VIOLET bearbot')
+      .replaceAll('"green"', '{OWN}')
+      .replaceAll('"violet"', '"green"')
+      .replaceAll('{OWN}', '"violet"')
+      .replaceAll('a green minion', 'a violet minion')
+      .replaceAll('{"x":900,"y":100}', '{HOME}')
+      .replaceAll('{"x":100,"y":900}', '{"x":900,"y":100}')
+      .replaceAll('{HOME}', '{"x":100,"y":900}');
+    assert.equal(towerIds(swapped), towerIds(violet), `${tier}: green is violet with the team literals swapped`);
+  }
 });

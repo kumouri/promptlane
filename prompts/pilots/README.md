@@ -32,3 +32,44 @@ Evidence and known holes (recall obeyed ~46 % of the time under pressure): see
 [`runs/house-prompt-2026-09-21.md`](../../runs/house-prompt-2026-09-21.md). Evolving house bots
 by strategy tier (easy / medium / hard) through the Jev translator:
 [`docs/prompt-evolution-spec.md`](../../docs/prompt-evolution-spec.md).
+
+## House tiers: `house-easy-*` / `house-*` / `house-hard-*`
+
+Three house bots that differ by **strategy**, not stats: same model, same worksheet-and-literals
+shape, same bearbots. The pair above is **medium** and stays the default and the placement bar;
+easy and hard are only played when asked for (`config.house.tier` or `--house-tier` on the arena,
+`--a house:easy` on `npm run match`; `tools/arena/house.mjs` `HOUSE_TIERS`).
+
+| tier | archetype | rules, in order |
+|---|---|---|
+| easy | defend, never risk a bearbot | recall under 100 hp → leave whenever an enemy tower is near → attack the nearest enemy → stay with a friendly minion → wait at home. No abilities. |
+| medium | ride the wave (above) | recall under 75 → leave a tower without a wave → ability → attack the foe → the tower → ride → home |
+| hard | towers and kills | recall under 90 → leave a tower without a wave → ability on a bearbot under 100 hp → attack that bearbot → the tower if 2+ friendly minions are in sight → the lowest-hp bearbot → the nearest minion → ride → home |
+
+**How easy and hard were written: through the Jev translator, as an entrant writes.** Each tier
+is authored as an entrant-style prose rulebook, `house-<tier>.prose.md`. That prose is compiled
+with `python tools/jev/compile.py … --backend ollama`, the same door-A path an entrant uses. The
+compiled cascades and transparency reports are checked in
+(`runs/house-tiers-compile-{easy,hard}-2026-09-30.md`, `runs/house-tiers-schemas-2026-09-30.json`).
+`house-<tier>-{violet,green}.md` renders that compiled cascade rule for rule, in the house format
+`qwen3.5:9b` needs: a worksheet, team literals, and the first matching rule wins. Targets follow
+the translator's fixed selector vocabulary: `nearest_enemy` becomes easy's `foe` key or hard's
+`creep` key, `lowest_hp_enemy` becomes hard's `foe` key, `nearest_tower` the `tower` key,
+`nearby_minion` a friendly minion's position, and `home` your own corner. So the house can only
+say what an entrant's prose can compile to. There is no "hold at my own tower" selector, for
+example, so easy leashes itself by leaving whenever an enemy tower comes into view.
+
+The rendering is by hand: the translator emits a Jev schema, not a qwen prompt. The mapping is in
+the evidence file. One rendering choice differs from medium. Easy and hard read `tower` from
+`nearbyTowers` by the enemy team literal, not from `visibleEnemies`, because the 9B model kept
+naming its own tower there. Hard also writes the tower's team (`towerteam`) and acts only on the
+enemy's, because in the probes it attacked its own towers otherwise. So neither tier targets the
+nexus. Medium keeps its original definition, so the bar doesn't move.
+
+**To change a tier:** edit its prose, recompile, and re-render both sides from the new cascade.
+Then rerun the sanity matches. Don't edit the side files alone. The green file is the violet file
+with every quoted team literal, the example enemy tower id, and the two base corners swapped
+(`test_house.mjs` checks that).
+
+Evidence (a small-N sanity check, not a rating):
+[`runs/house-tiers-2026-09-30.md`](../../runs/house-tiers-2026-09-30.md).

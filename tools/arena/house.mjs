@@ -11,15 +11,48 @@
  * hash, so the ledger's `house` row, the placement plan and the Elo fold keep their single house
  * ref; the queue splits the side it needs out when it builds a job, and the match log's
  * `promptText` is the side's own text, as for any pilot.
+ *
+ * Tiers (`runs/house-tiers-2026-09-30.md`): three house pairs that differ by strategy, not stats --
+ * easy (defend, recall early), medium (today's wave-rider, the placement bar), hard (towers with the
+ * wave, finish low-hp bearbots). `config.house.tier` picks one instead of `files`; unset, the house
+ * is medium exactly as before, so the fixed-1000 placement bar does not move.
  */
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
-export const DEFAULT_HOUSE_FILES = [
-  { violet: 'prompts/pilots/house-violet.md', green: 'prompts/pilots/house-green.md' },
-  'prompts/pilots/house.md',
-  'prompts/pilots/drums.md',
-];
+const pair = (stem) => ({ violet: `prompts/pilots/${stem}-violet.md`, green: `prompts/pilots/${stem}-green.md` });
+
+export const HOUSE_TIERS = { easy: pair('house-easy'), medium: pair('house'), hard: pair('house-hard') };
+export const DEFAULT_HOUSE_TIER = 'medium';
+
+export const DEFAULT_HOUSE_FILES = [HOUSE_TIERS[DEFAULT_HOUSE_TIER], 'prompts/pilots/house.md', 'prompts/pilots/drums.md'];
+
+/** A tier's {violet, green} pair; throws on an unknown tier name. */
+export function tierPair(tier) {
+  if (!Object.hasOwn(HOUSE_TIERS, tier)) throw new Error(`house tier must be one of ${Object.keys(HOUSE_TIERS).join(', ')}, got ${JSON.stringify(tier)}`);
+  return HOUSE_TIERS[tier];
+}
+
+/**
+ * The match CLI's shorthand: `house` or `house:<tier>` → that tier's file for `side` (so the house
+ * plays its own side's literals wherever it is placed); any other string is not a house spec → null.
+ */
+export function houseSpecFile(spec, side) {
+  const m = /^house(?::(.*))?$/.exec(spec);
+  return m ? tierPair(m[1] ?? DEFAULT_HOUSE_TIER)[side] : null;
+}
+
+/**
+ * `config.house` → its candidate list. `tier` names exactly one pair (no silent fallback: a missing
+ * tier file fails startup); `files` is the explicit list; neither is the default list. Both is an error.
+ */
+export function houseCandidates(house = {}) {
+  const tier = house?.tier ?? null;
+  const files = house?.files ?? null;
+  if (tier !== null && files !== null) throw new Error('config.house: set tier or files, not both');
+  if (tier !== null) return [tierPair(tier)];
+  return files ?? DEFAULT_HOUSE_FILES;
+}
 
 const SIDES = ['violet', 'green'];
 const mark = (side) => `<!-- house side: ${side} -->\n`;
