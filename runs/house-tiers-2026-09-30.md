@@ -35,7 +35,10 @@ Each tier was authored as entrant-style prose and compiled with
 `qwen3.5:9b`, $0). The compile reports and schemas are
 [`house-tiers-compile-easy-2026-09-30.md`](house-tiers-compile-easy-2026-09-30.md),
 [`house-tiers-compile-hard-2026-09-30.md`](house-tiers-compile-hard-2026-09-30.md) and
-[`house-tiers-schemas-2026-09-30.json`](house-tiers-schemas-2026-09-30.json). Both final versions
+[`house-tiers-schemas-easy-2026-09-30.json`](house-tiers-schemas-easy-2026-09-30.json) /
+[`-hard-`](house-tiers-schemas-hard-2026-09-30.json) (`{drums, keytar, violin}`, the `npm run match
+--a-schemas` shape). The per-instrument clause leak fixed on develop the same day (#39) did not
+touch these: no schema names another instrument's ability. Both final versions
 compile to the same cascade on all three instruments: easy 5 rules (6,048 tokens, 18.6 s), hard 8
 rules (7,654 tokens, 32.9 s).
 
@@ -211,9 +214,18 @@ where your own wave walks past your own towers.
   (for violet, `x > y`), so worksheet `tx`, `ty` and compare two written numbers. That is the one
   comparison this model does reliably. Also make rule 6 conditional on `foehp` vs own `hp`, or
   drop it. Both are prose changes to recompile, then re-render and rerun the 6 hard matches.
-- **Or play the tiers on Jev.** Played on Jev like an entrant (`tools/jev/schema_server.py` with
-  the committed schemas), the targets resolve in code and own-tower attacks become impossible. That
-  needs a schema-playing house path in `queue.mjs`, which is more than small.
+- **Or play the tiers on Jev.** Played on Jev like an entrant, the targets resolve in code and
+  own-tower attacks become impossible. Measuring that is one command now that develop's
+  `npm run match` takes compiled schemas. It was not run here; it needs live Workers AI, at about
+  $0.003 per quick match.
+
+  ```
+  npm run match -- --a house --b prompts/pilots/house-hard.prose.md
+      --b-schemas runs/house-tiers-schemas-hard-2026-09-30.json --jev-schema http://127.0.0.1:8797/
+  ```
+
+  Making the *arena's* placement house play a schema needs a schema-playing house path in
+  `queue.mjs`, which is more than small.
 - **Tier picker in the arena UI / ladder**: not built. Today it is config + CLI only. A different
   tier is a different placement bar, so it should never silently apply to the ladder.
 - **More N, cadence 2**: the ladder's cadence. These are 9 matches at cadence 4.

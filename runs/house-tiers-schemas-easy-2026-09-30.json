@@ -1,0 +1,173 @@
+{
+ "drums": {
+  "pilot_file": "prompts/pilots/house-easy.prose.md",
+  "instrument": "drums",
+  "rules": [
+   {
+    "id": "low_hp_recall",
+    "condition": "is this bot's hp below 100?",
+    "criteria_true": "hp is below 100",
+    "criteria_false": "hp is 100 or above",
+    "action_kind": "recall",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "enemy_tower_sight",
+    "condition": "is an enemy tower or nexus visible?",
+    "criteria_true": "an enemy tower or nexus is visible",
+    "criteria_false": "no enemy tower or nexus is visible",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "enemy_in_sight",
+    "condition": "is an enemy bearbot or minion visible?",
+    "criteria_true": "an enemy bearbot or minion is visible",
+    "criteria_false": "no enemy bearbot or minion is visible",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_enemy"
+   },
+   {
+    "id": "stay_with_minion",
+    "condition": "is an allied minion visible?",
+    "criteria_true": "an allied minion is visible",
+    "criteria_false": "no allied minion is visible",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "nearby_minion"
+   },
+   {
+    "id": "go_home_wait",
+    "condition": "is there no allied minion visible?",
+    "criteria_true": "no allied minion is visible",
+    "criteria_false": "an allied minion is visible",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   }
+  ],
+  "default_action": {
+   "kind": "move",
+   "ability": null,
+   "target_selector": "push_lane"
+  },
+  "validation_notes": []
+ },
+ "keytar": {
+  "pilot_file": "prompts/pilots/house-easy.prose.md",
+  "instrument": "keytar",
+  "rules": [
+   {
+    "id": "hp_low_recall",
+    "condition": "is this bot's hp below 100?",
+    "criteria_true": "hp is below 100",
+    "criteria_false": "hp is 100 or higher",
+    "action_kind": "recall",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "enemy_tower_sight",
+    "condition": "is an enemy tower or enemy nexus visible?",
+    "criteria_true": "an enemy tower or nexus is visible",
+    "criteria_false": "no enemy tower or nexus is visible",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "enemy_in_sight",
+    "condition": "is an enemy bearbot or enemy minion in sight?",
+    "criteria_true": "an enemy bearbot or minion is visible",
+    "criteria_false": "no enemies are visible",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_enemy"
+   },
+   {
+    "id": "minion_present",
+    "condition": "is an allied minion in sight?",
+    "criteria_true": "an allied minion is visible",
+    "criteria_false": "no allied minion is visible",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "nearby_minion"
+   },
+   {
+    "id": "no_minion_home",
+    "condition": "is there no allied minion in sight?",
+    "criteria_true": "no allied minion is present",
+    "criteria_false": "an allied minion is present",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   }
+  ],
+  "default_action": {
+   "kind": "move",
+   "ability": null,
+   "target_selector": "push_lane"
+  },
+  "validation_notes": []
+ },
+ "violin": {
+  "pilot_file": "prompts/pilots/house-easy.prose.md",
+  "instrument": "violin",
+  "rules": [
+   {
+    "id": "low_hp_recall",
+    "condition": "is this bot's hp below 100?",
+    "criteria_true": "hp is below 100",
+    "criteria_false": "hp is 100 or above",
+    "action_kind": "recall",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "enemy_tower_sight",
+    "condition": "is an enemy tower or enemy nexus visible?",
+    "criteria_true": "an enemy tower or nexus is visible",
+    "criteria_false": "no enemy tower or nexus is visible",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "enemy_in_sight",
+    "condition": "is an enemy bearbot or enemy minion visible?",
+    "criteria_true": "an enemy unit is in sight",
+    "criteria_false": "no enemy unit is in sight",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_enemy"
+   },
+   {
+    "id": "stay_with_minion",
+    "condition": "is there an allied minion visible?",
+    "criteria_true": "an allied minion is visible",
+    "criteria_false": "no allied minion is visible",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "nearby_minion"
+   },
+   {
+    "id": "go_home_wait",
+    "condition": "is there no allied minion visible?",
+    "criteria_true": "no allied minion is visible",
+    "criteria_false": "an allied minion is visible",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   }
+  ],
+  "default_action": {
+   "kind": "move",
+   "ability": null,
+   "target_selector": "push_lane"
+  },
+  "validation_notes": []
+ }
+}

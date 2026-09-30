@@ -50,7 +50,8 @@ easy and hard are only played when asked for (`config.house.tier` or `--house-ti
 is authored as an entrant-style prose rulebook, `house-<tier>.prose.md`. That prose is compiled
 with `python tools/jev/compile.py … --backend ollama`, the same door-A path an entrant uses. The
 compiled cascades and transparency reports are checked in
-(`runs/house-tiers-compile-{easy,hard}-2026-09-30.md`, `runs/house-tiers-schemas-2026-09-30.json`).
+(`runs/house-tiers-compile-{easy,hard}-2026-09-30.md`, `runs/house-tiers-schemas-{easy,hard}-2026-09-30.json`;
+the latter in `npm run match --a-schemas` shape, so a tier can also be played on Jev as an entrant is).
 `house-<tier>-{violet,green}.md` renders that compiled cascade rule for rule, in the house format
 `qwen3.5:9b` needs: a worksheet, team literals, and the first matching rule wins. Targets follow
 the translator's fixed selector vocabulary: `nearest_enemy` becomes easy's `foe` key or hard's
