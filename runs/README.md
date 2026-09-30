@@ -23,6 +23,9 @@ four quick tests vs `drums.md`, logs `house-prompt-2026-09-21-r*.json` beside it
 evolution harness's one-generation smoke on live Jev plus the backend measurements its spec uses,
 logs `prompt-evolution-smoke-2026-09-30-*.json` beside it), and
 `translator-instrument-scope-2026-09-30.jsonl` (the live compiles behind
-[`translator-guards-and-defaults-spec.md` §10](../docs/translator-guards-and-defaults-spec.md)).
+[`translator-guards-and-defaults-spec.md` §10](../docs/translator-guards-and-defaults-spec.md)), and
+[house-tiers-2026-09-30.md](house-tiers-2026-09-30.md) (easy / medium / hard house tiers: nine
+full matches, logs `house-tiers-2026-09-30-*.json` beside it, compile reports
+`house-tiers-compile-*`).
 The bulky captures those documents hash live under ignored `artifacts/<run>-evidence/` and
 `artifacts/<run>-reviewed/`.

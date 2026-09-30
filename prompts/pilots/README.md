@@ -73,3 +73,11 @@ with every quoted team literal, the example enemy tower id, and the two base cor
 
 Evidence (a small-N sanity check, not a rating):
 [`runs/house-tiers-2026-09-30.md`](../../runs/house-tiers-2026-09-30.md).
+
+- 9 full matches at cadence 4: 8 timeout draws, plus medium beating hard once.
+- Easy lost no bearbot and no tower, and never attacked one.
+- **Hard does not beat medium.** 32 of its 87 tower-attack decisions targeted its own towers: the
+  9B model overrides its own `towerteam` check, and the sim doesn't check team on `attack`.
+- Hard's rule 6 also picks fights with full-health drums.
+
+Fix both before calling hard "hard"; the follow-ups are in the evidence file.
