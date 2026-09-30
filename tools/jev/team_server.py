@@ -5,13 +5,15 @@ rule, answers, ms}` out), but decides with `team_rules.py`'s cascade instead of 
 this experiment's own intent document, not house-violet.md's. Reuses `client.py` unchanged.
 
     GET  /health   -> {"ok": true, "backend": "jev-team", "model": ..., "requests", "errors",
-                        "avg_seconds", "tokens_in", "cost_usd", "budget_usd"}
+                        "avg_seconds", "tokens_in", "cost_usd", "budget_usd", "jev_backend", ...}
     POST /         body: {"hp", "maxHp", "wave", "tower", "foe", "foeIsBearbot", "foeHp",
                            "foeMaxHp", "cd", "instrument", "team", "tick", "clockSec"} -- camelCase
                            on the wire (caller is TypeScript, tools/match/jevTeamPilot.ts), parsed
                            into `team_rules.Worksheet`.
                    -> 200 {"bucket": ..., "rule": 1-7, "answers": {qid: 0.0-1.0}, "ms": float}
                    -> non-2xx {"error": "..."} on any failure -- the caller holds, never crashes.
+
+Transport: `--jev-backend workers-ai` (default) or `typesafe`, exactly as `house_server.py`.
 
 Budget: `--budget-usd` (default 1.00) refuses new calls once cumulative estimated cost (from real
 `usage.input_tokens`) would exceed it -- identical posture to `house_server.py`.
@@ -28,12 +30,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from client import (  # noqa: E402
-    SystemOneClient,
     SystemOneError,
-    WorkersAIClient,
+    add_jev_backend_args,
+    client_status,
     estimate_cost_usd,
-    resolve_api_key,
-    resolve_workers_ai_token_provider,
+    make_jev_client,
 )
 from serializer_team import state_paragraph  # noqa: E402
 from team_rules import Worksheet, bind_questions, bucket_for_rule, first_match  # noqa: E402
@@ -102,7 +103,7 @@ class JevTeamBackend:
     def snapshot(self) -> dict:
         with self.lock:
             avg = self.total_seconds / self.requests if self.requests else 0.0
-            return {
+            snap = {
                 "requests": self.requests,
                 "errors": self.errors,
                 "avg_seconds": round(avg, 3),
@@ -110,6 +111,8 @@ class JevTeamBackend:
                 "cost_usd": round(self.cost_usd, 4),
                 "budget_usd": self.budget_usd,
             }
+        snap.update(client_status(self.client))
+        return snap
 
     def record_error(self) -> None:
         with self.lock:
@@ -188,12 +191,7 @@ def make_handler(backend: JevTeamBackend, model: str, verbose: bool = False):
 
 
 def make_client(args: argparse.Namespace):
-    kwargs = {"timeout": args.timeout}
-    if args.model:
-        kwargs["model"] = args.model
-    if args.backend == "typesafe":
-        return SystemOneClient(resolve_api_key(), **kwargs)
-    return WorkersAIClient(resolve_workers_ai_token_provider(), **kwargs)
+    return make_jev_client(args.jev_backend, timeout=args.timeout, model=args.model)
 
 
 def serve(backend: JevTeamBackend, model: str, host: str, port: int, verbose: bool = False) -> ThreadingHTTPServer:
@@ -204,7 +202,7 @@ def serve(backend: JevTeamBackend, model: str, host: str, port: int, verbose: bo
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    p.add_argument("--backend", choices=["workers-ai", "typesafe"], default="workers-ai")
+    add_jev_backend_args(p)
     p.add_argument("--model", default=None)
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=DEFAULT_PORT)
@@ -224,7 +222,7 @@ def main(argv: list[str] | None = None) -> int:
     backend = JevTeamBackend(client, budget_usd=budget)
     server = serve(backend, model, args.host, args.port, verbose=args.verbose)
     print(
-        f"promptlane jev-team server on http://{args.host}:{args.port}/  backend={args.backend} model={model} "
+        f"promptlane jev-team server on http://{args.host}:{args.port}/  jev_backend={args.jev_backend} model={model} "
         f"budget_usd={budget}",
         flush=True,
     )

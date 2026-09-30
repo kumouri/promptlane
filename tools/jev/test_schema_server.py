@@ -13,6 +13,7 @@ import urllib.request
 sys.path.insert(0, os.path.dirname(__file__))
 from unittest import mock  # noqa: E402
 
+import client as C  # noqa: E402
 import schema_server  # noqa: E402
 from schema_server import BudgetExceeded, JevSchemaBackend, serve  # noqa: E402
 
@@ -122,17 +123,38 @@ class TokenTests(unittest.TestCase):
 
     def test_live_client_uses_the_renewing_provider(self):
         provider = object()
-        with mock.patch.object(schema_server, "resolve_workers_ai_token_provider", return_value=provider) as resolve, \
-                mock.patch.object(schema_server, "WorkersAIClient") as client:
+        with mock.patch.object(C, "resolve_workers_ai_token_provider", return_value=provider) as resolve, \
+                mock.patch.object(C, "WorkersAIClient") as client:
             schema_server.make_client(schema_server.parse_args(["--refresh-margin-sec", "600", "--timeout", "12"]))
         resolve.assert_called_once_with(margin_sec=600.0)
         client.assert_called_once_with(provider, timeout=12.0)
 
     def test_stub_needs_no_token(self):
-        with mock.patch.object(schema_server, "resolve_workers_ai_token_provider") as resolve:
+        with mock.patch.object(C, "resolve_workers_ai_token_provider") as resolve:
             client = schema_server.make_client(schema_server.parse_args(["--stub"]))
         resolve.assert_not_called()
         self.assertIsInstance(client, schema_server.DumbStubJevClient)
+
+
+class JevBackendTests(unittest.TestCase):
+    """`--jev-backend`: workers-ai stays the default; typesafe needs a key and no token provider."""
+
+    def test_default_is_workers_ai(self):
+        self.assertEqual(schema_server.parse_args([]).jev_backend, "workers-ai")
+
+    def test_typesafe_uses_the_api_key_and_never_a_token_provider(self):
+        with mock.patch.dict(os.environ, {"PROMPTLANE_JEV_API_KEY": "sk-test"}, clear=True), \
+                mock.patch.object(C, "resolve_workers_ai_token_provider") as resolve:
+            client = schema_server.make_client(schema_server.parse_args(["--jev-backend", "typesafe", "--timeout", "9"]))
+        resolve.assert_not_called()
+        self.assertIsInstance(client, C.SystemOneClient)
+        self.assertEqual((client.timeout, client.model), (9.0, C.DEFAULT_MODEL))
+
+    def test_health_names_the_backend(self):
+        client = C.SystemOneClient("sk-test")
+        snap = JevSchemaBackend(client, None).snapshot()
+        self.assertEqual((snap["jev_backend"], snap["token_source"]), ("typesafe", "typesafe-api-key"))
+        self.assertNotIn("sk-test", json.dumps(snap))
 
 
 if __name__ == "__main__":

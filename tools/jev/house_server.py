@@ -10,7 +10,8 @@ Jev has no `prompt` field). This server's contract is different by design:
 
     GET  /health   -> {"ok": true, "backend": "jev-house", "model": ..., "requests", "errors",
                         "fallbacks", "last_fallback_error", "avg_seconds", "tokens_in", "cost_usd",
-                        "budget_usd", "token_source", "token_expires_in_sec", "token_renewals"}
+                        "budget_usd", "jev_backend", "token_source", "token_expires_in_sec",
+                        "token_renewals"}
     POST /         body: {"hp", "wave", "tower", "foe", "cd", "instrument", "team", "tick",
                            "clockSec", "foeKind"?, "foeHp"?} -- exactly `rules.Worksheet`'s fields,
                            camelCase on the wire (the caller is TypeScript), snake_case once parsed
@@ -24,12 +25,18 @@ THE HOUSE BOT NEVER STOPS PLAYING. If Jev can't answer -- a transport error, a 4
 the client's one retry on a renewed token, or the `--budget-usd` cap -- this server decides with
 house-violet.md's seven rules evaluated in code (`rules.ground_truth_answers`, exact rule 3) and
 returns 200 with `"fallback": "rules-in-code"`. Every fallback is logged to stderr with `!!!` and
-counted in `/health`, and the first successful Jev call afterwards logs `RECOVERED`. Tokens come
-from `client.resolve_workers_ai_token_provider`: `$CLOUDFLARE_API_TOKEN` if set, else wrangler's
-OAuth token, renewed `--refresh-margin-sec` (default 900 = one 600 s match + slack) before expiry
--- once per credential however many calls 401 together (`client.py`, "A NEW TOKEN IS NOT LIVE
-YET"), so `token_renewals` should climb about once an hour. `--check-token` renews if needed,
-prints the token's source and time left, and exits.
+counted in `/health`, and the first successful Jev call afterwards logs `RECOVERED`.
+
+Transport: `--jev-backend workers-ai` (default) or `typesafe` (`client.make_jev_client`; `--backend`
+is the old spelling and still works). The wire contract above is identical either way; `/health`
+names the one in use as `jev_backend`. On workers-ai, tokens come from
+`client.resolve_workers_ai_token_provider`: `$CLOUDFLARE_API_TOKEN` if set, else wrangler's OAuth
+token, renewed `--refresh-margin-sec` (default 900 = one 600 s match + slack) before expiry -- once
+per credential however many calls 401 together (`client.py`, "A NEW TOKEN IS NOT LIVE YET"), so
+`token_renewals` should climb about once an hour. On typesafe, the key is
+`$PROMPTLANE_JEV_API_KEY` (or its Windows User-scope value) and is never renewed. `--check-token`
+resolves the credential (renewing a wrangler token if needed), prints its source and time left, and
+exits.
 
 Rule 3 is exact here (2026-09-25): `tools/match/jevPilot.ts` sends the foe's real kind and hp, so
 q3 asks house-violet.md's real violin/drums condition ("foe is a bearbot under 100 hp") instead of
@@ -55,9 +62,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from client import (  # noqa: E402
     DEFAULT_REFRESH_MARGIN_SEC,
-    SystemOneClient,
-    WorkersAIClient,
+    JEV_API_KEY_ENVS,
+    add_jev_backend_args,
+    client_status,
     estimate_cost_usd,
+    make_jev_client,
     resolve_api_key,
     resolve_workers_ai_token_provider,
 )
@@ -74,7 +83,7 @@ class BudgetExceeded(RuntimeError):
 
 
 class JevHouseBackend:
-    """Wraps a Jev client (`SystemOneClient` or `WorkersAIClient`) with the worksheet -> bucket
+    """Wraps a Jev client (`SystemOneClient` or `WorkersAIClient`, per `--jev-backend`) with the worksheet -> bucket
     pipeline, a running spend cap, and the rules-in-code fallback. One instance per process, shared
     across requests."""
 
@@ -183,9 +192,7 @@ class JevHouseBackend:
                 "cost_usd": round(self.cost_usd, 4),
                 "budget_usd": self.budget_usd,
             }
-        tokens = getattr(self.client, "tokens", None)
-        if tokens is not None:
-            snap.update(tokens.status())
+        snap.update(client_status(self.client))
         return snap
 
     def record_error(self) -> None:
@@ -252,12 +259,7 @@ def make_handler(backend: JevHouseBackend, model: str, verbose: bool = False):
 
 
 def make_client(args: argparse.Namespace):
-    kwargs = {"timeout": args.timeout}
-    if args.model:
-        kwargs["model"] = args.model
-    if args.backend == "typesafe":
-        return SystemOneClient(resolve_api_key(), **kwargs)
-    return WorkersAIClient(resolve_workers_ai_token_provider(margin_sec=args.refresh_margin_sec), **kwargs)
+    return make_jev_client(args.jev_backend, timeout=args.timeout, model=args.model, refresh_margin_sec=args.refresh_margin_sec)
 
 
 def serve(backend: JevHouseBackend, model: str, host: str, port: int, verbose: bool = False) -> ThreadingHTTPServer:
@@ -268,7 +270,7 @@ def serve(backend: JevHouseBackend, model: str, host: str, port: int, verbose: b
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    p.add_argument("--backend", choices=["workers-ai", "typesafe"], default="workers-ai")
+    add_jev_backend_args(p)
     p.add_argument("--model", default=None, help="default: client.py's WORKERS_AI_MODEL / DEFAULT_MODEL")
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=DEFAULT_PORT)
@@ -281,15 +283,19 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                          "approximate rule 3 (the pre-2026-09-25 live behaviour)")
     p.add_argument("--refresh-margin-sec", type=float, default=DEFAULT_REFRESH_MARGIN_SEC,
                     help="renew wrangler's OAuth token once it has less than this left (default 900 = "
-                         "one 600 s match + slack); ignored for $CLOUDFLARE_API_TOKEN")
+                         "one 600 s match + slack); ignored for $CLOUDFLARE_API_TOKEN and --jev-backend typesafe")
     p.add_argument("--check-token", action="store_true",
-                    help="resolve the token (renewing it if inside the margin), print its source and "
-                         "time left, and exit -- no server, no Jev call")
+                    help="resolve the credential (renewing a wrangler token if inside the margin), print "
+                         "its source and time left, and exit -- no server, no Jev call")
     p.add_argument("--verbose", action="store_true")
     return p.parse_args(argv)
 
 
 def check_token(args: argparse.Namespace) -> int:
+    if args.jev_backend == "typesafe":
+        resolve_api_key()  # exits with a clear message if no key is found; never prints the key
+        print(f"token OK: source=typesafe-api-key ({' or '.join(JEV_API_KEY_ENVS)}; does not expire, never renewed)")
+        return 0
     provider = resolve_workers_ai_token_provider(margin_sec=args.refresh_margin_sec)
     provider.token()  # renews if inside the margin
     status = provider.status()
@@ -313,7 +319,7 @@ def main(argv: list[str] | None = None) -> int:
     backend = JevHouseBackend(client, budget_usd=budget, approx_q3=args.approx_q3)
     server = serve(backend, model, args.host, args.port, verbose=args.verbose)
     print(
-        f"promptlane jev-house server on http://{args.host}:{args.port}/  backend={args.backend} model={model} "
+        f"promptlane jev-house server on http://{args.host}:{args.port}/  jev_backend={args.jev_backend} model={model} "
         f"budget_usd={budget}{'  q3=APPROX (measurement only)' if args.approx_q3 else ''}",
         flush=True,
     )
