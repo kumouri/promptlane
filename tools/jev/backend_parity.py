@@ -326,7 +326,8 @@ def main(argv=None) -> int:
     if args.stub:
         clients = {"workers-ai": DumbStubJevClient(seed=1), "typesafe": DumbStubJevClient(seed=2)}
     else:
-        clients = {name: make_jev_client(name, timeout=args.timeout) for name in JEV_BACKENDS}
+        # fallback=False: a typesafe call that failed over would be measuring Workers AI
+        clients = {name: make_jev_client(name, timeout=args.timeout, fallback=False) for name in JEV_BACKENDS}
     total = len(items)
     started = time.monotonic()
 

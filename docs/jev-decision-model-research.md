@@ -121,7 +121,10 @@ cheap, concrete test rather than a recommendation to switch.
 
 **UPDATE 2026-09-30: signups have reopened, and promptlane now has a direct key.** Ceryce set it
 as the Windows User variable `PROMPTLANE_JEV_API_KEY`, and every Jev server takes
-`--jev-backend typesafe` beside the default `workers-ai`. TypeSafe's docs were re-read that day
+`--jev-backend typesafe`. Since Ceryce's ruling of 2026-09-30 08:34 CT, typesafe is the default, and
+it fails over to Workers AI on its own
+([`runs/jev-typesafe-fallback-2026-09-30.md`](../runs/jev-typesafe-fallback-2026-09-30.md)).
+TypeSafe's docs were re-read that day
 ([`runs/jev-backend-parity-2026-09-30.md`](../runs/jev-backend-parity-2026-09-30.md) has the
 table). Two published facts below have changed:
 

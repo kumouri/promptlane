@@ -48,20 +48,25 @@ So `DEFAULT_MODEL = "jev-latest"` is now TypeSafe's own documented alias, no lon
 
 TWO LIVE BACKENDS, one contract, picked with `--jev-backend` (`make_jev_client`):
 
-  workers-ai (default, `WorkersAIClient`)  Cloudflare Workers AI resells the same Jev through its
+  typesafe (default, `SystemOneClient` inside `FallbackJevClient`)  TypeSafe's own `/v1/systemone`,
+      direct. TypeSafe paused signups 2026-09-22 and had reopened them by 2026-09-30. The key is
+      `$PROMPTLANE_JEV_API_KEY` (or the SDK's own `$TYPESAFE_API_KEY`); on Windows a User-scope
+      variable is read from the registry if this process's environment doesn't carry it
+      (`resolve_api_key`). An API key does not expire, so this path has no token renewal at all.
+      The key never appears in an error (`redact`). A rate limit (429), an overload (529/5xx) or a
+      connection failure fails that call over to Workers AI and routes new calls there for a short
+      cool-down (`FallbackJevClient`; `--no-jev-fallback` turns it off).
+  workers-ai (`WorkersAIClient`)  Cloudflare Workers AI resells the same Jev through its
       account-scoped `/ai/run`, authenticated with a Cloudflare token (`$CLOUDFLARE_API_TOKEN`, else
       wrangler's own OAuth token on disk, renewed before it expires -- see "token providers").
       Verified 2026-09-23 against account `fd8ba3abbeadc6dcca7774a1a4a9a8d0`; the per-model path
       (`/ai/run/typesafe/jev`) 400s with "No route for that URI", so `"model"` goes in the body.
-  typesafe (`SystemOneClient`)  TypeSafe's own `/v1/systemone`, direct. TypeSafe paused signups
-      2026-09-22 and had reopened them by 2026-09-30. The key is `$PROMPTLANE_JEV_API_KEY` (or the
-      SDK's own `$TYPESAFE_API_KEY`); on Windows a User-scope variable is read from the registry if
-      this process's environment doesn't carry it (`resolve_api_key`). An API key does not expire,
-      so this path has no token renewal at all. The key never appears in an error (`redact`).
+      The default until Ceryce's ruling of 2026-09-30 08:34 CT; now typesafe's fallback.
 
 Both return `ask(state, questions) -> {"model", "answers", "usage"}`; `WorkersAIClient` unwraps
 Cloudflare's extra envelope first. The game-facing servers never see which one answered, except
-as `jev_backend` in `/health`. `DEFAULT_JEV_BACKEND` is the one line that flips the default.
+as `jev_backend` and the `jev_fallback_*` counters in `/health`. `DEFAULT_JEV_BACKEND` is the one
+line that picks the default.
 
 Long-running servers use `resolve_workers_ai_token_provider` instead of the one-shot
 `resolve_workers_ai_token`: wrangler's OAuth token lives about an hour, so the provider renews it
@@ -89,7 +94,7 @@ PRICE_IN_PER_M = 0.042  # USD per million input tokens -- TypeSafe and Workers A
 PRICE_OUT_PER_M = 0.0  # output tokens are free ("too cheap to meter", not a permanent commitment)
 
 JEV_BACKENDS = ("workers-ai", "typesafe")
-DEFAULT_JEV_BACKEND = "workers-ai"  # Ceryce's call to flip -- see runs/jev-backend-parity-2026-09-30.md
+DEFAULT_JEV_BACKEND = "typesafe"  # Ceryce's ruling 2026-09-30 08:34 CT; fails over to Workers AI (FallbackJevClient)
 JEV_API_KEY_ENVS = ("PROMPTLANE_JEV_API_KEY", "TYPESAFE_API_KEY")  # promptlane's own name, then the SDK's
 # What TypeSafe's own SDK retries (docs.typesafe.ai/sdk/python/api/retries.md, 2026-09-30). The
 # Workers AI path keeps retrying 429 only, exactly as before.
@@ -102,11 +107,14 @@ WORKERS_AI_MODEL = "typesafe/jev"
 
 class SystemOneError(RuntimeError):
     """`status` is the HTTP status when the failure was an HTTP error response, else `None` -- so
-    `WorkersAIClient` can tell a 401 (token expired/revoked: refresh and retry) from anything else."""
+    `WorkersAIClient` can tell a 401 (token expired/revoked: refresh and retry) from anything else.
+    `retry_after` is the response's `Retry-After` / `retry-after-ms` in seconds, when it sent one --
+    `FallbackJevClient` stretches its cool-down to it."""
 
-    def __init__(self, message: str, status: int | None = None):
+    def __init__(self, message: str, status: int | None = None, retry_after: float | None = None):
         super().__init__(message)
         self.status = status
+        self.retry_after = retry_after
 
 
 def _windows_user_env(name: str) -> str | None:
@@ -189,6 +197,7 @@ def _open_with_retry(
     label: str,
     max_retries: int = 5,
     retry_statuses=frozenset({429}),
+    deadline: float | None = None,
 ) -> bytes:
     """POSTs `req`, retrying on a status in `retry_statuses` (default: 429 only), honoring
     `Retry-After` when the response sends one, or on a
@@ -197,26 +206,39 @@ def _open_with_retry(
     `Request.request()`'s failures get wrapped; `getresponse()`'s don't), so both are caught here
     explicitly rather than assuming `URLError` covers every network failure. One flaky request
     should not cost a 263-snapshot run its data point -- 'don't skip it' is a hard requirement here,
-    not a nicety. Raises `SystemOneError` only after `max_retries` attempts are exhausted."""
+    not a nicety. Raises `SystemOneError` only after `max_retries` attempts are exhausted.
+
+    `deadline` (a `time.monotonic()` value) bounds the whole call, retries included: each attempt's
+    socket timeout is cut to what is left, and a retry whose backoff would end past the deadline
+    is not attempted -- the last error is raised instead. A game decision past its deadline is worth
+    nothing (`FallbackJevClient`)."""
     attempt = 0
+
+    def left() -> float | None:
+        return None if deadline is None else deadline - time.monotonic()
+
     while True:
+        remaining = left()
+        if remaining is not None and remaining <= 0:
+            raise SystemOneError(f"{label} decision deadline passed before attempt {attempt + 1}")
         try:
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
+            with urllib.request.urlopen(req, timeout=timeout if remaining is None else min(timeout, remaining)) as resp:
                 return resp.read()
         except urllib.error.HTTPError as err:
-            if err.code in retry_statuses and attempt < max_retries:
-                wait = _retry_after_sec(err.headers)
-                time.sleep(2**attempt if wait is None else wait)
+            wait = _retry_after_sec(err.headers)
+            backoff = 2**attempt if wait is None else wait
+            if err.code in retry_statuses and attempt < max_retries and (left() is None or backoff < left()):
+                time.sleep(backoff)
                 attempt += 1
                 continue
             detail = err.read().decode("utf-8", "replace")
-            raise SystemOneError(f"{label} {err.code}: {detail[:300]}", status=err.code) from err
+            raise SystemOneError(f"{label} {err.code}: {detail[:300]}", status=err.code, retry_after=wait) from err
         except (urllib.error.URLError, OSError) as err:
-            if attempt < max_retries:
+            if attempt < max_retries and (left() is None or 2**attempt < left()):
                 time.sleep(2**attempt)
                 attempt += 1
                 continue
-            raise SystemOneError(f"{label} request failed after {max_retries} retries: {err}") from err
+            raise SystemOneError(f"{label} request failed after {attempt} retries: {err}") from err
 
 
 class SystemOneClient:
@@ -237,7 +259,11 @@ class SystemOneClient:
     def __repr__(self) -> str:
         return f"SystemOneClient(model={self.model!r}, url={self.url!r})"
 
-    def ask(self, state: str, questions: list) -> dict:
+    def ask(self, state: str, questions: list, *, max_retries: int = 5, timeout: float | None = None,
+            deadline: float | None = None) -> dict:
+        """`max_retries=0` makes it fail fast -- `FallbackJevClient` hands a 429 to Workers AI rather
+        than backing off here; `timeout` overrides the per-attempt timeout; `deadline` as in
+        `_open_with_retry`."""
         body = build_request_body(state, questions, self.model)
         req = urllib.request.Request(
             self.url,
@@ -249,9 +275,10 @@ class SystemOneClient:
             },
         )
         try:
-            raw = _open_with_retry(req, self.timeout, "typesafe", retry_statuses=TYPESAFE_RETRY_STATUSES)
+            raw = _open_with_retry(req, self.timeout if timeout is None else timeout, "typesafe", max_retries=max_retries,
+                                   retry_statuses=TYPESAFE_RETRY_STATUSES, deadline=deadline)
         except SystemOneError as err:
-            raise SystemOneError(redact(str(err), self._api_key), status=err.status) from None
+            raise SystemOneError(redact(str(err), self._api_key), status=err.status, retry_after=err.retry_after) from None
         return json.loads(raw.decode("utf-8"))
 
     def status(self) -> dict:
@@ -590,7 +617,7 @@ def resolve_workers_ai_token_provider(env_var: str = "CLOUDFLARE_API_TOKEN", mar
 
 
 class WorkersAIClient:
-    """`--jev-backend workers-ai`, the default. Talks to Jev through Cloudflare Workers AI's `/ai/run` endpoint instead of TypeSafe's own
+    """`--jev-backend workers-ai`, and typesafe's fallback (`FallbackJevClient`). Talks to Jev through Cloudflare Workers AI's `/ai/run` endpoint instead of TypeSafe's own
     (see the module docstring for why). Same `ask()` contract as `SystemOneClient` -- callers never
     need to know which transport they're on.
 
@@ -618,7 +645,7 @@ class WorkersAIClient:
     def api_token(self) -> str:
         return self.tokens.token()
 
-    def _post(self, body: dict, token: str) -> dict:
+    def _post(self, body: dict, token: str, deadline: float | None = None) -> dict:
         req = urllib.request.Request(
             self.url,
             data=json.dumps(body).encode("utf-8"),
@@ -627,18 +654,20 @@ class WorkersAIClient:
                 "Authorization": f"Bearer {token}",
             },
         )
-        return json.loads(_open_with_retry(req, self.timeout, "workers-ai").decode("utf-8"))
+        return json.loads(_open_with_retry(req, self.timeout, "workers-ai", deadline=deadline).decode("utf-8"))
 
-    def ask(self, state, questions: list) -> dict:
+    def ask(self, state, questions: list, *, deadline: float | None = None) -> dict:
+        """`deadline` (a `time.monotonic()` value) bounds the call and its retries -- set when this
+        client is `FallbackJevClient`'s fallback, answering a decision TypeSafe couldn't."""
         body = build_workers_ai_body(state, questions, self.model)
         token = self.tokens.token()
         try:
-            payload = self._post(body, token)
+            payload = self._post(body, token, deadline)
         except SystemOneError as err:
             if err.status != 401:
                 raise
             _log("workers-ai answered 401 -- retrying once with the current token (renewed only if no other call has)")
-            payload = self._post(body, self.tokens.force_refresh(token))
+            payload = self._post(body, self.tokens.force_refresh(token), deadline)
         return unwrap_workers_ai_response(payload)
 
     def status(self) -> dict:
@@ -657,25 +686,229 @@ def unwrap_workers_ai_response(payload: dict) -> dict:
     return result["result"]
 
 
+# --- TypeSafe first, Workers AI behind it ---------------------------------------------------------
+# Ceryce's ruling 2026-09-30 08:34 CT: typesafe is the default, and it fails over to Workers AI on
+# its own so a busy jam day can't stall. TypeSafe's cap is 40 req/s per account and one full-speed
+# match draws ~14, so three or four concurrent matches reach it (runs/jev-backend-parity-2026-09-30.md).
+
+# What TypeSafe fails over on: exactly what its own SDK retries (429 rate limited, 529 overloaded,
+# 408, every 5xx), plus no status at all -- a connection failure, a timeout, a passed deadline.
+# A 401 (bad key) or 422 (bad request) is not failed over: Workers AI can't fix either, and hiding a
+# revoked key behind a fallback would only postpone finding out.
+FALLBACK_STATUSES = TYPESAFE_RETRY_STATUSES
+DEFAULT_FALLBACK_COOLDOWN_SEC = 10.0  # after a failover, new calls go straight to Workers AI this long
+MAX_FALLBACK_COOLDOWN_SEC = 60.0  # a Retry-After stretches the cool-down, up to this
+# One TypeSafe attempt, not the whole decision. TypeSafe's slowest measured call was 0.74 s; the one
+# outlier (21 s) was a lost TCP SYN, which this turns into a failover with ~20 s still left.
+FALLBACK_PRIMARY_TIMEOUT_SEC = 8.0
+MIN_FALLBACK_SEC = 0.5  # less than this left of the decision deadline isn't worth a Workers AI call
+
+
+def _log_fallback(msg: str) -> None:
+    sys.stderr.write(f"[jev-fallback] {msg}\n")
+    sys.stderr.flush()
+
+
+class FallbackJevClient:
+    """`--jev-backend typesafe` (the default): `SystemOneClient` first, `WorkersAIClient` behind it.
+
+    - **Per call.** TypeSafe gets one attempt and no backoff (`max_retries=0`). If it answers a
+      `FALLBACK_STATUSES` code or can't be reached, that same decision is asked of Workers AI right
+      away, inside the decision's deadline (`deadline_sec` from the start of the call -- the servers
+      pass their `--timeout`, which matches the pilots' 30 s). Workers AI keeps its own 401 handling:
+      PR #42's single-flight token renewal is untouched.
+    - **Cool-down.** A failover also starts a `cooldown_sec` window (stretched to the response's
+      `Retry-After`, capped at `MAX_FALLBACK_COOLDOWN_SEC`) in which new calls skip TypeSafe and go
+      straight to Workers AI, so a rate limit isn't re-hit by every call. When it runs out, the next
+      call is the single probe -- calls arriving while it is in flight still go to Workers AI. A
+      probe TypeSafe answers ends the cool-down (`RECOVERED`); a failed one starts another.
+    - **No Workers AI credential** (`fallback=None`): `ask` is plain TypeSafe with its full SDK-style
+      retries, and `status()` says why the fallback is off. `make_jev_client` prints the one
+      startup warning.
+
+    `/health` gets the `jev_fallback_*` counters from `status()`. TypeSafe errors are already
+    redacted by `SystemOneClient`, so nothing here can carry the key."""
+
+    backend = "typesafe"
+
+    def __init__(self, primary: SystemOneClient, fallback: WorkersAIClient | None, *, deadline_sec: float = 30.0,
+                 cooldown_sec: float = DEFAULT_FALLBACK_COOLDOWN_SEC,
+                 primary_timeout_sec: float = FALLBACK_PRIMARY_TIMEOUT_SEC,
+                 disabled_reason: str | None = None, clock=time.monotonic):
+        self.primary = primary
+        self.fallback = fallback
+        self.deadline_sec = deadline_sec
+        self.cooldown_sec = cooldown_sec
+        self.primary_timeout_sec = min(primary_timeout_sec, deadline_sec)
+        self.disabled_reason = disabled_reason
+        self._clock = clock  # cool-down only; deadlines are always `time.monotonic()`, as `_open_with_retry` reads them
+        self._lock = threading.Lock()
+        self._cool_until: float | None = None  # None = TypeSafe is in use
+        self._probing = False
+        self.failovers = 0  # TypeSafe failed this call; Workers AI was asked the same decision
+        self.cooldown_calls = 0  # sent straight to Workers AI during a cool-down
+        self.probes = 0
+        self.fallback_errors = 0  # Workers AI failed too, or no time was left: the decision went unanswered
+        self.last_error: str | None = None
+
+    @property
+    def model(self) -> str:
+        return self.primary.model
+
+    @property
+    def timeout(self) -> float:
+        return self.primary.timeout
+
+    def __repr__(self) -> str:
+        return f"FallbackJevClient(primary={self.primary!r}, fallback={type(self.fallback).__name__ if self.fallback else None})"
+
+    def _route(self) -> str:
+        """'primary', 'probe' (the one TypeSafe call after a cool-down), or 'fallback'."""
+        with self._lock:
+            if self._cool_until is None:
+                return "primary"
+            if self._probing or self._clock() < self._cool_until:
+                self.cooldown_calls += 1
+                return "fallback"
+            self._probing = True
+            self.probes += 1
+            return "probe"
+
+    def _trip(self, err: SystemOneError, route: str) -> None:
+        cool = min(max(self.cooldown_sec, err.retry_after or 0.0), MAX_FALLBACK_COOLDOWN_SEC)
+        with self._lock:
+            already = self._cool_until is not None and route != "probe"
+            self._cool_until = self._clock() + cool
+            if route == "probe":
+                self._probing = False
+            self.failovers += 1
+            self.last_error = str(err)[:300]
+            n = self.failovers
+        if route == "probe":
+            _log_fallback(f"probe failed ({err.status or 'no response'}) -- Workers AI for another {cool:.0f}s")
+        elif not already:
+            _log_fallback(f"!!! FAILOVER #{n}: typesafe {err.status or 'unreachable'} -- this call and the next {cool:.0f}s go to Workers AI: {str(err)[:160]}")
+
+    def _end_probe(self, recovered: bool) -> None:
+        with self._lock:
+            self._probing = False
+            if recovered:
+                self._cool_until = None
+            sent = self.failovers + self.cooldown_calls
+        if recovered:
+            _log_fallback(f"RECOVERED: typesafe answered the probe ({sent} calls have gone to Workers AI so far)")
+
+    def _ask_fallback(self, state, questions: list, deadline: float, cause: SystemOneError | None) -> dict:
+        if deadline - time.monotonic() < MIN_FALLBACK_SEC:
+            with self._lock:
+                self.fallback_errors += 1
+            raise SystemOneError(f"no time left for the Workers AI fallback; typesafe: {cause}", status=cause.status if cause else None)
+        try:
+            return self.fallback.ask(state, questions, deadline=deadline)
+        except SystemOneError as err:
+            message = f"workers-ai fallback failed: {err}" + (f" (after typesafe: {str(cause)[:120]})" if cause else "")
+            with self._lock:
+                self.fallback_errors += 1
+                self.last_error = message[:300]
+            raise SystemOneError(message, status=err.status) from None
+
+    def ask(self, state, questions: list) -> dict:
+        if self.fallback is None:
+            return self.primary.ask(state, questions)
+        deadline = time.monotonic() + self.deadline_sec
+        route = self._route()
+        if route == "fallback":
+            return self._ask_fallback(state, questions, deadline, None)
+        try:
+            result = self.primary.ask(state, questions, max_retries=0, timeout=self.primary_timeout_sec, deadline=deadline)
+        except SystemOneError as err:
+            if err.status is not None and err.status not in FALLBACK_STATUSES:
+                if route == "probe":
+                    self._end_probe(recovered=False)  # the next call probes again
+                raise
+            self._trip(err, route)
+            return self._ask_fallback(state, questions, deadline, err)
+        except BaseException:
+            if route == "probe":
+                self._end_probe(recovered=False)
+            raise
+        if route == "probe":
+            self._end_probe(recovered=True)
+        return result
+
+    def status(self) -> dict:
+        snap = self.primary.status()
+        with self._lock:
+            left = 0.0 if self._cool_until is None else max(0.0, self._cool_until - self._clock())
+            snap.update({
+                "jev_fallback": self.fallback.backend if self.fallback else None,
+                "jev_fallback_failovers": self.failovers,
+                "jev_fallback_cooldown_calls": self.cooldown_calls,
+                "jev_fallback_probes": self.probes,
+                "jev_fallback_errors": self.fallback_errors,
+                "jev_fallback_cooldown_left_sec": round(left, 1),
+                "jev_fallback_last_error": self.last_error,
+            })
+        if self.fallback is None:
+            snap["jev_fallback_disabled"] = self.disabled_reason
+        else:
+            tokens = self.fallback.tokens.status()
+            snap.update({f"jev_fallback_{k}": v for k, v in tokens.items()})
+        return snap
+
+
 def add_jev_backend_args(parser) -> None:
-    """`--jev-backend workers-ai|typesafe` (default `DEFAULT_JEV_BACKEND`), shared by every Jev
-    server. `--backend` stays as an alias: the house and team servers shipped with that name."""
+    """`--jev-backend typesafe|workers-ai` (default `DEFAULT_JEV_BACKEND`), shared by every Jev
+    server. `--backend` stays as an alias: the house and team servers shipped with that name.
+    `--no-jev-fallback` / `--jev-fallback-cooldown-sec` shape typesafe's Workers AI fallback."""
     parser.add_argument(
         "--jev-backend", "--backend", dest="jev_backend", choices=JEV_BACKENDS, default=DEFAULT_JEV_BACKEND,
-        help=f"how to reach Jev (default {DEFAULT_JEV_BACKEND}): 'workers-ai' = Cloudflare Workers AI with a "
-             f"self-renewing token; 'typesafe' = TypeSafe's own API with $PROMPTLANE_JEV_API_KEY",
+        help=f"how to reach Jev (default {DEFAULT_JEV_BACKEND}): 'typesafe' = TypeSafe's own API with "
+             f"$PROMPTLANE_JEV_API_KEY, failing over to Workers AI; 'workers-ai' = Cloudflare Workers AI "
+             f"only, with a self-renewing token",
+    )
+    parser.add_argument(
+        "--no-jev-fallback", dest="jev_fallback", action="store_false",
+        help="typesafe only: never fail over to Workers AI (TypeSafe's own retries only)",
+    )
+    parser.add_argument(
+        "--jev-fallback-cooldown-sec", type=float, default=DEFAULT_FALLBACK_COOLDOWN_SEC,
+        help=f"typesafe only: after a failover, send new calls straight to Workers AI this long before "
+             f"probing TypeSafe again (default {DEFAULT_FALLBACK_COOLDOWN_SEC:.0f}; a Retry-After stretches it)",
     )
 
 
+def jev_client_options(args) -> dict:
+    """`make_jev_client`'s fallback keywords from `add_jev_backend_args`' flags."""
+    return {
+        "fallback": getattr(args, "jev_fallback", True),
+        "fallback_cooldown_sec": getattr(args, "jev_fallback_cooldown_sec", DEFAULT_FALLBACK_COOLDOWN_SEC),
+    }
+
+
 def make_jev_client(backend: str = DEFAULT_JEV_BACKEND, timeout: float = 30.0, model: str | None = None,
-                    refresh_margin_sec: float = DEFAULT_REFRESH_MARGIN_SEC):
-    """The live client for `backend`. Same `ask()` contract either way; only workers-ai needs a
-    token provider."""
+                    refresh_margin_sec: float = DEFAULT_REFRESH_MARGIN_SEC, fallback: bool = True,
+                    fallback_cooldown_sec: float = DEFAULT_FALLBACK_COOLDOWN_SEC):
+    """The live client for `backend`. Same `ask()` contract either way. typesafe comes wrapped in
+    `FallbackJevClient` with Workers AI behind it (always Workers AI's own model id -- `model` is
+    TypeSafe's name and only goes to TypeSafe); `fallback=False` gives the bare `SystemOneClient`,
+    which is what a backend-vs-backend measurement needs. With no Workers AI credential the fallback
+    is off, with one warning -- the server still starts."""
     kwargs = {"timeout": timeout}
     if model:
         kwargs["model"] = model
     if backend == "typesafe":
-        return SystemOneClient(resolve_api_key(), **kwargs)
+        primary = SystemOneClient(resolve_api_key(), **kwargs)
+        if not fallback:
+            return primary
+        try:
+            provider = resolve_workers_ai_token_provider(margin_sec=refresh_margin_sec)
+        except SystemExit as err:
+            _log_fallback(f"WARNING: Workers AI fallback is OFF -- no Workers AI credential. TypeSafe rate limits "
+                          f"will be retried with backoff, not failed over. ({err})")
+            return FallbackJevClient(primary, None, deadline_sec=timeout, disabled_reason="no Workers AI credential")
+        return FallbackJevClient(primary, WorkersAIClient(provider, timeout=timeout), deadline_sec=timeout,
+                                 cooldown_sec=fallback_cooldown_sec)
     if backend == "workers-ai":
         return WorkersAIClient(resolve_workers_ai_token_provider(margin_sec=refresh_margin_sec), **kwargs)
     raise ValueError(f"unknown Jev backend {backend!r}; expected one of {JEV_BACKENDS}")

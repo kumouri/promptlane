@@ -354,21 +354,37 @@ class JevBackendSelectionTests(unittest.TestCase):
         C.add_jev_backend_args(p)
         return p.parse_args(argv)
 
-    def test_default_stays_workers_ai(self):
-        self.assertEqual(C.DEFAULT_JEV_BACKEND, "workers-ai")
-        self.assertEqual(self._parse([]).jev_backend, "workers-ai")
+    def test_default_is_typesafe_with_the_fallback_on(self):
+        """Ceryce's ruling 2026-09-30 08:34 CT: typesafe by default, auto-fallback to Workers AI."""
+        self.assertEqual(C.DEFAULT_JEV_BACKEND, "typesafe")
+        args = self._parse([])
+        self.assertEqual((args.jev_backend, args.jev_fallback), ("typesafe", True))
+        self.assertEqual(C.jev_client_options(args), {"fallback": True, "fallback_cooldown_sec": C.DEFAULT_FALLBACK_COOLDOWN_SEC})
+        self.assertEqual(C.jev_client_options(self._parse(["--no-jev-fallback", "--jev-fallback-cooldown-sec", "4"])),
+                         {"fallback": False, "fallback_cooldown_sec": 4.0})
 
     def test_backend_is_an_alias(self):
         self.assertEqual(self._parse(["--backend", "typesafe"]).jev_backend, "typesafe")
         self.assertEqual(self._parse(["--jev-backend", "typesafe"]).jev_backend, "typesafe")
 
-    def test_typesafe_needs_no_token_provider(self):
+    def test_typesafe_without_the_fallback_needs_no_token_provider(self):
         with mock.patch.dict(os.environ, {"PROMPTLANE_JEV_API_KEY": SECRET}, clear=True), \
                 mock.patch("client.resolve_workers_ai_token_provider") as provider:
-            client = C.make_jev_client("typesafe", timeout=7, model="jev-preview")
+            client = C.make_jev_client("typesafe", timeout=7, model="jev-preview", fallback=False)
         provider.assert_not_called()
         self.assertIsInstance(client, C.SystemOneClient)
         self.assertEqual((client.model, client.timeout), ("jev-preview", 7))
+
+    def test_typesafe_gets_workers_ai_behind_it_on_workers_ais_own_model_id(self):
+        with mock.patch.dict(os.environ, {"PROMPTLANE_JEV_API_KEY": SECRET}, clear=True), \
+                mock.patch("client.resolve_workers_ai_token_provider", return_value=C.StaticToken("t")) as provider:
+            client = C.make_jev_client("typesafe", timeout=7, model="jev-preview", refresh_margin_sec=600, fallback_cooldown_sec=3)
+        provider.assert_called_once_with(margin_sec=600)
+        self.assertIsInstance(client, C.FallbackJevClient)
+        self.assertEqual((client.model, client.timeout, client.deadline_sec, client.cooldown_sec), ("jev-preview", 7, 7, 3))
+        self.assertEqual((client.fallback.model, client.fallback.timeout), (C.WORKERS_AI_MODEL, 7))
+        self.assertEqual(client.status()["jev_backend"], "typesafe")
+        self.assertNotIn(SECRET, repr(client) + json.dumps(client.status()))
 
     def test_workers_ai_gets_the_renewing_provider(self):
         with mock.patch("client.resolve_workers_ai_token_provider", return_value=C.StaticToken("t")) as provider:

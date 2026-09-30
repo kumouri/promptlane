@@ -5,8 +5,16 @@ variable). This run adds a direct TypeSafe backend next to Cloudflare Workers AI
 the same recorded decision states to both and plays one Jam-shape match on each. Everything ran on
 Jev; nothing ran on qwen.
 
-**Recommendation: make `typesafe` the default.** The default is **not** flipped here; that's
-Ceryce's call. The evidence:
+**Recommendation: make `typesafe` the default.** The default was not flipped in this run; that
+was Ceryce's call.
+
+> **Update, same day.** Ceryce's ruling (2026-09-30 08:34 CT): "Typesafe default, auto-fallback."
+> `typesafe` is now the default. It fails over to Workers AI by itself on a rate limit, an
+> overload or a connection failure. See
+> [`jev-typesafe-fallback-2026-09-30.md`](jev-typesafe-fallback-2026-09-30.md) for the design and
+> a live run. That run found real TypeSafe didn't rate-limit even at 150 decisions/s.
+
+The evidence:
 
 - **It's the same model.** Both report `jev-1.13.0`. Two backends agree with each other exactly as
   often as each one agrees with itself (98.8% vs 98.5% and 98.2% on the decision the server would
@@ -22,14 +30,16 @@ Ceryce's call. The evidence:
   neither does `npx wrangler login` as a jam-day dependency.
 
 Keep Workers AI as the fallback. Moving between the two is a server restart with the other
-`--jev-backend`.
+`--jev-backend`. (Since the ruling above, the fallback is automatic, per call, with no restart.)
 
 The risks, stated plainly:
 
 - TypeSafe's published cap is **40 requests/s per account**, and its docs say limits are
   "adjusting dynamically". One headless Jam-shape match drew about 14 requests/s here, so about
   three concurrent full-speed matches would reach the cap. 429s are retried with backoff, but
-  they would slow play. Workers AI's own limit for Jev wasn't measured.
+  they would slow play. Workers AI's own limit for Jev wasn't measured. *(Later that day, 8
+  concurrent matches drew up to 150 requests/s from TypeSafe with no 429, and Workers AI answered
+  about 58/s during failovers without an error. See the fallback write-up.)*
 - The key belongs to a personal account on a service that paused signups once already (09-22).
 
 **Total spend: $0.17** against the $2 cap. That's $0.043 for the parity run, $0.123 for the two
@@ -60,8 +70,9 @@ answered `{"model": "jev-1.13.0", "answers": {"q1": {"type": "noul", "noul": 0.9
 ## What was built
 
 - **`--jev-backend workers-ai|typesafe`** on `house_server.py`, `team_server.py` and
-  `schema_server.py`, through `client.make_jev_client`. The default stays `workers-ai`
-  (`client.DEFAULT_JEV_BACKEND`, a one-line change). `--backend`, the name the house and team
+  `schema_server.py`, through `client.make_jev_client`. The default stayed `workers-ai` here
+  (`client.DEFAULT_JEV_BACKEND`, a one-line change). It became `typesafe`, with the automatic
+  fallback, after the ruling above. `--backend`, the name the house and team
   servers shipped with, still works as an alias.
 - **The wire contract to the game is unchanged.** Both clients return the same `{model, answers,
   usage}`. `/health` gains `jev_backend` on all three servers. On typesafe, `token_source` reads
