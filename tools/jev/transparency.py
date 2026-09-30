@@ -84,6 +84,11 @@ DROPPED_REASONS = {
         "translator merged it into another rule's condition without it showing here, or it was "
         "dropped outright. Worth checking by hand."
     ),
+    "other_instrument": (
+        "your prose marks this for a different instrument, so it was left out of this instrument's "
+        "schema before translation (`translator.scope_to_instrument`) -- it is compiled into the "
+        "schema of the instrument it names, not lost."
+    ),
 }
 
 
@@ -394,9 +399,15 @@ def render_report_markdown(report: TransparencyReport) -> str:
             lines.append(f"- **From your prose:** ⚠ {rp.source_note}")
         lines.append("")
 
-    if schema.validation_notes:
+    scope_notes = [n for n in schema.validation_notes if n.startswith("instrument scope:")]
+    priority_notes = [n for n in schema.validation_notes if n not in scope_notes]
+    if priority_notes:
         lines += ["## Automatic priority fixes applied to this schema", ""]
-        lines += [f"- {note}" for note in schema.validation_notes]
+        lines += [f"- {note}" for note in priority_notes]
+        lines.append("")
+    if scope_notes:
+        lines += ["## Instrument scope — what was kept out of this instrument's schema", ""]
+        lines += [f"- {note}" for note in scope_notes]
         lines.append("")
 
     lines += ["## Dropped — what did NOT become a rule", ""]
@@ -410,9 +421,10 @@ def render_report_markdown(report: TransparencyReport) -> str:
             "unclaimed_rule": "Looked like a rule, but no translated rule traces back to it — check this by hand",
             "open_strategy": "Advisory prose Jev's question types structurally can't take",
             "voice": "Voice / tone — no decision content",
+            "other_instrument": "Marked for another instrument — compiled only for that one",
         }
         # unclaimed_rule first: it's the category most likely to be a real bug, not an expected loss.
-        for label in ("unclaimed_rule", "open_strategy", "voice"):
+        for label in ("unclaimed_rule", "open_strategy", "other_instrument", "voice"):
             if label not in by_label:
                 continue
             lines.append(f"### {label_titles[label]}")

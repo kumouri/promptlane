@@ -46,7 +46,7 @@ from llm_backends import Backend, BackendError, BudgetExceeded, TokenBudget, mak
 from scenarios import ABILITIES  # noqa: E402
 from segment import auto_segments, hand_segments_for  # noqa: E402
 from transparency import build_report, render_report_markdown  # noqa: E402
-from translator import TranslatedRule, TranslatedSchema, translate_pilot  # noqa: E402
+from translator import TranslatedRule, TranslatedSchema, scope_to_instrument, translate_pilot  # noqa: E402
 
 INSTRUMENTS = ("drums", "keytar", "violin")
 DEFAULT_MAX_TOTAL_TOKENS = 60_000
@@ -119,8 +119,14 @@ def segments_for(text: str, display_name: str):
 def compile_instrument(text: str, display_name: str, instrument: str, backend: Backend | None, attempts: int = 3,
                        schema: TranslatedSchema | None = None) -> dict:
     """One instrument: translate (unless `schema` is given), then build + render the report.
-    Never raises for a translation failure -- the entry says what went wrong instead."""
-    pilot_file, segments, labels = segments_for(text, display_name)
+    Never raises for a translation failure -- the entry says what went wrong instead.
+
+    The report is built from the prose this instrument's translation actually saw
+    (`translator.scope_to_instrument`); clauses the prose marks for another instrument are listed
+    under Dropped as `other_instrument`, not flagged as rules that compiled to nothing."""
+    scoped = scope_to_instrument(text, instrument)
+    pilot_file, segments, labels = segments_for(scoped.text, display_name)
+    segments = list(segments) + [("other_instrument", clause) for clause in scoped.set_aside]
     entry = {"instrument": instrument, "ok": False, "labels": labels}
     try:
         if schema is None:
@@ -169,7 +175,9 @@ def header_markdown(result: dict, backend_desc: str, usage: dict, cap: int | Non
         "compiling the same prose twice can differ a little -- wording that compiles the same way every "
         "time is wording that will play the way you meant.",
         "",
-        "One prompt drives all three of your bearbots, so each instrument is compiled separately.",
+        "One prompt drives all three of your bearbots, so each instrument is compiled separately. A line "
+        "that starts `keytar only:` (or `violin only:`, `drums only:`, `Keytar:`...) is compiled only "
+        "for the instrument it names.",
         "",
     ]
     for inst, e in result["instruments"].items():
@@ -181,6 +189,9 @@ def header_markdown(result: dict, backend_desc: str, usage: dict, cap: int | Non
             unclaimed = sum(1 for d in e["dropped"] if d["label"] == "unclaimed_rule")
             if unclaimed:
                 flags.append(f"{unclaimed} rule-like sentence(s) that compiled to nothing")
+            removed = sum(1 for n in e["schema"]["validation_notes"] if n.startswith("instrument scope: removed rule"))
+            if removed:
+                flags.append(f"{removed} rule(s) removed for belonging to another instrument")
             lines.append(f"- **{inst}**: {n} rules" + (" -- ⚠ " + "; ".join(flags) if flags else ""))
         else:
             lines.append(f"- **{inst}**: ✗ not compiled -- {e['error']}")

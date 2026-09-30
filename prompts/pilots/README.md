@@ -24,6 +24,9 @@ It is not a champion voice; it is written for the ruled test backend (`qwen3.5:9
   and they are what makes the model's comparisons work.
 - **Strategy:** ride your own minion wave, fight what it meets, press towers only with the wave,
   recall under 75 hp, abilities only with the cooldown at 0.
+- **Per-instrument lines** (`keytar only: …`) are the form the Jev translator recognises: compiled
+  with `tools/jev/compile.py`, each instrument's schema gets only its own line
+  ([`translator-guards-and-defaults-spec.md` §10](../../docs/translator-guards-and-defaults-spec.md)).
 
 Evidence and known holes (recall obeyed ~46 % of the time under pressure): see
 [`runs/house-prompt-2026-09-21.md`](../../runs/house-prompt-2026-09-21.md). Evolving house bots

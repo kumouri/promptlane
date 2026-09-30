@@ -452,5 +452,9 @@ question, the default is still the recommendation until she rules.
   it now uses the self-renewing provider the house and team servers already use.
 - **Per-instrument clauses leak across instruments in the translator.** Compiling `house-violet.md`
   ("keytar only: …, violin only: …, drums only: …") put a `keytar_ready → chord` rule into the
-  **drums** schema, and it fired 2 times in ~900 decisions. Worth knowing for the Friday tiers,
-  which will compile house-style prose.
+  **drums** schema, and it fired 2 times in ~900 decisions. Fixed in **PR #39**. The rate was far
+  higher than those firings suggest: 39 of 51 live compiles of `house-violet.md` leaked. The
+  translator now sets aside lines marked for another instrument and removes any rule that still
+  fires another instrument's ability (`docs/translator-guards-and-defaults-spec.md` §10). The
+  `house-violet` schemas stored in this smoke run's genomes are the leaked ones; recompile any
+  house-style prose compiled before that merge, including the Friday tiers.
