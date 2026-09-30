@@ -244,3 +244,23 @@ npm run match -- --verify runs/x.json
 
 Wall time here was 10–27 min per full match at cadence 4 on the shared GPU (the host's arena and a
 sibling job were also using Ollama).
+
+## Recompiled on #39
+
+Later on 2026-09-30, both tiers' prose was recompiled with the leak-fixed translator (#39,
+`a987e99`), using the same command as above (`--backend ollama`, `qwen3.5:9b`). Easy took 6,233
+tokens and 18.5 s; hard took 7,656 tokens and 29.2 s. Each instrument's fresh schema was diffed
+against `house-tiers-schemas-{easy,hard}-2026-09-30.json`, rule by rule.
+
+- **Equivalent. Nothing changed.** On all six instrument sets the recompile gives the same rule
+  count, order, action kinds, abilities, target selectors and default: easy 5 rules with the
+  unreachable `push_lane` root default, and hard 8 rules with a `home` default.
+- **Only the question wording differs.** "visible" became "in sight", and rule 3's two conjuncts
+  swapped order on drums and keytar. Translation is sampled, so small wording changes between
+  compiles are expected.
+- **No leaks.** No rule, old or fresh, names another instrument's ability or cooldown. Hard's rule
+  3 fires `kick` / `chord` / `staccato` on drums / keytar / violin respectively.
+- **House files are unchanged.** Hard's rule 3 in `house-hard-{violet,green}.md` pairs each
+  instrument with its own primary, just as the schemas do. Easy uses no ability. Both side files
+  still render the cascade correctly.
+- **No smoke match was run**, because no tier file changed.
