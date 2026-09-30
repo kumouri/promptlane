@@ -133,15 +133,16 @@ default and compiles with host Ollama; nothing to start.
 - **Practice matches (optional):** start the schema server, then point the panel at it:
 
   ```
-  python tools/jev/schema_server.py              # live Jev via Workers AI, 127.0.0.1:8797, --budget-usd 0.50
-  python tools/jev/schema_server.py --jev-backend typesafe   # live Jev, TypeSafe's API direct (§5.3 step 1)
+  python tools/jev/schema_server.py              # live Jev: TypeSafe, Workers AI fallback; 127.0.0.1:8797, --budget-usd 0.50
+  python tools/jev/schema_server.py --jev-backend workers-ai   # live Jev via Workers AI only (§5.3 step 1)
   python tools/jev/schema_server.py --stub       # $0 plumbing run
   ```
 
   and set `"compile": {"practiceBackend": "jev-schema"}` (the `jev-schema` backend is already in
   `config.example.json`). The entrant's compiled rules play violet on Jev against the house bot:
-  a quick test against their handle's quota, never ranked. `npx wrangler whoami` first if the
-  Workers AI token may have expired, and restart the schema server after it refreshes.
+  a quick test against their handle's quota, never ranked. The Workers AI token behind the
+  fallback renews itself. `python tools/jev/house_server.py --check-token` checks both
+  credentials.
 
   One schema server serves every practice match at once. A pilot that can't reach it holds, and its
   log line says why: `[pilot error: fetch failed <- ECONNREFUSED]`. **Same-tick clusters of
@@ -394,14 +395,31 @@ identical, and `/health` shows `jev_backend`
 
 | `--jev-backend` | Credential | Notes |
 |---|---|---|
-| `workers-ai` (the default) | a Cloudflare token (below) | p50 335 ms and p95 860 ms, measured. The token needs renewing unless it's `$CLOUDFLARE_API_TOKEN`. |
-| `typesafe` | `$PROMPTLANE_JEV_API_KEY`, Ceryce's TypeSafe key, set as a Windows User variable. It's read from the registry if the shell predates it, and is never printed. | p50 219 ms and p95 567 ms, measured. It never expires, so nothing is ever renewed. The published cap is 40 requests/s per account, and one full-speed headless match drew about 14. |
+| `typesafe` (the default) | `$PROMPTLANE_JEV_API_KEY`, Ceryce's TypeSafe key, set as a Windows User variable. It's read from the registry if the shell predates it, and is never printed. **Plus** the Workers AI credential below, for the fallback. | p50 219 ms and p95 567 ms, measured. The key never expires, so nothing is ever renewed. The published cap is 40 requests/s per account; one full-speed headless match draws about 14. |
+| `workers-ai` | a Cloudflare token (below) | p50 335 ms and p95 860 ms, measured. The token needs renewing unless it's `$CLOUDFLARE_API_TOKEN`. |
 
-The parity run recommends `typesafe` as the default, but flipping the default is Ceryce's call.
-Until she does, pass `--jev-backend typesafe` to use it. If one backend is having trouble, restart
-the server with the other flag. Nothing else changes.
+**typesafe fails over to Workers AI on its own** (Ceryce's ruling, 2026-09-30 08:34 CT: "Typesafe
+default, auto-fallback"). TypeSafe gets one attempt per decision, cut off at 8 s. It may answer 429
+(rate limited), 408, or 529 or another 5xx (overloaded), or it may be unreachable. Either way, that
+same decision goes to Workers AI within the decision's 30 s deadline. For the next
+`--jev-fallback-cooldown-sec` (default 10 s, stretched to a `Retry-After`), new decisions skip
+TypeSafe and go straight to Workers AI. Then one probe call tries TypeSafe again. The server logs
+`[jev-fallback] !!! FAILOVER #n` once per episode, and `RECOVERED` when a probe gets through. A 401
+or 422 is not failed over, because Workers AI can't fix a bad key or a bad request (step 4).
 
-On **`workers-ai`**, there are two ways to authenticate, checked in this order:
+- **No Workers AI credential:** the server still starts. It prints one
+  `[jev-fallback] WARNING: Workers AI fallback is OFF` line and relies on TypeSafe's own retries
+  with backoff.
+- **`--no-jev-fallback`** turns it off on purpose, for example to measure TypeSafe alone.
+- **Measured:** real TypeSafe never rate-limited, even at 150 decisions/s from 8 concurrent
+  matches. With its published 40/s cap enforced in front of it, 4 matches failed over 30 times,
+  and every one of 6,847 decisions was answered
+  ([`runs/jev-typesafe-fallback-2026-09-30.md`](../runs/jev-typesafe-fallback-2026-09-30.md)).
+
+To run on Workers AI alone, start the server with `--jev-backend workers-ai`; nothing else
+changes.
+
+On **`workers-ai`**, and for typesafe's fallback, there are two ways to authenticate, checked in this order:
 
 - **`$CLOUDFLARE_API_TOKEN` (preferred for jam day)** — a dashboard API token with Workers AI
   permission, set in the environment the server starts from. It does not expire mid-jam.
@@ -417,19 +435,25 @@ Check before starting (renews if needed, then exits):
 
 ```
 python tools/jev/house_server.py --check-token
-# token OK: source=wrangler-oauth expires in 3599s (margin 900s; the server renews automatically)
-python tools/jev/house_server.py --jev-backend typesafe --check-token
 # token OK: source=typesafe-api-key (PROMPTLANE_JEV_API_KEY or TYPESAFE_API_KEY; does not expire, never renewed)
+# fallback workers-ai token OK: source=wrangler-oauth expires in 3078s (margin 900s; the server renews automatically)
+python tools/jev/house_server.py --jev-backend workers-ai --check-token
+# token OK: source=wrangler-oauth expires in 3599s (margin 900s; the server renews automatically)
 ```
 
-On workers-ai, exit code 1 or a `TOKEN RENEWAL FAILED` line means `npx wrangler login`, then check
-again. On typesafe, exit code 1 means no key was found: set `PROMPTLANE_JEV_API_KEY`.
+On typesafe, exit code 1 with `PROMPTLANE_JEV_API_KEY / TYPESAFE_API_KEY is not set` means no key
+was found: set `PROMPTLANE_JEV_API_KEY`. A
+`fallback: OFF` line means there is no Workers AI credential, so the server will run without the
+fallback. Any of these means `npx wrangler login`, then check again:
+
+- a `… NOT OK` line with exit code 1
+- a `TOKEN RENEWAL FAILED` line
 
 **2. Start the server** (its own terminal or scheduled task, next to the model server):
 
 ```
-python tools/jev/house_server.py --port 8798 --budget-usd 3.00                          # workers-ai
-python tools/jev/house_server.py --port 8798 --budget-usd 3.00 --jev-backend typesafe   # TypeSafe direct
+python tools/jev/house_server.py --port 8798 --budget-usd 3.00                            # TypeSafe, Workers AI fallback
+python tools/jev/house_server.py --port 8798 --budget-usd 3.00 --jev-backend workers-ai   # Workers AI only
 ```
 
 Cost is the same on either backend: about $0.035 per 1,000 Jev calls (measured, `usage.input_tokens` × $0.042/M). A jam-shape
@@ -444,7 +468,11 @@ Jev back.
 | `jev_backend` | the one you started it with |
 | `token_source`, `token_expires_in_sec` | `env` and `null`, or `wrangler-oauth` and a number that climbs back to ~3600 after each renewal; on typesafe, `typesafe-api-key` and `null` |
 | `token_renewals` | about one per hour of uptime; always 0 on typesafe. Several a minute means renewals are storming — the bug `runs/jev-client-renew-2026-09-30.md` fixed |
-| `fallbacks`, `last_fallback_error` | `0` and `null` |
+| `jev_fallback` (typesafe) | `workers-ai`. `null` means the Workers AI fallback is off, and `jev_fallback_disabled` says why |
+| `jev_fallback_failovers`, `jev_fallback_cooldown_calls` | `0` on a quiet day. When they climb, TypeSafe is refusing and Workers AI is answering in its place, and play goes on. `jev_fallback_cooldown_left_sec` > 0 means that is happening now |
+| `jev_fallback_errors` | `0`. Anything else counts decisions that neither backend answered |
+| `jev_fallback_token_*` | the Workers AI fallback's token, read the same way as `token_*` above |
+| `fallbacks`, `last_fallback_error` | `0` and `null` (these are the rules-in-code fallback of step 4, not the Workers AI one) |
 | `cost_usd` / `budget_usd` | well apart |
 
 The server's stderr prints `[jev-token] renewed …` on each renewal.
@@ -461,7 +489,8 @@ as a call error in that match's stats. What to do:
 |---|---|
 | `401` / `TOKEN RENEWAL FAILED` (workers-ai) | `npx wrangler login` — the server picks the new token off disk on its next renewal; no restart |
 | `typesafe 401` | the key is wrong or revoked: fix `PROMPTLANE_JEV_API_KEY` and restart, or restart with `--jev-backend workers-ai` |
-| `typesafe 429` / `529` | TypeSafe rate-limited or overloaded. Those codes are already retried with backoff, so seeing one here means retries ran out. If it keeps happening, restart with `--jev-backend workers-ai` |
+| `workers-ai fallback failed … (after typesafe: 429 …)` | TypeSafe refused the call and Workers AI failed too. Read `jev_fallback_last_error`, and check the Workers AI token with `--check-token` |
+| `typesafe 429` / `529` | only happens with the Workers AI fallback off (`jev_fallback` is `null`): TypeSafe's own retries ran out. Give the server a Workers AI credential and restart, or restart with `--jev-backend workers-ai` |
 | `BudgetExceeded` | restart the server with a larger `--budget-usd` |
 | a timeout / connection error | provider or network trouble; nothing to do, it recovers on its own (restart on the other `--jev-backend` if it doesn't) |
 | (arena log: server unreachable) | restart `house_server.py` |
