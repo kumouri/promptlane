@@ -18,6 +18,9 @@ diagnostic), [fable-v1-001.md](fable-v1-001.md) and [opus-v1-001.md](opus-v1-001
 Claude submissions, evidence pass with per-submission adapters under `acceptance/adapters/`), and
 [v1-comparison.md](v1-comparison.md) (the three side by side and what that decides about v2),
 and [house-prompt-2026-09-21.md](house-prompt-2026-09-21.md) (the arena's house bot on `qwen3.5:9b`:
-four quick tests vs `drums.md`, logs `house-prompt-2026-09-21-r*.json` beside it).
+four quick tests vs `drums.md`, logs `house-prompt-2026-09-21-r*.json` beside it), and
+[prompt-evolution-smoke-2026-09-30.md](prompt-evolution-smoke-2026-09-30.md) (the house-bot
+evolution harness's one-generation smoke on live Jev plus the backend measurements its spec uses,
+logs `prompt-evolution-smoke-2026-09-30-*.json` beside it).
 The bulky captures those documents hash live under ignored `artifacts/<run>-evidence/` and
 `artifacts/<run>-reviewed/`.

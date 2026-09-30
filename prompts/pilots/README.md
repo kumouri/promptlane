@@ -26,4 +26,6 @@ It is not a champion voice; it is written for the ruled test backend (`qwen3.5:9
   recall under 75 hp, abilities only with the cooldown at 0.
 
 Evidence and known holes (recall obeyed ~46 % of the time under pressure): see
-[`runs/house-prompt-2026-09-21.md`](../../runs/house-prompt-2026-09-21.md).
+[`runs/house-prompt-2026-09-21.md`](../../runs/house-prompt-2026-09-21.md). Evolving house bots
+by strategy tier (easy / medium / hard) through the Jev translator:
+[`docs/prompt-evolution-spec.md`](../../docs/prompt-evolution-spec.md).
