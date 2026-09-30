@@ -142,6 +142,13 @@ default and compiles with host Ollama; nothing to start.
   a quick test against their handle's quota, never ranked. `npx wrangler whoami` first if the
   Workers AI token may have expired, and restart the schema server after it refreshes.
 
+  One schema server serves every practice match at once. A pilot that can't reach it holds, and its
+  log line says why: `[pilot error: fetch failed <- ECONNREFUSED]`. **Same-tick clusters of
+  `ECONNREFUSED` while the server is up** mean a server started from code older than 2026-09-30,
+  which had a listen backlog of 5, so a second concurrent match overflowed it. Restart it from
+  current develop. The Jev servers and `model_server.py` now listen with a backlog of 128 (see
+  [`runs/jev-server-backlog-2026-09-30.md`](../runs/jev-server-backlog-2026-09-30.md)).
+
 ---
 
 ## 2. Expose it to InRhythm (Access + tunnel) — by hand, once
@@ -435,6 +442,7 @@ as a call error in that match's stats. What to do:
 | `BudgetExceeded` | restart the server with a larger `--budget-usd` |
 | a timeout / connection error | Cloudflare trouble; nothing to do, it recovers on its own |
 | (arena log: server unreachable) | restart `house_server.py` |
+| (arena log: `server unreachable: fetch failed <- ECONNREFUSED` in same-tick bursts, server up) | the server predates the backlog fix (§1b); restart it from current develop |
 
 A match that ran mostly on fallback was played by the rules-in-code house bot, not Jev; it still
 counts (same rules), but if that matters for a placement, void and re-run it.

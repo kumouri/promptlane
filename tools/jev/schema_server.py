@@ -3,7 +3,8 @@
 plays (`docs/entrant-compile-preview.md`, door B). Sibling to `house_server.py` / `team_server.py`,
 but where those two ask a fixed, hand-written cascade, this one asks whatever rules the entrant's
 prose compiled to (`compile.py`): the schema arrives with each request, so the server is stateless
-and one process serves every practice match at once.
+and one process serves every practice match at once. (Its listen backlog is sized for that:
+`local_http.py`.)
 
 The decision itself is `fidelity_harness.run_prediction`, unchanged -- the same code that measured
 the translator (`docs/prose-to-schema-translator.md` §3): every rule's condition is one `noul`
@@ -40,7 +41,7 @@ import json
 import sys
 import threading
 import time
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler
 import os
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -53,6 +54,7 @@ from client import (  # noqa: E402
 )
 from compile import schema_from_dict  # noqa: E402
 from fidelity_harness import DumbStubJevClient, run_prediction  # noqa: E402
+from local_http import BurstTolerantHTTPServer  # noqa: E402
 
 DEFAULT_PORT = 8797
 DEFAULT_BUDGET_USD = 0.50
@@ -164,10 +166,8 @@ def make_handler(backend: JevSchemaBackend, model: str, verbose: bool = False):
     return Handler
 
 
-def serve(backend: JevSchemaBackend, model: str, host: str = "127.0.0.1", port: int = DEFAULT_PORT, verbose: bool = False) -> ThreadingHTTPServer:
-    server = ThreadingHTTPServer((host, port), make_handler(backend, model, verbose))
-    server.daemon_threads = True
-    return server
+def serve(backend: JevSchemaBackend, model: str, host: str = "127.0.0.1", port: int = DEFAULT_PORT, verbose: bool = False) -> BurstTolerantHTTPServer:
+    return BurstTolerantHTTPServer((host, port), make_handler(backend, model, verbose))
 
 
 def make_client(args: argparse.Namespace):

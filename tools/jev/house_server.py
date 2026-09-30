@@ -50,7 +50,7 @@ import os
 import sys
 import threading
 import time
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from client import (  # noqa: E402
@@ -61,6 +61,7 @@ from client import (  # noqa: E402
     resolve_api_key,
     resolve_workers_ai_token_provider,
 )
+from local_http import BurstTolerantHTTPServer  # noqa: E402
 from rules import Worksheet, bind_questions, bucket_for_rule, first_match, ground_truth_answers  # noqa: E402
 from serializer import state_paragraph  # noqa: E402
 
@@ -260,10 +261,8 @@ def make_client(args: argparse.Namespace):
     return WorkersAIClient(resolve_workers_ai_token_provider(margin_sec=args.refresh_margin_sec), **kwargs)
 
 
-def serve(backend: JevHouseBackend, model: str, host: str, port: int, verbose: bool = False) -> ThreadingHTTPServer:
-    server = ThreadingHTTPServer((host, port), make_handler(backend, model, verbose))
-    server.daemon_threads = True
-    return server
+def serve(backend: JevHouseBackend, model: str, host: str, port: int, verbose: bool = False) -> BurstTolerantHTTPServer:
+    return BurstTolerantHTTPServer((host, port), make_handler(backend, model, verbose))
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:

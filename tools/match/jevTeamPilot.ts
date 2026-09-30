@@ -12,7 +12,7 @@
  */
 import type { Action, Instrument, Observation, Team, Vec2 } from '../../src/types';
 import { BASE } from '../../src/sim/map';
-import type { TracingDecision, TracingPilot } from './jevPilot';
+import { transportErrorMessage, type TracingDecision, type TracingPilot } from './jevPilot';
 
 export type ActionBucket = 'recall' | 'go_home' | 'ability' | 'attack_foe' | 'attack_tower' | 'ride_wave';
 
@@ -148,7 +148,7 @@ export function jevTeamTracingPilot(config: JevTeamPilotConfig, currentTick: () 
           }),
         };
       } catch (err) {
-        return { action: null, reply: `[pilot error: ${(err as Error).message}]` };
+        return { action: null, reply: `[pilot error: ${transportErrorMessage(err)}]` };
       }
     },
   };

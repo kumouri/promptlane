@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { after, before, test } from 'node:test';
 import { ROOT, makeObserve, makePlayMatch, repoPath } from './adapters.mjs';
+import { loadHeadless } from '../match/load.mjs';
 import { summarizeSide } from './fitness.mjs';
 
 const CLI = path.join(ROOT, 'tools', 'match', 'cli.mjs');
@@ -144,4 +145,16 @@ test('harness observe adapter: a replay recovers what each pilot saw, and the de
   assert.equal(typeof s.descriptors.caution, 'number');
   const tampered = { ...log, checkpoints: log.checkpoints.map((c, i) => (i === 0 ? { ...c, state: '{}' } : c)) };
   assert.equal(await makeObserve()(tampered), null, 'a replay that diverges describes nothing');
+});
+
+test('a schema pilot that cannot connect says why, not just "fetch failed"', async () => {
+  const { jevSchemaTracingPilot } = await loadHeadless();
+  const closed = createServer();
+  await new Promise((resolve) => closed.listen(0, '127.0.0.1', resolve));
+  const { port } = closed.address();
+  await new Promise((resolve) => closed.close(resolve));
+  const pilot = jevSchemaTracingPilot({ endpoint: `http://127.0.0.1:${port}/`, schemas: schemas('x'), timeoutSec: 10 });
+  const { action, reply } = await pilot.decide({ self: { instrument: 'drums' } });
+  assert.equal(action, null, 'a transport failure holds');
+  assert.match(reply, /^\[pilot error: fetch failed <- ECONNREFUSED\]$/);
 });

@@ -12,7 +12,7 @@
  * and `jevTracingPilot` take -- so a practice match never crashes on a dropped call.
  */
 import type { Action, ActionKind, Instrument, Observation } from '../../src/types';
-import type { TracingDecision, TracingPilot } from './jevPilot';
+import { transportErrorMessage, type TracingDecision, type TracingPilot } from './jevPilot';
 
 export interface JevSchemaPilotConfig {
   /** The schema-server endpoint, e.g. http://127.0.0.1:8797/ */
@@ -52,7 +52,7 @@ export function jevSchemaTracingPilot(config: JevSchemaPilotConfig): TracingPilo
         if (!data.action || !KINDS.has(data.action.kind)) throw new Error(`bad action from jev-schema: ${JSON.stringify(data.action)}`);
         return { action: data.action, reply: JSON.stringify({ rule: data.rule, action: data.action, answers: data.answers, ms: data.ms }) };
       } catch (err) {
-        return { action: null, reply: `[pilot error: ${(err as Error).message}]` };
+        return { action: null, reply: `[pilot error: ${transportErrorMessage(err)}]` };
       }
     },
   };
