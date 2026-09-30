@@ -46,6 +46,8 @@ easy and hard are only played when asked for (`config.house.tier` or `--house-ti
 | medium | ride the wave (above) | recall under 75 → leave a tower without a wave → ability → attack the foe → the tower → ride → home |
 | hard | towers and kills | recall under 90 → leave a tower without a wave → ability on a bearbot under 100 hp → attack that bearbot → the tower if 2+ friendly minions are in sight → the lowest-hp bearbot → the nearest minion → ride → home |
 
+> **Hard is not yet harder than medium.** In its 9 sanity matches (`runs/house-tiers-2026-09-30.md`) the only decided result was medium over hard: off Jev, 32 of its 87 tower attacks targeted its own towers, and it picks fights with full-health drums. Ceryce's ruling 2026-09-30: ship it labelled, and let the prompt-evolution campaign's hard lineage (`docs/prompt-evolution-spec.md`) start from it.
+
 **How easy and hard were written: through the Jev translator, as an entrant writes.** Each tier
 is authored as an entrant-style prose rulebook, `house-<tier>.prose.md`. That prose is compiled
 with `python tools/jev/compile.py … --backend ollama`, the same door-A path an entrant uses. The
