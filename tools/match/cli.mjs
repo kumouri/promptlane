@@ -4,6 +4,7 @@
  *
  *   npm run match -- --a entrants/alice/pilot.md --b entrants/bob/pilot.md --seed 7 --out runs/alice-vs-bob.json
  *   npm run match -- --a prompts/pilots/drums.md --b prompts/pilots/keytar.md --model mock --out artifacts/smoke.json
+ *   npm run match -- --a house:hard --b house --seed 7          # a house tier (easy|medium|hard) per side
  *   npm run match -- --verify runs/alice-vs-bob.json
  *   npm run match -- --a alice.md --a-schemas alice.compiled.json --b bob.md --b-schemas bob.compiled.json \
  *       --jev-schema http://127.0.0.1:8797/ --seed 7 --out runs/alice-vs-bob-jev.json
@@ -21,12 +22,16 @@
  */
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { DEFAULT_HOUSE_TIER, houseSpecFile } from '../arena/house.mjs';
 import { backendLabel, flush, httpCallModel, loadHeadless, probeBackend, resultLine } from './load.mjs';
 
 const DEFAULT_ENDPOINT = process.env.PILOT_ENDPOINT ?? 'http://127.0.0.1:8787/';
 
 const USAGE = `usage: npm run match -- --a <pilot.md> --b <pilot.md> [options]
        npm run match -- --verify <log.json>
+
+--a / --b also take \`house\` or \`house:easy|medium|hard\`: that house pair's file for the side
+(house = medium, the placement bar; tools/arena/house.mjs).
 
 options:
   --seed N            match seed (default 7)
@@ -131,10 +136,14 @@ async function main() {
   if (!(args.cadence >= 0.5)) throw new Error('--cadence must be >= 0.5 (the game asks every 0.5 s)');
   if (args.maxSimSec !== undefined && !(args.maxSimSec > 0)) throw new Error('--max-sim-sec must be a positive number');
 
-  const sides = {
-    violet: { name: args.nameA ?? nameFromPath(args.a), promptFile: args.a, promptText: await readFile(args.a, 'utf8') },
-    green: { name: args.nameB ?? nameFromPath(args.b), promptFile: args.b, promptText: await readFile(args.b, 'utf8') },
+  // `house` / `house:<tier>` plays that house pair's file for the side it lands on.
+  const side = async (spec, team, name) => {
+    const house = houseSpecFile(spec, team);
+    const file = house ?? spec;
+    const tier = spec.split(':')[1] ?? DEFAULT_HOUSE_TIER;
+    return { name: name ?? (house ? `house-${tier}` : nameFromPath(file)), promptFile: file, promptText: await readFile(file, 'utf8') };
   };
+  const sides = { violet: await side(args.a, 'violet', args.nameA), green: await side(args.b, 'green', args.nameB) };
   const outFile = args.out ?? path.join('runs', `${sides.violet.name}-vs-${sides.green.name}-seed${args.seed}.json`);
 
   const schemaFiles = { violet: args.aSchemas, green: args.bSchemas };

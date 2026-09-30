@@ -36,7 +36,8 @@ arena: tournament ladder backend=qwen9b data=…/runs/arena
 
 Flags (`npm run arena -- --help`): `--port`, `--data DIR`, `--backend mock` (no model server;
 the game's deterministic mock — what CI runs), `--entrants-dir DIR` (read
-`entrants/<handle>/pilot.md` from a local tree instead of GitHub), `--no-sync`.
+`entrants/<handle>/pilot.md` from a local tree instead of GitHub), `--no-sync`, `--house-tier
+easy|medium|hard` (which house pair plays; §4).
 
 A fast local smoke without Ollama:
 
@@ -280,6 +281,13 @@ which file(s) and hash are in play. The queue hands each side its own half; a ma
 `promptText` is the side's prompt, never the bundle. Every match row names the house hash it was
 played against, so a house change is visible in the record; nothing is re-run automatically. To
 change the house: merge the file(s), restart the arena, read the startup line.
+
+That pair is the **medium** house tier. `house-easy-*` and `house-hard-*` are the other two
+(different strategies, same model; `prompts/pilots/README.md`, evidence in
+[`runs/house-tiers-2026-09-30.md`](../runs/house-tiers-2026-09-30.md)). `config.house.tier` (with
+`files` null) or `--house-tier` picks one. **Leave it unset for the ladder and the jam:** the
+placement bar is "the house, rated 1000", and a different tier is a different bar. Easy and hard
+are for practice or a demo arena. No page picks a tier yet.
 
 The house bot is a fixed Elo 1000 that never moves and does not appear on the ladder.
 

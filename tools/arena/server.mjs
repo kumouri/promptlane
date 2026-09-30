@@ -24,7 +24,7 @@ import { fileURLToPath } from 'node:url';
 import { ROOT, loadHeadless, resultLine } from '../match/load.mjs';
 import { AuthError, makeAuth } from './auth.mjs';
 import { CompileError, clientIp, makeCompiler, practiceSchemas } from './compile.mjs';
-import { DEFAULT_HOUSE_FILES, bundleHouse, candidateLabel, pickHouse } from './house.mjs';
+import { bundleHouse, candidateLabel, houseCandidates, pickHouse } from './house.mjs';
 import { Ledger, bracketIds, bracketView, dayCT, isHeld, pendingPlacements, queued as queuedJobs, quotaUsed, standings } from './ledger.mjs';
 import { LiveHub, eventsFromLog, serveSse, sseFollow, sseFrame, sseHead } from './live.mjs';
 import { PromptStore, hashPrompt, isHandle, makeEntrantsSource, validatePromptText } from './prompts.mjs';
@@ -64,6 +64,9 @@ export function loadConfig(file, overrides = {}) {
   if (overrides.backend) cfg.tournament.backend = overrides.backend;
   if (overrides.entrantsDir) cfg.entrants = { kind: 'dir', path: overrides.entrantsDir, syncIntervalSec: cfg.entrants?.syncIntervalSec ?? 60 };
   if (overrides.organizerEmail) cfg.organizerEmail = overrides.organizerEmail;
+  // --house-tier replaces the config's house files with that tier's pair (house.mjs HOUSE_TIERS).
+  if (overrides.houseTier) cfg.house = { ...cfg.house, tier: overrides.houseTier, files: null };
+  houseCandidates(cfg.house); // fail at load on an unknown tier or on tier + files together
   if (!cfg.backends[cfg.tournament.backend]) throw new Error(`tournament backend ${cfg.tournament.backend} is not in config.backends`);
   // Jev house bot (SHADOW ONLY as of 2026-09-23 -- runs/jev-house-bot-2026-09-23.md): unset by
   // default, so the house bot plays through `tournament.backend` exactly as it always has. Setting
@@ -179,10 +182,11 @@ export async function createArena({
   const backends = config.backends;
 
   // House bot (Q13): the first candidate whose files exist — a {violet, green} pair (house-*.md,
-  // one prompt per side) or a single file (house.md, then drums.md). See house.mjs.
+  // one prompt per side) or a single file (house.md, then drums.md) — or `house.tier`'s pair
+  // (easy / medium / hard; unset = medium via the default list). See house.mjs.
   const houseHandle = config.house?.handle ?? 'house';
-  const houseCandidate = pickHouse(config.house?.files ?? DEFAULT_HOUSE_FILES, ROOT);
-  if (!houseCandidate) throw new Error('no house prompt found (config.house.files)');
+  const houseCandidate = pickHouse(houseCandidates(config.house), ROOT);
+  if (!houseCandidate) throw new Error('no house prompt found (config.house.files / config.house.tier)');
   const houseFile = candidateLabel(houseCandidate);
   const houseText = bundleHouse(houseCandidate, ROOT);
   const houseHash = promptStore.save(houseHandle, houseText);
@@ -809,6 +813,7 @@ function parseArgs(argv) {
       case '--dev-user': a.devUser = next(); break;
       case '--backend': a.backend = next(); break;
       case '--entrants-dir': a.entrantsDir = next(); break;
+      case '--house-tier': a.houseTier = next(); break;
       case '--no-sync': a.sync = false; break;
       case '-h': case '--help': a.help = true; break;
       default: throw new Error(`unknown option ${k}`);
@@ -824,6 +829,8 @@ const USAGE = `usage: node tools/arena/server.mjs [options]
   --dev-user EMAIL    dev mode: no Access, every request is this organizer (refused when ARENA_ACCESS_AUD is set)
   --backend ID        override the tournament backend (e.g. mock)
   --entrants-dir DIR  read entrants/<handle>/pilot.md from a local tree instead of GitHub
+  --house-tier T      play the easy, medium or hard house pair (default: config.house; medium).
+                      Not for the ladder: a different house is a different placement bar
   --no-sync           do not poll the entrants repo
 env: ARENA_ACCESS_AUD, ARENA_ACCESS_TEAM, ARENA_ORGANIZER_EMAIL (Access mode — see docs/arena-runbook.md)`;
 
@@ -834,7 +841,7 @@ async function main() {
     return 0;
   }
   if (process.env.ARENA_ACCESS_AUD && args.devUser) throw new Error('--dev-user cannot be combined with ARENA_ACCESS_AUD');
-  const config = loadConfig(args.config, { backend: args.backend, entrantsDir: args.entrantsDir });
+  const config = loadConfig(args.config, { backend: args.backend, entrantsDir: args.entrantsDir, houseTier: args.houseTier });
   const log = makeLog(false);
   const arena = await createArena({ config, dataDir: args.data, devUser: args.devUser, sync: args.sync, log });
   const url = await arena.listen(args.port);
