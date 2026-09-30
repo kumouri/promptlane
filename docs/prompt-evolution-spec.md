@@ -5,7 +5,7 @@
 > - **§10 Q1, Q2, Q3, Q5, Q6 ruled as recommended** ("rec on all", 01:50): archetype lineages;
 >   hall of fame capped at the last 3; rubric as diagnostic only; 4 screening and 16 promotion
 >   seeds; a $15 cap on the first epoch and no campaign from Thu 17:00 CT through the end of the Jam.
->   **Q4, Q7, Q8 and Q9 are still open**; she hadn't seen them yet.
+>   **Q4, Q7, Q8 and Q9 are still open**; she hadn't seen them yet. (Ruled later that day; below.)
 > - **§5.2, the tier pre-registration (Q10), ruled** (01:54–01:57). The Friday medium house tier joins
 >   the reference panel. The medium band is now a point-estimate rule. **Head-to-head order is no
 >   longer a certification criterion.** Non-transitivity is a finding, so the full head-to-head
@@ -17,6 +17,21 @@
 > - **Code changed to match:** `fitness.mjs` (the new descriptors); `adapters.mjs::makeObserve`
 >   (replays each match to recover what the pilots saw); `headless.ts::verifyReplay` (an
 >   observation hook); `generation.mjs` (default opponents are now a hall of fame capped at 3).
+>
+> **Later rulings, 2026-09-30, recorded with the spend enforcement.** Q4 (Jam shape), Q7 (3
+> generations an epoch), Q8 (seed prompts: the Friday tiers, house and the three starters) and Q9
+> (single change, no crossover) were ruled as recommended. **Budget, 03:07 CT:** *"if epoch 1
+> doesn't take $15, you can go on to epoch 2 ... but don't use more than $25 total."* **The blackout
+> moved with the Jam:** no campaign activity from Thu 2026-10-15 17:00 CT through the end of the Jam
+> (Fri 2026-10-16). Both are now enforced in code (`budget.mjs`, §7).
+>
+> **Campaign 1 rulings, 2026-09-30 07:34–07:35 CT (Telegram pickers).** (1) **"Epoch 2 = what's
+> left of $25"**: epoch 1 is capped at $15, and epoch 2's cap is $25 minus what epoch 1 actually
+> spent, not another flat $15. There are still at most 2 epochs, and $25 is still the hard total
+> (§7, enforced in `budget.mjs`). (2) **"Hard lineage only, first"**: the first campaign evolves only
+> the hard archetype lineage. Easy and medium lineages are later campaigns (§6). (3) **"Medium
+> (the placement bar)"**: the first opponent is the medium house tier. The invocation for
+> campaign 1 is in §10.
 
 *Written 2026-09-30. The loop is **Ceryce's design**. Her ask (2026-09-30 01:10 CT, verbatim excerpt):*
 
@@ -55,7 +70,7 @@ arena's placement rules (`docs/arena-site-spec.md` §3.5).
 ## 2. The loop (Ceryce's design) and how v0 runs it
 
 ```
- epoch e: opponents O_e                      (epoch 0: the first seed prompt)
+ epoch e: opponents O_e                      (epoch 0: the --opponent-prompt(s), else the first seed prompt)
  ┌──────────────── generation g ─────────────────────────────────────────────────┐
  │ parents P_g ──mutate: ONE change each──▶ children C_g                         │
  │ P_g ∪ C_g ──compile (translator → Jev rule cascade)──▶ phenotypes             │
@@ -271,8 +286,13 @@ Each proposal comes with a note on what it would cost and what v0 already does t
 ruled on all three at 01:50 CT, each as recommended (§10 Q1–Q3):
 
 - **(a)** Not full MAP-Elites yet. **Archetype lineages** instead: three lineages, each seeded
-  with prose written for one archetype, plus the §5.2 descriptor gate. *No lineage support is
-  built.* Until it is, a lineage can run as its own campaign, seeded with its archetype's prose.
+  with prose written for one archetype, plus the §5.2 descriptor gate. *There is no multi-lineage
+  support in one campaign.* Each lineage runs as its own campaign instead: its archetype's prose goes
+  in as `--seed-prompt`, and its opponents go in as `--opponent-prompt`. Opponents are played but
+  never evolved, so the seeds are the lineage's only parents.
+  **Order, ruled 2026-09-30 07:34–07:35 CT:** the **hard lineage first, alone** ("Hard lineage
+  only, first"), against the **medium house tier** ("Medium (the placement bar)"). The easy and
+  medium lineages are later campaigns. Campaign 1's invocation is in §10.
 - **(b)** A **hall of fame capped at the last 3 champions**. *Built*: it is now the default.
 - **(c)** The rubric is **diagnostic only**. *The judge is not built.*
 
@@ -333,17 +353,48 @@ both-survive** rows.
 | Compile (18 genomes) and mutation (18 children) | — | ~20 min | ~$0.04 + subscription |
 
 Scaling: the hall of fame (b), now the default, multiplies matches by the pool size. The first
-epoch has one opponent, the first seed. The pool grows by one per promotion, to ×3 at the cap of 3.
+epoch has one opponent (in campaign 1, the medium house tier). The pool grows by one per promotion, to ×3 at the cap of 3.
 Archetype lineages (Q1) multiply the whole budget by 3 if all three run. Full MAP-Elites (a) would
 multiply it by up to the number of cells. Certifying three tiers (§5.2) is 3 tiers × 6 panel
 members × 8 seeds × 2 sides, once the Friday medium joins, plus the 3 head-to-heads × 16 seeds × 2
 sides for the matrix. That is about 385 matches: ~17–19 h and ~$13–27.
 
-**Spend and timing, ruled (Q6, 2026-09-30 01:50 CT).** The first epoch has a **$15 cap**. No
-harness enforces a cap across backends yet. Jev is essentially all of the spend (compile and
-mutation together cost about $0.04 an epoch, above), so the cap is enforced by starting the
-campaign's own `schema_server.py` with `--budget-usd 15`. **No campaign runs from Thu 2026-10-01
-17:00 CT through the end of the Jam.**
+**Spend and timing, ruled (Q6, 2026-09-30 01:50 CT; budget 03:07 CT; epoch 2 at 07:34 CT).** The
+first epoch has a **$15 cap**. A second epoch may run only if the first spent less than $15.
+**Epoch 2's cap is whatever is left of the $25 after epoch 1** ("Epoch 2 = what's left of $25"):
+if epoch 1 spends $9, epoch 2 may spend up to $16. The whole campaign spends at most **$25**.
+**No campaign activity from Thu 2026-10-15 17:00 CT through the end of the Jam (Fri 2026-10-16).**
+
+**Enforced in code, `tools/evolve/budget.mjs`.** `step` wraps every paid dependency
+(`guardDeps`). Before each paid call, it checks the call's **reserve** against the caps. The reserve
+is the most one call of that kind is expected to cost. After the call, it writes the call's real
+cost to the store's `spend.json`:
+
+| Paid call | Cost charged | Reserve |
+|---|---|---|
+| mutation | the mutator's `usage.cost_usd`. For the `claude` backend that is what the metered API would have billed, not real dollars. It is counted anyway, so the cap errs low. | $0.10 |
+| compile | compile.py's `usage.cost_usd` (OpenRouter's own figure when it sends one) | $0.02 |
+| match | the campaign's own `schema_server.py` `/health` `cost_usd`, read before and after. Exact only because matches run **one at a time on a server nothing else uses**. | $0.15 |
+
+- A call is refused when its reserve would push the campaign past `budget.totalCapUsd` ($25), or
+  the current epoch past its cap (`budget.mjs::epochCapUsd`). The first epoch's cap is
+  `budget.firstEpochCapUsd` ($15). Each later epoch's cap is `totalCapUsd` minus what the epochs
+  before it spent, so after the first epoch the epoch cap and the total are the same limit.
+- No epoch starts after an epoch that spent its cap. If epoch 1 takes its whole $15, there is no
+  epoch 2.
+- No more than `budget.maxEpochs` (2) epochs run. Nothing past epoch 2 was ruled.
+- Nothing paid starts inside a `budget.blackouts` window, or close enough to one that it could still
+  be running when the window opens. The margin is the match wall cap, 22.5 min at the Jam shape.
+- A cost that can't be read is charged the reserve. That covers a missing `usage`, a crash, and a
+  schema server that restarted mid-match. So is a call the process died inside: it is written as
+  pending before it starts.
+- If the Jev spend can't be read at all, no match starts.
+- A refusal is a clean stop, not a failure. Nothing is recorded as a failed mutation or compile.
+  `step` exits **3**, while other errors exit 2. Re-running `step` after the window, or with a raised
+  cap, resumes exactly where it stopped.
+- `status` prints the ledger's totals by epoch and by kind, and the current epoch's cap.
+- `schema_server.py --budget-usd` is still worth setting to the remaining total. It is a
+  per-process backstop, and a restart resets it.
 
 **Concurrency is unmeasured.** One match drove ~345 Jev calls a minute with no throttling. Running
 matches in parallel would cut wall time about linearly, *if* Workers AI keeps latency and doesn't
@@ -352,20 +403,27 @@ throttle. Measure that before relying on it.
 **Must not slow the Jam.** By default the harness uses **no local GPU**: compile on OpenRouter,
 mutation on the `claude` CLI, Jev on Workers AI. So it doesn't compete with local `qwen3.5:9b`
 matches. It **does** share the Cloudflare account's Jev with the Jam: the practice panel, and the
-Jev house bot if it goes live. Don't run a campaign from Thu 2026-10-01 17:00 CT (entrant cutoff)
-through the end of the Jam. Run it on its own `schema_server.py` port, never on the arena's 8797.
+Jev house bot if it goes live. Don't run a campaign from Thu 2026-10-15 17:00 CT (entrant cutoff)
+through the end of the Jam; `budget.mjs` refuses to. Run it on its own `schema_server.py` port,
+never on the arena's 8797. The campaign default is `http://127.0.0.1:8813/`.
 
 ## 8. v0 as built
 
 ```
-npm run evolve -- init   --name <c> --seed-prompt <prose.md> [--seed-prompt …] [--config overrides.json]
+npm run evolve -- init   --name <c> --seed-prompt <prose.md> [--seed-prompt …]
+                         [--opponent-prompt <prose.md> …] [--config overrides.json]
 npm run evolve -- step   --name <c> [--generations N]      # run or resume the next generation(s)
 npm run evolve -- status --name <c>
 npm run evolve -- report --name <c> --out runs/<c>.md
 ```
 
+With `--opponent-prompt`, those prompts are the first opponents and are never evolved. The seeds
+are then the only parents: one lineage, one campaign (§6). Without it, the first seed prompt is
+both the first opponent and a parent.
+
 `step` needs `python tools/jev/schema_server.py --port <p>` running, with
-`jevSchemaEndpoint` in the config pointing at it. The default backends need `$OPENROUTER_API_KEY`
+`jevSchemaEndpoint` in the config pointing at it (default port 8813, the campaign's own). `step`
+exits 3 when the spend caps or the blackout stop it (§7), and 2 on any other error. The default backends need `$OPENROUTER_API_KEY`
 for the compile and the `claude` CLI for mutation. Both are campaign config (`compile.backend`:
 ollama/openrouter; `mutation.backend`: claude/ollama/openrouter, through
 `tools/jev/llm_backends.py`).
@@ -377,6 +435,7 @@ ollama/openrouter; `mutation.backend`: claude/ollama/openrouter, through
 | `tools/evolve/fitness.mjs` | `jamScore`, `summarizeSide` (descriptors, rule-fire counts), `towardWeight`/`awayWeight`/`moveBearing` (§3), `fitnessOf`, `bootstrapCI`, `promotionDecision`, `eloFold` |
 | `tools/evolve/store.mjs` | the population store (layout in its docstring) |
 | `tools/evolve/seeds.mjs` | `deriveSeed`, `mulberry32`, `pick` |
+| `tools/evolve/budget.mjs` | the spend caps and the blackout (§7): `guardDeps` checks every paid call and charges it to `spend.json`; `assertMayContinue`, `epochCapUsd`, `spendTotals`, `CampaignStop` |
 | `tools/evolve/adapters.mjs` | the real dependencies: compile, match, observe (the replay behind the §3 descriptors) and mutation, each existing tooling called as its own users call it |
 | `tools/evolve/mutate.py` | the single-change operator and its sentence-diff check |
 | `tools/evolve/report.mjs` | Markdown report from the store alone |
@@ -401,18 +460,24 @@ campaign seed and a label (`seeds.mjs`). Two stores with the same config and the
 dependencies plan and rank identically (tested). Jev and the LLMs are not deterministic (§4). The
 harness pins everything around them, and it saves their outputs so they are never re-drawn.
 
-**Tests** (no model, no network beyond a loopback fake): `npm run test:evolve` (26: seeds, store,
+**Tests** (no model, no network beyond a loopback fake): `npm run test:evolve` (35: seeds, store,
 scoring, the §3 weights, bearings and weighted descriptors, CI, promotion, Elo, pairings, a full
-generation on fakes, crash-resume, determinism, invalid mutations, compile failures, both epoch
-modes, the ruled defaults, the hall-of-fame cap, observations reaching the ranking, `npm run
-match`'s schema mode against an in-process fake schema server, replay-verified, and the observe
-adapter's replay on a real match log, including a diverged replay giving no descriptors), and `tools/evolve/test_mutate.py` (7, on
+generation on fakes, opponent prompts that are played but never evolved, campaign 1's `init` on
+the real hard and medium prompts, crash-resume, determinism, invalid mutations, compile failures,
+both epoch modes, the ruled defaults, the hall-of-fame cap, observations reaching the ranking,
+`npm run match`'s schema mode against an in-process fake schema server, replay-verified, and the
+observe adapter's replay on a real match log, including a diverged replay giving no descriptors,
+and the spend caps and blackout: every paid call charged by epoch and kind, a cap stopping before
+the call that would pass it and resuming once raised, epoch 2's cap as what's left of the $25, the
+total cap, the epoch-1 gate and the epoch limit, the blackout and its margin, and unreadable,
+restarted or interrupted costs charged the reserve), and `tools/evolve/test_mutate.py` (7, on
 `llm_backends.ScriptedBackend`). Both run in CI.
 
 **Not built:** crossover/GA (Q9), racing (adaptive seeds per candidate), parallel matches, the
-rubric judge (c), archetype lineages (Q1) and MAP-Elites (a), the tier-certification runner and
-its head-to-head matrix (§5.2), the v2 power-weighted descriptors (§3), and a per-campaign spend cap (each backend has its own cap: `schema_server.py --budget-usd`,
-`compile.maxTokensPerCompile`, `mutation.maxTotalTokens`).
+rubric judge (c), several archetype lineages in one campaign (Q1; each lineage runs as its own
+campaign, §6) and MAP-Elites (a), the tier-certification runner and
+its head-to-head matrix (§5.2), and the v2 power-weighted descriptors (§3). Concurrent matches
+would also break the Jev ledger's before/after reading (§7).
 
 ## 9. Smoke run (2026-09-30)
 
@@ -427,22 +492,44 @@ All 8 live logs pass `npm run match -- --verify`. Plumbing: proven. Strategy: no
 
 The recommendation is listed first. Ceryce ruled over Telegram on 2026-09-30 between 01:50 and
 02:08 CT. At 01:50 she ruled Q1, Q2, Q3, Q5 and Q6 with "rec on all", so each one is the
-recommendation. Q10 was ruled piece by piece from 01:54 to 01:57. **Q4, Q7, Q8 and Q9 are still
-open**: she hadn't seen them when she ruled. Where the harness has a config switch for an open
-question, the default is still the recommendation until she rules.
+recommendation. Q10 was ruled piece by piece from 01:54 to 01:57. Q4, Q7, Q8 and Q9 were ruled
+later on 2026-09-30, each as recommended, with the budget at 03:07 CT. Epoch 2's cap, campaign 1's
+lineage and campaign 1's first opponent were ruled with Telegram pickers at 07:34–07:35 CT (Q6, Q1,
+Q8; campaign 1 is below the table).
 
 | # | Question | Options | Recommendation | Status |
 |---|---|---|---|---|
-| Q1 | Adopt quality-diversity, proposal (a)? | full MAP-Elites / **archetype lineages**: three lineages, each seeded with prose written for one archetype, plus the §5.2 descriptor gate / strength-only | **Archetype lineages first.** They get strategy-different tiers for about ⅓ of MAP-Elites' matches, and the descriptors will show whether a grid is worth it. | **RULED 2026-09-30 01:50 CT: archetype lineages.** Not built yet (§6). |
+| Q1 | Adopt quality-diversity, proposal (a)? | full MAP-Elites / **archetype lineages**: three lineages, each seeded with prose written for one archetype, plus the §5.2 descriptor gate / strength-only | **Archetype lineages first.** They get strategy-different tiers for about ⅓ of MAP-Elites' matches, and the descriptors will show whether a grid is worth it. | **RULED 2026-09-30 01:50 CT: archetype lineages.** Each lineage runs as its own campaign (§6). **07:34–07:35: the hard lineage first, alone** ("Hard lineage only, first"). Easy and medium are later campaigns. |
 | Q2 | Opponents at the epoch boundary: latest only (hers) or a hall of fame, proposal (b)? | latest / hall-of-fame (uncapped) / **hall-of-fame capped at the last 3** | **Capped at 3.** Cycling guard at ≤3× the matches. The switch is built; the cap is ~5 lines. | **RULED 01:50: hall of fame capped at 3.** Built; now the default (`epoch.opponents: "hall-of-fame"`, `epoch.hallOfFameCap: 3`). |
 | Q3 | Rubric: as fitness, as the mutation's diagnostic (proposal c), or not at all? | **diagnostic only** / fitness / none | **Diagnostic only**, with an archetype-adherence row and every rubric/win disagreement logged. As fitness, it invites Goodhart. | **RULED 01:50: diagnostic only.** The judge is not built. |
-| Q4 | Match shape that counts | **Jam shape (600 s, cadence 2)** / quick (180 s, cadence 4) | **Jam shape.** Quick and Jam shape ranked the same pair oppositely in the smoke. | **OPEN.** The default is the Jam shape. |
+| Q4 | Match shape that counts | **Jam shape (600 s, cadence 2)** / quick (180 s, cadence 4) | **Jam shape.** Quick and Jam shape ranked the same pair oppositely in the smoke. | **RULED 2026-09-30: Jam shape.** The default. |
 | Q5 | Seeds per comparison | epoch **4** / 8; promotion 8 / **16** / 32 | **4 screening, 16 promotion**, then revise from the first campaign's measured σ (§4 table). | **RULED 01:50: 4 screening, 16 promotion.** These are the defaults. |
-| Q6 | When and how much | spend cap; hours | **$15 cap for the first epoch**. Sequential matches until concurrency is measured. **Not Thu 17:00 CT through the Jam.** Its own schema-server port. | **RULED 01:50: $15 cap for epoch 1; no campaign from Thu 2026-10-01 17:00 CT through the end of the Jam.** The cap is enforced by `schema_server.py --budget-usd 15` (§7). |
-| Q7 | Epoch length X (her parameter) | 2 / **3** / 5 generations | **3**, about 9 h an epoch at the recommended size (§7). | **OPEN.** The default is 3. |
-| Q8 | Seed prompts | `drums.md` (the smoke's; suicidal) / **house prose + the three starters + the Friday tier prompts** | **The Friday tier prompts plus house and starters**, so evolution starts where the quick tiers ended. | **OPEN.** |
-| Q9 | Crossover (the "genetic algorithm" option) | **single change only for now** / rule-level crossover | **Single change first.** Each generation's effect stays attributable, which is the practice goal. Add crossover once single changes plateau. | **OPEN.** Only single change is built. |
+| Q6 | When and how much | spend cap; hours | **$15 cap for the first epoch**. Sequential matches until concurrency is measured. **Not Thu 17:00 CT through the Jam.** Its own schema-server port. | **RULED 01:50: $15 cap for epoch 1**, and at 03:07 epoch 2 only if epoch 1 spent under $15, **$25 total**. **07:34: epoch 2's cap is what's left of the $25** after epoch 1 ("Epoch 2 = what's left of $25"), not another $15. **No campaign from Thu 2026-10-15 17:00 CT through the end of the Jam** (moved with the Jam to Fri 2026-10-16). Enforced by `budget.mjs` (§7). |
+| Q7 | Epoch length X (her parameter) | 2 / **3** / 5 generations | **3**, about 9 h an epoch at the recommended size (§7). | **RULED 2026-09-30: 3.** The default. |
+| Q8 | Seed prompts | `drums.md` (the smoke's; suicidal) / **house prose + the three starters + the Friday tier prompts** | **The Friday tier prompts plus house and starters**, so evolution starts where the quick tiers ended. | **RULED 2026-09-30: the Friday tier prompts (house-easy, medium, house-hard), house and the three starters.** Campaign 1 narrows this (07:34–07:35): its only seed is `house-hard`, and medium is its opponent, not a seed. |
+| Q9 | Crossover (the "genetic algorithm" option) | **single change only for now** / rule-level crossover | **Single change first.** Each generation's effect stays attributable, which is the practice goal. Add crossover once single changes plateau. | **RULED 2026-09-30: single change, no crossover.** The only operator built. |
 | Q10 | Tier bands and margins (§5.2) | as written / adjusted | Rule on them **before** the first campaign. They are the pre-registration. | **RULED 01:54–01:57, adjusted** (§5.2): the Friday medium joins the panel when merged; the medium band is a point estimate in [0.35, 0.65] with the interval clear of the hard and easy thresholds; head-to-head order is a reported finding (full matrix), not a criterion; the margins are ≥ 1 panel standard deviation per descriptor, measured before evolving. |
+
+### Campaign 1: the hard lineage vs medium (ruled 2026-09-30 07:34–07:35 CT)
+
+```
+npm run evolve -- init --name campaign-1-hard \
+  --seed-prompt prompts/pilots/house-hard.prose.md \
+  --opponent-prompt prompts/pilots/house-violet.md
+```
+
+- **Lineage: hard only** ("Hard lineage only, first"). The seed is `house-hard.prose.md`, the hard
+  tier's entrant-style prose. This spec defines no other hard-archetype variants. The harness
+  compiles the prose itself, so the committed `runs/house-tiers-schemas-hard-2026-09-30.json` is a
+  reference, not an input. A fresh compile also picks up the PR #39 translator fix (§11).
+- **First opponent: the medium house tier** ("Medium (the placement bar)"). That is
+  `house-violet.md`, the prose the medium tier was compiled from for the Jev sanity run
+  (`runs/house-tiers-{compile,schemas}-medium-2026-09-30.*`). It is played and never evolved.
+  Promoted champions join it in the hall of fame, up to the cap of 3.
+- **Everything else is the default** (`DEFAULT_CAMPAIGN`): the Jam shape, 4 screening and 16
+  promotion seeds, 3 generations an epoch, μ = 2 parents × 2 children, and the budget above. With
+  one seed, generation 0 has one parent, and from generation 1 there are two. Nothing is in
+  `--config`.
 
 ## 11. Found along the way
 
