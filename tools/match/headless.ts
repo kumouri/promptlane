@@ -294,22 +294,42 @@ export interface VerifyResult {
  * Re-simulate a log with `ReplayPilot`s and compare every checkpoint and the final result. A log
  * stopped early (`maxSimSec`, or an aborted run) has `endReason: null`; the replay then stops at
  * the same tick count and must reach it in the same state.
+ *
+ * `onObservation`, when given, is called with each logged decision and a copy of the observation
+ * the sim handed that bot's pilot at that ask — what the pilot saw, fog included, which the log
+ * itself does not store. The evolution harness reads its behaviour descriptors off these
+ * (tools/evolve/fitness.mjs); they are only trustworthy when the replay comes back `ok`.
  */
-export async function verifyReplay(log: MatchLog, flush: () => Promise<void> = defaultFlush): Promise<VerifyResult> {
+export async function verifyReplay(
+  log: MatchLog,
+  flush: () => Promise<void> = defaultFlush,
+  onObservation?: (decision: LogDecision, obs: Observation) => void,
+): Promise<VerifyResult> {
   const byBot = decisionsByBot(log);
   let match: Match | null = null;
   let asked = 0;
   const roster: RosterSlot[] = JAM_ROSTER.map((slot, i) => ({
     ...slot,
     pilotKind: 'prompt-http',
-    makePilot: () =>
-      new ReplayPilot({
+    makePilot: () => {
+      const replay = new ReplayPilot({
         decisions: byBot[i],
         idOffset: () => idNumber(match!.nexuses[0].id) - log.idBase,
         onDecision: () => {
           asked += 1;
         },
-      }),
+      });
+      if (!onObservation) return replay;
+      let cursor = 0;
+      return {
+        decide: (obs: Observation) => {
+          const decision = byBot[i][cursor++];
+          // A copy: the sim hands over live positions and moves them on the next tick.
+          if (decision) onObservation(decision, structuredClone(obs));
+          return replay.decide(obs);
+        },
+      };
+    },
   }));
   match = new Match(log.seed, roster);
 

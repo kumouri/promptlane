@@ -11,7 +11,7 @@ import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { after, before, test } from 'node:test';
-import { ROOT, makePlayMatch, repoPath } from './adapters.mjs';
+import { ROOT, makeObserve, makePlayMatch, repoPath } from './adapters.mjs';
 import { summarizeSide } from './fitness.mjs';
 
 const CLI = path.join(ROOT, 'tools', 'match', 'cli.mjs');
@@ -132,3 +132,16 @@ test('harness playMatch adapter: runs the CLI and the log summarises', async () 
   assert.ok([0, 0.5, 1].includes(s.score));
 });
 
+test('harness observe adapter: a replay recovers what each pilot saw, and the descriptors read it', async () => {
+  const log = JSON.parse(readFileSync(path.join(dir, 'adapter.json'), 'utf8'));
+  const observations = await makeObserve()(log);
+  assert.ok(observations, 'the replay matched its checkpoints');
+  assert.equal(observations.length, log.decisions.length);
+  assert.ok(observations.every((o) => o && o.self.maxHp > 0), 'every decision, cached or not, has its observation');
+  assert.ok(observations.every((o, i) => o.self.team === (log.decisions[i].bot < 3 ? 'violet' : 'green')), 'aligned with the log');
+  const s = summarizeSide(log, 'violet', observations);
+  assert.equal(typeof s.descriptors.aggression, 'number');
+  assert.equal(typeof s.descriptors.caution, 'number');
+  const tampered = { ...log, checkpoints: log.checkpoints.map((c, i) => (i === 0 ? { ...c, state: '{}' } : c)) };
+  assert.equal(await makeObserve()(tampered), null, 'a replay that diverges describes nothing');
+});

@@ -10,8 +10,8 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
-import { bootstrapCI, eloFold, fitnessOf, jamScore, promotionDecision, summarizeSide } from './fitness.mjs';
-import { diagnosticsFor, epochSeeds, initCampaign, matchKey, pairings, runGeneration, sentences } from './generation.mjs';
+import { awayWeight, bootstrapCI, eloFold, fitnessOf, jamScore, moveBearing, promotionDecision, summarizeSide, towardWeight } from './fitness.mjs';
+import { DEFAULT_CAMPAIGN, diagnosticsFor, epochSeeds, initCampaign, matchKey, pairings, runGeneration, sentences } from './generation.mjs';
 import { deriveSeed, mulberry32, pick } from './seeds.mjs';
 import { Store, genomeId, normalizeProse } from './store.mjs';
 
@@ -66,14 +66,78 @@ test('jamScore: sim result first, then fewer deaths, then tower hp; errors and s
   assert.deepEqual(jamScore(fakeLog({ callErrors: [3, 0] }), 'green'), { score: 0.5, by: 'draw' });
 });
 
-test('summarizeSide: counts real decisions, fired rules per instrument, descriptors', () => {
+test('summarizeSide: counts real decisions, fired rules per instrument; no observations, no hp/vision descriptors', () => {
   const s = summarizeSide(fakeLog({ kinds: ['attack', 'ability', 'recall', 'move'] }), 'violet');
   assert.equal(s.realDecisions, 12); // 3 bots x 4, cached ones skipped
   assert.deepEqual(s.kinds, { move: 3, attack: 3, ability: 3, recall: 3, hold: 0 });
   assert.deepEqual(s.rules.drums, { r1: 1, default: 3 });
-  assert.equal(s.descriptors.aggression, 0.5);
-  assert.equal(s.descriptors.recallRate, 0.25);
+  assert.equal(s.descriptors.aggression, null);
+  assert.equal(s.descriptors.caution, null);
   assert.ok(s.descriptors.spread > 0);
+});
+
+// --- descriptors (Ceryce's design, ruled 2026-09-30 02:08 CT) ----------------------------------------
+
+/** An observation: the bot at (100, 100) with `hp` of 100, enemy bearbots in vision at `bears`. */
+function obsAt(hp, bears = [], extra = {}) {
+  return {
+    clockSec: 0,
+    self: { id: 'bb-1', team: 'violet', lane: 'top', instrument: 'drums', pos: { x: 100, y: 100 }, hp, maxHp: 100, moveSpeed: 1, cooldowns: {} },
+    allies: [],
+    visibleEnemies: [...bears.map(([x, y], i) => ({ id: `bb-${9 + i}`, pos: { x, y }, hp: 100, maxHp: 100, kind: 'bearbot' })), ...(extra.enemies ?? [])],
+    nearbyMinions: [],
+    nearbyTowers: [],
+  };
+}
+
+test('descriptor weights: 1 on the easy side of half hp, doubling every 10 points past it', () => {
+  for (const hp of [100, 80, 50]) assert.equal(towardWeight(hp), 1);
+  assert.equal(towardWeight(40), 2);
+  assert.equal(towardWeight(30), 4);
+  assert.equal(towardWeight(0), 32);
+  for (const hp of [0, 20, 50]) assert.equal(awayWeight(hp), 1);
+  assert.equal(awayWeight(60), 2);
+  assert.equal(awayWeight(100), 32);
+  assert.ok(Math.abs(towardWeight(45) - Math.SQRT2) < 1e-12);
+});
+
+test("moveBearing: toward / away from the nearest enemy bearbot in the bot's own vision", () => {
+  const move = (x, y) => ({ kind: 'move', target: { x, y } });
+  const obs = obsAt(100, [[300, 100], [100, 900]]); // nearest bear due east
+  assert.equal(moveBearing(obs, move(200, 100)), 'toward');
+  assert.equal(moveBearing(obs, move(0, 100)), 'away');
+  assert.equal(moveBearing(obs, move(100, 300)), null, 'square to the nearest bear: neither');
+  assert.equal(moveBearing(obs, move(100, 100)), null, 'a move to where it stands goes nowhere');
+  assert.equal(moveBearing(obs, { kind: 'move', target: 'bb-9' }), 'toward', 'an entity target resolves from the observation');
+  assert.equal(moveBearing(obs, { kind: 'attack', target: 'bb-9' }), null, 'only moves have a bearing');
+  const minionsOnly = obsAt(100, [], { enemies: [{ id: 'mn-1', pos: { x: 300, y: 100 }, hp: 50, maxHp: 50, kind: 'minion' }] });
+  assert.equal(moveBearing(minionsOnly, move(200, 100)), null, 'no enemy BEARBOT in vision');
+});
+
+test('summarizeSide: aggression and caution are hp-weighted sums over real decisions', () => {
+  const log = fakeLog({ kinds: ['attack', 'move', 'recall', 'move'] });
+  const east = { x: 200, y: 100 };
+  const west = { x: 0, y: 100 };
+  // per bot: attack at 30% hp, move toward the bear at 100%, recall at 90%, move away at 60%
+  const plan = [
+    [obsAt(30, [[300, 100]]), null],
+    [obsAt(100, [[300, 100]]), east],
+    [obsAt(90, [[300, 100]]), null],
+    [obsAt(60, [[300, 100]]), west],
+  ];
+  const observations = log.decisions.map((d, i) => {
+    if (d.cached) return null;
+    const [obs, target] = plan[i % 5];
+    if (target) d.action = { kind: 'move', target };
+    return obs;
+  });
+  const s = summarizeSide(log, 'violet', observations);
+  assert.equal(s.realDecisions, 12);
+  assert.deepEqual(s.moves, { toward: 3, away: 3 });
+  // aggression: attack at 30% weighs 2^2 = 4, the toward move 1 -> 3 bots x 5 / 12
+  assert.equal(s.descriptors.aggression, Math.round((15 / 12) * 1000) / 1000);
+  // caution: recall at 90% weighs 2^4 = 16, the away move at 60% 2^1 = 2 -> 3 bots x 18 / 12
+  assert.equal(s.descriptors.caution, 4.5);
 });
 
 test('bootstrapCI and fitnessOf: seeded, paired by seed, no interval below 2 seeds', () => {
@@ -141,7 +205,7 @@ function compiledFor(text, { drop = null } = {}) {
  * it says BRAVE; the stronger side wins by nexus, equal strength is a full draw. `calls` counts
  * every call so a resume can be checked for re-work.
  */
-function fakeDeps({ failPlayAfter = Infinity, mutateReply = null, compileOpts = {} } = {}) {
+function fakeDeps({ failPlayAfter = Infinity, mutateReply = null, compileOpts = {}, observe = null } = {}) {
   const calls = { mutate: 0, compile: 0, play: 0 };
   const strength = (id, store) => (store.genomeText(id).match(/BRAVE/g) ?? []).length;
   return {
@@ -158,6 +222,7 @@ function fakeDeps({ failPlayAfter = Infinity, mutateReply = null, compileOpts = 
           calls.compile += 1;
           return compiledFor(text, compileOpts);
         },
+        ...(observe ? { observe } : {}),
         async playMatch({ violet, green }) {
           if (calls.play >= failPlayAfter) throw new Error('simulated crash');
           calls.play += 1;
@@ -303,6 +368,54 @@ test('epoch boundary: the winner replaces the opponent only if it passes on held
     } finally {
       cleanup();
     }
+  }
+});
+
+test('defaults carry the 2026-09-30 rulings: 4 screening / 16 promotion seeds, hall of fame capped at 3', () => {
+  assert.equal(DEFAULT_CAMPAIGN.evaluation.seedsPerEpoch, 4);
+  assert.equal(DEFAULT_CAMPAIGN.epoch.promotionSeeds, 16);
+  assert.equal(DEFAULT_CAMPAIGN.epoch.opponents, 'hall-of-fame');
+  assert.equal(DEFAULT_CAMPAIGN.epoch.hallOfFameCap, 3);
+  const { store, cleanup } = tempStore();
+  try {
+    assert.throws(() => initCampaign(store, { name: 't', overrides: { epoch: { hallOfFameCap: 0 } }, seedPrompts: [{ file: 'seed.md', text: SEED_PROSE }] }), /hallOfFameCap/);
+  } finally {
+    cleanup();
+  }
+});
+
+test('hall of fame: the fourth champion pushes the oldest out of the opponents', async () => {
+  const { store, cleanup } = tempStore();
+  try {
+    const { ids } = initCampaign(store, {
+      name: 't',
+      overrides: { ...SMALL, population: { parents: 1, childrenPerParent: 1 }, epoch: { generations: 1, promotionSeeds: 2 } },
+      seedPrompts: [{ file: 'seed.md', text: SEED_PROSE }],
+    });
+    const champions = [ids[0]];
+    for (let e = 0; e < 3; e++) {
+      const gen = await runGeneration(store, fakeDeps().bind(store)); // each child adds one BRAVE: it beats every champion
+      assert.equal(gen.promotion.promote, true, gen.promotion.reason);
+      champions.push(gen.promotion.id);
+    }
+    assert.deepEqual(store.readJson('state.json').opponents, champions.slice(-3));
+    assert.equal(store.readJson('state.json').champions.length, 4, 'the champion record keeps everyone');
+  } finally {
+    cleanup();
+  }
+});
+
+test('runGeneration: observations from deps.observe reach the ranking descriptors', async () => {
+  const { store, cleanup } = tempStore();
+  try {
+    initCampaign(store, { name: 't', overrides: SMALL, seedPrompts: [{ file: 'seed.md', text: SEED_PROSE }] });
+    const observe = async (log) => log.decisions.map((d) => (d.cached ? null : obsAt(100, [[300, 100]])));
+    const gen = await runGeneration(store, fakeDeps({ observe }).bind(store));
+    const row = gen.ranking.find((r) => r.fitness.matches > 0);
+    assert.equal(row.descriptors.aggression, 0.5); // fakeLog: an attack, then a move with no target, at full hp
+    assert.equal(row.descriptors.caution, 0);
+  } finally {
+    cleanup();
   }
 });
 

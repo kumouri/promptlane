@@ -47,11 +47,11 @@ export function renderReport(store) {
     const fails = Object.entries(gen.compileFailures ?? {});
     if (fails.length) L.push(...fails.map(([id, why]) => `- compile failed: ${id} — ${why}`), '');
     if (gen.ranking) {
-      L.push('| Rank | Genome | Mean score | 95% CI (seed-paired) | W-D-L | Elo | Deaths own/foe | Towers lost own/foe | Aggression | Recall rate | Spread | Call errors |');
+      L.push('| Rank | Genome | Mean score | 95% CI (seed-paired) | W-D-L | Elo | Deaths own/foe | Towers lost own/foe | Aggression | Caution | Spread | Call errors |');
       L.push('|---:|---|---:|---|---|---:|---|---|---:|---:|---:|---:|');
       gen.ranking.forEach((r, i) => {
         const fit = r.fitness;
-        L.push(`| ${i + 1} | ${r.id}${gen.survivors.includes(r.id) ? ' (survives)' : ''} | ${f3(fit.mean)} | ${fit.note ?? ci(fit)} | ${fit.wins}-${fit.draws}-${fit.losses} | ${r.elo ?? '—'} | ${r.deaths}/${r.foeDeaths} | ${r.towersLost}/${r.foeTowersLost} | ${f3(r.descriptors.aggression)} | ${f3(r.descriptors.recallRate)} | ${r.descriptors.spread ?? '—'} | ${r.callErrors} |`);
+        L.push(`| ${i + 1} | ${r.id}${gen.survivors.includes(r.id) ? ' (survives)' : ''} | ${f3(fit.mean)} | ${fit.note ?? ci(fit)} | ${fit.wins}-${fit.draws}-${fit.losses} | ${r.elo ?? '—'} | ${r.deaths}/${r.foeDeaths} | ${r.towersLost}/${r.foeTowersLost} | ${f3(r.descriptors.aggression)} | ${f3(r.descriptors.caution)} | ${r.descriptors.spread ?? '—'} | ${r.callErrors} |`);
       });
       L.push('');
       L.push('Matches (key → result; logs in the store under `matches/`, each `npm run match -- --verify`-able):', '');
