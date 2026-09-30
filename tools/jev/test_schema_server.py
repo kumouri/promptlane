@@ -11,6 +11,9 @@ import urllib.error
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(__file__))
+from unittest import mock  # noqa: E402
+
+import schema_server  # noqa: E402
 from schema_server import BudgetExceeded, JevSchemaBackend, serve  # noqa: E402
 
 SCHEMA = {
@@ -111,6 +114,25 @@ class HttpTests(unittest.TestCase):
         status, out = self._post({"observation": OBS})
         self.assertEqual(status, 400)
         self.assertIn("error", out)
+
+
+
+class TokenTests(unittest.TestCase):
+    """The live client gets a renewing token provider, not a string read once at startup."""
+
+    def test_live_client_uses_the_renewing_provider(self):
+        provider = object()
+        with mock.patch.object(schema_server, "resolve_workers_ai_token_provider", return_value=provider) as resolve, \
+                mock.patch.object(schema_server, "WorkersAIClient") as client:
+            schema_server.make_client(schema_server.parse_args(["--refresh-margin-sec", "600", "--timeout", "12"]))
+        resolve.assert_called_once_with(margin_sec=600.0)
+        client.assert_called_once_with(provider, timeout=12.0)
+
+    def test_stub_needs_no_token(self):
+        with mock.patch.object(schema_server, "resolve_workers_ai_token_provider") as resolve:
+            client = schema_server.make_client(schema_server.parse_args(["--stub"]))
+        resolve.assert_not_called()
+        self.assertIsInstance(client, schema_server.DumbStubJevClient)
 
 
 if __name__ == "__main__":
