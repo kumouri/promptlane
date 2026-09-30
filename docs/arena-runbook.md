@@ -134,6 +134,7 @@ default and compiles with host Ollama; nothing to start.
 
   ```
   python tools/jev/schema_server.py              # live Jev via Workers AI, 127.0.0.1:8797, --budget-usd 0.50
+  python tools/jev/schema_server.py --jev-backend typesafe   # live Jev, TypeSafe's API direct (§5.3 step 1)
   python tools/jev/schema_server.py --stub       # $0 plumbing run
   ```
 
@@ -378,7 +379,22 @@ order (`tools/jev/rules.py`, rule 3 exact on the live path). Background and numb
 [`runs/jev-house-bot-2026-09-23.md`](../runs/jev-house-bot-2026-09-23.md),
 [`runs/jev-jam-readiness-2026-09-25.md`](../runs/jev-jam-readiness-2026-09-25.md).
 
-**1. Token.** Jev runs on Cloudflare Workers AI. Two ways to authenticate, checked in this order:
+**1. Backend and credential.** Jev can be reached two ways, and every Jev server
+(`house_server.py`, `schema_server.py`, `team_server.py`) chooses between them with
+`--jev-backend`. Both serve the same model and answer the same; the wire contract to the game is
+identical, and `/health` shows `jev_backend`
+([`runs/jev-backend-parity-2026-09-30.md`](../runs/jev-backend-parity-2026-09-30.md)).
+
+| `--jev-backend` | Credential | Notes |
+|---|---|---|
+| `workers-ai` (the default) | a Cloudflare token (below) | p50 335 ms and p95 860 ms, measured. The token needs renewing unless it's `$CLOUDFLARE_API_TOKEN`. |
+| `typesafe` | `$PROMPTLANE_JEV_API_KEY`, Ceryce's TypeSafe key, set as a Windows User variable. It's read from the registry if the shell predates it, and is never printed. | p50 219 ms and p95 567 ms, measured. It never expires, so nothing is ever renewed. The published cap is 40 requests/s per account, and one full-speed headless match drew about 14. |
+
+The parity run recommends `typesafe` as the default, but flipping the default is Ceryce's call.
+Until she does, pass `--jev-backend typesafe` to use it. If one backend is having trouble, restart
+the server with the other flag. Nothing else changes.
+
+On **`workers-ai`**, there are two ways to authenticate, checked in this order:
 
 - **`$CLOUDFLARE_API_TOKEN` (preferred for jam day)** — a dashboard API token with Workers AI
   permission, set in the environment the server starts from. It does not expire mid-jam.
@@ -395,17 +411,21 @@ Check before starting (renews if needed, then exits):
 ```
 python tools/jev/house_server.py --check-token
 # token OK: source=wrangler-oauth expires in 3599s (margin 900s; the server renews automatically)
+python tools/jev/house_server.py --jev-backend typesafe --check-token
+# token OK: source=typesafe-api-key (PROMPTLANE_JEV_API_KEY or TYPESAFE_API_KEY; does not expire, never renewed)
 ```
 
-Exit code 1 or a `TOKEN RENEWAL FAILED` line → `npx wrangler login`, then check again.
+On workers-ai, exit code 1 or a `TOKEN RENEWAL FAILED` line means `npx wrangler login`, then check
+again. On typesafe, exit code 1 means no key was found: set `PROMPTLANE_JEV_API_KEY`.
 
 **2. Start the server** (its own terminal or scheduled task, next to the model server):
 
 ```
-python tools/jev/house_server.py --port 8798 --budget-usd 3.00
+python tools/jev/house_server.py --port 8798 --budget-usd 3.00                          # workers-ai
+python tools/jev/house_server.py --port 8798 --budget-usd 3.00 --jev-backend typesafe   # TypeSafe direct
 ```
 
-Cost: about $0.035 per 1,000 Jev calls (measured, `usage.input_tokens` × $0.042/M). A jam-shape
+Cost is the same on either backend: about $0.035 per 1,000 Jev calls (measured, `usage.input_tokens` × $0.042/M). A jam-shape
 match (600 s, cadence 2) is ~900 house calls ≈ $0.03, so $3 covers ~90 house matches. Past the
 budget the bot keeps playing on the fallback below — restart with a bigger `--budget-usd` to put
 Jev back.
@@ -414,8 +434,9 @@ Jev back.
 
 | Field | Healthy |
 |---|---|
-| `token_source`, `token_expires_in_sec` | `env` and `null`, or `wrangler-oauth` and a number that climbs back to ~3600 after each renewal |
-| `token_renewals` | about one per hour of uptime. Several a minute means renewals are storming — the bug `runs/jev-client-renew-2026-09-30.md` fixed |
+| `jev_backend` | the one you started it with |
+| `token_source`, `token_expires_in_sec` | `env` and `null`, or `wrangler-oauth` and a number that climbs back to ~3600 after each renewal; on typesafe, `typesafe-api-key` and `null` |
+| `token_renewals` | about one per hour of uptime; always 0 on typesafe. Several a minute means renewals are storming — the bug `runs/jev-client-renew-2026-09-30.md` fixed |
 | `fallbacks`, `last_fallback_error` | `0` and `null` |
 | `cost_usd` / `budget_usd` | well apart |
 
@@ -431,9 +452,11 @@ as a call error in that match's stats. What to do:
 
 | `last_fallback_error` says | Do |
 |---|---|
-| `401` / `TOKEN RENEWAL FAILED` | `npx wrangler login` — the server picks the new token off disk on its next renewal; no restart |
+| `401` / `TOKEN RENEWAL FAILED` (workers-ai) | `npx wrangler login` — the server picks the new token off disk on its next renewal; no restart |
+| `typesafe 401` | the key is wrong or revoked: fix `PROMPTLANE_JEV_API_KEY` and restart, or restart with `--jev-backend workers-ai` |
+| `typesafe 429` / `529` | TypeSafe rate-limited or overloaded. Those codes are already retried with backoff, so seeing one here means retries ran out. If it keeps happening, restart with `--jev-backend workers-ai` |
 | `BudgetExceeded` | restart the server with a larger `--budget-usd` |
-| a timeout / connection error | Cloudflare trouble; nothing to do, it recovers on its own |
+| a timeout / connection error | provider or network trouble; nothing to do, it recovers on its own (restart on the other `--jev-backend` if it doesn't) |
 | (arena log: server unreachable) | restart `house_server.py` |
 
 A match that ran mostly on fallback was played by the rules-in-code house bot, not Jev; it still

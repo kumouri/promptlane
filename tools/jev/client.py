@@ -33,7 +33,7 @@ Confirmed wire shape:
 This harness only ever asks `noul` questions (see `rules.py`), so `Choice`/`Score` shapes are not
 implemented here -- there was nothing in this test that needed them.
 
-Re-read 2026-09-30 (`docs/jev-decision-model-research.md` §9, `runs/jev-backend-parity-2026-09-30.md`):
+Re-read 2026-09-30 (`docs/jev-decision-model-research.md` §3, `runs/jev-backend-parity-2026-09-30.md`):
 
   https://docs.typesafe.ai/api.md            unchanged; a noul answer is `{"type": "noul", "noul": p}`
                                               (no `confidence` -- that is choice/score only); errors
