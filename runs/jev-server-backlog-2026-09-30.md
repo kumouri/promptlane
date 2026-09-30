@@ -59,8 +59,8 @@ The keep-alive/agent-limit theory on the client side doesn't fit. Every failure 
   team, `model_server.py`) listens with backlog 128.
 - `tools/evolve/test_match_schema.mjs`: a schema pilot pointed at a closed port holds and replies
   `[pilot error: fetch failed <- ECONNREFUSED]`.
-- Full suites: `npm run test:tools` (341), `test:arena` (101), `test:evolve` (27), `tsc --noEmit`
-  all pass.
+- Full suites on develop with PR #41 and #42 merged: `npm run test:tools` (349), `test:arena` (101),
+  `test:evolve` (36), `tsc --noEmit`. All pass.
 
 ## Live check on Jev
 
@@ -68,7 +68,8 @@ Same rig as PR #42: two Jam-shape matches (cadence 2, 600 sim-s) **at the same t
 private `schema_server.py` (`--budget-usd 0.40`): hard vs medium and medium vs hard, seed 7, PR #40's
 compiled tier schemas. Ports **8843** (before) and **8844 / 8845** (after), never the arena's 8797.
 "Before" is develop's `tools/jev` (`017a30f`); "after" is this branch. Both legs used this branch's
-match runner, so both report the cause. Both used develop's `client.py`, without PR #42.
+match runner, so both report the cause. Both used develop's `client.py` from before PR #42, which
+merged during this run. This branch is rebased on top of it.
 
 | Leg | Pilot calls | Reached the server (requests + errors) | `fetch failed <- ECONNREFUSED` | Other held decisions | Jev $ |
 |---|---:|---:|---:|---:|---:|
