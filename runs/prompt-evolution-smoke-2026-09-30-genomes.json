@@ -1,0 +1,1241 @@
+{
+ "note": "Genomes (prose), lineage, mutation outcomes and compiled schemas from the smoke campaign; see runs/prompt-evolution-smoke-2026-09-30.md",
+ "genomes": {
+  "7edc45a304cf": {
+   "lineage": {
+    "id": "7edc45a304cf",
+    "sha256": "7edc45a304cfbcb7a5fc2ba323c5cde2a58dd9100456d157ba7e5376ac197729",
+    "parent": null,
+    "generation": null,
+    "operator": "seed",
+    "source": "prompts/pilots/drums.md"
+   },
+   "prose": "You are a bearbot on the drums. You are the beat everyone else plays over — if you drop out, the\nwhole band falls apart. You are slow and you are heavy and that is the point.\n\nYour job is not to win the fight. Your job is to BE the fight, so your squishier allies don't have\nto be. Walk in front. Take the hits meant for someone else. When an enemy gets close to an ally,\nthat enemy is now your problem.\n\nKick (taunt/knockback, short range) is your favorite word. Use it the instant an enemy bearbot is\nclose enough to touch — on cooldown, always, no hesitation, no overthinking. Fill (AoE slow) is\nfor when more than one of them is bunched up near you; drop it under their feet, not yours.\n\nPush the lane. march toward the enemy nexus alongside your minions unless a fight has started —\nthen the fight is the lane. Attack whatever's nearest and threatening an ally first, the nearest\nenemy bearbot second, minions last.\n\nRetreat only when you're really hurt — below a quarter health — because your whole reason for\nexisting is to be the thing that's still standing when the smoke clears. A drummer who recalls too\nearly let the band down.\n\nYou will be handed an OBSERVATION as JSON describing what you can see: yourself, allies, visible\nenemies, nearby minions and towers, your cooldowns, the match clock. Reply with exactly one JSON\naction object and nothing else:\n\n{\"kind\": \"move\"|\"attack\"|\"ability\"|\"recall\"|\"hold\", \"target\"?: <entity id or {\"x\",\"y\"}>, \"ability\"?: <ability name>}\n\nNo commentary, no explanation, no markdown — just the object.\n",
+   "compiledWith": "openrouter:qwen/qwen3.5-9b",
+   "compileUsage": {
+    "calls": 4,
+    "prompt_tokens": 7061,
+    "completion_tokens": 2814,
+    "total_tokens": 9875,
+    "cost_usd": 0.001307,
+    "seconds": 51.09,
+    "wall_seconds": 25.91
+   },
+   "schemas": {
+    "drums": {
+     "pilot_file": "drums.md",
+     "instrument": "drums",
+     "rules": [
+      {
+       "id": "critical_retreat",
+       "condition": "is this bot's hp below a quarter of its max?",
+       "criteria_true": "hp is critically low (<25%)",
+       "criteria_false": "hp is 25% or higher",
+       "action_kind": "recall",
+       "action_ability": null,
+       "action_target_selector": "none"
+      },
+      {
+       "id": "taunt_close_enemy",
+       "condition": "is an enemy bearbot within melee range?",
+       "criteria_true": "an enemy bearbot is touching or very close",
+       "criteria_false": "no enemy bearbot is in melee range",
+       "action_kind": "ability",
+       "action_ability": "kick",
+       "action_target_selector": "nearest_enemy"
+      },
+      {
+       "id": "slow_cluster",
+       "condition": "are multiple enemy bearbots bunched up near this bot?",
+       "criteria_true": "two or more enemies are in close proximity",
+       "criteria_false": "enemies are spread out or single",
+       "action_kind": "ability",
+       "action_ability": "fill",
+       "action_target_selector": "densest_cluster_enemy"
+      },
+      {
+       "id": "threaten_ally",
+       "condition": "is an enemy bearbot close to an ally?",
+       "criteria_true": "an enemy is near an ally",
+       "criteria_false": "no enemy is near an ally",
+       "action_kind": "attack",
+       "action_ability": null,
+       "action_target_selector": "threatened_ally_enemy"
+      },
+      {
+       "id": "attack_nearest_bear",
+       "condition": "is there an enemy bearbot visible?",
+       "criteria_true": "at least one enemy bearbot exists",
+       "criteria_false": "no enemy bearbots exist",
+       "action_kind": "attack",
+       "action_ability": null,
+       "action_target_selector": "nearest_enemy"
+      },
+      {
+       "id": "attack_minion",
+       "condition": "are there allied minions in the wave?",
+       "criteria_true": "minions are present in the lane",
+       "criteria_false": "no minions are present",
+       "action_kind": "attack",
+       "action_ability": null,
+       "action_target_selector": "nearby_minion"
+      }
+     ],
+     "default_action": {
+      "kind": "move",
+      "ability": null,
+      "target_selector": "push_lane"
+     },
+     "validation_notes": []
+    },
+    "keytar": {
+     "pilot_file": "drums.md",
+     "instrument": "keytar",
+     "rules": [
+      {
+       "id": "retreat_low_hp",
+       "condition": "is this bot's hp below a quarter of its max?",
+       "criteria_true": "hp is critically low",
+       "criteria_false": "hp is healthy",
+       "action_kind": "recall",
+       "action_ability": null,
+       "action_target_selector": "none"
+      },
+      {
+       "id": "taunt_single_enemy",
+       "condition": "is an enemy bearbot within melee range?",
+       "criteria_true": "a single enemy bearbot is close enough to touch",
+       "criteria_false": "no single enemy bearbot is close enough to touch",
+       "action_kind": "ability",
+       "action_ability": "chord",
+       "action_target_selector": "nearest_enemy"
+      },
+      {
+       "id": "slow_cluster",
+       "condition": "are multiple enemy bearbots bunched up near this bot?",
+       "criteria_true": "more than one enemy bearbot is clustered nearby",
+       "criteria_false": "enemies are not clustered",
+       "action_kind": "ability",
+       "action_ability": "glissando",
+       "action_target_selector": "densest_cluster_enemy"
+      },
+      {
+       "id": "engage_threatened_ally",
+       "condition": "is an enemy bearbot threatening an ally?",
+       "criteria_true": "an enemy is near an ally",
+       "criteria_false": "no enemy is threatening an ally",
+       "action_kind": "attack",
+       "action_ability": null,
+       "action_target_selector": "threatened_ally_enemy"
+      },
+      {
+       "id": "engage_nearest_enemy",
+       "condition": "is there a visible enemy bearbot?",
+       "criteria_true": "an enemy bearbot is visible",
+       "criteria_false": "no enemy bearbot is visible",
+       "action_kind": "attack",
+       "action_ability": null,
+       "action_target_selector": "nearest_enemy"
+      },
+      {
+       "id": "push_lane",
+       "condition": "has a fight started?",
+       "criteria_true": "combat is active",
+       "criteria_false": "no combat is active",
+       "action_kind": "move",
+       "action_ability": null,
+       "action_target_selector": "push_lane"
+      }
+     ],
+     "default_action": {
+      "kind": "move",
+      "ability": null,
+      "target_selector": "push_lane"
+     },
+     "validation_notes": []
+    },
+    "violin": {
+     "pilot_file": "drums.md",
+     "instrument": "violin",
+     "rules": [
+      {
+       "id": "retreat_low_hp",
+       "condition": "is this bot's hp below a quarter of its max?",
+       "criteria_true": "hp is critically low",
+       "criteria_false": "hp is above critical threshold",
+       "action_kind": "recall",
+       "action_ability": null,
+       "action_target_selector": "none"
+      },
+      {
+       "id": "engage_threatened_ally",
+       "condition": "is there an enemy bearbot threatening an ally?",
+       "criteria_true": "an enemy is near a low-hp ally",
+       "criteria_false": "no enemy is threatening an ally",
+       "action_kind": "attack",
+       "action_ability": null,
+       "action_target_selector": "threatened_ally_enemy"
+      },
+      {
+       "id": "engage_nearest_enemy",
+       "condition": "is there an enemy bearbot within melee range?",
+       "criteria_true": "an enemy bearbot is close enough to touch",
+       "criteria_false": "no enemy bearbot is close enough to touch",
+       "action_kind": "ability",
+       "action_ability": "staccato",
+       "action_target_selector": "nearest_enemy"
+      },
+      {
+       "id": "ability_aoe_cluster",
+       "condition": "are multiple enemy bearbots bunched up near this bot?",
+       "criteria_true": "enemies are clustered together",
+       "criteria_false": "enemies are not clustered",
+       "action_kind": "ability",
+       "action_ability": "staccato",
+       "action_target_selector": "densest_cluster_enemy"
+      },
+      {
+       "id": "push_lane",
+       "condition": "has a fight started?",
+       "criteria_true": "combat is currently active",
+       "criteria_false": "no combat is currently active",
+       "action_kind": "move",
+       "action_ability": null,
+       "action_target_selector": "push_lane"
+      }
+     ],
+     "default_action": {
+      "kind": "move",
+      "ability": null,
+      "target_selector": "push_lane"
+     },
+     "validation_notes": []
+    }
+   }
+  },
+  "d17d715bf190": {
+   "lineage": {
+    "id": "d17d715bf190",
+    "sha256": "d17d715bf1902222c2eb459b31e6399e59de35a72438a4c2f649e84015378db5",
+    "parent": "7edc45a304cf",
+    "generation": 0,
+    "slot": "g0-p0-c1",
+    "operator": "llm-single-change",
+    "focus": "swap the priority of two existing rules",
+    "change": "Prioritized attack targeting before lane pushing, so the bot evaluates what to fight first before deciding whether to advance."
+   },
+   "prose": "You are a bearbot on the drums. You are the beat everyone else plays over — if you drop out, the\nwhole band falls apart. You are slow and you are heavy and that is the point.\n\nYour job is not to win the fight. Your job is to BE the fight, so your squishier allies don't have\nto be. Walk in front. Take the hits meant for someone else. When an enemy gets close to an ally,\nthat enemy is now your problem.\n\nKick (taunt/knockback, short range) is your favorite word. Use it the instant an enemy bearbot is\nclose enough to touch — on cooldown, always, no hesitation, no overthinking. Fill (AoE slow) is\nfor when more than one of them is bunched up near you; drop it under their feet, not yours.\n\nAttack whatever's nearest and threatening an ally first, the nearest enemy bearbot second, minions last. Push the lane. march toward the enemy nexus alongside your minions unless a fight has started —\nthen the fight is the lane.\n\nRetreat only when you're really hurt — below a quarter health — because your whole reason for\nexisting is to be the thing that's still standing when the smoke clears. A drummer who recalls too\nearly let the band down.\n\nYou will be handed an OBSERVATION as JSON describing what you can see: yourself, allies, visible\nenemies, nearby minions and towers, your cooldowns, the match clock. Reply with exactly one JSON\naction object and nothing else:\n\n{\"kind\": \"move\"|\"attack\"|\"ability\"|\"recall\"|\"hold\", \"target\"?: <entity id or {\"x\",\"y\"}>, \"ability\"?: <ability name>}\n\nNo commentary, no explanation, no markdown — just the object.\n",
+   "compiledWith": "openrouter:qwen/qwen3.5-9b",
+   "compileUsage": {
+    "calls": 3,
+    "prompt_tokens": 5237,
+    "completion_tokens": 2075,
+    "total_tokens": 7312,
+    "cost_usd": 0.001033,
+    "seconds": 29.69,
+    "wall_seconds": 16.3
+   },
+   "schemas": {
+    "drums": {
+     "pilot_file": "pilot.md",
+     "instrument": "drums",
+     "rules": [
+      {
+       "id": "critical_health_retreat",
+       "condition": "is this bot's hp below a quarter of its max?",
+       "criteria_true": "hp is critically low (below 25%)",
+       "criteria_false": "hp is 25% or higher",
+       "action_kind": "recall",
+       "action_ability": null,
+       "action_target_selector": "none"
+      },
+      {
+       "id": "taunt_close_enemy",
+       "condition": "is an enemy bearbot within melee range?",
+       "criteria_true": "an enemy bearbot is close enough to touch",
+       "criteria_false": "no enemy bearbot is within melee range",
+       "action_kind": "ability",
+       "action_ability": "kick",
+       "action_target_selector": "nearest_enemy"
+      },
+      {
+       "id": "slow_cluster",
+       "condition": "are multiple enemy bearbots bunched up near this bot?",
+       "criteria_true": "more than one enemy bearbot is in close proximity",
+       "criteria_false": "only one or no enemy bearbots are nearby",
+       "action_kind": "ability",
+       "action_ability": "fill",
+       "action_target_selector": "densest_cluster_enemy"
+      },
+      {
+       "id": "attack_threatened_ally",
+       "condition": "is there an enemy threatening an ally?",
+       "criteria_true": "an enemy is near this bot's lowest-hp ally",
+       "criteria_false": "no enemy is threatening an ally",
+       "action_kind": "attack",
+       "action_ability": null,
+       "action_target_selector": "threatened_ally_enemy"
+      },
+      {
+       "id": "attack_nearest_bearbot",
+       "condition": "is there an enemy bearbot visible?",
+       "criteria_true": "at least one enemy bearbot is visible",
+       "criteria_false": "no enemy bearbots are visible",
+       "action_kind": "attack",
+       "action_ability": null,
+       "action_target_selector": "nearest_enemy"
+      },
+      {
+       "id": "attack_minion",
+       "condition": "are there allied minions in the wave?",
+       "criteria_true": "allied minions are present nearby",
+       "criteria_false": "no allied minions are nearby",
+       "action_kind": "attack",
+       "action_ability": null,
+       "action_target_selector": "nearby_minion"
+      },
+      {
+       "id": "push_lane",
+       "condition": "is a fight currently in progress?",
+       "criteria_true": "combat is actively happening",
+       "criteria_false": "no active fight is occurring",
+       "action_kind": "move",
+       "action_ability": null,
+       "action_target_selector": "push_lane"
+      }
+     ],
+     "default_action": {
+      "kind": "move",
+      "ability": null,
+      "target_selector": "push_lane"
+     },
+     "validation_notes": []
+    },
+    "keytar": {
+     "pilot_file": "pilot.md",
+     "instrument": "keytar",
+     "rules": [
+      {
+       "id": "kick_taunt",
+       "condition": "is an enemy bearbot within melee range?",
+       "criteria_true": "an enemy bearbot is close enough to touch",
+       "criteria_false": "no enemy bearbot is within melee range",
+       "action_kind": "ability",
+       "action_ability": "chord",
+       "action_target_selector": "nearest_enemy"
+      },
+      {
+       "id": "fill_aoe",
+       "condition": "are multiple enemy bearbots bunched up near this bot?",
+       "criteria_true": "more than one enemy bearbot is clustered nearby",
+       "criteria_false": "enemies are not clustered",
+       "action_kind": "ability",
+       "action_ability": "chord",
+       "action_target_selector": "densest_cluster_enemy"
+      },
+      {
+       "id": "threaten_ally",
+       "condition": "is an enemy bearbot close to an ally?",
+       "criteria_true": "an enemy bearbot is near an ally",
+       "criteria_false": "no enemy bearbot is threatening an ally",
+       "action_kind": "attack",
+       "action_ability": null,
+       "action_target_selector": "threatened_ally_enemy"
+      },
+      {
+       "id": "attack_nearest",
+       "condition": "is there any visible enemy bearbot?",
+       "criteria_true": "at least one enemy bearbot is visible",
+       "criteria_false": "no enemy bearbots are visible",
+       "action_kind": "attack",
+       "action_ability": null,
+       "action_target_selector": "nearest_enemy"
+      },
+      {
+       "id": "attack_minion",
+       "condition": "are there any visible minions?",
+       "criteria_true": "minions are present",
+       "criteria_false": "no minions are present",
+       "action_kind": "attack",
+       "action_ability": null,
+       "action_target_selector": "nearby_minion"
+      },
+      {
+       "id": "push_lane",
+       "condition": "has a fight started?",
+       "criteria_true": "combat is currently active",
+       "criteria_false": "no combat is active",
+       "action_kind": "move",
+       "action_ability": null,
+       "action_target_selector": "push_lane"
+      },
+      {
+       "id": "retreat_low_hp",
+       "condition": "is this bot's hp below a quarter of its max?",
+       "criteria_true": "hp is critically low (below 25%)",
+       "criteria_false": "hp is 25% or higher",
+       "action_kind": "recall",
+       "action_ability": null,
+       "action_target_selector": "none"
+      }
+     ],
+     "default_action": {
+      "kind": "move",
+      "ability": null,
+      "target_selector": "push_lane"
+     },
+     "validation_notes": []
+    },
+    "violin": {
+     "pilot_file": "pilot.md",
+     "instrument": "violin",
+     "rules": [
+      {
+       "id": "retreat_low_hp",
+       "condition": "is this bot's hp below a quarter of its max?",
+       "criteria_true": "hp is critically low",
+       "criteria_false": "hp is above critical threshold",
+       "action_kind": "recall",
+       "action_ability": null,
+       "action_target_selector": "none"
+      },
+      {
+       "id": "taunt_single_enemy",
+       "condition": "is an enemy bearbot within melee range?",
+       "criteria_true": "single enemy bearbot is close enough to touch",
+       "criteria_false": "no enemy bearbot is within melee range",
+       "action_kind": "ability",
+       "action_ability": "staccato",
+       "action_target_selector": "nearest_enemy"
+      },
+      {
+       "id": "slow_cluster",
+       "condition": "are multiple enemy bearbots bunched up near this bot?",
+       "criteria_true": "more than one enemy bearbot is clustered nearby",
+       "criteria_false": "enemies are not clustered",
+       "action_kind": "ability",
+       "action_ability": "solo",
+       "action_target_selector": "densest_cluster_enemy"
+      },
+      {
+       "id": "attack_threatened_ally",
+       "condition": "is an enemy bearbot threatening an ally?",
+       "criteria_true": "an enemy is near an ally",
+       "criteria_false": "no enemy is threatening an ally",
+       "action_kind": "attack",
+       "action_ability": null,
+       "action_target_selector": "threatened_ally_enemy"
+      },
+      {
+       "id": "attack_nearest_enemy",
+       "condition": "is there a visible enemy bearbot?",
+       "criteria_true": "an enemy bearbot is visible",
+       "criteria_false": "no enemy bearbot is visible",
+       "action_kind": "attack",
+       "action_ability": null,
+       "action_target_selector": "nearest_enemy"
+      },
+      {
+       "id": "attack_minion",
+       "condition": "is there a nearby allied minion?",
+       "criteria_true": "an allied minion is nearby",
+       "criteria_false": "no allied minion is nearby",
+       "action_kind": "attack",
+       "action_ability": null,
+       "action_target_selector": "nearby_minion"
+      },
+      {
+       "id": "push_lane",
+       "condition": "has a fight started?",
+       "criteria_true": "combat is currently active",
+       "criteria_false": "no combat is currently active",
+       "action_kind": "move",
+       "action_ability": null,
+       "action_target_selector": "push_lane"
+      }
+     ],
+     "default_action": {
+      "kind": "move",
+      "ability": null,
+      "target_selector": "push_lane"
+     },
+     "validation_notes": []
+    }
+   }
+  },
+  "d9489a934697": {
+   "lineage": {
+    "id": "d9489a934697",
+    "sha256": "d9489a93469701a2ff86a72b55dd65c9cdf0b392cc73fa1a969271a6d015c665",
+    "parent": "7edc45a304cf",
+    "generation": 0,
+    "slot": "g0-p0-c0",
+    "operator": "llm-single-change",
+    "focus": "add one rule for a situation the prose does not cover yet",
+    "change": "Added one sentence specifying that drums should recall when low on health and safe from immediate threats, which was previously left undefined despite the prose warning against recalling \"too early.\""
+   },
+   "prose": "You are a bearbot on the drums. You are the beat everyone else plays over — if you drop out, the\nwhole band falls apart. You are slow and you are heavy and that is the point.\n\nYour job is not to win the fight. Your job is to BE the fight, so your squishier allies don't have\nto be. Walk in front. Take the hits meant for someone else. When an enemy gets close to an ally,\nthat enemy is now your problem.\n\nKick (taunt/knockback, short range) is your favorite word. Use it the instant an enemy bearbot is\nclose enough to touch — on cooldown, always, no hesitation, no overthinking. Fill (AoE slow) is\nfor when more than one of them is bunched up near you; drop it under their feet, not yours.\n\nPush the lane. march toward the enemy nexus alongside your minions unless a fight has started —\nthen the fight is the lane. Attack whatever's nearest and threatening an ally first, the nearest\nenemy bearbot second, minions last.\n\nRetreat only when you're really hurt — below a quarter health — because your whole reason for\nexisting is to be the thing that's still standing when the smoke clears. A drummer who recalls too\nearly let the band down. When you're low on health and the immediate threat has passed, recall to restore yourself fully.\n\nYou will be handed an OBSERVATION as JSON describing what you can see: yourself, allies, visible\nenemies, nearby minions and towers, your cooldowns, the match clock. Reply with exactly one JSON\naction object and nothing else:\n\n{\"kind\": \"move\"|\"attack\"|\"ability\"|\"recall\"|\"hold\", \"target\"?: <entity id or {\"x\",\"y\"}>, \"ability\"?: <ability name>}\n\nNo commentary, no explanation, no markdown — just the object.\n",
+   "compiledWith": "openrouter:qwen/qwen3.5-9b",
+   "compileUsage": {
+    "calls": 5,
+    "prompt_tokens": 8974,
+    "completion_tokens": 3402,
+    "total_tokens": 12376,
+    "cost_usd": 0.001984,
+    "seconds": 56.56,
+    "wall_seconds": 33.81
+   },
+   "schemas": {
+    "drums": {
+     "pilot_file": "pilot.md",
+     "instrument": "drums",
+     "rules": [
+      {
+       "id": "low_health_retreat",
+       "condition": "is this bot's hp below a quarter of its max?",
+       "criteria_true": "bot is critically low on health",
+       "criteria_false": "bot has sufficient health",
+       "action_kind": "recall",
+       "action_ability": null,
+       "action_target_selector": null
+      },
+      {
+       "id": "threatened_ally_engage",
+       "condition": "is there an enemy bearbot threatening an ally?",
+       "criteria_true": "an enemy is near a low-hp ally",
+       "criteria_false": "no ally is currently threatened",
+       "action_kind": "attack",
+       "action_ability": null,
+       "action_target_selector": "threatened_ally_enemy"
+      },
+      {
+       "id": "nearest_enemy_engage",
+       "condition": "is there a visible enemy bearbot?",
+       "criteria_true": "an enemy bearbot is visible",
+       "criteria_false": "no enemy bearbot is visible",
+       "action_kind": "attack",
+       "action_ability": null,
+       "action_target_selector": "nearest_enemy"
+      },
+      {
+       "id": "minion_engage",
+       "condition": "are there visible minions?",
+       "criteria_true": "minions are present",
+       "criteria_false": "no minions are present",
+       "action_kind": "attack",
+       "action_ability": null,
+       "action_target_selector": "nearby_minion"
+      },
+      {
+       "id": "kick_taunt",
+       "condition": "is an enemy bearbot within melee range?",
+       "criteria_true": "enemy bearbot is close enough to touch",
+       "criteria_false": "enemy bearbot is too far away",
+       "action_kind": "ability",
+       "action_ability": "kick",
+       "action_target_selector": "nearest_enemy"
+      },
+      {
+       "id": "fill_aoe",
+       "condition": "are multiple enemy bearbots bunched up near this bot?",
+       "criteria_true": "multiple enemies are clustered nearby",
+       "criteria_false": "enemies are spread out or absent",
+       "action_kind": "ability",
+       "action_ability": "fill",
+       "action_target_selector": "densest_cluster_enemy"
+      },
+      {
+       "id": "lane_push",
+       "condition": "has a fight started?",
+       "criteria_true": "combat is currently active",
+       "criteria_false": "no combat is currently active",
+       "action_kind": "move",
+       "action_ability": null,
+       "action_target_selector": "push_lane"
+      }
+     ],
+     "default_action": {
+      "kind": "move",
+      "ability": null,
+      "target_selector": "push_lane"
+     },
+     "validation_notes": []
+    },
+    "keytar": {
+     "pilot_file": "pilot.md",
+     "instrument": "keytar",
+     "rules": [
+      {
+       "id": "critical_recall",
+       "condition": "is this bot's hp below a quarter of its max?",
+       "criteria_true": "bot is critically low on health",
+       "criteria_false": "bot has sufficient health",
+       "action_kind": "recall",
+       "action_ability": null,
+       "action_target_selector": null
+      },
+      {
+       "id": "taunt_engage",
+       "condition": "is an enemy bearbot within melee range?",
+       "criteria_true": "enemy bearbot is touching or very close",
+       "criteria_false": "no enemy bearbot is in melee range",
+       "action_kind": "ability",
+       "action_ability": "chord",
+       "action_target_selector": "nearest_enemy"
+      },
+      {
+       "id": "aoe_slow",
+       "condition": "are multiple enemy bearbots bunched up near this bot?",
+       "criteria_true": "a cluster of enemies is present",
+       "criteria_false": "enemies are spread out or absent",
+       "action_kind": "ability",
+       "action_ability": "glissando",
+       "action_target_selector": "densest_cluster_enemy"
+      },
+      {
+       "id": "threaten_ally",
+       "condition": "is an enemy bearbot close to an ally?",
+       "criteria_true": "enemy is threatening an ally",
+       "criteria_false": "no enemy is threatening an ally",
+       "action_kind": "move",
+       "action_ability": null,
+       "action_target_selector": "threatened_ally_enemy"
+      },
+      {
+       "id": "push_lane",
+       "condition": "has a fight started?",
+       "criteria_true": "combat is currently active",
+       "criteria_false": "no combat is active",
+       "action_kind": "move",
+       "action_ability": null,
+       "action_target_selector": "push_lane"
+      },
+      {
+       "id": "default_advance",
+       "condition": "is there a fight started?",
+       "criteria_true": "combat is active",
+       "criteria_false": "no combat is active",
+       "action_kind": "move",
+       "action_ability": null,
+       "action_target_selector": "push_lane"
+      }
+     ],
+     "default_action": {
+      "kind": "move",
+      "ability": null,
+      "target_selector": "push_lane"
+     },
+     "validation_notes": []
+    },
+    "violin": {
+     "pilot_file": "pilot.md",
+     "instrument": "violin",
+     "rules": [
+      {
+       "id": "engage_taunt",
+       "condition": "is an enemy bearbot within melee range?",
+       "criteria_true": "an enemy bearbot is close enough to touch",
+       "criteria_false": "no enemy bearbot is in melee range",
+       "action_kind": "ability",
+       "action_ability": "staccato",
+       "action_target_selector": "nearest_enemy"
+      },
+      {
+       "id": "engage_aoe",
+       "condition": "are multiple enemy bearbots bunched up near this bot?",
+       "criteria_true": "more than one enemy bearbot is clustered nearby",
+       "criteria_false": "enemies are not clustered",
+       "action_kind": "ability",
+       "action_ability": "staccato",
+       "action_target_selector": "densest_cluster_enemy"
+      },
+      {
+       "id": "engage_threat",
+       "condition": "is an enemy bearbot threatening an ally?",
+       "criteria_true": "an enemy is near an ally",
+       "criteria_false": "no enemy is near an ally",
+       "action_kind": "attack",
+       "action_ability": null,
+       "action_target_selector": "threatened_ally_enemy"
+      },
+      {
+       "id": "engage_nearest",
+       "condition": "is there any visible enemy bearbot?",
+       "criteria_true": "at least one enemy bearbot is visible",
+       "criteria_false": "no enemy bearbots are visible",
+       "action_kind": "attack",
+       "action_ability": null,
+       "action_target_selector": "nearest_enemy"
+      },
+      {
+       "id": "engage_minion",
+       "condition": "are there allied minions in the wave?",
+       "criteria_true": "allied minions are present",
+       "criteria_false": "no allied minions are present",
+       "action_kind": "attack",
+       "action_ability": null,
+       "action_target_selector": "nearby_minion"
+      },
+      {
+       "id": "retreat_low_hp",
+       "condition": "is this bot's hp below a quarter of its max?",
+       "criteria_true": "hp is critically low",
+       "criteria_false": "hp is above the quarter threshold",
+       "action_kind": "move",
+       "action_ability": null,
+       "action_target_selector": "home"
+      },
+      {
+       "id": "recall_safe",
+       "condition": "is this bot's hp below a quarter of its max AND has the immediate threat passed?",
+       "criteria_true": "bot is low on health and safe from immediate danger",
+       "criteria_false": "bot is low on health but still threatened or threat is unclear",
+       "action_kind": "recall",
+       "action_ability": null,
+       "action_target_selector": null
+      }
+     ],
+     "default_action": {
+      "kind": "move",
+      "ability": null,
+      "target_selector": "push_lane"
+     },
+     "validation_notes": []
+    }
+   }
+  },
+  "house-violet": {
+   "lineage": {
+    "source": "prompts/pilots/house-violet.md",
+    "note": "measurement only (long-survival bound), not part of the campaign"
+   },
+   "prose": "You are a VIOLET bearbot in the HOUSE BAND, the arena's placement opponent. Your enemies are team\r\n\"green\". Bearbots do not respawn, so you never die for nothing: you ride with your minion wave,\r\nyou fight what the wave meets, and you leave when you are hurt. \"attack\" walks to the target and\r\nkeeps hitting it. \"recall\" runs you home and heals you fully. Enemy towers hit hard (range 160)\r\nbut shoot minions before bearbots, so you touch a tower only while your wave is there.\r\n\r\nYour reply is one JSON object that ALWAYS starts with five worksheet keys you fill from the\r\nobservation, then \"kind\" and the rest. The game ignores the worksheet; you write it so you look\r\nat it:\r\n  \"hp\": self.hp\r\n  \"wave\": how many entries of nearbyMinions have \"team\":\"violet\"\r\n  \"tower\": id of the entry of visibleEnemies whose kind is \"tower\" or \"nexus\", else null\r\n  \"foe\": id of the entry of visibleEnemies whose kind is \"bearbot\" with the lowest hp; if there\r\n         is no bearbot, id of the nearest entry whose kind is \"minion\"; if neither, null\r\n  \"cd\": your ability cooldown from self.cooldowns (keytar chord, violin staccato, drums kick)\r\nExamples of complete replies:\r\n{\"hp\":61,\"wave\":0,\"tower\":null,\"foe\":null,\"cd\":2.5,\"kind\":\"recall\"}\r\n{\"hp\":200,\"wave\":0,\"tower\":\"tw-9\",\"foe\":null,\"cd\":0,\"kind\":\"move\",\"target\":{\"x\":100,\"y\":900}}\r\n{\"hp\":200,\"wave\":3,\"tower\":\"tw-9\",\"foe\":\"mn-3\",\"cd\":0,\"kind\":\"attack\",\"target\":\"mn-3\"}\r\n\r\nRules. Take the FIRST rule that matches.\r\n1. hp less than 75 -> \"kind\":\"recall\"\r\n2. tower is not null and wave is 0 -> go home: \"kind\":\"move\",\"target\":{\"x\":100,\"y\":900}\r\n3. keytar only: cd is 0 and foe is not null -> \"kind\":\"ability\",\"ability\":\"chord\",\"target\":foe\r\n   violin only: cd is 0 and foe is a bearbot with hp less than 100 -> \"kind\":\"ability\",\"ability\":\"staccato\",\"target\":foe\r\n   drums only: cd is 0 and foe is a bearbot with hp less than 100 -> \"kind\":\"ability\",\"ability\":\"kick\",\"target\":foe\r\n4. foe is not null -> \"kind\":\"attack\",\"target\":foe\r\n5. tower is not null -> \"kind\":\"attack\",\"target\":tower\r\n6. foe is null, tower is null and wave is 1 or more -> ride with a violet minion: \"kind\":\"move\",\"target\":{\"x\":<that minion's x>,\"y\":<that minion's y>}\r\n7. otherwise wait for the next wave at home: \"kind\":\"move\",\"target\":{\"x\":100,\"y\":900}\r\nNever use fill, glissando or solo. Never \"hold\".\r\n\r\nReply with exactly ONE JSON object on one line and nothing else: no words, no markdown, no second\r\nobject. The object starts with \"hp\",\"wave\",\"tower\",\"foe\",\"cd\".\r\n",
+   "compiledWith": "openrouter:qwen/qwen3.5-9b",
+   "compileUsage": {
+    "calls": 3,
+    "prompt_tokens": 6338,
+    "completion_tokens": 2054,
+    "total_tokens": 8392,
+    "cost_usd": 0.001372,
+    "seconds": 18.85,
+    "wall_seconds": 8.09
+   },
+   "schemas": {
+    "drums": {
+     "pilot_file": "prompts/pilots/house-violet.md",
+     "instrument": "drums",
+     "rules": [
+      {
+       "id": "low_hp_retreat",
+       "condition": "is this bot's hp below 75?",
+       "criteria_true": "hp < 75",
+       "criteria_false": "hp >= 75",
+       "action_kind": "recall",
+       "action_ability": null,
+       "action_target_selector": null
+      },
+      {
+       "id": "tower_no_wave_home",
+       "condition": "is an enemy tower visible AND is the minion wave count zero?",
+       "criteria_true": "tower exists and wave == 0",
+       "criteria_false": "tower missing or wave > 0",
+       "action_kind": "move",
+       "action_ability": null,
+       "action_target_selector": "home"
+      },
+      {
+       "id": "keytar_ready",
+       "condition": "is the keytar ability cooldown zero AND is there an enemy target?",
+       "criteria_true": "keytar cd == 0 and foe exists",
+       "criteria_false": "keytar cd > 0 or no foe",
+       "action_kind": "ability",
+       "action_ability": "chord",
+       "action_target_selector": "nearest_enemy"
+      },
+      {
+       "id": "violin_ready",
+       "condition": "is the violin ability cooldown zero AND is the target a low-hp bearbot?",
+       "criteria_true": "violin cd == 0 and foe is bearbot with hp < 100",
+       "criteria_false": "violin cd > 0 or foe not low-hp bearbot",
+       "action_kind": "ability",
+       "action_ability": "staccato",
+       "action_target_selector": "nearest_enemy"
+      },
+      {
+       "id": "drums_ready",
+       "condition": "is the drum ability cooldown zero AND is the target a low-hp bearbot?",
+       "criteria_true": "drums cd == 0 and foe is bearbot with hp < 100",
+       "criteria_false": "drums cd > 0 or foe not low-hp bearbot",
+       "action_kind": "ability",
+       "action_ability": "kick",
+       "action_target_selector": "nearest_enemy"
+      },
+      {
+       "id": "attack_foe",
+       "condition": "is there an enemy target?",
+       "criteria_true": "foe exists",
+       "criteria_false": "no foe",
+       "action_kind": "attack",
+       "action_ability": null,
+       "action_target_selector": "nearest_enemy"
+      },
+      {
+       "id": "attack_tower",
+       "condition": "is an enemy tower visible?",
+       "criteria_true": "tower exists",
+       "criteria_false": "no tower",
+       "action_kind": "attack",
+       "action_ability": null,
+       "action_target_selector": "nearest_tower"
+      },
+      {
+       "id": "ride_wave",
+       "condition": "is there no enemy target AND no enemy tower AND is the minion wave count one or more?",
+       "criteria_true": "no foe, no tower, wave >= 1",
+       "criteria_false": "foe exists or tower exists or wave == 0",
+       "action_kind": "move",
+       "action_ability": null,
+       "action_target_selector": "nearby_minion"
+      }
+     ],
+     "default_action": {
+      "kind": "move",
+      "ability": null,
+      "target_selector": "home"
+     },
+     "validation_notes": []
+    },
+    "keytar": {
+     "pilot_file": "prompts/pilots/house-violet.md",
+     "instrument": "keytar",
+     "rules": [
+      {
+       "id": "low_hp_retreat",
+       "condition": "is this bot's hp below three quarters of its max?",
+       "criteria_true": "hp < 75% of max",
+       "criteria_false": "hp >= 75% of max",
+       "action_kind": "recall",
+       "action_ability": null,
+       "action_target_selector": "none"
+      },
+      {
+       "id": "tower_no_wave_home",
+       "condition": "is there a visible tower or nexus AND is the minion wave count zero?",
+       "criteria_true": "tower exists and wave is 0",
+       "criteria_false": "no tower or wave > 0",
+       "action_kind": "move",
+       "action_ability": null,
+       "action_target_selector": "home"
+      },
+      {
+       "id": "chord_ready",
+       "condition": "is the keytar ability cooldown zero AND is there a visible enemy?",
+       "criteria_true": "keytar cd=0 and foe exists",
+       "criteria_false": "keytar cd>0 or no foe",
+       "action_kind": "ability",
+       "action_ability": "chord",
+       "action_target_selector": "nearest_enemy"
+      },
+      {
+       "id": "violin_ready",
+       "condition": "is the violin ability cooldown zero AND is there a low-hp enemy bearbot?",
+       "criteria_true": "violin cd=0 and foe is bearbot with hp<100",
+       "criteria_false": "violin cd>0 or foe not low-hp bearbot",
+       "action_kind": "ability",
+       "action_ability": "staccato",
+       "action_target_selector": "nearest_enemy"
+      },
+      {
+       "id": "drums_ready",
+       "condition": "is the drum ability cooldown zero AND is there a low-hp enemy bearbot?",
+       "criteria_true": "drums cd=0 and foe is bearbot with hp<100",
+       "criteria_false": "drums cd>0 or foe not low-hp bearbot",
+       "action_kind": "ability",
+       "action_ability": "kick",
+       "action_target_selector": "nearest_enemy"
+      },
+      {
+       "id": "attack_foe",
+       "condition": "is there a visible enemy target?",
+       "criteria_true": "foe is not null",
+       "criteria_false": "no foe",
+       "action_kind": "attack",
+       "action_ability": null,
+       "action_target_selector": "nearest_enemy"
+      },
+      {
+       "id": "attack_tower",
+       "condition": "is there a visible tower or nexus?",
+       "criteria_true": "tower is not null",
+       "criteria_false": "no tower",
+       "action_kind": "attack",
+       "action_ability": null,
+       "action_target_selector": "nearest_tower"
+      },
+      {
+       "id": "ride_wave",
+       "condition": "is there no foe and no tower but the minion wave count is one or more?",
+       "criteria_true": "no foe, no tower, wave >= 1",
+       "criteria_false": "foe exists or tower exists or wave=0",
+       "action_kind": "move",
+       "action_ability": null,
+       "action_target_selector": "nearby_minion"
+      },
+      {
+       "id": "wait_home",
+       "condition": "is there no foe and no tower and the minion wave count is zero?",
+       "criteria_true": "no foe, no tower, wave=0",
+       "criteria_false": "foe exists or tower exists or wave>0",
+       "action_kind": "move",
+       "action_ability": null,
+       "action_target_selector": "home"
+      }
+     ],
+     "default_action": {
+      "kind": "move",
+      "ability": null,
+      "target_selector": "home"
+     },
+     "validation_notes": []
+    },
+    "violin": {
+     "pilot_file": "prompts/pilots/house-violet.md",
+     "instrument": "violin",
+     "rules": [
+      {
+       "id": "low_hp_retreat",
+       "condition": "is the bot's hp below 75?",
+       "criteria_true": "hp < 75",
+       "criteria_false": "hp >= 75",
+       "action_kind": "recall",
+       "action_ability": null,
+       "action_target_selector": "none"
+      },
+      {
+       "id": "tower_no_wave_home",
+       "condition": "is there a visible tower and is the wave count zero?",
+       "criteria_true": "tower exists and wave == 0",
+       "criteria_false": "tower missing or wave > 0",
+       "action_kind": "move",
+       "action_ability": null,
+       "action_target_selector": "home"
+      },
+      {
+       "id": "keytar_ready",
+       "condition": "is the keytar cooldown zero and is there an enemy?",
+       "criteria_true": "keytar cd == 0 and foe exists",
+       "criteria_false": "keytar cd > 0 or no foe",
+       "action_kind": "ability",
+       "action_ability": null,
+       "action_target_selector": "nearest_enemy"
+      },
+      {
+       "id": "violin_ready",
+       "condition": "is the violin cooldown zero and is the foe a low-hp bearbot?",
+       "criteria_true": "violin cd == 0 and foe is bearbot with hp < 100",
+       "criteria_false": "violin cd > 0 or foe not low-hp bearbot",
+       "action_kind": "ability",
+       "action_ability": "staccato",
+       "action_target_selector": "nearest_enemy"
+      },
+      {
+       "id": "drums_ready",
+       "condition": "is the drums cooldown zero and is the foe a low-hp bearbot?",
+       "criteria_true": "drums cd == 0 and foe is bearbot with hp < 100",
+       "criteria_false": "drums cd > 0 or foe not low-hp bearbot",
+       "action_kind": "ability",
+       "action_ability": null,
+       "action_target_selector": "nearest_enemy"
+      },
+      {
+       "id": "attack_foe",
+       "condition": "is there a visible enemy bearbot?",
+       "criteria_true": "foe exists",
+       "criteria_false": "no foe",
+       "action_kind": "attack",
+       "action_ability": null,
+       "action_target_selector": "nearest_enemy"
+      },
+      {
+       "id": "attack_tower",
+       "condition": "is there a visible tower?",
+       "criteria_true": "tower exists",
+       "criteria_false": "no tower",
+       "action_kind": "attack",
+       "action_ability": null,
+       "action_target_selector": "nearest_tower"
+      },
+      {
+       "id": "ride_wave",
+       "condition": "is there no foe, no tower, and is the wave count one or more?",
+       "criteria_true": "no foe, no tower, wave >= 1",
+       "criteria_false": "foe exists or tower exists or wave == 0",
+       "action_kind": "move",
+       "action_ability": null,
+       "action_target_selector": "nearby_minion"
+      },
+      {
+       "id": "wait_home",
+       "condition": "is there no foe, no tower, and is the wave count zero?",
+       "criteria_true": "no foe, no tower, wave == 0",
+       "criteria_false": "foe exists or tower exists or wave >= 1",
+       "action_kind": "move",
+       "action_ability": null,
+       "action_target_selector": "home"
+      }
+     ],
+     "default_action": {
+      "kind": "move",
+      "ability": null,
+      "target_selector": "home"
+     },
+     "validation_notes": []
+    }
+   }
+  }
+ },
+ "mutations": {
+  "g0-p0-c0": {
+   "ok": true,
+   "prose": "You are a bearbot on the drums. You are the beat everyone else plays over — if you drop out, the\nwhole band falls apart. You are slow and you are heavy and that is the point.\n\nYour job is not to win the fight. Your job is to BE the fight, so your squishier allies don't have\nto be. Walk in front. Take the hits meant for someone else. When an enemy gets close to an ally,\nthat enemy is now your problem.\n\nKick (taunt/knockback, short range) is your favorite word. Use it the instant an enemy bearbot is\nclose enough to touch — on cooldown, always, no hesitation, no overthinking. Fill (AoE slow) is\nfor when more than one of them is bunched up near you; drop it under their feet, not yours.\n\nPush the lane. march toward the enemy nexus alongside your minions unless a fight has started —\nthen the fight is the lane. Attack whatever's nearest and threatening an ally first, the nearest\nenemy bearbot second, minions last.\n\nRetreat only when you're really hurt — below a quarter health — because your whole reason for\nexisting is to be the thing that's still standing when the smoke clears. A drummer who recalls too\nearly let the band down. When you're low on health and the immediate threat has passed, recall to restore yourself fully.\n\nYou will be handed an OBSERVATION as JSON describing what you can see: yourself, allies, visible\nenemies, nearby minions and towers, your cooldowns, the match clock. Reply with exactly one JSON\naction object and nothing else:\n\n{\"kind\": \"move\"|\"attack\"|\"ability\"|\"recall\"|\"hold\", \"target\"?: <entity id or {\"x\",\"y\"}>, \"ability\"?: <ability name>}\n\nNo commentary, no explanation, no markdown — just the object.\n",
+   "change": "Added one sentence specifying that drums should recall when low on health and safe from immediate threats, which was previously left undefined despite the prose warning against recalling \"too early.\"",
+   "sentence_changes": 1,
+   "attempts": 1,
+   "backend": "claude:claude-haiku-4-5-20251001",
+   "usage": {
+    "calls": 1,
+    "prompt_tokens": 10,
+    "completion_tokens": 5151,
+    "total_tokens": 5161,
+    "cost_usd": 0.035719,
+    "seconds": 42.82
+   }
+  },
+  "g0-p0-c1": {
+   "ok": true,
+   "prose": "You are a bearbot on the drums. You are the beat everyone else plays over — if you drop out, the\nwhole band falls apart. You are slow and you are heavy and that is the point.\n\nYour job is not to win the fight. Your job is to BE the fight, so your squishier allies don't have\nto be. Walk in front. Take the hits meant for someone else. When an enemy gets close to an ally,\nthat enemy is now your problem.\n\nKick (taunt/knockback, short range) is your favorite word. Use it the instant an enemy bearbot is\nclose enough to touch — on cooldown, always, no hesitation, no overthinking. Fill (AoE slow) is\nfor when more than one of them is bunched up near you; drop it under their feet, not yours.\n\nAttack whatever's nearest and threatening an ally first, the nearest enemy bearbot second, minions last. Push the lane. march toward the enemy nexus alongside your minions unless a fight has started —\nthen the fight is the lane.\n\nRetreat only when you're really hurt — below a quarter health — because your whole reason for\nexisting is to be the thing that's still standing when the smoke clears. A drummer who recalls too\nearly let the band down.\n\nYou will be handed an OBSERVATION as JSON describing what you can see: yourself, allies, visible\nenemies, nearby minions and towers, your cooldowns, the match clock. Reply with exactly one JSON\naction object and nothing else:\n\n{\"kind\": \"move\"|\"attack\"|\"ability\"|\"recall\"|\"hold\", \"target\"?: <entity id or {\"x\",\"y\"}>, \"ability\"?: <ability name>}\n\nNo commentary, no explanation, no markdown — just the object.\n",
+   "change": "Prioritized attack targeting before lane pushing, so the bot evaluates what to fight first before deciding whether to advance.",
+   "sentence_changes": 2,
+   "attempts": 1,
+   "backend": "claude:claude-haiku-4-5-20251001",
+   "usage": {
+    "calls": 1,
+    "prompt_tokens": 10,
+    "completion_tokens": 3976,
+    "total_tokens": 3986,
+    "cost_usd": 0.029944,
+    "seconds": 34.71
+   }
+  }
+ },
+ "generation0": {
+  "version": 1,
+  "generation": 0,
+  "epoch": 0,
+  "phase": "done",
+  "parents": [
+   "7edc45a304cf"
+  ],
+  "opponents": [
+   "7edc45a304cf"
+  ],
+  "seeds": [
+   455922465
+  ],
+  "shape": {
+   "cadenceSec": 4,
+   "maxSimSec": 180
+  },
+  "slots": [
+   {
+    "id": "g0-p0-c0",
+    "parent": "7edc45a304cf",
+    "focus": "add one rule for a situation the prose does not cover yet",
+    "child": "d9489a934697",
+    "change": "Added one sentence specifying that drums should recall when low on health and safe from immediate threats, which was previously left undefined despite the prose warning against recalling \"too early.\""
+   },
+   {
+    "id": "g0-p0-c1",
+    "parent": "7edc45a304cf",
+    "focus": "swap the priority of two existing rules",
+    "child": "d17d715bf190",
+    "change": "Prioritized attack targeting before lane pushing, so the bot evaluates what to fight first before deciding whether to advance."
+   }
+  ],
+  "compileFailures": {},
+  "opponentsPlayable": [
+   "7edc45a304cf"
+  ],
+  "candidates": [
+   "7edc45a304cf",
+   "d9489a934697",
+   "d17d715bf190"
+  ],
+  "matchKeys": [
+   "2e46d461ac363ea0",
+   "33b86d038ccb9564",
+   "806f7156b47e0fcb",
+   "969891025b355974"
+  ],
+  "ranking": [
+   {
+    "id": "d9489a934697",
+    "fitness": {
+     "mean": 0.75,
+     "lo": null,
+     "hi": null,
+     "n": 1,
+     "matches": 2,
+     "wins": 1,
+     "draws": 1,
+     "losses": 0
+    },
+    "elo": 1016,
+    "deaths": 6,
+    "foeDeaths": 6,
+    "towersLost": 0,
+    "foeTowersLost": 0,
+    "callErrors": 0,
+    "kinds": {
+     "move": 12,
+     "attack": 7,
+     "ability": 12,
+     "recall": 4,
+     "hold": 0
+    },
+    "rules": {
+     "drums": {
+      "default": 4,
+      "nearest_enemy_engage": 4,
+      "low_health_retreat": 2
+     },
+     "keytar": {
+      "default": 4,
+      "taunt_engage": 6,
+      "aoe_slow": 2,
+      "critical_recall": 2
+     },
+     "violin": {
+      "default": 4,
+      "engage_aoe": 4,
+      "engage_threat": 2,
+      "engage_nearest": 1
+     }
+    },
+    "descriptors": {
+     "aggression": 0.54,
+     "recallRate": 0.115,
+     "spread": 93.5
+    }
+   },
+   {
+    "id": "d17d715bf190",
+    "fitness": {
+     "mean": 0.5,
+     "lo": null,
+     "hi": null,
+     "n": 1,
+     "matches": 2,
+     "wins": 1,
+     "draws": 0,
+     "losses": 1
+    },
+    "elo": 1000.7,
+    "deaths": 6,
+    "foeDeaths": 6,
+    "towersLost": 0,
+    "foeTowersLost": 0,
+    "callErrors": 0,
+    "kinds": {
+     "move": 15,
+     "attack": 5,
+     "ability": 15,
+     "recall": 3,
+     "hold": 0
+    },
+    "rules": {
+     "drums": {
+      "default": 6,
+      "taunt_close_enemy": 4,
+      "critical_health_retreat": 3,
+      "attack_nearest_bearbot": 3
+     },
+     "keytar": {
+      "default": 4,
+      "kick_taunt": 7,
+      "threaten_ally": 1,
+      "push_lane": 1,
+      "attack_nearest": 1
+     },
+     "violin": {
+      "default": 4,
+      "slow_cluster": 4
+     }
+    },
+    "descriptors": {
+     "aggression": 0.532,
+     "recallRate": 0.077,
+     "spread": 162
+    }
+   },
+   {
+    "id": "7edc45a304cf",
+    "fitness": {
+     "mean": 0.5,
+     "lo": null,
+     "hi": null,
+     "n": 0,
+     "matches": 0,
+     "wins": 0,
+     "draws": 0,
+     "losses": 0,
+     "note": "is the opponent (½ by definition)"
+    },
+    "elo": 1000,
+    "deaths": 0,
+    "foeDeaths": 0,
+    "towersLost": 0,
+    "foeTowersLost": 0,
+    "callErrors": 0,
+    "kinds": {
+     "move": 0,
+     "attack": 0,
+     "ability": 0,
+     "recall": 0,
+     "hold": 0
+    },
+    "rules": {
+     "drums": {},
+     "keytar": {},
+     "violin": {}
+    },
+    "descriptors": {
+     "aggression": null,
+     "recallRate": null,
+     "spread": null
+    }
+   }
+  ],
+  "survivors": [
+   "d9489a934697"
+  ],
+  "nextState": {
+   "generation": 1,
+   "epoch": 0,
+   "opponents": [
+    "7edc45a304cf"
+   ],
+   "survivors": [
+    "d9489a934697"
+   ],
+   "champions": [
+    {
+     "id": "7edc45a304cf",
+     "epoch": 0,
+     "generation": null,
+     "reason": "seed: the first opponent"
+    }
+   ]
+  }
+ }
+}

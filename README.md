@@ -56,8 +56,9 @@ generation/          pinned-input preparation, run recorder, cross-client protoc
 acceptance/          independent, post-submission evaluation and evidence requirements
 tools/               jam tooling: headless match runner (tools/match/), the model server,
                      Elysium, the arena (tools/arena/ — the pre-jam ladder site; docs/arena-runbook.md),
-                     and the Jev tools (tools/jev/ — incl. the entrant compile preview, `npm run compile`;
-                     docs/entrant-compile-preview.md)
+                     the Jev tools (tools/jev/ — incl. the entrant compile preview, `npm run compile`;
+                     docs/entrant-compile-preview.md), and the house-bot prompt-evolution harness
+                     (tools/evolve/, `npm run evolve`; docs/prompt-evolution-spec.md)
 runs/                operator records and match logs (per-run directories are local/ignored)
 artifacts/           exported workspaces and frozen submissions (local/ignored)
 src/                 original generated game specimen; not maintained game source
@@ -117,6 +118,9 @@ runs), and `npm run match -- --verify runs/alice-vs-bob.json` re-simulates a log
 checkpoint, which is how we know a log replays faithfully. `--max-sim-sec 180` stops a match at
 the sim clock (the arena's quick test: 3 sim-minutes at `--cadence 4`); such a log says
 `unfinished`, has no winner, and `--verify` replays it exactly as far as it ran.
+**On Jev, the Jam's shape:** `--a-schemas`/`--b-schemas` (the JSON `tools/jev/compile.py` wrote for
+that side's prose) plus `--jev-schema http://127.0.0.1:8797/` (`tools/jev/schema_server.py`) make
+that side decide on its compiled rule cascade instead of a chat model; see `tools/match/cli.mjs`.
 
 **Cadence.** The runner is lockstep: the sim does not advance while a model is thinking, so a
 match depends only on the seed and the replies, never on GPU speed. The game polls each pilot every
