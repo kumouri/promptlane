@@ -125,7 +125,7 @@ class TokenTests(unittest.TestCase):
         provider = object()
         with mock.patch.object(C, "resolve_workers_ai_token_provider", return_value=provider) as resolve, \
                 mock.patch.object(C, "WorkersAIClient") as client:
-            schema_server.make_client(schema_server.parse_args(["--refresh-margin-sec", "600", "--timeout", "12"]))
+            schema_server.make_client(schema_server.parse_args(["--jev-backend", "workers-ai", "--refresh-margin-sec", "600", "--timeout", "12"]))
         resolve.assert_called_once_with(margin_sec=600.0)
         client.assert_called_once_with(provider, timeout=12.0)
 
