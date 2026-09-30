@@ -10,13 +10,18 @@
  *   npm run evolve -- report --name smoke --out runs/x.md       Markdown summary of every generation
  *
  * The store defaults to runs/evolve/<name>/ (git-ignored). `step` needs, running first:
- *   python tools/jev/schema_server.py --port 8797          (Jev plays the compiled rules; Workers AI)
+ *   python tools/jev/schema_server.py --port 8813          (the campaign's OWN Jev server; never 8797)
  * and whatever the campaign's compile/mutation backends need (default: $OPENROUTER_API_KEY for the
  * compile, the `claude` CLI for the mutation). Killing `step` anywhere and running it again resumes.
+ *
+ * Spend caps and the blackout are enforced here (budget.mjs): every paid call is checked first and
+ * charged to spend.json. When a cap or the blackout refuses one, `step` stops cleanly and exits 3,
+ * so a runner can tell "stopped by the rules" (3) from "broke" (2). `status` prints the spend too.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { ROOT, realDeps } from './adapters.mjs';
+import { ROOT, matchWallCapMs, realDeps } from './adapters.mjs';
+import { CampaignStop, assertMayContinue, guardDeps, spendTotals } from './budget.mjs';
 import { initCampaign, runGeneration } from './generation.mjs';
 import { Store } from './store.mjs';
 import { renderReport } from './report.mjs';
@@ -63,8 +68,9 @@ async function main() {
     }
     case 'step': {
       const campaign = store.readJson('campaign.json');
-      const deps = realDeps(campaign);
+      const deps = guardDeps(store, campaign, realDeps(campaign), { wallMs: matchWallCapMs(campaign.shape), log });
       for (let i = 0; i < args.generations; i++) {
+        assertMayContinue(store, campaign);
         const gen = await runGeneration(store, deps, { log });
         const top = gen.ranking[0];
         console.log(
@@ -76,7 +82,7 @@ async function main() {
       return 0;
     }
     case 'status': {
-      console.log(JSON.stringify(store.readJson('state.json'), null, 1));
+      console.log(JSON.stringify({ ...store.readJson('state.json'), spend: spendTotals(store) }, null, 1));
       return 0;
     }
     case 'report': {
@@ -95,6 +101,6 @@ main().then(
   (code) => process.exit(code),
   (err) => {
     console.error(`evolve: ${err.message}`);
-    process.exit(2);
+    process.exit(err instanceof CampaignStop ? 3 : 2);
   },
 );

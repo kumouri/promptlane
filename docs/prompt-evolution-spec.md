@@ -5,7 +5,7 @@
 > - **§10 Q1, Q2, Q3, Q5, Q6 ruled as recommended** ("rec on all", 01:50): archetype lineages;
 >   hall of fame capped at the last 3; rubric as diagnostic only; 4 screening and 16 promotion
 >   seeds; a $15 cap on the first epoch and no campaign from Thu 17:00 CT through the end of the Jam.
->   **Q4, Q7, Q8 and Q9 are still open**; she hadn't seen them yet.
+>   **Q4, Q7, Q8 and Q9 are still open**; she hadn't seen them yet. (Ruled later that day; below.)
 > - **§5.2, the tier pre-registration (Q10), ruled** (01:54–01:57). The Friday medium house tier joins
 >   the reference panel. The medium band is now a point-estimate rule. **Head-to-head order is no
 >   longer a certification criterion.** Non-transitivity is a finding, so the full head-to-head
@@ -17,6 +17,13 @@
 > - **Code changed to match:** `fitness.mjs` (the new descriptors); `adapters.mjs::makeObserve`
 >   (replays each match to recover what the pilots saw); `headless.ts::verifyReplay` (an
 >   observation hook); `generation.mjs` (default opponents are now a hall of fame capped at 3).
+>
+> **Later rulings, 2026-09-30, recorded with the spend enforcement.** Q4 (Jam shape), Q7 (3
+> generations an epoch), Q8 (seed prompts: the Friday tiers, house and the three starters) and Q9
+> (single change, no crossover) were ruled as recommended. **Budget, 03:07 CT:** *"if epoch 1
+> doesn't take $15, you can go on to epoch 2 ... but don't use more than $25 total."* **The blackout
+> moved with the Jam:** no campaign activity from Thu 2026-10-15 17:00 CT through the end of the Jam
+> (Fri 2026-10-16). Both are now enforced in code (`budget.mjs`, §7).
 
 *Written 2026-09-30. The loop is **Ceryce's design**. Her ask (2026-09-30 01:10 CT, verbatim excerpt):*
 
@@ -339,11 +346,40 @@ multiply it by up to the number of cells. Certifying three tiers (§5.2) is 3 ti
 members × 8 seeds × 2 sides, once the Friday medium joins, plus the 3 head-to-heads × 16 seeds × 2
 sides for the matrix. That is about 385 matches: ~17–19 h and ~$13–27.
 
-**Spend and timing, ruled (Q6, 2026-09-30 01:50 CT).** The first epoch has a **$15 cap**. No
-harness enforces a cap across backends yet. Jev is essentially all of the spend (compile and
-mutation together cost about $0.04 an epoch, above), so the cap is enforced by starting the
-campaign's own `schema_server.py` with `--budget-usd 15`. **No campaign runs from Thu 2026-10-01
-17:00 CT through the end of the Jam.**
+**Spend and timing, ruled (Q6, 2026-09-30 01:50 CT; budget 03:07 CT).** The first epoch has a
+**$15 cap**. A second epoch may run only if the first spent less than $15, and the whole campaign
+spends at most **$25**. **No campaign activity from Thu 2026-10-15 17:00 CT through the end of the
+Jam (Fri 2026-10-16).**
+
+**Enforced in code, `tools/evolve/budget.mjs`.** `step` wraps every paid dependency
+(`guardDeps`). Before each paid call, it checks the call's **reserve** against the caps. The reserve
+is the most one call of that kind is expected to cost. After the call, it writes the call's real
+cost to the store's `spend.json`:
+
+| Paid call | Cost charged | Reserve |
+|---|---|---|
+| mutation | the mutator's `usage.cost_usd`. For the `claude` backend that is what the metered API would have billed, not real dollars. It is counted anyway, so the cap errs low. | $0.10 |
+| compile | compile.py's `usage.cost_usd` (OpenRouter's own figure when it sends one) | $0.02 |
+| match | the campaign's own `schema_server.py` `/health` `cost_usd`, read before and after. Exact only because matches run **one at a time on a server nothing else uses**. | $0.15 |
+
+- A call is refused when its reserve would push the current epoch past `budget.epochCapUsd` ($15),
+  or the campaign past `budget.totalCapUsd` ($25).
+- No epoch starts after an epoch that spent its cap.
+- No more than `budget.maxEpochs` (2) epochs run. Nothing past epoch 2 was ruled.
+- A cap of $15 applies to every epoch, not only the first. It errs low. Once epoch 1 spends $10 or
+  more, the $25 total binds first anyway.
+- Nothing paid starts inside a `budget.blackouts` window, or close enough to one that it could still
+  be running when the window opens. The margin is the match wall cap, 22.5 min at the Jam shape.
+- A cost that can't be read is charged the reserve. That covers a missing `usage`, a crash, and a
+  schema server that restarted mid-match. So is a call the process died inside: it is written as
+  pending before it starts.
+- If the Jev spend can't be read at all, no match starts.
+- A refusal is a clean stop, not a failure. Nothing is recorded as a failed mutation or compile.
+  `step` exits **3**, while other errors exit 2. Re-running `step` after the window, or with a raised
+  cap, resumes exactly where it stopped.
+- `status` prints the ledger's totals by epoch and by kind.
+- `schema_server.py --budget-usd` is still worth setting to the remaining total. It is a
+  per-process backstop, and a restart resets it.
 
 **Concurrency is unmeasured.** One match drove ~345 Jev calls a minute with no throttling. Running
 matches in parallel would cut wall time about linearly, *if* Workers AI keeps latency and doesn't
@@ -352,8 +388,9 @@ throttle. Measure that before relying on it.
 **Must not slow the Jam.** By default the harness uses **no local GPU**: compile on OpenRouter,
 mutation on the `claude` CLI, Jev on Workers AI. So it doesn't compete with local `qwen3.5:9b`
 matches. It **does** share the Cloudflare account's Jev with the Jam: the practice panel, and the
-Jev house bot if it goes live. Don't run a campaign from Thu 2026-10-01 17:00 CT (entrant cutoff)
-through the end of the Jam. Run it on its own `schema_server.py` port, never on the arena's 8797.
+Jev house bot if it goes live. Don't run a campaign from Thu 2026-10-15 17:00 CT (entrant cutoff)
+through the end of the Jam; `budget.mjs` refuses to. Run it on its own `schema_server.py` port,
+never on the arena's 8797. The campaign default is `http://127.0.0.1:8813/`.
 
 ## 8. v0 as built
 
@@ -365,7 +402,8 @@ npm run evolve -- report --name <c> --out runs/<c>.md
 ```
 
 `step` needs `python tools/jev/schema_server.py --port <p>` running, with
-`jevSchemaEndpoint` in the config pointing at it. The default backends need `$OPENROUTER_API_KEY`
+`jevSchemaEndpoint` in the config pointing at it (default port 8813, the campaign's own). `step`
+exits 3 when the spend caps or the blackout stop it (§7), and 2 on any other error. The default backends need `$OPENROUTER_API_KEY`
 for the compile and the `claude` CLI for mutation. Both are campaign config (`compile.backend`:
 ollama/openrouter; `mutation.backend`: claude/ollama/openrouter, through
 `tools/jev/llm_backends.py`).
@@ -377,6 +415,7 @@ ollama/openrouter; `mutation.backend`: claude/ollama/openrouter, through
 | `tools/evolve/fitness.mjs` | `jamScore`, `summarizeSide` (descriptors, rule-fire counts), `towardWeight`/`awayWeight`/`moveBearing` (§3), `fitnessOf`, `bootstrapCI`, `promotionDecision`, `eloFold` |
 | `tools/evolve/store.mjs` | the population store (layout in its docstring) |
 | `tools/evolve/seeds.mjs` | `deriveSeed`, `mulberry32`, `pick` |
+| `tools/evolve/budget.mjs` | the spend caps and the blackout (§7): `guardDeps` checks every paid call and charges it to `spend.json`; `assertMayContinue`, `spendTotals`, `CampaignStop` |
 | `tools/evolve/adapters.mjs` | the real dependencies: compile, match, observe (the replay behind the §3 descriptors) and mutation, each existing tooling called as its own users call it |
 | `tools/evolve/mutate.py` | the single-change operator and its sentence-diff check |
 | `tools/evolve/report.mjs` | Markdown report from the store alone |
@@ -401,18 +440,22 @@ campaign seed and a label (`seeds.mjs`). Two stores with the same config and the
 dependencies plan and rank identically (tested). Jev and the LLMs are not deterministic (§4). The
 harness pins everything around them, and it saves their outputs so they are never re-drawn.
 
-**Tests** (no model, no network beyond a loopback fake): `npm run test:evolve` (26: seeds, store,
+**Tests** (no model, no network beyond a loopback fake): `npm run test:evolve` (32: seeds, store,
 scoring, the §3 weights, bearings and weighted descriptors, CI, promotion, Elo, pairings, a full
 generation on fakes, crash-resume, determinism, invalid mutations, compile failures, both epoch
 modes, the ruled defaults, the hall-of-fame cap, observations reaching the ranking, `npm run
 match`'s schema mode against an in-process fake schema server, replay-verified, and the observe
-adapter's replay on a real match log, including a diverged replay giving no descriptors), and `tools/evolve/test_mutate.py` (7, on
+adapter's replay on a real match log, including a diverged replay giving no descriptors, and
+the spend caps and blackout: every paid call charged by epoch and kind, a cap stopping before the
+call that would pass it and resuming once raised, the total cap, the epoch-1 gate and the epoch
+limit, the blackout and its margin, and unreadable, restarted or interrupted costs charged the
+reserve), and `tools/evolve/test_mutate.py` (7, on
 `llm_backends.ScriptedBackend`). Both run in CI.
 
 **Not built:** crossover/GA (Q9), racing (adaptive seeds per candidate), parallel matches, the
 rubric judge (c), archetype lineages (Q1) and MAP-Elites (a), the tier-certification runner and
-its head-to-head matrix (§5.2), the v2 power-weighted descriptors (§3), and a per-campaign spend cap (each backend has its own cap: `schema_server.py --budget-usd`,
-`compile.maxTokensPerCompile`, `mutation.maxTotalTokens`).
+its head-to-head matrix (§5.2), and the v2 power-weighted descriptors (§3). Concurrent matches
+would also break the Jev ledger's before/after reading (§7).
 
 ## 9. Smoke run (2026-09-30)
 
@@ -427,21 +470,20 @@ All 8 live logs pass `npm run match -- --verify`. Plumbing: proven. Strategy: no
 
 The recommendation is listed first. Ceryce ruled over Telegram on 2026-09-30 between 01:50 and
 02:08 CT. At 01:50 she ruled Q1, Q2, Q3, Q5 and Q6 with "rec on all", so each one is the
-recommendation. Q10 was ruled piece by piece from 01:54 to 01:57. **Q4, Q7, Q8 and Q9 are still
-open**: she hadn't seen them when she ruled. Where the harness has a config switch for an open
-question, the default is still the recommendation until she rules.
+recommendation. Q10 was ruled piece by piece from 01:54 to 01:57. Q4, Q7, Q8 and Q9 were ruled
+later on 2026-09-30, each as recommended, with the budget at 03:07 CT.
 
 | # | Question | Options | Recommendation | Status |
 |---|---|---|---|---|
 | Q1 | Adopt quality-diversity, proposal (a)? | full MAP-Elites / **archetype lineages**: three lineages, each seeded with prose written for one archetype, plus the §5.2 descriptor gate / strength-only | **Archetype lineages first.** They get strategy-different tiers for about ⅓ of MAP-Elites' matches, and the descriptors will show whether a grid is worth it. | **RULED 2026-09-30 01:50 CT: archetype lineages.** Not built yet (§6). |
 | Q2 | Opponents at the epoch boundary: latest only (hers) or a hall of fame, proposal (b)? | latest / hall-of-fame (uncapped) / **hall-of-fame capped at the last 3** | **Capped at 3.** Cycling guard at ≤3× the matches. The switch is built; the cap is ~5 lines. | **RULED 01:50: hall of fame capped at 3.** Built; now the default (`epoch.opponents: "hall-of-fame"`, `epoch.hallOfFameCap: 3`). |
 | Q3 | Rubric: as fitness, as the mutation's diagnostic (proposal c), or not at all? | **diagnostic only** / fitness / none | **Diagnostic only**, with an archetype-adherence row and every rubric/win disagreement logged. As fitness, it invites Goodhart. | **RULED 01:50: diagnostic only.** The judge is not built. |
-| Q4 | Match shape that counts | **Jam shape (600 s, cadence 2)** / quick (180 s, cadence 4) | **Jam shape.** Quick and Jam shape ranked the same pair oppositely in the smoke. | **OPEN.** The default is the Jam shape. |
+| Q4 | Match shape that counts | **Jam shape (600 s, cadence 2)** / quick (180 s, cadence 4) | **Jam shape.** Quick and Jam shape ranked the same pair oppositely in the smoke. | **RULED 2026-09-30: Jam shape.** The default. |
 | Q5 | Seeds per comparison | epoch **4** / 8; promotion 8 / **16** / 32 | **4 screening, 16 promotion**, then revise from the first campaign's measured σ (§4 table). | **RULED 01:50: 4 screening, 16 promotion.** These are the defaults. |
-| Q6 | When and how much | spend cap; hours | **$15 cap for the first epoch**. Sequential matches until concurrency is measured. **Not Thu 17:00 CT through the Jam.** Its own schema-server port. | **RULED 01:50: $15 cap for epoch 1; no campaign from Thu 2026-10-01 17:00 CT through the end of the Jam.** The cap is enforced by `schema_server.py --budget-usd 15` (§7). |
-| Q7 | Epoch length X (her parameter) | 2 / **3** / 5 generations | **3**, about 9 h an epoch at the recommended size (§7). | **OPEN.** The default is 3. |
-| Q8 | Seed prompts | `drums.md` (the smoke's; suicidal) / **house prose + the three starters + the Friday tier prompts** | **The Friday tier prompts plus house and starters**, so evolution starts where the quick tiers ended. | **OPEN.** |
-| Q9 | Crossover (the "genetic algorithm" option) | **single change only for now** / rule-level crossover | **Single change first.** Each generation's effect stays attributable, which is the practice goal. Add crossover once single changes plateau. | **OPEN.** Only single change is built. |
+| Q6 | When and how much | spend cap; hours | **$15 cap for the first epoch**. Sequential matches until concurrency is measured. **Not Thu 17:00 CT through the Jam.** Its own schema-server port. | **RULED 01:50: $15 cap for epoch 1**, and at 03:07 epoch 2 only if epoch 1 spent under $15, **$25 total**. **No campaign from Thu 2026-10-15 17:00 CT through the end of the Jam** (moved with the Jam to Fri 2026-10-16). Enforced by `budget.mjs` (§7). |
+| Q7 | Epoch length X (her parameter) | 2 / **3** / 5 generations | **3**, about 9 h an epoch at the recommended size (§7). | **RULED 2026-09-30: 3.** The default. |
+| Q8 | Seed prompts | `drums.md` (the smoke's; suicidal) / **house prose + the three starters + the Friday tier prompts** | **The Friday tier prompts plus house and starters**, so evolution starts where the quick tiers ended. | **RULED 2026-09-30: the Friday tier prompts (house-easy, medium, house-hard), house and the three starters.** |
+| Q9 | Crossover (the "genetic algorithm" option) | **single change only for now** / rule-level crossover | **Single change first.** Each generation's effect stays attributable, which is the practice goal. Add crossover once single changes plateau. | **RULED 2026-09-30: single change, no crossover.** The only operator built. |
 | Q10 | Tier bands and margins (§5.2) | as written / adjusted | Rule on them **before** the first campaign. They are the pre-registration. | **RULED 01:54–01:57, adjusted** (§5.2): the Friday medium joins the panel when merged; the medium band is a point estimate in [0.35, 0.65] with the interval clear of the hard and easy thresholds; head-to-head order is a reported finding (full matrix), not a criterion; the margins are ≥ 1 panel standard deviation per descriptor, measured before evolving. |
 
 ## 11. Found along the way

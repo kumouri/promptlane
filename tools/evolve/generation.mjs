@@ -27,6 +27,7 @@
  *                                                              descriptors are null)
  */
 import { validatePromptText } from '../arena/prompts.mjs';
+import { CampaignStop, DEFAULT_BUDGET } from './budget.mjs';
 import { eloFold, fitnessOf, meanDescriptors, promotionDecision, summarizeSide, sumRules } from './fitness.mjs';
 import { deriveSeed, pick, sha256 } from './seeds.mjs';
 import { STORE_VERSION } from './store.mjs';
@@ -55,7 +56,10 @@ export const DEFAULT_CAMPAIGN = {
   epoch: { generations: 3, opponents: 'hall-of-fame', hallOfFameCap: 3, promotionSeeds: 16, confidence: 0.95 },
   mutation: { backend: 'claude', model: null, maxSentenceChanges: 3, attempts: 3, maxTotalTokens: 30000 },
   compile: { backend: 'openrouter', model: null, maxTokensPerCompile: 20000 },
-  jevSchemaEndpoint: 'http://127.0.0.1:8797/',
+  // the campaign's own schema_server.py, never the arena's 8797 (spec §7): its /health is the Jev ledger
+  jevSchemaEndpoint: 'http://127.0.0.1:8813/',
+  // the spend caps and the blackout, enforced by budget.mjs (ruled 2026-09-30 01:50 and 03:07 CT)
+  budget: DEFAULT_BUDGET,
   matchTimeoutSec: 30,
 };
 
@@ -301,6 +305,7 @@ export async function runGeneration(store, deps, { log = () => {} } = {}) {
       try {
         outcome = await deps.mutate({ parentText, focus: slot.focus, diagnostics: diagnosticsFor(store, slot.parent, g), avoid: made.filter(Boolean), slot: slot.id });
       } catch (err) {
+        if (err instanceof CampaignStop) throw err; // a refused call is not a failed mutation
         outcome = { ok: false, error: `mutator failed: ${err.message}` };
       }
       store.writeJson(mutRel, outcome);
@@ -331,6 +336,7 @@ export async function runGeneration(store, deps, { log = () => {} } = {}) {
     try {
       data = await deps.compile(store.genomeText(id), { id });
     } catch (err) {
+      if (err instanceof CampaignStop) throw err; // nor a failed compile
       gen.compileFailures[id] = err.message;
       save();
       continue;
