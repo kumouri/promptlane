@@ -10,9 +10,11 @@ import threading
 import unittest
 import urllib.error
 import urllib.request
-from contextlib import redirect_stderr
+from contextlib import redirect_stderr, redirect_stdout
+from unittest import mock
 
 sys.path.insert(0, os.path.dirname(__file__))
+import house_server  # noqa: E402
 from client import SystemOneError  # noqa: E402
 from house_server import BudgetExceeded, JevHouseBackend, serve  # noqa: E402
 from rules import ground_truth_answers, Worksheet  # noqa: E402
@@ -155,6 +157,30 @@ class FallbackTests(unittest.TestCase):
         client.tokens = Tokens()
         snap = JevHouseBackend(client, budget_usd=None).snapshot()
         self.assertEqual(snap["token_expires_in_sec"], 1234)
+
+
+class JevBackendTests(unittest.TestCase):
+    SECRET = "sk-live-must-never-leak-house"
+
+    def test_old_backend_flag_still_selects(self):
+        self.assertEqual(house_server.parse_args([]).jev_backend, "workers-ai")
+        self.assertEqual(house_server.parse_args(["--backend", "typesafe"]).jev_backend, "typesafe")
+
+    def test_check_token_on_typesafe_needs_no_renewal_and_never_prints_the_key(self):
+        out = io.StringIO()
+        with mock.patch.dict(os.environ, {"PROMPTLANE_JEV_API_KEY": self.SECRET}, clear=True), \
+                mock.patch("client.resolve_workers_ai_token_provider") as provider, redirect_stdout(out):
+            code = house_server.main(["--jev-backend", "typesafe", "--check-token"])
+        self.assertEqual(code, 0)
+        provider.assert_not_called()
+        self.assertIn("typesafe-api-key", out.getvalue())
+        self.assertNotIn(self.SECRET, out.getvalue())
+
+    def test_health_names_the_typesafe_backend(self):
+        from client import SystemOneClient
+        snap = JevHouseBackend(SystemOneClient(self.SECRET), budget_usd=None).snapshot()
+        self.assertEqual((snap["jev_backend"], snap["token_renewals"]), ("typesafe", 0))
+        self.assertNotIn(self.SECRET, json.dumps(snap))
 
 
 class HttpFallbackTests(unittest.TestCase):

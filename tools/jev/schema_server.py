@@ -12,7 +12,8 @@ question in a single Jev call, the first "yes" in cascade order wins, and the wi
 selector is resolved against the observation in Python (`target_resolve.py`).
 
     GET  /health  -> {"ok": true, "backend": "jev-schema", "model", "requests", "errors",
-                      "avg_seconds", "tokens_in", "cost_usd", "budget_usd"}
+                      "avg_seconds", "tokens_in", "cost_usd", "budget_usd", "jev_backend",
+                      "token_source", "token_expires_in_sec", "token_renewals"}
     POST /        body: {"schema": <compile.py schema JSON>, "observation": <Observation>}
                   -> 200 {"action": {kind, target?, ability?}, "rule": <rule id | null>,
                           "answers": {rule id: 0.0-1.0}, "ms": float}
@@ -20,8 +21,13 @@ selector is resolved against the observation in Python (`target_resolve.py`).
 
     python tools/jev/schema_server.py --stub             # no Jev: seeded random answers, $0
     python tools/jev/schema_server.py                    # live Jev via Cloudflare Workers AI
+    python tools/jev/schema_server.py --jev-backend typesafe   # live Jev, TypeSafe's API direct
 
-Token: `$CLOUDFLARE_API_TOKEN` if set, else wrangler's OAuth token, renewed `--refresh-margin-sec`
+Transport: `--jev-backend workers-ai` (default) or `typesafe` (`client.make_jev_client`); the wire
+contract above is the same either way. On typesafe the key is `$PROMPTLANE_JEV_API_KEY` (or its
+Windows User-scope value) and nothing is ever renewed.
+
+Workers AI token: `$CLOUDFLARE_API_TOKEN` if set, else wrangler's OAuth token, renewed `--refresh-margin-sec`
 (default 900) before it expires -- the same `client.resolve_workers_ai_token_provider` the house and
 team servers use. (Until 2026-09-30 this server read the token once at startup, so it answered every
 decision 401 once that hour-long token lapsed, and a practice match held on every call.) Concurrent
@@ -48,9 +54,10 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from client import (  # noqa: E402
     DEFAULT_REFRESH_MARGIN_SEC,
     SystemOneError,
-    WorkersAIClient,
+    add_jev_backend_args,
+    client_status,
     estimate_cost_usd,
-    resolve_workers_ai_token_provider,
+    make_jev_client,
 )
 from compile import schema_from_dict  # noqa: E402
 from fidelity_harness import DumbStubJevClient, run_prediction  # noqa: E402
@@ -99,7 +106,7 @@ class JevSchemaBackend:
 
     def snapshot(self) -> dict:
         with self.lock:
-            return {
+            snap = {
                 "requests": self.requests,
                 "errors": self.errors,
                 "avg_seconds": round(self.total_seconds / self.requests, 3) if self.requests else 0.0,
@@ -107,6 +114,8 @@ class JevSchemaBackend:
                 "cost_usd": round(self.cost_usd, 4),
                 "budget_usd": self.budget_usd,
             }
+        snap.update(client_status(self.client))
+        return snap
 
     def record_error(self) -> None:
         with self.lock:
@@ -171,20 +180,22 @@ def serve(backend: JevSchemaBackend, model: str, host: str = "127.0.0.1", port: 
 
 
 def make_client(args: argparse.Namespace):
-    """The stub, or live Jev with a token provider that renews itself (never a token read once)."""
+    """The stub, or live Jev over `--jev-backend`: Workers AI with a token provider that renews
+    itself (never a token read once), or TypeSafe direct with an API key that needs no renewal."""
     if args.stub:
         return DumbStubJevClient()
-    return WorkersAIClient(resolve_workers_ai_token_provider(margin_sec=args.refresh_margin_sec), timeout=args.timeout)
+    return make_jev_client(args.jev_backend, timeout=args.timeout, refresh_margin_sec=args.refresh_margin_sec)
 
 
 def parse_args(argv=None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     p.add_argument("--stub", action="store_true", help="no Jev: seeded random answers (plumbing only, $0)")
+    add_jev_backend_args(p)
     p.add_argument("--port", type=int, default=DEFAULT_PORT)
     p.add_argument("--timeout", type=float, default=30.0, help="seconds per Jev call")
     p.add_argument("--budget-usd", type=float, default=DEFAULT_BUDGET_USD, help="negative disables the cap")
     p.add_argument("--refresh-margin-sec", type=float, default=DEFAULT_REFRESH_MARGIN_SEC,
-                   help="renew wrangler's OAuth token this many seconds before it expires (default 900)")
+                   help="renew wrangler's OAuth token this many seconds before it expires (default 900; workers-ai only)")
     p.add_argument("--verbose", action="store_true")
     return p.parse_args(argv)
 
@@ -193,9 +204,10 @@ def main(argv=None) -> int:
     args = parse_args(argv)
     client = make_client(args)
     model = "stub-jev" if args.stub else client.model
+    jev_backend = "stub" if args.stub else args.jev_backend
     budget = None if args.budget_usd < 0 else args.budget_usd
     server = serve(JevSchemaBackend(client, budget), model, "127.0.0.1", args.port, args.verbose)
-    print(f"promptlane jev-schema server on http://127.0.0.1:{args.port}/  model={model} budget_usd={budget}", flush=True)
+    print(f"promptlane jev-schema server on http://127.0.0.1:{args.port}/  jev_backend={jev_backend} model={model} budget_usd={budget}", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

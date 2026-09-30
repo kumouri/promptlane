@@ -32,12 +32,11 @@ plainly rather than assumed.
 Run it:
 
     python tools/jev/harness.py                                  # dry run, stub client, no network
-    TYPESAFE_API_KEY=... python tools/jev/harness.py --live       # TypeSafe direct, once a key exists
-    python tools/jev/harness.py --live --backend workers-ai       # via Cloudflare Workers AI (see
-                                                                   # client.py -- this is the backend
-                                                                   # actually usable today; reads a
-                                                                   # token from $CLOUDFLARE_API_TOKEN
-                                                                   # or wrangler's own OAuth token)
+    python tools/jev/harness.py --live --backend typesafe         # TypeSafe direct ($PROMPTLANE_JEV_API_KEY)
+    python tools/jev/harness.py --live --backend workers-ai       # via Cloudflare Workers AI (the
+                                                                   # default; reads a token from
+                                                                   # $CLOUDFLARE_API_TOKEN or
+                                                                   # wrangler's own OAuth token)
 """
 from __future__ import annotations
 
@@ -262,11 +261,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         choices=["typesafe", "workers-ai"],
         default="workers-ai",
         help="which live backend to use (ignored without --live): 'typesafe' calls TypeSafe's own API directly "
-        "(needs $TYPESAFE_API_KEY, paused since 2026-09-22, see client.py); 'workers-ai' (default) calls the same "
+        "(needs $PROMPTLANE_JEV_API_KEY or $TYPESAFE_API_KEY, see client.py); 'workers-ai' (default) calls the same "
         "Jev model through Cloudflare Workers AI, using a token from $CLOUDFLARE_API_TOKEN or wrangler's own login",
     )
     p.add_argument("--model", default=None, help=f"Jev model id (default: backend-specific -- {DEFAULT_MODEL!r} for typesafe, {WORKERS_AI_MODEL!r} for workers-ai; see client.py)")
-    p.add_argument("--api-key-env", default="TYPESAFE_API_KEY", help="env var holding the TypeSafe API key (--backend typesafe only)")
+    p.add_argument("--api-key-env", default=None, help="env var holding the TypeSafe API key (--backend typesafe only; default: $PROMPTLANE_JEV_API_KEY, then $TYPESAFE_API_KEY)")
     p.add_argument("--cloudflare-token-env", default="CLOUDFLARE_API_TOKEN", help="env var holding the Cloudflare API token (--backend workers-ai only)")
     p.add_argument("--state-encoding", choices=["prose", "json"], default="prose", help="how the worksheet is serialized into Jev's `state` field -- see serializer.py")
     p.add_argument("--runs", nargs="*", default=None, help="run log paths (default: the four checked-in house-prompt-2026-09-21 logs)")

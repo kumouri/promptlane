@@ -33,23 +33,35 @@ Confirmed wire shape:
 This harness only ever asks `noul` questions (see `rules.py`), so `Choice`/`Score` shapes are not
 implemented here -- there was nothing in this test that needed them.
 
-WHAT THE DOCS DO NOT SAY, flagged rather than guessed: no fetched page gave a concrete example
-`model` value for the raw HTTP endpoint. The closest evidence is Pydantic AI's own integration,
-which addresses Jev as `"typesafe:jev-latest"`, and Cloudflare Workers AI's catalog entry, which
-names a pinned version `jev-1.13.0`. `DEFAULT_MODEL` below picks `"jev-latest"` as the plainest
-reading of the first of those two -- inferred, not confirmed by TypeSafe's own reference, and
-overridable with `--model`.
+Re-read 2026-09-30 (`docs/jev-decision-model-research.md` §3, `runs/jev-backend-parity-2026-09-30.md`):
 
-TWO LIVE BACKENDS. TypeSafe paused direct Jev signups on 2026-09-22 (no `TYPESAFE_API_KEY` exists,
-and none is expected to). `SystemOneClient` above talks to TypeSafe's own endpoint directly and
-needs one anyway, for whenever that changes. `WorkersAIClient` below is what `--live` actually uses
-today: Cloudflare Workers AI resells the same Jev model through its account-scoped `/ai/run`
-endpoint, authenticated with a Cloudflare API token (read from `$CLOUDFLARE_API_TOKEN`, or failing
-that from wrangler's own OAuth token on disk -- see `resolve_workers_ai_token`). Both clients expose
-the same `ask(state, questions) -> {"model", "answers", "usage"}` contract; `WorkersAIClient` just
-unwraps Cloudflare's extra envelope first. Verified working 2026-09-23 12:27 CT against account
-`fd8ba3abbeadc6dcca7774a1a4a9a8d0`; the per-model path form (`/ai/run/typesafe/jev`) 400s with "No
-route for that URI" -- use the generic `/ai/run` with `"model"` in the body instead.
+  https://docs.typesafe.ai/api.md            unchanged; a noul answer is `{"type": "noul", "noul": p}`
+                                              (no `confidence` -- that is choice/score only); errors
+                                              401 bad key, 422 validation, 429 rate limit, 529 overloaded
+  https://docs.typesafe.ai/models.md         `jev-1.13.0`, aliases `jev-latest` (stable) and
+                                              `jev-preview`; $0.042/M input, output free; 40 req/s and
+                                              100K tokens/s per account ("adjusting dynamically")
+  https://docs.typesafe.ai/sdk/python/api/retries.md   the SDK retries 408, 429 and every 5xx,
+                                              honoring `Retry-After` / `retry-after-ms`
+
+So `DEFAULT_MODEL = "jev-latest"` is now TypeSafe's own documented alias, no longer an inference.
+
+TWO LIVE BACKENDS, one contract, picked with `--jev-backend` (`make_jev_client`):
+
+  workers-ai (default, `WorkersAIClient`)  Cloudflare Workers AI resells the same Jev through its
+      account-scoped `/ai/run`, authenticated with a Cloudflare token (`$CLOUDFLARE_API_TOKEN`, else
+      wrangler's own OAuth token on disk, renewed before it expires -- see "token providers").
+      Verified 2026-09-23 against account `fd8ba3abbeadc6dcca7774a1a4a9a8d0`; the per-model path
+      (`/ai/run/typesafe/jev`) 400s with "No route for that URI", so `"model"` goes in the body.
+  typesafe (`SystemOneClient`)  TypeSafe's own `/v1/systemone`, direct. TypeSafe paused signups
+      2026-09-22 and had reopened them by 2026-09-30. The key is `$PROMPTLANE_JEV_API_KEY` (or the
+      SDK's own `$TYPESAFE_API_KEY`); on Windows a User-scope variable is read from the registry if
+      this process's environment doesn't carry it (`resolve_api_key`). An API key does not expire,
+      so this path has no token renewal at all. The key never appears in an error (`redact`).
+
+Both return `ask(state, questions) -> {"model", "answers", "usage"}`; `WorkersAIClient` unwraps
+Cloudflare's extra envelope first. The game-facing servers never see which one answered, except
+as `jev_backend` in `/health`. `DEFAULT_JEV_BACKEND` is the one line that flips the default.
 
 Long-running servers use `resolve_workers_ai_token_provider` instead of the one-shot
 `resolve_workers_ai_token`: wrangler's OAuth token lives about an hour, so the provider renews it
@@ -72,9 +84,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 API_URL = "https://api.typesafe.ai/v1/systemone"
-DEFAULT_MODEL = "jev-latest"  # inferred, not confirmed -- see module docstring
-PRICE_IN_PER_M = 0.042  # USD per million input tokens (TypeSafe blog + docs, 2026-09-15/22)
+DEFAULT_MODEL = "jev-latest"  # docs.typesafe.ai/models, 2026-09-30: the stable alias (jev-1.13.0)
+PRICE_IN_PER_M = 0.042  # USD per million input tokens -- TypeSafe and Workers AI list the same price
 PRICE_OUT_PER_M = 0.0  # output tokens are free ("too cheap to meter", not a permanent commitment)
+
+JEV_BACKENDS = ("workers-ai", "typesafe")
+DEFAULT_JEV_BACKEND = "workers-ai"  # Ceryce's call to flip -- see runs/jev-backend-parity-2026-09-30.md
+JEV_API_KEY_ENVS = ("PROMPTLANE_JEV_API_KEY", "TYPESAFE_API_KEY")  # promptlane's own name, then the SDK's
+# What TypeSafe's own SDK retries (docs.typesafe.ai/sdk/python/api/retries.md, 2026-09-30). The
+# Workers AI path keeps retrying 429 only, exactly as before.
+TYPESAFE_RETRY_STATUSES = frozenset({408, 429, *range(500, 600)})
 
 CLOUDFLARE_ACCOUNT_ID = "fd8ba3abbeadc6dcca7774a1a4a9a8d0"
 WORKERS_AI_URL = f"https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/run"
@@ -90,18 +109,42 @@ class SystemOneError(RuntimeError):
         self.status = status
 
 
-def resolve_api_key(env_var: str = "TYPESAFE_API_KEY") -> str:
-    """Mirrors `tools/model_server.py::resolve_api_key` exactly: refuse with a clear message
-    rather than silently doing nothing or falling back to a stub. Never logs the key itself."""
-    key = os.environ.get(env_var)
-    if not key:
-        raise SystemExit(
-            f"{env_var} is not set in the environment; refusing to make a live Jev call without a "
-            f"key. There is no account on this host (console.typesafe.ai is Ceryce's to create) -- "
-            f"drop --live for a dry-run against the stub client instead, or set {env_var} once a "
-            f"key exists."
-        )
-    return key
+def _windows_user_env(name: str) -> str | None:
+    """A Windows User-scope environment variable read straight from the registry
+    (`HKCU\\Environment`), for a process started before the variable was set: a shell only sees
+    the User variables that existed when it launched. `None` off Windows or when unset."""
+    try:
+        import winreg
+    except ImportError:
+        return None
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment") as key:
+            value, _ = winreg.QueryValueEx(key, name)
+    except OSError:
+        return None
+    return value or None
+
+
+def resolve_api_key(env_var: str | None = None) -> str:
+    """The TypeSafe API key: `env_var` if given, else each of `JEV_API_KEY_ENVS` in order, each
+    looked up in this process's environment first and then in Windows' User scope. Refuses with a
+    clear message rather than silently doing nothing or falling back to a stub (mirrors
+    `tools/model_server.py::resolve_api_key`). Never logs the key itself."""
+    names = (env_var,) if env_var else JEV_API_KEY_ENVS
+    for name in names:
+        key = os.environ.get(name) or _windows_user_env(name)
+        if key:
+            return key
+    raise SystemExit(
+        f"{' / '.join(names)} is not set; refusing to make a live Jev call without a TypeSafe key. "
+        f"Set it (a Windows User variable is picked up from the registry too), use --jev-backend "
+        f"workers-ai, or drop --live for a dry-run against the stub client."
+    )
+
+
+def redact(text: str, secret: str | None) -> str:
+    """`text` with every occurrence of `secret` replaced -- for anything that might reach a log."""
+    return text.replace(secret, "[REDACTED]") if secret else text
 
 
 def _questions_wire(questions: list) -> dict:
@@ -126,8 +169,29 @@ def build_workers_ai_body(state, questions: list, model: str = WORKERS_AI_MODEL)
     return {"model": model, "input": {"state": state, "questions": _questions_wire(questions)}}
 
 
-def _open_with_retry(req: urllib.request.Request, timeout: float, label: str, max_retries: int = 5) -> bytes:
-    """POSTs `req`, retrying on a 429 (honoring `Retry-After` when the response sends one) or a
+def _retry_after_sec(headers) -> float | None:
+    """`retry-after-ms` (what TypeSafe's SDK reads first) or a whole-seconds `Retry-After`."""
+    if not headers:
+        return None
+    ms = headers.get("retry-after-ms")
+    if ms:
+        try:
+            return float(ms) / 1000
+        except ValueError:
+            pass
+    ra = headers.get("Retry-After")
+    return float(ra) if ra and ra.strip().isdigit() else None
+
+
+def _open_with_retry(
+    req: urllib.request.Request,
+    timeout: float,
+    label: str,
+    max_retries: int = 5,
+    retry_statuses=frozenset({429}),
+) -> bytes:
+    """POSTs `req`, retrying on a status in `retry_statuses` (default: 429 only), honoring
+    `Retry-After` when the response sends one, or on a
     transient connection/read-timeout error, with exponential backoff -- discovered live 2026-09-23:
     a read timeout raises a bare `TimeoutError`/`OSError`, NOT `urllib.error.URLError` (only
     `Request.request()`'s failures get wrapped; `getresponse()`'s don't), so both are caught here
@@ -140,10 +204,9 @@ def _open_with_retry(req: urllib.request.Request, timeout: float, label: str, ma
             with urllib.request.urlopen(req, timeout=timeout) as resp:
                 return resp.read()
         except urllib.error.HTTPError as err:
-            if err.code == 429 and attempt < max_retries:
-                retry_after = err.headers.get("Retry-After") if err.headers else None
-                wait = float(retry_after) if retry_after and retry_after.strip().isdigit() else 2**attempt
-                time.sleep(wait)
+            if err.code in retry_statuses and attempt < max_retries:
+                wait = _retry_after_sec(err.headers)
+                time.sleep(2**attempt if wait is None else wait)
                 attempt += 1
                 continue
             detail = err.read().decode("utf-8", "replace")
@@ -157,24 +220,42 @@ def _open_with_retry(req: urllib.request.Request, timeout: float, label: str, ma
 
 
 class SystemOneClient:
-    """The real client. Never constructed by a dry run -- see `StubSystemOneClient`."""
+    """TypeSafe's own endpoint, direct (`--jev-backend typesafe`). Never constructed by a dry run --
+    see `StubSystemOneClient`. An API key doesn't expire, so there is nothing to renew; a 401 means
+    a bad or revoked key and propagates. Retries what TypeSafe's own SDK retries
+    (`TYPESAFE_RETRY_STATUSES`: 408, 429, and 5xx including 529 "overloaded"). Every error message
+    has the key redacted, and `repr` leaves it out."""
 
-    def __init__(self, api_key: str, model: str = DEFAULT_MODEL, timeout: float = 30.0):
-        self.api_key = api_key
+    backend = "typesafe"
+
+    def __init__(self, api_key: str, model: str = DEFAULT_MODEL, timeout: float = 30.0, url: str = API_URL):
+        self._api_key = api_key
         self.model = model
         self.timeout = timeout
+        self.url = url
+
+    def __repr__(self) -> str:
+        return f"SystemOneClient(model={self.model!r}, url={self.url!r})"
 
     def ask(self, state: str, questions: list) -> dict:
         body = build_request_body(state, questions, self.model)
         req = urllib.request.Request(
-            API_URL,
+            self.url,
             data=json.dumps(body).encode("utf-8"),
             headers={
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.api_key}",
+                "Authorization": f"Bearer {self._api_key}",
+                "User-Agent": "promptlane-jev/1",
             },
         )
-        return json.loads(_open_with_retry(req, self.timeout, "systemone").decode("utf-8"))
+        try:
+            raw = _open_with_retry(req, self.timeout, "typesafe", retry_statuses=TYPESAFE_RETRY_STATUSES)
+        except SystemOneError as err:
+            raise SystemOneError(redact(str(err), self._api_key), status=err.status) from None
+        return json.loads(raw.decode("utf-8"))
+
+    def status(self) -> dict:
+        return {"jev_backend": self.backend, "token_source": "typesafe-api-key", "token_expires_in_sec": None, "token_renewals": 0}
 
 
 def _wrangler_config_paths() -> list[Path]:
@@ -509,7 +590,7 @@ def resolve_workers_ai_token_provider(env_var: str = "CLOUDFLARE_API_TOKEN", mar
 
 
 class WorkersAIClient:
-    """Talks to Jev through Cloudflare Workers AI's `/ai/run` endpoint instead of TypeSafe's own
+    """`--jev-backend workers-ai`, the default. Talks to Jev through Cloudflare Workers AI's `/ai/run` endpoint instead of TypeSafe's own
     (see the module docstring for why). Same `ask()` contract as `SystemOneClient` -- callers never
     need to know which transport they're on.
 
@@ -517,6 +598,8 @@ class WorkersAIClient:
     token is fetched per call, so a provider can renew it before it expires; a 401 anyway (revoked,
     clock skew, a new token not live yet) hands the failed token to `force_refresh`, which renews
     only if no other call already has, and the call retries once before the error propagates."""
+
+    backend = "workers-ai"
 
     def __init__(
         self,
@@ -558,6 +641,9 @@ class WorkersAIClient:
             payload = self._post(body, self.tokens.force_refresh(token))
         return unwrap_workers_ai_response(payload)
 
+    def status(self) -> dict:
+        return {"jev_backend": self.backend, **self.tokens.status()}
+
 
 def unwrap_workers_ai_response(payload: dict) -> dict:
     """Cloudflare wraps the TypeSafe-shaped `{model, answers, usage}` body at `result.result`
@@ -569,6 +655,40 @@ def unwrap_workers_ai_response(payload: dict) -> dict:
     if not isinstance(result, dict) or "result" not in result:
         raise SystemOneError(f"workers-ai response missing result.result: {payload!r}")
     return result["result"]
+
+
+def add_jev_backend_args(parser) -> None:
+    """`--jev-backend workers-ai|typesafe` (default `DEFAULT_JEV_BACKEND`), shared by every Jev
+    server. `--backend` stays as an alias: the house and team servers shipped with that name."""
+    parser.add_argument(
+        "--jev-backend", "--backend", dest="jev_backend", choices=JEV_BACKENDS, default=DEFAULT_JEV_BACKEND,
+        help=f"how to reach Jev (default {DEFAULT_JEV_BACKEND}): 'workers-ai' = Cloudflare Workers AI with a "
+             f"self-renewing token; 'typesafe' = TypeSafe's own API with $PROMPTLANE_JEV_API_KEY",
+    )
+
+
+def make_jev_client(backend: str = DEFAULT_JEV_BACKEND, timeout: float = 30.0, model: str | None = None,
+                    refresh_margin_sec: float = DEFAULT_REFRESH_MARGIN_SEC):
+    """The live client for `backend`. Same `ask()` contract either way; only workers-ai needs a
+    token provider."""
+    kwargs = {"timeout": timeout}
+    if model:
+        kwargs["model"] = model
+    if backend == "typesafe":
+        return SystemOneClient(resolve_api_key(), **kwargs)
+    if backend == "workers-ai":
+        return WorkersAIClient(resolve_workers_ai_token_provider(margin_sec=refresh_margin_sec), **kwargs)
+    raise ValueError(f"unknown Jev backend {backend!r}; expected one of {JEV_BACKENDS}")
+
+
+def client_status(client) -> dict:
+    """What a server's `/health` reports about its client: `status()` if it has one, else the
+    older `tokens.status()` shape, else nothing (stubs and test fakes)."""
+    status = getattr(client, "status", None)
+    if callable(status):
+        return status()
+    tokens = getattr(client, "tokens", None)
+    return tokens.status() if tokens is not None else {}
 
 
 class StubSystemOneClient:

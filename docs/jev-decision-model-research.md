@@ -119,6 +119,21 @@ cheap, concrete test rather than a recommendation to switch.
 
 ## 3. Q1 — Is there a public preview we could actually run?
 
+**UPDATE 2026-09-30: signups have reopened, and promptlane now has a direct key.** Ceryce set it
+as the Windows User variable `PROMPTLANE_JEV_API_KEY`, and every Jev server takes
+`--jev-backend typesafe` beside the default `workers-ai`. TypeSafe's docs were re-read that day
+([`runs/jev-backend-parity-2026-09-30.md`](../runs/jev-backend-parity-2026-09-30.md) has the
+table). Two published facts below have changed:
+
+- `jev-latest` is now documented as the stable alias of `jev-1.13.0`, alongside `jev-preview`.
+- The rate limit now reads **40 requests/s and 100K tokens/s**, still "adjusting dynamically". It
+  was 1,200 requests/min and 250K tokens/s.
+
+The price is unchanged, and Workers AI lists the same price. A live parity check found both
+transports serve the same model: cross-backend agreement equals each backend's agreement with
+itself. The direct API was about 35% faster at p50 and p95. Everything from here to the next
+update is left as written on 2026-09-22/23.
+
 **Direct sign-up is PAUSED as of 2026-09-22 — the rest of this section describes access as published before that.** API-only, closed weights. All labelled by source and date:
 
 - **CORRECTION 2026-09-23 (after this memo was written):** Ceryce tried to sign up on 09-23 and signups are closed. TypeSafe's pinned post on X, dated 2026-09-22: *"We have seen such an immense swell of demand that we have to temporarily pause signups for Jev. We need to ensure quality of service for our existing signups, which will continue to function."* The website still said "no waitlist" on 09-23, which is what this research read — the page and the post disagree, and the post is the one that matches what actually happened at the sign-up form. **Consequence for §5:** the harness can't get a first-party key until signups reopen. Cloudflare Workers AI (below) re-exposes the model under its own account and is the one untested route around the pause.
@@ -339,6 +354,10 @@ did not run it, per the brief's "spend nothing" rule.
 - TypeSafe AI launch post, 2026-09-15/16: https://typesafe.ai/blog/introducing-system-one-models-and-jev
 - TypeSafe AI docs (introduction, models, API reference), fetched 2026-09-22:
   https://docs.typesafe.ai/introduction, https://docs.typesafe.ai/models, https://docs.typesafe.ai/api.md
+- TypeSafe AI docs re-read 2026-09-30 (API reference, models, confidence, Jev 1.13 jaggedness,
+  Python SDK retries and constants): https://docs.typesafe.ai/api.md, https://docs.typesafe.ai/models.md,
+  https://docs.typesafe.ai/confidence.md, https://docs.typesafe.ai/model-jaggedness/jev-1.13.md,
+  https://docs.typesafe.ai/sdk/python/api/retries.md, https://docs.typesafe.ai/sdk/python/api/constants.md
 - TypeSafe AI home/console: https://typesafe.ai/, https://console.typesafe.ai
 - The Register, 2026-09-16, "TypeSafe AI debuts model for machines that plays Doom":
   https://www.theregister.com/ai-and-ml/2026/09/16/typesafe-ai-debuts-model-for-machines-that-plays-doom/5296711

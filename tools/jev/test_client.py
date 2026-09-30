@@ -25,12 +25,37 @@ def ws(**overrides):
 
 
 class ResolveApiKeyTests(unittest.TestCase):
+    def setUp(self):
+        # Never read this host's real registry: Ceryce's key is a live User variable here.
+        patcher = mock.patch("client._windows_user_env", return_value=None)
+        self.user_env = patcher.start()
+        self.addCleanup(patcher.stop)
+
     def test_refuses_clearly_when_unset(self):
         with mock.patch.dict(os.environ, {}, clear=True):
             with self.assertRaises(SystemExit) as ctx:
                 C.resolve_api_key("TYPESAFE_API_KEY")
         self.assertIn("TYPESAFE_API_KEY", str(ctx.exception))
         self.assertIn("dry-run", str(ctx.exception))
+
+    def test_default_names_promptlanes_variable_first_then_the_sdks(self):
+        with mock.patch.dict(os.environ, {"PROMPTLANE_JEV_API_KEY": "ours", "TYPESAFE_API_KEY": "sdk"}, clear=True):
+            self.assertEqual(C.resolve_api_key(), "ours")
+        with mock.patch.dict(os.environ, {"TYPESAFE_API_KEY": "sdk"}, clear=True):
+            self.assertEqual(C.resolve_api_key(), "sdk")
+        with mock.patch.dict(os.environ, {}, clear=True), self.assertRaises(SystemExit) as ctx:
+            C.resolve_api_key()
+        self.assertIn("PROMPTLANE_JEV_API_KEY", str(ctx.exception))
+
+    def test_falls_back_to_the_windows_user_scope(self):
+        self.user_env.side_effect = lambda name: "from-registry" if name == "PROMPTLANE_JEV_API_KEY" else None
+        with mock.patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(C.resolve_api_key(), "from-registry")
+
+    def test_process_env_beats_the_registry(self):
+        self.user_env.return_value = "from-registry"
+        with mock.patch.dict(os.environ, {"PROMPTLANE_JEV_API_KEY": "from-env"}, clear=True):
+            self.assertEqual(C.resolve_api_key(), "from-env")
 
     def test_never_echoes_the_key_value(self):
         with mock.patch.dict(os.environ, {"TYPESAFE_API_KEY": "sk-super-secret-value"}, clear=True):
@@ -239,6 +264,122 @@ class WorkersAiClientAskTests(unittest.TestCase):
             with self.assertRaises(C.SystemOneError) as ctx:
                 client.ask("state", bound)
         self.assertIn("workers-ai request failed", str(ctx.exception))
+
+
+# What TypeSafe's own endpoint answered live, 2026-09-30 (runs/jev-backend-parity-2026-09-30.md).
+CANNED_TYPESAFE_RESPONSE = {
+    "model": "jev-1.13.0",
+    "answers": {"q1_low_hp_recall": {"type": "noul", "noul": 0.98}},
+    "usage": {"input_tokens": 322, "output_tokens": 21},
+}
+SECRET = "sk-live-must-never-leak-0123456789"
+
+
+class SystemOneClientTests(unittest.TestCase):
+    """`--jev-backend typesafe`: TypeSafe's own `/v1/systemone`. Network mocked."""
+
+    def _ok(self, payload: dict = CANNED_TYPESAFE_RESPONSE):
+        cm = mock.MagicMock()
+        cm.__enter__.return_value = io.BytesIO(json.dumps(payload).encode("utf-8"))
+        cm.__exit__.return_value = False
+        return cm
+
+    def _http_error(self, code: int, body: bytes = b"{}", headers: dict | None = None):
+        err = urllib.error.HTTPError(url=C.API_URL, code=code, msg="x", hdrs=headers or {}, fp=io.BytesIO(body))
+        self.addCleanup(err.close)
+        return err
+
+    def test_ask_posts_the_documented_shape_with_bearer_auth(self):
+        bound = R.bind_questions("keytar", ws(hp=50))
+        client = C.SystemOneClient(SECRET)
+        with mock.patch("client.urllib.request.urlopen", return_value=self._ok()) as mock_open:
+            result = client.ask("a state paragraph", bound)
+        self.assertEqual(result, CANNED_TYPESAFE_RESPONSE)  # no envelope: the same shape Workers AI unwraps to
+        req = mock_open.call_args[0][0]
+        self.assertEqual(req.full_url, "https://api.typesafe.ai/v1/systemone")
+        self.assertEqual(req.get_method(), "POST")
+        self.assertEqual(req.get_header("Authorization"), f"Bearer {SECRET}")
+        sent = json.loads(req.data.decode("utf-8"))
+        self.assertEqual(sent, C.build_request_body("a state paragraph", bound, "jev-latest"))
+
+    def test_529_overloaded_and_5xx_are_retried_like_typesafes_sdk(self):
+        client = C.SystemOneClient(SECRET)
+        side = [self._http_error(529), self._http_error(503), self._ok()]
+        with mock.patch("client.urllib.request.urlopen", side_effect=side), mock.patch("client.time.sleep") as sleep:
+            self.assertEqual(client.ask("s", R.bind_questions("keytar", ws()))["model"], "jev-1.13.0")
+        self.assertEqual(sleep.call_count, 2)
+
+    def test_retry_after_ms_is_honored(self):
+        client = C.SystemOneClient(SECRET)
+        side = [self._http_error(429, headers={"retry-after-ms": "250"}), self._ok()]
+        with mock.patch("client.urllib.request.urlopen", side_effect=side), mock.patch("client.time.sleep") as sleep:
+            client.ask("s", R.bind_questions("keytar", ws()))
+        sleep.assert_called_once_with(0.25)
+
+    def test_401_is_not_retried_and_never_carries_the_key(self):
+        client = C.SystemOneClient(SECRET)
+        echoed = json.dumps({"error": f"invalid key {SECRET}"}).encode()
+        with mock.patch("client.urllib.request.urlopen", side_effect=[self._http_error(401, echoed)]) as mock_open, \
+                mock.patch("client.time.sleep"):
+            with self.assertRaises(C.SystemOneError) as ctx:
+                client.ask("s", R.bind_questions("keytar", ws()))
+        self.assertEqual(mock_open.call_count, 1)
+        self.assertEqual(ctx.exception.status, 401)
+        self.assertNotIn(SECRET, str(ctx.exception))
+        self.assertIn("[REDACTED]", str(ctx.exception))
+        self.assertIsNone(ctx.exception.__cause__)
+        self.assertTrue(ctx.exception.__suppress_context__)
+
+    def test_repr_and_status_leave_the_key_out(self):
+        client = C.SystemOneClient(SECRET)
+        self.assertNotIn(SECRET, repr(client))
+        self.assertNotIn(SECRET, json.dumps(client.status()))
+        self.assertEqual(client.status()["jev_backend"], "typesafe")
+
+    def test_workers_ai_still_does_not_retry_a_500(self):
+        """The retry widening is typesafe-only: Workers AI's behavior is unchanged."""
+        client = C.WorkersAIClient(api_token="cf-test-token")
+        err = urllib.error.HTTPError(url=client.url, code=500, msg="x", hdrs=None, fp=io.BytesIO(b"{}"))
+        self.addCleanup(err.close)
+        with mock.patch("client.urllib.request.urlopen", side_effect=[err]) as mock_open, mock.patch("client.time.sleep"):
+            with self.assertRaises(C.SystemOneError):
+                client.ask("s", R.bind_questions("keytar", ws()))
+        self.assertEqual(mock_open.call_count, 1)
+
+
+class JevBackendSelectionTests(unittest.TestCase):
+    def _parse(self, argv):
+        import argparse
+        p = argparse.ArgumentParser()
+        C.add_jev_backend_args(p)
+        return p.parse_args(argv)
+
+    def test_default_stays_workers_ai(self):
+        self.assertEqual(C.DEFAULT_JEV_BACKEND, "workers-ai")
+        self.assertEqual(self._parse([]).jev_backend, "workers-ai")
+
+    def test_backend_is_an_alias(self):
+        self.assertEqual(self._parse(["--backend", "typesafe"]).jev_backend, "typesafe")
+        self.assertEqual(self._parse(["--jev-backend", "typesafe"]).jev_backend, "typesafe")
+
+    def test_typesafe_needs_no_token_provider(self):
+        with mock.patch.dict(os.environ, {"PROMPTLANE_JEV_API_KEY": SECRET}, clear=True), \
+                mock.patch("client.resolve_workers_ai_token_provider") as provider:
+            client = C.make_jev_client("typesafe", timeout=7, model="jev-preview")
+        provider.assert_not_called()
+        self.assertIsInstance(client, C.SystemOneClient)
+        self.assertEqual((client.model, client.timeout), ("jev-preview", 7))
+
+    def test_workers_ai_gets_the_renewing_provider(self):
+        with mock.patch("client.resolve_workers_ai_token_provider", return_value=C.StaticToken("t")) as provider:
+            client = C.make_jev_client("workers-ai", refresh_margin_sec=600)
+        provider.assert_called_once_with(margin_sec=600)
+        self.assertIsInstance(client, C.WorkersAIClient)
+        self.assertEqual(client.status()["jev_backend"], "workers-ai")
+
+    def test_unknown_backend_raises(self):
+        with self.assertRaises(ValueError):
+            C.make_jev_client("ollama")
 
 
 class ResolveWorkersAiTokenTests(unittest.TestCase):
