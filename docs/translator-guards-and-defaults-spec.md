@@ -771,6 +771,146 @@ before this session began. **No action was needed from Ceryce; none was taken.**
 same full-response diagnostic (bypass the retry wrapper, capture every header) is the fastest way to
 tell whether it's this same shape or something new.
 
+## 10. Instrument scope — the schema-assembly guard against cross-instrument leaks (2026-09-30)
+
+*Found by the prompt-evolution smoke run (`docs/prompt-evolution-spec.md` §11 on feat/prompt-evolution),
+fixed and measured here. Raw data: `runs/translator-instrument-scope-2026-09-30.jsonl` (324 live
+compiles on host Ollama `qwen3.5:9b`, the same model the smoke run used on OpenRouter); the prose
+variant from §10.4: `runs/translator-instrument-scope-2026-09-30-unmarked-variant.md`.*
+
+### 10.1 The bug
+
+One prompt drives all three of a side's bearbots, and `compile.py` translates it once per instrument.
+The translator was shown the whole prose every time and never told it was shared, so it translated
+every clause, including clauses written for a different instrument. `house-violet.md`'s rule 3
+(`keytar only: … chord`, `violin only: … staccato`, `drums only: … kick`) came out as three ability
+rules in **every** schema. The drums schema got `keytar_ready → chord` and `violin_ready → staccato`,
+both ahead of its own `drums_ready → kick`.
+
+**The rate is far higher than the smoke run's "2 firings in ~900 decisions" suggested.** In **39 of 51**
+live compiles of `house-violet.md` (76%; drums 14/17, keytar 12/17, violin 13/17), the compiled schema
+carried a leaked rule. It showed up in three shapes:
+
+| Shape | Example | Why it's broken |
+|---|---|---|
+| Another instrument's ability | drums: `keytar_ready → chord` | The sim ignores an ability the bot doesn't have (`src/sim/match.ts`: unknown ability → `return`). The decision is burnt, and every rule below it is pre-empted. |
+| Merged, no ability named | keytar: `ability_ready → ability null` | The same silent no-op, from folding three scoped clauses into one rule. |
+| Relabelled with an own ability | keytar: `ability_ready_violin → glissando` | The condition asks about the violin's cooldown, which the keytar's observation doesn't have. |
+
+A recompile of every committed pilot (§10.5) found the same leak in `house-green.md` (all three
+instruments) and in `team-qwen.md`, whose `- **keytar**: …` / `- **violin**: …` table put
+`violin_ability_condition → staccato` into the drums schema.
+
+### 10.2 Cause
+
+There were two causes, and both were in the translator, not in the prose:
+
+1. The translator showed the model text that did not apply to the instrument it was compiling.
+2. Schema assembly (`_validate_action`) accepted **any** string as an ability.
+
+`house-violet.md` itself is correct as written: the chat-model house bot reads it with
+`self.instrument` in view. It was not edited.
+
+### 10.3 The fix: two deterministic layers (`tools/jev/translator.py`)
+
+**Layer 1: `scope_to_instrument(prose, instrument)`, before the model sees anything.** It is
+conservative and recognises only explicit markers at the start of a line, or at the start of a later
+sentence on the same line:
+
+- `keytar only: …`, `(violin only) …`, `violin and keytar only - …`, `keytar-only: …`
+- `Keytar: …` and `- **drums**: …`
+- a markdown heading naming instruments
+
+A marked clause runs to the end of its line, plus continuation lines. A continuation line is one that
+is indented deeper, or finishes an unfinished sentence, and does not start a new list item. A marker
+with nothing after it (`Keytar only:` alone, or a heading) scopes its whole block: to the next blank
+line, or for a heading to the next heading at the same level.
+
+Clauses marked for another instrument are set aside. The model is shown the rest. The priority guard
+(`enforce_absolute_priority`) reads the same scoped text, so another instrument's "no exceptions"
+clause can't demand a rule here. When nothing is set aside, the prose is returned unchanged (the same
+object), so the reference pilots stay byte-identical and keep their hand labels.
+
+Sentences that merely *mention* an instrument ("protect our violin", "Violin only gets one solo") are
+not markers.
+
+**Layer 2: `enforce_instrument_scope(schema, …)`, at schema assembly.** It walks the whole tree,
+including rules nested in guard branches:
+
+- **Removes** a rule whose action is an ability that is not this instrument's own: another
+  instrument's, none, or a name no instrument has.
+- **Removes** a rule whose question asks about another instrument's ability or cooldown ("is the
+  violin ability cooldown zero", "is chord ready").
+- **Flags without removing** a rule that names another instrument in any other way ("is an enemy near
+  our violin?"). Allies' and enemies' instruments are not in the `Observation`, so Jev can't check it,
+  but it may be exactly what the entrant meant.
+- **Raises**, which `translate_pilot` retries like a parse failure, if a default names a foreign
+  ability or if nothing is left at the root.
+- **Canonicalises** own ability names (`Kick` → `kick`).
+
+Every removal and every set-aside clause becomes a `validation_notes` entry prefixed
+`instrument scope:`. The entrant sees them in their own section of the transparency view ("Instrument
+scope — what was kept out of this instrument's schema"). The set-aside prose is quoted under
+**Dropped** as "Marked for another instrument — compiled only for that one", not as a rule that
+compiled to nothing. `compile.py`'s header counts removed rules as a ⚠ flag, and tells entrants that a
+line starting `keytar only:` is compiled only for the keytar.
+
+**Not caught deterministically:** unmarked phrasings such as "if you are the keytar, …" or "as the
+violin, …". Layer 1 leaves them to the model. Layer 2 then catches whatever comes out as a foreign
+ability or a foreign-cooldown question, which was every leak observed (§10.4).
+
+### 10.4 The translation prompt is deliberately unchanged — measured
+
+The obvious third layer is to tell the model the prose is shared. Three wordings were A/B'd live
+against develop's prompt, all with Layers 1 and 2 in place. The prose was the unmarked variant: rule 3
+rewritten as "If you are the keytar, then when …", so Layer 1 can't help and only the model and
+Layer 2 matter.
+
+| Translation prompt | Model wrote a foreign rule (unmarked variant) | Compile failures (all live compiles with that prompt) |
+|---|---|---|
+| **develop's, unchanged (shipped)** | **5 / 24** (all removed by Layer 2) | **0 / 69** |
+| long paragraph: scope rules, other instruments' abilities, slot mapping | 2 / 18 | 6 / 75 (keytar × `drums.md`: 4 / 7) |
+| one sentence, naming the other instruments' abilities | 10 / 18 | 1 / 42 |
+| one sentence, no ability names | 9 / 18 | 1 / 26 |
+| *(baseline: develop, no Layers 1–2)* | *4 / 18 shipped* | *0 / 112* |
+
+- **The long paragraph reduced leaks but broke compiles.** Every failure was the known malformed-guard
+  shape: a `guard_…` id with no `then`/`else`, three times in a row. On keytar × `drums.md` it failed
+  4 of 7 compiles, where develop's prompt failed 0 of 18.
+- **The short sentences leaked more than saying nothing**, probably because naming the other
+  instruments primes the model to write their rules.
+
+Layers 1 and 2 delivered zero shipped leaks with every wording. So the prompt stays as it was, and an
+entrant's compile gains no new way to fail two days before the cutoff.
+
+### 10.5 Recompile of the committed pilots and the entrant template
+
+All seven prose sources were compiled for all three instruments, once each, with develop and with
+this fix (`study: recompile-sweep` in the data): `drums.md`, `keytar.md`, `violin.md`,
+`house-violet.md`, `house-green.md`, `team-qwen.md`, and jamobair-entrants' `entrants/_template/pilot.md`.
+
+| Source | develop | this fix |
+|---|---|---|
+| `house-violet.md` | violin: two no-op ability rules asking about the keytar's/drums' cooldowns; keytar: a merged null-ability rule; drums: `keytar_ready`/`violin_ready` relabelled `kick`/`fill` | 2 clauses set aside per instrument; one own-ability rule each |
+| `house-green.md` | drums: three null-ability rules; keytar: a merged null-ability rule; violin: `keytar_ready → chord`, `drums_ready → kick` | same as violet |
+| `team-qwen.md` | drums: `violin_ability_condition → staccato` plus five rules gated on "is this bot's instrument 'violin'/'keytar'"; keytar: two such rules | 2 table rows set aside per instrument, no leaks |
+| `drums.md` | violin: `use_fill_aoe → ability null` | one null-ability rule removed by Layer 2 (a slot-mapping miss on shared prose, not a scope leak) |
+| `keytar.md`, `violin.md`, template | no leak | no leak |
+
+The three reference pilots and the template contain no scope markers, so Layer 1 leaves them
+byte-identical.
+
+### 10.6 Tests (`tools/jev/test_instrument_scope.py`, 20 tests, no network)
+
+- `ReproTests` fails on develop. It feeds the translator the drums schema the smoke run really
+  compiled. It also uses a stand-in model that translates every scoped line it is shown (the live
+  failure's shape) and checks that neither house prompt yields more than one ability rule per
+  instrument, and that the model is never shown another instrument's clause.
+- Marker grammar is pinned, as is `team-qwen.md`'s bold-bullet table.
+- Guard behaviour covered: removal, flagging, raising, and rules nested in guard branches.
+- The scoped priority guard is covered.
+- A compile-view test checks that set-aside lines aren't reported as unclaimed rules.
+
 ## Sources
 
 - This repo, this change: `tools/jev/guard_noul_calibration.py` (new, Phase 0, live-run),
@@ -803,6 +943,12 @@ tell whether it's this same shape or something new.
   json`, `runs/ab-sonnet-arm-b-run1.json`, and `runs/ab-qwen-hints-arm-{a,b}-run{1,2,3}.json`, each
   with a matching `-prose-fidelity.json` (§9.2's table is now complete — see §9.4 for the same-day
   402 diagnosis that unblocked the last nine runs).
+- New this change, §10: `tools/jev/translator.py` (`scope_to_instrument`, `enforce_instrument_scope`,
+  wired into `translate_pilot`; the translation prompt is unchanged); `tools/jev/compile.py` (report
+  segments come from the scoped prose; set-aside clauses listed as `other_instrument`);
+  `tools/jev/transparency.py` (the `other_instrument` Dropped category and the instrument-scope notes
+  section); `tools/jev/test_instrument_scope.py` (20 tests). Artifacts:
+  `runs/translator-instrument-scope-2026-09-30.jsonl` and `-unmarked-variant.md`.
 - Prior work this spec extends: `docs/prose-to-schema-translator.md` (PR #25 — the translator, the
   priority guard, the 63.9%/47.2% prose-fidelity split this spec's §5 target is drawn from);
   `docs/translator-transparency.md` (the transparency view, the keytar revision loop, the jam-rule

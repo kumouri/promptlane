@@ -30,9 +30,19 @@ translator's job is to pick *which selector* best matches the prose's intent ("d
 `densest_cluster_enemy`, "softest target" -> `lowest_hp_enemy`), not to invent new ones. This is a
 real, named simplification, not a hidden one: it is the one place prose nuance is flattened into a
 fixed enum before Jev ever sees the schema, and it is called out as such in the fidelity writeup.
+
+INSTRUMENT SCOPE. One prompt drives all three of a team's bearbots and is translated once per
+instrument, so prose scoped to one instrument ("keytar only: ...") must not reach the other two
+schemas (`docs/translator-guards-and-defaults-spec.md` §10). Two deterministic layers:
+`scope_to_instrument` sets aside lines explicitly marked for another instrument before the model
+sees the prose, and `enforce_instrument_scope` removes any rule that still fires another
+instrument's ability or asks about its cooldown (a no-op in the sim, pre-empting everything below).
+The prompt itself is deliberately unchanged: telling the model the prose is shared was measured
+(spec §10.4): each wording tried either made it write MORE foreign-ability rules or added compile failures.
 """
 from __future__ import annotations
 
+import dataclasses
 import json
 import os
 import re
@@ -42,6 +52,7 @@ from dataclasses import dataclass, field
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ground_truth import _ollama_generate, resolve_ollama_url  # noqa: E402
 from number_normalize import normalize_numbers_for_trace  # noqa: E402
+from scenarios import ABILITIES  # noqa: E402
 
 DEFAULT_MODEL = "qwen3.5:9b"
 
@@ -514,6 +525,212 @@ def enforce_absolute_priority(schema: TranslatedSchema, pilot_text: str) -> Tran
     )
 
 
+# --- instrument scope (spec §10) --------------------------------------------------------------------
+
+_INST = r"(?:drums?|keytar|violin)"
+_INST_LIST = rf"{_INST}(?:\s*(?:,|/|&|\band\b|\bor\b)\s*{_INST})*"
+_EMPH = r"[*_]{0,2}"
+# "keytar only: ...", "(violin only) ...", "violin and keytar only - ...", "keytar-only: ...", "**Drums:** ..."
+_MARKER_BODY = rf"\(?{_EMPH}(?P<insts>{_INST_LIST})(?:[\s-]+only\b{_EMPH}\s*(?:[:)\-–—,]|$)|{_EMPH}\s*:)"
+_LINE_MARKER = re.compile(rf"^(?P<indent>[ \t]*)(?P<item>(?:[-*•+]|\d+[.)])\s+)?{_MARKER_BODY}", re.IGNORECASE)
+_HEADING_MARKER = re.compile(rf"^\s*(?P<hashes>#{{1,6}})\s+{_EMPH}(?P<insts>{_INST_LIST})(?:[\s-]+only)?{_EMPH}\s*:?{_EMPH}\s*$", re.IGNORECASE)
+_HEADING = re.compile(r"^\s*(#{1,6})\s")
+_LIST_ITEM = re.compile(r"^\s*(?:[-*•+]|\d+[.)])\s+")
+# a second marked clause later on the same line: "Keytar only: chord it. Violin only: staccato it."
+_INLINE_SPLIT = re.compile(rf"(?<=[.!?;])\s+(?={_MARKER_BODY.replace('(?P<insts>', '(?:')})", re.IGNORECASE)
+
+
+@dataclass(frozen=True)
+class ScopedProse:
+    """`text` is what the model is shown for one instrument; `set_aside` is every clause (with its
+    continuation lines) the prose explicitly marks for a different instrument, in file order."""
+
+    text: str
+    set_aside: tuple[str, ...]
+
+
+def _instruments_in(marker_insts: str) -> set[str]:
+    return {"drums" if m.lower().startswith("drum") else m.lower() for m in re.findall(_INST, marker_insts, re.IGNORECASE)}
+
+
+def scope_to_instrument(pilot_text: str, instrument: str) -> ScopedProse:
+    """Deterministic, conservative: only an EXPLICIT marker at the start of a line (or of a sentence
+    within one) scopes prose -- "<instrument(s)> only" followed by a separator, "<instrument(s)>:",
+    or a markdown heading naming instruments. A marked clause runs to the end of its line plus any
+    continuation lines (indented deeper, or finishing an unfinished sentence, and not a new list
+    item); a marker with nothing after it ("Keytar only:" alone, or a heading) scopes the whole
+    block below it -- to the next blank line, or for a heading to the next heading at its level.
+    Everything else -- including sentences that merely mention an instrument ("protect our violin")
+    -- is shared and passes through. Phrasings this doesn't recognise ("as the violin, ...") are left
+    to the prompt and `enforce_instrument_scope`. Returns `pilot_text` unchanged (same object) when
+    nothing is set aside, so a reference pilot stays byte-identical for `segment.hand_segments_for`."""
+    instrument = instrument.lower()
+    units: list[tuple[int, str]] = []  # (physical line index, text)
+    for i, line in enumerate(pilot_text.split("\n")):
+        start = 0
+        for m in _INLINE_SPLIT.finditer(line):
+            if _LIST_ITEM.fullmatch(line[: m.end()]):
+                continue  # "3. keytar only:" -- the "." ends a list number, not a sentence
+            units.append((i, line[start : m.start()]))
+            start = m.end()
+        units.append((i, line[start:]))
+
+    kept: dict[int, list[str]] = {}
+    set_aside: list[list[str]] = []
+    scope: set[str] | None = None
+    kind = None  # "line" | "block" | "heading"
+    marker_indent = 0
+    heading_level = 0
+    prev_text = ""
+    for line_no, text in units:
+        heading = _HEADING_MARKER.match(text)
+        marker = None if heading else _LINE_MARKER.match(text)
+        if heading:
+            scope, kind, heading_level = _instruments_in(heading.group("insts")), "heading", len(heading.group("hashes"))
+        elif marker:
+            rest = text[marker.end():].strip(" \t*_")
+            scope, kind = _instruments_in(marker.group("insts")), ("line" if rest else "block")
+            marker_indent = len(marker.group("indent").expandtabs())
+        elif scope is not None:
+            blank = not text.strip()
+            other_heading = _HEADING.match(text)
+            if kind == "heading":
+                if other_heading and len(other_heading.group(1)) <= heading_level:
+                    scope = None
+            elif kind == "block":
+                if blank or other_heading:
+                    scope = None
+            else:  # "line"
+                indent = len(text) - len(text.lstrip(" \t"))
+                unfinished = not re.search(r"[.!?:;]\s*$", prev_text)
+                if blank or other_heading or _LIST_ITEM.match(text) or not (indent > marker_indent or unfinished):
+                    scope = None
+        if scope is None or instrument in scope:
+            kept.setdefault(line_no, []).append(text)
+        elif (heading or marker) or not set_aside:
+            set_aside.append([text])
+        else:
+            set_aside[-1].append(text)
+        prev_text = text
+
+    if not set_aside:
+        return ScopedProse(pilot_text, ())
+    lines = [" ".join(kept[i]) for i in sorted(kept)]
+    return ScopedProse("\n".join(lines), tuple("\n".join(clause) for clause in set_aside))
+
+
+def _possessive(instrument: str) -> str:
+    return instrument + ("'" if instrument.endswith("s") else "'s")
+
+
+def _ability_owner(ability: str) -> str | None:
+    for inst, names in ABILITIES.items():
+        if ability.lower() in names:
+            return inst
+    return None
+
+
+def _foreign_cooldown_question(condition: str, instrument: str) -> str | None:
+    """The phrase in `condition` that asks about ANOTHER instrument's ability or cooldown ("is the
+    violin ability cooldown zero", "is chord ready"), or None. This bot's observation only carries its
+    own two cooldowns, so such a question has no answer in the state -- unlike a mention of another
+    instrument as an ally or enemy, which is intent (and is only flagged)."""
+    others = [i for i in ABILITIES if i != instrument]
+    names = r"|".join(i.rstrip("s") + "s?" for i in others)
+    abilities = r"|".join(a for i in others for a in ABILITIES[i])
+    for pattern in (
+        rf"\b(?:{names})(?:'s)?\s+(?:ability|abilities|cooldowns?|cd|{abilities})\b",
+        rf"\b(?:{abilities})(?:'s)?\s+(?:ability\s+)?(?:cooldown|cd|timer)\b",
+        rf"\b(?:{abilities})\s+(?:is\s+)?(?:ready|off cooldown|available)\b",
+        rf"\bis\s+(?:the\s+)?(?:{abilities})\s+(?:ready|off cooldown|available)\b",
+    ):
+        m = re.search(pattern, condition, re.IGNORECASE)
+        if m:
+            return m.group(0)
+    return None
+
+
+def enforce_instrument_scope(schema: TranslatedSchema, instrument: str, primary_ability: str, ultimate_ability: str) -> TranslatedSchema:
+    """Schema-assembly guard, the backstop behind `scope_to_instrument` and the prompt: walks the
+    WHOLE tree (rules nested in guard branches too) and
+
+    - removes a rule whose action is an ability that isn't this instrument's own -- another
+      instrument's (`chord` in a drums schema), none at all (the live model's merged
+      "ability_ready" rule), or a name no instrument has. The sim silently ignores such an action
+      (`src/sim/match.ts`), so the rule could only ever burn the decision and pre-empt every rule
+      below it;
+    - removes a rule whose QUESTION asks about another instrument's ability or cooldown
+      (`_foreign_cooldown_question`) -- unanswerable from this bot's observation;
+    - flags, without removing, a rule whose condition or id names another instrument in any other
+      way ("is an enemy near our violin?") -- allies' and enemies' instruments aren't observable, so
+      it can't be checked, but it may be exactly what the entrant meant.
+
+    Own ability names are canonicalised ("Kick" -> "kick"). Each removal/flag is a plain-English
+    `validation_notes` entry prefixed "instrument scope:" (the entrant sees it). Raises ValueError --
+    which `translate_pilot` retries like a parse failure -- if a cascade DEFAULT names a foreign
+    ability, or if nothing is left at the root."""
+    own = {primary_ability.lower(): primary_ability, ultimate_ability.lower(): ultimate_ability}
+    others = [i for i in ABILITIES if i != instrument]
+    notes: list[str] = []
+
+    def check_default(action: Action | None, where: str) -> Action | None:
+        if action is None or action.kind != "ability":
+            return action
+        canonical = own.get((action.ability or "").strip().lower())
+        if canonical is None:
+            raise ValueError(f"{where}: default action uses ability {action.ability!r}, which is not one of the {_possessive(instrument)} ({primary_ability}, {ultimate_ability})")
+        return Action(action.kind, canonical, action.target_selector)
+
+    def walk(cascade: Cascade, where: str) -> Cascade:
+        nodes: list[Node] = []
+        for node in cascade.nodes:
+            if isinstance(node, GuardNode):
+                nodes.append(dataclasses.replace(node, then=walk(node.then, f"guard {node.id} yes-branch"), else_=walk(node.else_, f"guard {node.id} no-branch")))
+                continue
+            if node.action_kind == "ability":
+                canonical = own.get((node.action_ability or "").strip().lower())
+                if canonical is None:
+                    owner = _ability_owner(node.action_ability or "")
+                    why = (f"it uses {node.action_ability}, which is the {_possessive(owner)} ability" if owner
+                           else f'its action names {"no ability" if not node.action_ability else repr(node.action_ability) + ", which no instrument has"}')
+                    notes.append(
+                        f"instrument scope: removed rule {node.id} -- {why}, not the {_possessive(instrument)} ({primary_ability}/{ultimate_ability}); "
+                        f"a {instrument} bearbot trying it would do nothing that tick. If your prose meant the {_possessive(instrument)} own ability, name it."
+                    )
+                    continue
+                node = dataclasses.replace(node, action_ability=canonical)
+            asked = _foreign_cooldown_question(node.condition, instrument)
+            if asked:
+                notes.append(
+                    f'instrument scope: removed rule {node.id} -- its question asks about another instrument\'s ability ("{asked}"), '
+                    f"which a {instrument} bearbot doesn't have, so Jev could never answer it from this bot's observation."
+                )
+                continue
+            text = f"{node.id} {node.condition}".lower()
+            named = [o for o in others if re.search(rf"\b{o.rstrip('s')}s?\b", text)]
+            if named:
+                notes.append(
+                    f"instrument scope: rule {node.id} mentions the {', '.join(named)} -- this schema is the {_possessive(instrument)}, and allies' "
+                    f"and enemies' instruments are not in the observation. If that clause was meant only for the {named[0]}, "
+                    f'start its line with "{named[0]} only:".'
+                )
+            nodes.append(node)
+        return Cascade(nodes=tuple(nodes), default=check_default(cascade.default, where))
+
+    new_root = walk(schema.root, "root")
+    if not new_root.nodes:
+        raise ValueError(f"every rule the translator produced belongs to another instrument, none to the {instrument}")
+    if new_root == schema.root and not notes:
+        return schema
+    return TranslatedSchema(
+        pilot_file=schema.pilot_file,
+        instrument=schema.instrument,
+        raw_model_output=schema.raw_model_output,
+        root=new_root,
+        validation_notes=schema.validation_notes + tuple(notes),
+    )
+
+
 def translate_pilot(
     pilot_text: str,
     pilot_file: str,
@@ -527,23 +744,38 @@ def translate_pilot(
 ) -> TranslatedSchema:
     """`generate`, when given, is a `prompt -> reply text` callable that replaces the host-Ollama
     call (`llm_backends.Backend.generate` -- how `compile.py` runs the same translation on
-    OpenRouter, or under a token cap). The prompt, parsing, retries and priority guard are the same
-    either way."""
+    OpenRouter, or under a token cap). The prompt, parsing, retries and guards are the same
+    either way.
+
+    The model only ever sees `scope_to_instrument(pilot_text, instrument).text`, and the priority
+    guard reads the same scoped text -- another instrument's "no exceptions" clause must not demand a
+    rule in this schema."""
     if generate is None:
         url = resolve_ollama_url(ollama_url)
         generate = lambda p: _ollama_generate(url, model, p, timeout=90.0, max_tokens=1800)  # noqa: E731
-    prompt = _translation_prompt(pilot_text, instrument, primary_ability, ultimate_ability)
+    scoped = scope_to_instrument(pilot_text, instrument)
+    scope_notes = ()
+    if scoped.set_aside:
+        quoted = "; ".join('"' + " ".join(c.split())[:80] + ('…"' if len(" ".join(c.split())) > 80 else '"') for c in scoped.set_aside)
+        scope_notes = (
+            f"instrument scope: {len(scoped.set_aside)} clause(s) your prose marks for another instrument were left out "
+            f"of the {instrument} schema (each is compiled only for the instrument it names): {quoted}",
+        )
+    prompt = _translation_prompt(scoped.text, instrument, primary_ability, ultimate_ability)
     last_err: Exception | None = None
     for attempt in range(max_attempts):
         reply = generate(prompt)
         try:
             raw_json = _extract_json_object(reply)
             schema = parse_schema(raw_json, pilot_file, instrument, reply)
-            return enforce_absolute_priority(schema, pilot_text)
+            if scope_notes:
+                schema = dataclasses.replace(schema, validation_notes=schema.validation_notes + scope_notes)
+            schema = enforce_instrument_scope(schema, instrument, primary_ability, ultimate_ability)
+            return enforce_absolute_priority(schema, scoped.text)
         except (ValueError, json.JSONDecodeError) as err:
             last_err = err
             prompt = (
-                _translation_prompt(pilot_text, instrument, primary_ability, ultimate_ability)
+                _translation_prompt(scoped.text, instrument, primary_ability, ultimate_ability)
                 + f"\n\nYour previous attempt was invalid: {err}. If this mentions a 'guard_'-named "
                 "rule, you emitted a plain rule action for something that needed the full guard shape "
                 "(type/then/else) -- either finish the guard shape or use a normal rule instead. "
@@ -663,9 +895,14 @@ def render_markdown(schema: TranslatedSchema) -> str:
         lines.append(f"| {row['label']} | {row['branch'] or '—'} | {row['condition']} | {row['then']} |")
     default_desc = _describe_action(schema.default_kind, schema.default_ability, schema.default_target_selector)
     lines.append(f"| — | — | *(none of the above — root default)* | {default_desc} |")
-    if schema.validation_notes:
+    scope_notes = [n for n in schema.validation_notes if n.startswith("instrument scope:")]
+    priority_notes = [n for n in schema.validation_notes if n not in scope_notes]
+    if priority_notes:
         lines += ["", "**Automatic priority fixes applied to this schema:**", ""]
-        lines += [f"- {note}" for note in schema.validation_notes]
+        lines += [f"- {note}" for note in priority_notes]
+    if scope_notes:
+        lines += ["", "**Instrument scope -- what was kept out of this instrument's schema:**", ""]
+        lines += [f"- {note}" for note in scope_notes]
     return "\n".join(lines) + "\n"
 
 

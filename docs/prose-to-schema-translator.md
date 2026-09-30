@@ -191,6 +191,11 @@ paragraph doesn't match any translated rule well enough, the guard raises rather
 nothing — a missing override rule can't be fixed by reordering, so it's treated the same as a
 JSON-parse failure and retried.
 
+**Instrument-scope guard, added 2026-09-30.** One prompt is translated once per instrument, so a
+clause the prose marks for another instrument (`keytar only: …`) is set aside before the model sees
+the prose, and any rule that still fires another instrument's ability is removed at schema assembly.
+See [`translator-guards-and-defaults-spec.md` §10](translator-guards-and-defaults-spec.md#10-instrument-scope--the-schema-assembly-guard-against-cross-instrument-leaks-2026-09-30).
+
 ## 3. Evaluation harness and methodology
 
 **Why synthetic Observations, not replayed match logs.** The obvious plan — replay

@@ -28,7 +28,7 @@ Both are also rows 20–21 of the arena's ruling table ([`arena-site-spec.md` §
 json` as a child process. The PR bot checks out promptlane at a pinned ref and runs the same file.
 `compile.py` itself adds no translation logic of its own:
 
-- `translator.translate_pilot` (prompt, parse, retries, priority guard) and
+- `translator.translate_pilot` (prompt, parse, retries, instrument scope, priority guard) and
   `transparency.render_report_markdown` are used unchanged.
 - `translate_pilot` gained one optional `generate` argument, so the same translation can run on
   OpenRouter or under a token cap.
@@ -38,6 +38,9 @@ json` as a child process. The PR bot checks out promptlane at a pinned ref and r
 ## What the view shows
 
 One prompt drives all three of an entrant's bearbots, so every instrument is compiled separately.
+A line the prose marks for one instrument (`keytar only: …`, `Violin: …`, `- **drums**: …`) is
+compiled only into that instrument's schema, and any rule that still names another instrument's
+ability is removed with a note ([`translator-guards-and-defaults-spec.md` §10](translator-guards-and-defaults-spec.md#10-instrument-scope--the-schema-assembly-guard-against-cross-instrument-leaks-2026-09-30)).
 A preview is a short header followed by one transparency report per instrument. The report format
 is the one [`translator-transparency.md` §1](translator-transparency.md#1-the-transparency-view)
 documents:
@@ -47,7 +50,8 @@ documents:
   does (including priority-guard promotions), and the prose sentence(s) it traces back to, or
   `⚠ no strong match`;
 - **Dropped**, quoted, with a reason for each: rule-like sentences no compiled rule traces back to
-  (check these by hand), advisory prose Jev's question types can't take, and voice.
+  (check these by hand), advisory prose Jev's question types can't take, clauses marked for another
+  instrument, and voice.
 
 **Automatic labels.** The rule / advisory / voice split was hand-labelled for the three reference
 pilots only. `transparency.py` refused other prose rather than guess. For entrant prose,

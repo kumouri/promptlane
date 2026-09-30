@@ -21,6 +21,8 @@ and [house-prompt-2026-09-21.md](house-prompt-2026-09-21.md) (the arena's house 
 four quick tests vs `drums.md`, logs `house-prompt-2026-09-21-r*.json` beside it), and
 [prompt-evolution-smoke-2026-09-30.md](prompt-evolution-smoke-2026-09-30.md) (the house-bot
 evolution harness's one-generation smoke on live Jev plus the backend measurements its spec uses,
-logs `prompt-evolution-smoke-2026-09-30-*.json` beside it).
+logs `prompt-evolution-smoke-2026-09-30-*.json` beside it), and
+`translator-instrument-scope-2026-09-30.jsonl` (the live compiles behind
+[`translator-guards-and-defaults-spec.md` §10](../docs/translator-guards-and-defaults-spec.md)).
 The bulky captures those documents hash live under ignored `artifacts/<run>-evidence/` and
 `artifacts/<run>-reviewed/`.
