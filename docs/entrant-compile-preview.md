@@ -132,7 +132,9 @@ here.
 "jev-schema-http"` backend: `tools/jev/schema_server.py` on `127.0.0.1:8797`, live Jev via Workers
 AI, with a `--budget-usd` cap (default $0.50). Its token is `$CLOUDFLARE_API_TOKEN`, else wrangler's
 OAuth token, which the server renews itself before it expires (`--refresh-margin-sec`, default 900 s),
-the same way the Jev house server does (runbook §6, *5.3*). How it plays:
+the same way the Jev house server does (runbook §6, *5.3*). Practice matches running at once on this
+one server share each renewal. Until 2026-09-30 their 401s set off a renewal storm that left
+decisions unanswered (`runs/jev-client-renew-2026-09-30.md`). How it plays:
 
 - Each compile is cached for 2 hours under a random id. The practice job carries those exact
   schemas, so the match plays the rules the entrant just read, not a fresh sampled translation.

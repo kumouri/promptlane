@@ -384,8 +384,11 @@ order (`tools/jev/rules.py`, rule 3 exact on the live path). Background and numb
   permission, set in the environment the server starts from. It does not expire mid-jam.
 - **Wrangler's OAuth login** (what the workstation uses today). The access token lives about an
   hour; the server renews it on its own once less than `--refresh-margin-sec` (default 900 s = one
-  600 s match + slack) is left, writes the new pair back to wrangler's config, and on a 401 renews
-  once more and retries. Only a dead refresh token needs you: `npx wrangler login`.
+  600 s match + slack) is left, writes the new pair back to wrangler's config, and on a 401 retries
+  once on a renewed token. Calls that 401 together share **one** renewal, and a brand-new token
+  (which Cloudflare 401s for its first ~0.5 s) is never retried on until it is live, so concurrent
+  matches on one server don't set off a renewal storm (`runs/jev-client-renew-2026-09-30.md`). Only
+  a dead refresh token needs you: `npx wrangler login`.
 
 Check before starting (renews if needed, then exits):
 
@@ -412,6 +415,7 @@ Jev back.
 | Field | Healthy |
 |---|---|
 | `token_source`, `token_expires_in_sec` | `env` and `null`, or `wrangler-oauth` and a number that climbs back to ~3600 after each renewal |
+| `token_renewals` | about one per hour of uptime. Several a minute means renewals are storming — the bug `runs/jev-client-renew-2026-09-30.md` fixed |
 | `fallbacks`, `last_fallback_error` | `0` and `null` |
 | `cost_usd` / `budget_usd` | well apart |
 

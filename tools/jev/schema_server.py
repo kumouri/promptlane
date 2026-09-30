@@ -23,7 +23,10 @@ selector is resolved against the observation in Python (`target_resolve.py`).
 Token: `$CLOUDFLARE_API_TOKEN` if set, else wrangler's OAuth token, renewed `--refresh-margin-sec`
 (default 900) before it expires -- the same `client.resolve_workers_ai_token_provider` the house and
 team servers use. (Until 2026-09-30 this server read the token once at startup, so it answered every
-decision 401 once that hour-long token lapsed, and a practice match held on every call.)
+decision 401 once that hour-long token lapsed, and a practice match held on every call.) Concurrent
+matches on one server are safe for the token: calls that 401 together share one renewal, and none
+retries on a token too new to be accepted yet (`client.py`, "A NEW TOKEN IS NOT LIVE YET";
+`runs/jev-client-renew-2026-09-30.md`).
 
 Budget: `--budget-usd` (default 0.50) refuses calls once cumulative estimated Jev cost reaches it.
 At Jev's $0.042 per million input tokens a quick practice match (~135 calls x ~500 tokens) costs

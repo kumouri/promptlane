@@ -172,7 +172,7 @@ cadence window. 61 of the 98 came from the two seed-7 matches that ran side by s
 that, matches ran one at a time. Every error was a 401. The server's token provider force-renews
 on each 401 without checking whether another thread has already renewed, so concurrent 401s
 set off a run of renewals: 111 in this run. That is a `tools/jev/client.py` issue, logged under
-follow-ups. It is not a tier issue.
+follow-ups. It is not a tier issue. *(Fixed since: `runs/jev-client-renew-2026-09-30.md`.)*
 
 ## On Jev: what each tier did
 
@@ -430,7 +430,9 @@ where your own wave walks past your own towers.
   schema server, this run logged 111 renewals and 61 unanswered decisions in two matches. The
   arena's practice panel serves concurrent matches on one server, so this matters for the Jam.
   The likely fix is to renew only if the token that 401'd is still the current one. It is not
-  fixed here.
+  fixed here. **Fixed later on 2026-09-30** (`runs/jev-client-renew-2026-09-30.md`). That fix was
+  needed but wasn't the whole story. A brand-new token 401s for up to ~0.5 s, so each renewal
+  caused the next. Two concurrent matches now cost one renewal and zero unanswered decisions.
 - **Violet won all 6 decided medium–hard matches.** Worth a look before any tier ranking leans on
   side-balanced seeds.
 - **Tier picker in the arena UI / ladder**: not built. Today it is config + CLI only. A different
@@ -450,8 +452,9 @@ npm run match -- --a prompts/pilots/house-hard.prose.md --a-schemas runs/house-t
 npm run match -- --verify runs/x.json
 ```
 
-A Jev match took 139–203 s of wall time and about $0.06. Run them one at a time (see the
-`client.py` follow-up).
+A Jev match took 139–203 s of wall time and about $0.06. This run went one at a time because of
+the `client.py` renewal storm. That is fixed now, so matches can share a server
+(`runs/jev-client-renew-2026-09-30.md`).
 
 The earlier qwen run:
 
