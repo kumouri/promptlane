@@ -24,8 +24,9 @@ evolution harness's one-generation smoke on live Jev plus the backend measuremen
 logs `prompt-evolution-smoke-2026-09-30-*.json` beside it), and
 `translator-instrument-scope-2026-09-30.jsonl` (the live compiles behind
 [`translator-guards-and-defaults-spec.md` §10](../docs/translator-guards-and-defaults-spec.md)), and
-[house-tiers-2026-09-30.md](house-tiers-2026-09-30.md) (easy / medium / hard house tiers: nine
-full matches, logs `house-tiers-2026-09-30-*.json` beside it, compile reports
-`house-tiers-compile-*`).
+[house-tiers-2026-09-30.md](house-tiers-2026-09-30.md) (easy / medium / hard house tiers: 42
+full matches on Jev, logs `house-tiers-jev-2026-09-30-*.json` beside it, plus the earlier nine on
+qwen, `house-tiers-2026-09-30-*.json`; compile reports `house-tiers-compile-*`, schemas
+`house-tiers-schemas-*`).
 The bulky captures those documents hash live under ignored `artifacts/<run>-evidence/` and
 `artifacts/<run>-reviewed/`.

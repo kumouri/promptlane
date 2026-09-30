@@ -46,7 +46,7 @@ easy and hard are only played when asked for (`config.house.tier` or `--house-ti
 | medium | ride the wave (above) | recall under 75 → leave a tower without a wave → ability → attack the foe → the tower → ride → home |
 | hard | towers and kills | recall under 90 → leave a tower without a wave → ability on a bearbot under 100 hp → attack that bearbot → the tower if 2+ friendly minions are in sight → the lowest-hp bearbot → the nearest minion → ride → home |
 
-> **Hard is not yet harder than medium.** In its 9 sanity matches (`runs/house-tiers-2026-09-30.md`) the only decided result was medium over hard: off Jev, 32 of its 87 tower attacks targeted its own towers, and it picks fights with full-health drums. Ceryce's ruling 2026-09-30: ship it labelled, and let the prompt-evolution campaign's hard lineage (`docs/prompt-evolution-spec.md`) start from it.
+> **Hard is not yet harder than medium.** On Jev, the Jam's backend, each tier's prose was compiled and played as an entrant's is (`runs/house-tiers-2026-09-30.md`). There, hard and medium are level: 3-3-16 over 22 matches, with 25 towers taken each. Both beat easy 10-0. Hard never hits its own towers on Jev. But it loses more bearbots at enemy towers than medium does (28 to 15 in 32 matches each), because it recalls too late. The timeout tiebreak doesn't count bearbots. On the qwen side files below it was weaker than medium: medium went 1-0-2 against it, and 32 of its 87 tower attacks hit its own towers. Ceryce's ruling 2026-09-30: ship it labelled, and let the prompt-evolution campaign's hard lineage (`docs/prompt-evolution-spec.md`) start from it.
 
 **How easy and hard were written: through the Jev translator, as an entrant writes.** Each tier
 is authored as an entrant-style prose rulebook, `house-<tier>.prose.md`. That prose is compiled
@@ -54,6 +54,8 @@ with `python tools/jev/compile.py … --backend ollama`, the same door-A path an
 compiled cascades and transparency reports are checked in
 (`runs/house-tiers-compile-{easy,hard}-2026-09-30.md`, `runs/house-tiers-schemas-{easy,hard}-2026-09-30.json`;
 the latter in `npm run match --a-schemas` shape, so a tier can also be played on Jev as an entrant is).
+Medium's `house-violet.md` was compiled the same way for the Jev sanity run
+(`runs/house-tiers-{compile,schemas}-medium-2026-09-30.*`); its side files are unchanged.
 `house-<tier>-{violet,green}.md` renders that compiled cascade rule for rule, in the house format
 `qwen3.5:9b` needs: a worksheet, team literals, and the first matching rule wins. Targets follow
 the translator's fixed selector vocabulary: `nearest_enemy` becomes easy's `foe` key or hard's
@@ -77,10 +79,16 @@ with every quoted team literal, the example enemy tower id, and the two base cor
 Evidence (a small-N sanity check, not a rating):
 [`runs/house-tiers-2026-09-30.md`](../../runs/house-tiers-2026-09-30.md).
 
-- 9 full matches at cadence 4: 8 timeout draws, plus medium beating hard once.
-- Easy lost no bearbot and no tower, and never attacked one.
-- **Hard does not beat medium.** 32 of its 87 tower-attack decisions targeted its own towers: the
-  9B model overrides its own `towerteam` check, and the sim doesn't check team on `attack`.
-- Hard's rule 6 also picks fights with full-health drums.
+- **On Jev** (compiled prose, cadence 2, the Jam's shape): 42 full matches. Easy lost all 20 of
+  its matches, each time a timeout with one outer tower down. It lost no bearbot.
+- **Medium vs hard on Jev: 3-3-16** over 22 matches. Every decided match went to the violet side.
+- Hard can't target its own towers on Jev (0 of 3,689 tower attacks). Its remaining weakness is
+  leaving enemy towers too late: 22 of its 28 deaths came after its recall or retreat rule had
+  already fired.
+- **Earlier, on the qwen side files** (cadence 4, 9 matches): 8 timeout draws, and medium beat
+  hard once. Hard aimed 32 of its 87 tower attacks at its own towers. The 9B model overrides its
+  own `towerteam` check, and the sim doesn't check team on `attack`. Hard's rule 6 also picks
+  fights with full-health drums.
 
-Fix both before calling hard "hard"; the follow-ups are in the evidence file.
+Hard needs a real margin over medium before it is called "hard". The follow-ups are in the
+evidence file.
