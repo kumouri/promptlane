@@ -53,8 +53,9 @@ route for that URI" -- use the generic `/ai/run` with `"model"` in the body inst
 
 Long-running servers use `resolve_workers_ai_token_provider` instead of the one-shot
 `resolve_workers_ai_token`: wrangler's OAuth token lives about an hour, so the provider renews it
-before it expires and `WorkersAIClient` retries a 401 once after a forced renewal (see "token
-providers" below).
+before it expires, and `WorkersAIClient` retries a 401 once -- renewing first only if the token that
+failed is still the current, live one, so concurrent 401s cost one renewal, not one each (see
+"token providers" below).
 """
 from __future__ import annotations
 
@@ -224,10 +225,36 @@ def resolve_workers_ai_token(env_var: str = "CLOUDFLARE_API_TOKEN") -> str:
 # ALREADY expired (runs/jev-vs-qwen32b-2026-09-23.md) -- so a long-running server that read the token
 # once at startup started 401ing mid-match. A provider hands `WorkersAIClient` a token per call and
 # renews it before it runs out.
+#
+# A NEW TOKEN IS NOT LIVE YET. Measured 2026-09-30 (runs/jev-client-renew-2026-09-30.md): a freshly
+# minted access token answers 401 for up to ~0.5 s after the exchange returns, while the token it
+# replaced keeps answering 200 until its own expiry. Renewing on every 401 therefore fed itself --
+# each renewal minted a token that 401'd the concurrent calls using it, and each of those 401s forced
+# another renewal (111 renewals and 61 unanswered decisions with two matches on one server, PR #40).
+# So a provider (1) keeps handing out the previous token until the new one is `warmup_sec` old,
+# (2) never renews because of a 401 on a token that is already replaced or is still warming up --
+# it waits out the warm-up and the caller retries with the current token -- and (3) renews at most
+# once at a time per credential file (single-flight: concurrent 401s wait on one lock, then see the
+# token has already changed).
 
 WRANGLER_OAUTH_CLIENT_ID = "54d11594-84e4-41aa-b438-e81b8fa78ee7"  # wrangler's own public client id
 WRANGLER_TOKEN_URL = "https://dash.cloudflare.com/oauth2/token"  # wrangler's default auth domain
 DEFAULT_REFRESH_MARGIN_SEC = 900.0  # one full 600 s jam match + 300 s slack
+DEFAULT_TOKEN_WARMUP_SEC = 2.0  # measured worst case ~0.5 s before a new token answers 200; x4
+TOKEN_LIFETIME_SEC = 3600.0  # what Cloudflare issues; dates a token another process wrote to disk
+PREVIOUS_TOKEN_MIN_LEFT_SEC = 60.0  # hand out the replaced token only if it outlives a call by this
+
+_CREDENTIAL_LOCKS: dict[str, threading.Lock] = {}
+_CREDENTIAL_LOCKS_GUARD = threading.Lock()
+
+
+def _credential_lock(path: Path) -> threading.Lock:
+    """One lock per credential file, shared by every provider in this process that reads it -- so
+    there is only ever one renewal of a given credential in flight here. (Other processes are
+    covered by `_refresh_locked` re-reading the file before exchanging.)"""
+    key = os.path.normcase(str(Path(path).resolve()))
+    with _CREDENTIAL_LOCKS_GUARD:
+        return _CREDENTIAL_LOCKS.setdefault(key, threading.Lock())
 
 
 def _log(msg: str) -> None:
@@ -247,11 +274,11 @@ class StaticToken:
     def token(self) -> str:
         return self._value
 
-    def force_refresh(self) -> str:
+    def force_refresh(self, failed: str | None = None) -> str:
         return self._value
 
     def status(self) -> dict:
-        return {"token_source": self.source, "token_expires_in_sec": None}
+        return {"token_source": self.source, "token_expires_in_sec": None, "token_renewals": 0}
 
 
 def _parse_expiry(value: str | None) -> float | None:
@@ -306,30 +333,65 @@ class WranglerOAuthToken:
 
     Before exchanging, it re-reads the file: another process (wrangler, a sibling server) may have
     renewed already, and exchanging the stale refresh token would then fail. Thread-safe -- the
-    house server is a ThreadingHTTPServer."""
+    house server is a ThreadingHTTPServer -- and single-flight per credential file (see "A NEW TOKEN
+    IS NOT LIVE YET" above for the warm-up handling and why a 401 alone never renews twice)."""
 
     source = "wrangler-oauth"
 
-    def __init__(self, path: Path, margin_sec: float = DEFAULT_REFRESH_MARGIN_SEC, exchange=exchange_refresh_token, clock=time.time):
+    def __init__(
+        self,
+        path: Path,
+        margin_sec: float = DEFAULT_REFRESH_MARGIN_SEC,
+        exchange=exchange_refresh_token,
+        clock=time.time,
+        sleep=time.sleep,
+        warmup_sec: float = DEFAULT_TOKEN_WARMUP_SEC,
+    ):
         self.path = Path(path)
         self.margin_sec = margin_sec
+        self.warmup_sec = warmup_sec
         self._exchange = exchange
         self._clock = clock
-        self._lock = threading.Lock()
+        self._sleep = sleep
+        self._lock = _credential_lock(self.path)
         self._state = self._read()
+        self._previous: dict | None = None  # the token the current one replaced, while still valid
+        self.renewals = 0  # exchanges this provider made
+        self.renewals_avoided = 0  # 401s answered by the current token instead of a new exchange
         if not self._state["oauth_token"]:
             raise SystemExit(f"no oauth_token in {self.path}; run `wrangler login`")
 
     def _read(self) -> dict:
+        expires_at = _parse_expiry(_read_toml_string_value(self.path, "expiration_time"))
         return {
             "oauth_token": _read_toml_string_value(self.path, "oauth_token"),
             "refresh_token": _read_toml_string_value(self.path, "refresh_token"),
-            "expires_at": _parse_expiry(_read_toml_string_value(self.path, "expiration_time")),
+            "expires_at": expires_at,
+            # Not recorded on disk; Cloudflare issues hour-long tokens, so the expiry dates it. A
+            # token another process minted a moment ago therefore counts as warming up here too.
+            "minted_at": None if expires_at is None else expires_at - TOKEN_LIFETIME_SEC,
         }
 
     def _expiring(self, state: dict) -> bool:
         # No recorded expiry -> treat as expiring, so we renew rather than trust an unknown.
         return state["expires_at"] is None or state["expires_at"] - self._clock() < self.margin_sec
+
+    def _warming(self, state: dict) -> bool:
+        return state["minted_at"] is not None and self._clock() - state["minted_at"] < self.warmup_sec
+
+    def _adopt(self, new: dict) -> None:
+        """Make `new` current, keeping the one it replaces as `_previous` to hand out while `new`
+        warms up (the replaced token still answers 200 until its own expiry)."""
+        if new["oauth_token"] != self._state["oauth_token"]:
+            self._previous = self._state
+        self._state = new
+
+    def _wait_until_live(self, state: dict) -> None:
+        if state["minted_at"] is None:
+            return
+        left = state["minted_at"] + self.warmup_sec - self._clock()
+        if left > 0:
+            self._sleep(left)
 
     def _write(self, state: dict, scope: str | None) -> None:
         values = {
@@ -357,11 +419,11 @@ class WranglerOAuthToken:
     def _refresh_locked(self, reason: str, force: bool) -> None:
         disk = self._read()
         if disk["oauth_token"] and disk["oauth_token"] != self._state["oauth_token"] and not self._expiring(disk):
-            self._state = disk
+            self._adopt(disk)
             _log(f"picked up a token another process renewed ({reason}); expires in {self.expires_in():.0f}s")
             return
         if not force and not self._expiring(disk):
-            self._state = disk
+            self._adopt(disk)
             return
         if not disk["refresh_token"]:
             raise SystemOneError(f"cannot renew: no refresh_token in {self.path}; run `wrangler login`")
@@ -370,18 +432,21 @@ class WranglerOAuthToken:
         except SystemOneError:
             again = self._read()  # lost a race with another renewer? its fresh pair is on disk now
             if again["oauth_token"] != disk["oauth_token"] and not self._expiring(again):
-                self._state = again
+                self._adopt(again)
                 _log(f"renewal raced another process; using its token ({reason})")
                 return
             _log(f"!!! TOKEN RENEWAL FAILED ({reason}) -- run `npx wrangler login`")
             raise
+        now = self._clock()
         new = {
             "oauth_token": payload["access_token"],
             "refresh_token": payload.get("refresh_token") or disk["refresh_token"],
-            "expires_at": self._clock() + float(payload.get("expires_in", 3600)),
+            "expires_at": now + float(payload.get("expires_in", TOKEN_LIFETIME_SEC)),
+            "minted_at": now,
         }
         self._write(new, payload.get("scope"))
-        self._state = new
+        self._adopt(new)
+        self.renewals += 1
         _log(f"renewed wrangler oauth token ({reason}); expires in {self.expires_in():.0f}s")
 
     def expires_in(self) -> float | None:
@@ -389,21 +454,44 @@ class WranglerOAuthToken:
         return None if exp is None else exp - self._clock()
 
     def token(self) -> str:
+        """The token to send now. Renews first if inside the margin; while a new token is still
+        warming up, hands out the one it replaced if that has life left, else waits the warm-up out
+        (outside the lock, so other callers are not held up by the wait)."""
         with self._lock:
             if self._expiring(self._state):
                 left = self.expires_in()
                 self._refresh_locked(f"expires in {left:.0f}s < margin {self.margin_sec:.0f}s" if left is not None else "no expiry recorded", force=False)
-            return self._state["oauth_token"]
+            state, previous = self._state, self._previous
+        if self._warming(state):
+            if previous is not None and previous["expires_at"] is not None and previous["expires_at"] - self._clock() > PREVIOUS_TOKEN_MIN_LEFT_SEC:
+                return previous["oauth_token"]
+            self._wait_until_live(state)
+        return state["oauth_token"]
 
-    def force_refresh(self) -> str:
+    def force_refresh(self, failed: str | None = None) -> str:
+        """Called after a 401 on `failed`. Renews only if `failed` is still the current token and
+        is past its warm-up; otherwise the 401 is already answered -- by a renewal another call made
+        (single-flight: this call waited on the lock for it) or by the warm-up still running -- and
+        the current token comes back once it is live. `failed=None` (no token known) always renews."""
         with self._lock:
-            self._refresh_locked("forced after a 401", force=True)
-            return self._state["oauth_token"]
+            if failed is not None and failed != self._state["oauth_token"]:
+                self.renewals_avoided += 1
+                if failed == (self._previous or {}).get("oauth_token"):
+                    self._previous = None  # it 401'd: stop handing it out during a warm-up
+            elif failed is not None and self._warming(self._state):
+                self.renewals_avoided += 1
+                _log(f"401 on a token minted {self._clock() - self._state['minted_at']:.1f}s ago -- still warming up, not renewing")
+            else:
+                self._refresh_locked("forced after a 401", force=True)
+                self._previous = None  # the token it replaced was just rejected
+            state = self._state
+        self._wait_until_live(state)
+        return state["oauth_token"]
 
     def status(self) -> dict:
         with self._lock:
             left = self.expires_in()
-        return {"token_source": self.source, "token_expires_in_sec": None if left is None else round(left)}
+        return {"token_source": self.source, "token_expires_in_sec": None if left is None else round(left), "token_renewals": self.renewals}
 
 
 def resolve_workers_ai_token_provider(env_var: str = "CLOUDFLARE_API_TOKEN", margin_sec: float = DEFAULT_REFRESH_MARGIN_SEC):
@@ -427,7 +515,8 @@ class WorkersAIClient:
 
     `api_token` is a plain string or a token provider (`StaticToken`/`WranglerOAuthToken`). The
     token is fetched per call, so a provider can renew it before it expires; a 401 anyway (revoked,
-    clock skew) forces one renewal and one retry before the error propagates."""
+    clock skew, a new token not live yet) hands the failed token to `force_refresh`, which renews
+    only if no other call already has, and the call retries once before the error propagates."""
 
     def __init__(
         self,
@@ -459,13 +548,14 @@ class WorkersAIClient:
 
     def ask(self, state, questions: list) -> dict:
         body = build_workers_ai_body(state, questions, self.model)
+        token = self.tokens.token()
         try:
-            payload = self._post(body, self.tokens.token())
+            payload = self._post(body, token)
         except SystemOneError as err:
             if err.status != 401:
                 raise
-            _log("workers-ai answered 401 -- forcing a token renewal and retrying once")
-            payload = self._post(body, self.tokens.force_refresh())
+            _log("workers-ai answered 401 -- retrying once with the current token (renewed only if no other call has)")
+            payload = self._post(body, self.tokens.force_refresh(token))
         return unwrap_workers_ai_response(payload)
 
 

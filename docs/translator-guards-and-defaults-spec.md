@@ -730,7 +730,10 @@ gateway configuration, or spend/rate limit was changed, and nothing was purchase
    header, complete body) was visible on failure instead of the 300-char truncated detail
    `SystemOneError` normally keeps. First call: `401 Unauthorized`, Cloudflare error
    `{"code":10000,"message":"Authentication error"}` — happening immediately after the token provider
-   force-renewed a wrangler OAuth token that had fallen inside its 900s expiry margin. A second call
+   force-renewed a wrangler OAuth token that had fallen inside its 900s expiry margin. *(Explained
+   2026-09-30: Cloudflare 401s a freshly minted token for up to ~0.5 s, so this 401 was the new
+   token not being live yet; `client.py` now waits that out. See
+   `runs/jev-client-renew-2026-09-30.md`.)* A second call
    ~20s later (after an unrelated `npx wrangler whoami`) returned a clean `200` with
    `"gatewayMetadata":{"keySource":"Unified"}`; two more back-to-back calls both returned clean
    `200`s too. **The 402 did not reproduce even once across four live attempts spanning two separate

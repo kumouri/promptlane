@@ -10,7 +10,7 @@ Jev has no `prompt` field). This server's contract is different by design:
 
     GET  /health   -> {"ok": true, "backend": "jev-house", "model": ..., "requests", "errors",
                         "fallbacks", "last_fallback_error", "avg_seconds", "tokens_in", "cost_usd",
-                        "budget_usd", "token_source", "token_expires_in_sec"}
+                        "budget_usd", "token_source", "token_expires_in_sec", "token_renewals"}
     POST /         body: {"hp", "wave", "tower", "foe", "cd", "instrument", "team", "tick",
                            "clockSec", "foeKind"?, "foeHp"?} -- exactly `rules.Worksheet`'s fields,
                            camelCase on the wire (the caller is TypeScript), snake_case once parsed
@@ -21,13 +21,15 @@ Jev has no `prompt` field). This server's contract is different by design:
                    -> 400 {"error": "..."} only for a malformed worksheet.
 
 THE HOUSE BOT NEVER STOPS PLAYING. If Jev can't answer -- a transport error, a 401 that survived
-the client's forced token renewal, or the `--budget-usd` cap -- this server decides with
+the client's one retry on a renewed token, or the `--budget-usd` cap -- this server decides with
 house-violet.md's seven rules evaluated in code (`rules.ground_truth_answers`, exact rule 3) and
 returns 200 with `"fallback": "rules-in-code"`. Every fallback is logged to stderr with `!!!` and
 counted in `/health`, and the first successful Jev call afterwards logs `RECOVERED`. Tokens come
 from `client.resolve_workers_ai_token_provider`: `$CLOUDFLARE_API_TOKEN` if set, else wrangler's
-OAuth token, renewed `--refresh-margin-sec` (default 900 = one 600 s match + slack) before expiry.
-`--check-token` renews if needed, prints the token's source and time left, and exits.
+OAuth token, renewed `--refresh-margin-sec` (default 900 = one 600 s match + slack) before expiry
+-- once per credential however many calls 401 together (`client.py`, "A NEW TOKEN IS NOT LIVE
+YET"), so `token_renewals` should climb about once an hour. `--check-token` renews if needed,
+prints the token's source and time left, and exits.
 
 Rule 3 is exact here (2026-09-25): `tools/match/jevPilot.ts` sends the foe's real kind and hp, so
 q3 asks house-violet.md's real violin/drums condition ("foe is a bearbot under 100 hp") instead of

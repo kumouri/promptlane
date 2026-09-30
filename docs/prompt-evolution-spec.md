@@ -450,6 +450,11 @@ question, the default is still the recommendation until she rules.
   the hour-long OAuth token lapsed. With a lapsed token, every decision in a practice match, and in
   any Jev match in the Jam's shape, would hold. Fixed separately in **PR #36**, merged 2026-09-30:
   it now uses the self-renewing provider the house and team servers already use.
+- **Concurrent matches on one schema server set off a token-renewal storm.** Every 401 forced its
+  own renewal. A brand-new token 401s for its first ~0.5 s, so each renewal caused the next. Fixed
+  in `tools/jev/client.py` (one renewal per credential, no retry on a token still warming up); see
+  `runs/jev-client-renew-2026-09-30.md`. This removes the token obstacle to parallel matches. It
+  does not measure Workers AI throughput, so "Concurrency is unmeasured" (§7) still stands.
 - **Per-instrument clauses leak across instruments in the translator.** Compiling `house-violet.md`
   ("keytar only: …, violin only: …, drums only: …") put a `keytar_ready → chord` rule into the
   **drums** schema, and it fired 2 times in ~900 decisions. Fixed in **PR #39**. The rate was far
