@@ -26,6 +26,8 @@ jobs:
           npm run match -- --verify artifacts/ci-smoke.json
       - name: Arena unit + headless end-to-end (mock model)
         run: npm run test:arena
+      - name: Prompt-evolution harness (fakes + a fake schema server; no model)
+        run: npm run test:evolve
   fixture:
     name: Fixture protocol (${{ matrix.os }})
     strategy:
