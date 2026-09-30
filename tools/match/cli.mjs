@@ -5,11 +5,19 @@
  *   npm run match -- --a entrants/alice/pilot.md --b entrants/bob/pilot.md --seed 7 --out runs/alice-vs-bob.json
  *   npm run match -- --a prompts/pilots/drums.md --b prompts/pilots/keytar.md --model mock --out artifacts/smoke.json
  *   npm run match -- --verify runs/alice-vs-bob.json
+ *   npm run match -- --a alice.md --a-schemas alice.compiled.json --b bob.md --b-schemas bob.compiled.json \
+ *       --jev-schema http://127.0.0.1:8797/ --seed 7 --out runs/alice-vs-bob-jev.json
  *
  * Side A is violet, side B is green. Each side's prompt drives all three of its bearbots
  * (drums top, keytar mid, violin bottom) through the game's own `PromptPilot`, talking to the model
  * through the game's HTTP adapter contract (`POST {prompt}` → `{reply}`), served by
  * `tools/model_server.py`. The sim in `src/` is bundled unchanged; see headless.ts for lockstep.
+ *
+ * The Jam's own shape (ruling 2026-09-25: entrants run on Jev) is `--a-schemas`/`--b-schemas` plus
+ * `--jev-schema`: that side's bearbots decide on the rule cascade its prose compiled to
+ * (`tools/jev/compile.py`), asked of Jev by `tools/jev/schema_server.py` through
+ * `jevSchemaPilot.ts` — the same pilot the arena's practice match uses. `--a`/`--b` still name the
+ * prose, which the log keeps as the side's prompt text.
  */
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -31,6 +39,9 @@ options:
   --timeout SEC       per-call HTTP timeout; a timed-out call counts as hold (default 60)
   --max-sim-sec SEC   stop early at this sim clock (quick test: 180); the log says "unfinished"
   --name-a / --name-b display names (default: entrant folder or file stem)
+  --a-schemas FILE    side A plays its COMPILED prose on Jev: compile.py --format json output, or
+  --b-schemas FILE    {"drums":…,"keytar":…,"violin":…}; needs --jev-schema
+  --jev-schema URL    tools/jev/schema_server.py endpoint for the schema sides (the Jam backend)
   --quiet             no progress lines`;
 
 function parseArgs(argv) {
@@ -53,6 +64,9 @@ function parseArgs(argv) {
       case '--max-sim-sec': args.maxSimSec = Number(next()); break;
       case '--name-a': args.nameA = next(); break;
       case '--name-b': args.nameB = next(); break;
+      case '--a-schemas': args.aSchemas = next(); break;
+      case '--b-schemas': args.bSchemas = next(); break;
+      case '--jev-schema': args.jevSchema = next(); break;
       case '--verify': args.verify = next(); break;
       case '--quiet': args.quiet = true; break;
       case '-h': case '--help': args.help = true; break;
@@ -60,6 +74,24 @@ function parseArgs(argv) {
     }
   }
   return args;
+}
+
+const INSTRUMENTS = ['drums', 'keytar', 'violin'];
+
+/**
+ * One schema per instrument from a `--a-schemas`/`--b-schemas` file: either `compile.py --format
+ * json` output (first prompt; every instrument must have compiled, as for the arena's practice
+ * match) or a bare `{drums, keytar, violin}` map.
+ */
+function schemasFromJson(data, file = 'schemas') {
+  const entries = data?.prompts?.[0]?.instruments;
+  const out = {};
+  for (const inst of INSTRUMENTS) {
+    const s = entries ? (entries[inst]?.ok ? entries[inst].schema : null) : data?.[inst];
+    if (!s || !Array.isArray(s.rules)) throw new Error(`${file}: no compiled schema for ${inst}`);
+    out[inst] = s;
+  }
+  return out;
 }
 
 /** `entrants/alice/pilot.md` → alice; `prompts/pilots/drums.md` → drums. */
@@ -105,9 +137,31 @@ async function main() {
   };
   const outFile = args.out ?? path.join('runs', `${sides.violet.name}-vs-${sides.green.name}-seed${args.seed}.json`);
 
+  const schemaFiles = { violet: args.aSchemas, green: args.bSchemas };
+  const schemas = {};
+  for (const team of ['violet', 'green']) {
+    if (!schemaFiles[team]) continue;
+    schemas[team] = schemasFromJson(JSON.parse(await readFile(schemaFiles[team], 'utf8')), schemaFiles[team]);
+    sides[team].schemaFile = schemaFiles[team];
+    sides[team].schemas = schemas[team];
+  }
+  const schemaTeams = Object.keys(schemas);
+  if (schemaTeams.length && !args.jevSchema) throw new Error('--a-schemas/--b-schemas need --jev-schema <schema_server URL>');
+  if (args.jevSchema && !schemaTeams.length) throw new Error('--jev-schema needs --a-schemas and/or --b-schemas');
+  const jevBackend = args.jevSchema ? await probeBackend(args.jevSchema) : null;
+  const decisionPilotFor = jevBackend
+    ? (_i, team) =>
+        schemas[team] ? headless.jevSchemaTracingPilot({ endpoint: args.jevSchema, timeoutSec: args.timeout, schemas: schemas[team] }) : undefined
+    : undefined;
+
   let backend;
   let callModelFor;
-  if (args.model === 'mock') {
+  if (schemaTeams.length === 2) {
+    backend = jevBackend; // no prompt side: nothing asks the model server
+    callModelFor = () => {
+      throw new Error('unreachable: every bearbot plays a compiled schema');
+    };
+  } else if (args.model === 'mock') {
     backend = { kind: 'mock' };
     callModelFor = (i) => headless.mockCallModel(100 + i);
   } else if (args.model) {
@@ -118,6 +172,7 @@ async function main() {
     const call = httpCallModel(endpoint, args.timeout);
     callModelFor = () => call;
   }
+  if (jevBackend && backend !== jevBackend) backend = { ...backend, jevSchema: jevBackend };
 
   if (!args.quiet) {
     console.error(`match: ${sides.violet.name} (violet) vs ${sides.green.name} (green) seed=${args.seed} cadence=${args.cadence}s backend=${backendLabel(backend)}`);
@@ -127,6 +182,7 @@ async function main() {
     seed: args.seed,
     sides,
     callModelFor,
+    decisionPilotFor,
     cadenceSec: args.cadence,
     maxSimSec: args.maxSimSec,
     backend,
