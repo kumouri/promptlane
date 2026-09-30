@@ -60,6 +60,12 @@ One cadence, one compile per tier.
 - **Verified.** Every log is replay-verified (`npm run match -- --verify`, 120/120 checkpoints).
   Each log keeps the prose as the side's `promptText` and the compiled cascade under
   `sides.<team>.schemas`.
+- **Logs.** Not in git: all 55 logs named in this file (the 44 Jev ones here, the 11 qwen ones
+  below; 62.3 MB) are in
+  [`house-tiers-match-logs-2026-09-30.zip`](https://github.com/kumouri/promptlane/releases/download/data-house-tiers-2026-09-30/house-tiers-match-logs-2026-09-30.zip)
+  on the [`data-house-tiers-2026-09-30`](https://github.com/kumouri/promptlane/releases/tag/data-house-tiers-2026-09-30)
+  release, under their `runs/` paths with a `SHA256SUMS`. Unzip at the repo root, then
+  `npm run match -- --verify runs/<log>.json`.
 - **Timeout rules** (`match.ts decideByTiebreak`): more towers alive wins, then more nexus hp,
   else a draw.
 
@@ -288,7 +294,8 @@ timeout draws, easy lost nothing, and hard hit its own towers on 32 of 87 tower 
 - Cadence 4 is the arena's quick-test cadence. The ladder runs cadence 2, which was not measured
   here.
 - Every log is replay-verified (`npm run match -- --verify`, 120/120 checkpoints). Its
-  `promptText` equals the checked-in side file.
+  `promptText` equals the checked-in side file. The logs, the two rejected-version logs below
+  included, are in the release zip (**Logs**, in the Jev method above).
 - Timeout rules (`match.ts decideByTiebreak`): more towers alive wins, then more nexus hp, else a
   draw.
 
@@ -391,11 +398,11 @@ Each change below is one entrant-style edit prompted by a probe. None is a stat 
 | version | probe | what it showed | change |
 |---|---|---|---|
 | easy prose v1 | compile only | "no matter what" promoted the tower rule above recall; violin failed to compile | reworded (above) |
-| easy render v1 (`tower` from `visibleEnemies`, like medium) | full match, seed 7 vs medium: [`house-tiers-2026-09-30-rejected-easy-v1-vs-medium-seed7.json`](house-tiers-2026-09-30-rejected-easy-v1-vs-medium-seed7.json) | wrote its *own* tower as `tower` 231 times in 438 calls (the example reply's `tw-9` is violet's own tower), so the unconditional leash kept it home all match: 437 `move`, 1 `attack`, mean position 0.04 | `tower` from `nearbyTowers` by the enemy team literal; each side's example names an enemy tower. Probe after: own 7, enemy 15 |
+| easy render v1 (`tower` from `visibleEnemies`, like medium) | full match, seed 7 vs medium: `house-tiers-2026-09-30-rejected-easy-v1-vs-medium-seed7.json` (release zip) | wrote its *own* tower as `tower` 231 times in 438 calls (the example reply's `tw-9` is violet's own tower), so the unconditional leash kept it home all match: 437 `move`, 1 `attack`, mean position 0.04 | `tower` from `nearbyTowers` by the enemy team literal; each side's example names an enemy tower. Probe after: own 7, enemy 15 |
 | hard prose v1 (`push_lane` default) | 180 s quick, seed 7 vs medium (log overwritten by the next probe; numbers from the session) | all three hard bearbots dead by 26.4 s: with no wave yet, the default walked them at the enemy nexus; at cadence 4 they crossed the 390 px `nearbyTowers` warning between decisions | prose now ends in a `home` fallback (three compiles, above) |
 | hard render v2 (`tower` from `nearbyTowers`, no team check) | 180 s quick, seed 7 vs medium (log overwritten) | own tower as `tower` 47 times vs 6 enemy; 19 tower attacks; violet lost 738 tower hp in 3 min | added `towerteam` (the shipped v3) |
 | **hard render v3 (`towerteam`)** | **the 6 matches above** | **32/87 own-tower attacks** | **shipped as-is, with this caveat** |
-| hard render v4 (`tower` from `visibleEnemies` exactly as medium, no `towerteam`) | 180 s quick, seed 42, hard as green: [`house-tiers-2026-09-30-rejected-hard-v4-quick-medium-vs-hard-seed42.json`](house-tiers-2026-09-30-rejected-hard-v4-quick-medium-vs-hard-seed42.json) | worse: own tower as `tower` 120 times vs 9 enemy; **29 of 31** tower attacks on its own towers; green lost 1,280 tower hp in 3 minutes | reverted to v3 |
+| hard render v4 (`tower` from `visibleEnemies` exactly as medium, no `towerteam`) | 180 s quick, seed 42, hard as green: `house-tiers-2026-09-30-rejected-hard-v4-quick-medium-vs-hard-seed42.json` (release zip) | worse: own tower as `tower` 120 times vs 9 enemy; **29 of 31** tower attacks on its own towers; green lost 1,280 tower hp in 3 minutes | reverted to v3 |
 
 So medium's own `tower` definition is not what keeps medium off its own towers (2/84). Hard's
 rule 5 is: an attack-the-tower rule gated only on "friendly minions near" also fires at home,
