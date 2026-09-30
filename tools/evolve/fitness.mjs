@@ -3,7 +3,8 @@
  * rating rule: a match is scored by the Jam's own advancement order (`rating.mjs::bracketWinner`,
  * ruling Q7) and Elo is the arena's (`rating.mjs::eloUpdate`, K 32, the bar fixed at 1000 the way
  * the house bot is). What this file adds is the statistics the arena never needed: seed-paired
- * means with a bootstrap interval, the promotion test, and behaviour descriptors read off the logs.
+ * means with a bootstrap interval, the promotion test, and behaviour descriptors read off the logs
+ * and the observations a replay of them recovers.
  */
 import { ELO_START, bracketWinner, eloUpdate } from '../arena/rating.mjs';
 import { finalFromLog } from '../arena/queue.mjs';
@@ -35,22 +36,64 @@ function parseReply(reply) {
 }
 
 /**
+ * Descriptor weights, Ceryce's design (ruled 2026-09-30 02:08 CT; spec §3). Pressing in is
+ * weight 1 at or above half hp and doubles for every 10 points below it; backing off is weight 1
+ * at or below half hp and doubles for every 10 points above it. So the hurt bot that still charges
+ * and the healthy bot that still runs are what move the numbers.
+ */
+export const towardWeight = (hpPct) => 2 ** (Math.max(0, 50 - hpPct) / 10);
+export const awayWeight = (hpPct) => 2 ** (Math.max(0, hpPct - 50) / 10);
+
+function positionOf(obs, target) {
+  if (target && typeof target === 'object') return target;
+  if (typeof target !== 'string') return null;
+  const all = [...obs.visibleEnemies, ...obs.allies, ...obs.nearbyMinions, ...obs.nearbyTowers];
+  return all.find((e) => e.id === target)?.pos ?? null;
+}
+
+/**
+ * Whether a move closes on or opens from the nearest enemy bearbot in the bot's OWN observation
+ * (fog included: what its pilot saw when it chose). 'toward' / 'away' by the sign of the move's
+ * direction against the direction to that bear; null when it isn't a move, no enemy bear is in
+ * vision, or the move goes nowhere.
+ */
+export function moveBearing(obs, action) {
+  if (action?.kind !== 'move' || !obs) return null;
+  const me = obs.self.pos;
+  const bears = obs.visibleEnemies.filter((e) => e.kind === 'bearbot');
+  if (!bears.length) return null;
+  const to = positionOf(obs, action.target);
+  if (!to) return null;
+  const near = bears.reduce((a, b) => (Math.hypot(b.pos.x - me.x, b.pos.y - me.y) < Math.hypot(a.pos.x - me.x, a.pos.y - me.y) ? b : a));
+  const dot = (to.x - me.x) * (near.pos.x - me.x) + (to.y - me.y) * (near.pos.y - me.y);
+  return dot > 0 ? 'toward' : dot < 0 ? 'away' : null;
+}
+
+/**
  * What one side did in one match: the score, the sim's stats, which compiled rule fired how often
  * per instrument (jevSchemaPilot's reply is `{rule, action, answers, ms}`), and descriptors —
- *   aggression: share of real decisions that are attack or ability,
- *   recallRate: share that are recall,
+ *   aggression: attack and ability decisions, plus moves toward an enemy bearbot in the bot's own
+ *               vision, each weighted towardWeight(hp%), summed and divided by real decisions;
+ *   caution:    recall decisions, plus moves away from an enemy bearbot in vision, each weighted
+ *               awayWeight(hp%), summed and divided by real decisions;
  *   spread:     mean pairwise distance between the side's living bearbots over the checkpoints
  *               (small = the band moves together).
- * Descriptors are recorded for every genome but select nothing in v0 (spec §6, proposal a).
+ * aggression and caution are weighted rates, not 0–1 shares; the tier margins are in units of the
+ * reference panel's own standard deviation (spec §5.2), so their scale doesn't matter. They need
+ * `observations` — one per log decision, in log order, from a replay (adapters.mjs::makeObserve)
+ * — and are null without them, since hp and vision are not in the log.
  */
-export function summarizeSide(log, team) {
+export function summarizeSide(log, team, observations = null) {
   const { score, by } = jamScore(log, team);
   const kinds = { move: 0, attack: 0, ability: 0, recall: 0, hold: 0 };
+  const moves = { toward: 0, away: 0 };
   const rules = { drums: {}, keytar: {}, violin: {} };
   let real = 0;
   let errors = 0;
-  for (const d of log.decisions) {
-    if (d.cached || !BOTS[team].includes(d.bot)) continue;
+  let aggression = 0;
+  let caution = 0;
+  log.decisions.forEach((d, i) => {
+    if (d.cached || !BOTS[team].includes(d.bot)) return;
     real += 1;
     const kind = d.action?.kind ?? 'hold';
     kinds[kind] = (kinds[kind] ?? 0) + 1;
@@ -61,7 +104,15 @@ export function summarizeSide(log, team) {
       const rule = parsed.rule ?? 'default';
       rules[inst][rule] = (rules[inst][rule] ?? 0) + 1;
     }
-  }
+    const obs = observations?.[i];
+    if (!obs) return;
+    const hpPct = (100 * obs.self.hp) / obs.self.maxHp;
+    const bearing = moveBearing(obs, d.action);
+    if (bearing) moves[bearing] += 1;
+    if (kind === 'attack' || kind === 'ability' || bearing === 'toward') aggression += towardWeight(hpPct);
+    if (kind === 'recall' || bearing === 'away') caution += awayWeight(hpPct);
+  });
+  const observed = !!observations && real > 0;
   let spreadSum = 0;
   let spreadN = 0;
   for (const c of log.checkpoints) {
@@ -100,10 +151,11 @@ export function summarizeSide(log, team) {
     nullActions: errors, // decisions that held because the call or the parse failed
     callErrors: s[team].callErrors ?? 0,
     kinds,
+    moves, // moves toward / away from an enemy bearbot in vision (zero without observations)
     rules,
     descriptors: {
-      aggression: real ? r3((kinds.attack + kinds.ability) / real) : null,
-      recallRate: real ? r3(kinds.recall / real) : null,
+      aggression: observed ? r3(aggression / real) : null,
+      caution: observed ? r3(caution / real) : null,
       spread: spreadN ? Math.round(spreadSum / spreadN) : null,
     },
   };
@@ -189,7 +241,7 @@ export function eloFold(matches, opponents) {
 /** Descriptor averages over a genome's matches (nulls skipped). */
 export function meanDescriptors(summaries) {
   const out = {};
-  for (const key of ['aggression', 'recallRate', 'spread']) {
+  for (const key of ['aggression', 'caution', 'spread']) {
     const xs = summaries.map((s) => s.descriptors[key]).filter((x) => x !== null && x !== undefined);
     out[key] = xs.length ? Math.round(mean(xs) * 1000) / 1000 : null;
   }

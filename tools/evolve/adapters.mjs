@@ -8,12 +8,15 @@
  *              `tools/jev/schema_server.py` — the Jam's own shape (ruling 2026-09-25)
  *   mutate     `tools/evolve/mutate.py` over `tools/jev/llm_backends.py` (claude / ollama /
  *              openrouter), prompt on stdin, one JSON outcome on stdout
+ *   observe    `tools/match/headless.ts::verifyReplay` (`npm run match -- --verify`'s replay),
+ *              recovering what each pilot saw at each decision for the descriptors
  */
 import { spawn } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { COMPILE_DEFAULTS, spawnCompile } from '../arena/compile.mjs';
+import { flush, loadHeadless } from '../match/load.mjs';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PYTHON = process.platform === 'win32' ? 'python' : 'python3';
@@ -80,6 +83,21 @@ export function makePlayMatch(campaign) {
   };
 }
 
+/**
+ * The observation behind every decision in a log, in log order (null for none), by replaying it
+ * through the unchanged sim. The log keeps actions, not what the pilot saw, and the descriptors
+ * need its hp and its fogged view of enemy bearbots. A replay that diverges from its own
+ * checkpoints would describe a different match, so it returns null and the descriptors stay null.
+ */
+export function makeObserve() {
+  return async (log) => {
+    const headless = await loadHeadless();
+    const seen = new Map();
+    const v = await headless.verifyReplay(log, flush, (decision, obs) => seen.set(decision, obs));
+    return v.ok ? log.decisions.map((d) => seen.get(d) ?? null) : null;
+  };
+}
+
 export function makeMutate(campaign) {
   const m = campaign.mutation;
   return async ({ parentText, focus, diagnostics, avoid }) => {
@@ -98,5 +116,5 @@ export function makeMutate(campaign) {
 }
 
 export function realDeps(campaign) {
-  return { compile: makeCompile(campaign), playMatch: makePlayMatch(campaign), mutate: makeMutate(campaign) };
+  return { compile: makeCompile(campaign), playMatch: makePlayMatch(campaign), mutate: makeMutate(campaign), observe: makeObserve() };
 }

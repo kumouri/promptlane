@@ -11,7 +11,8 @@
  *   rate     seed-paired mean score + bootstrap interval (decides), arena Elo (reported)
  *   select   the top `population.parents` survive (parents compete with their children)
  *   epoch    on the epoch's last generation: the best non-opponent plays held-out seeds, and
- *            replaces the opponents only if it passes the pre-registered promotion test
+ *            joins the opponents (hall of fame, the last `hallOfFameCap` champions; the default)
+ *            or replaces them ('latest') only if it passes the pre-registered promotion test
  *
  * Every step persists before the next starts and every artifact is content-addressed (store.mjs),
  * so killing the process anywhere and running it again redoes nothing that finished: no second
@@ -21,6 +22,9 @@
  *   mutate({parentText, focus, diagnostics, avoid, slot})  -> {ok, prose?, change?, error?, usage?}
  *   compile(text, {id})                                     -> compile.py JSON (`prompts[0].instruments`)
  *   playMatch({violet, green, seed, shape, out})           -> match log (and writes it to `out`)
+ *   observe(log)                                            -> one observation per log decision, from a
+ *                                                              replay (optional: without it the hp/vision
+ *                                                              descriptors are null)
  */
 import { validatePromptText } from '../arena/prompts.mjs';
 import { eloFold, fitnessOf, meanDescriptors, promotionDecision, summarizeSide, sumRules } from './fitness.mjs';
@@ -47,7 +51,8 @@ export const DEFAULT_CAMPAIGN = {
   shape: { cadenceSec: 2, maxSimSec: 600 },
   evaluation: { seedsPerEpoch: 4 },
   population: { parents: 2, childrenPerParent: 2 },
-  epoch: { generations: 3, opponents: 'latest', promotionSeeds: 16, confidence: 0.95 },
+  // hall of fame capped at the last 3 champions: ruled 2026-09-30 01:50 CT (spec §10 Q2)
+  epoch: { generations: 3, opponents: 'hall-of-fame', hallOfFameCap: 3, promotionSeeds: 16, confidence: 0.95 },
   mutation: { backend: 'claude', model: null, maxSentenceChanges: 3, attempts: 3, maxTotalTokens: 30000 },
   compile: { backend: 'openrouter', model: null, maxTokensPerCompile: 20000 },
   jevSchemaEndpoint: 'http://127.0.0.1:8797/',
@@ -73,6 +78,8 @@ export function initCampaign(store, { name, overrides = {}, seedPrompts }) {
   campaign.name = name;
   campaign.createdAt = new Date().toISOString();
   if (!['latest', 'hall-of-fame'].includes(campaign.epoch.opponents)) throw new Error('epoch.opponents is "latest" or "hall-of-fame"');
+  const cap = campaign.epoch.hallOfFameCap;
+  if (cap !== null && cap !== undefined && !(Number.isInteger(cap) && cap >= 1)) throw new Error('epoch.hallOfFameCap is a whole number >= 1, or null for no cap');
   const ids = seedPrompts.map(({ file, text }) => {
     const problems = validatePromptText(text);
     if (problems.length) throw new Error(`seed prompt ${file}: ${problems.join('; ')}`);
@@ -216,8 +223,9 @@ async function playAll(store, deps, plan, shape, log) {
         shape,
         out: store.path('matches', `${m.key}.json`),
       });
-      const v = summarizeSide(matchLog, 'violet');
-      const g = summarizeSide(matchLog, 'green');
+      const observations = deps.observe ? await deps.observe(matchLog) : null;
+      const v = summarizeSide(matchLog, 'violet', observations);
+      const g = summarizeSide(matchLog, 'green', observations);
       result = { key: m.key, violet: m.violet, green: m.green, seed: m.seed, shape, violetScore: v.score, sides: { violet: v, green: g } };
       store.writeJson(resultRel, result);
       log(`    -> violet ${v.score} (${v.by}), deaths ${v.deaths}-${g.deaths}, towers lost ${v.towersLost}-${g.towersLost}`);
@@ -258,7 +266,9 @@ function nextStateFrom(state, gen, campaign) {
   if (gen.promotion) {
     next.epoch = state.epoch + 1;
     if (gen.promotion.promote) {
-      next.opponents = campaign.epoch.opponents === 'latest' ? [gen.promotion.id] : [...state.opponents, gen.promotion.id];
+      next.opponents = campaign.epoch.opponents === 'latest'
+        ? [gen.promotion.id]
+        : [...state.opponents, gen.promotion.id].slice(-(campaign.epoch.hallOfFameCap ?? Infinity));
       next.champions = [...state.champions, { id: gen.promotion.id, epoch: next.epoch, generation: gen.generation, reason: gen.promotion.reason }];
     }
   }
