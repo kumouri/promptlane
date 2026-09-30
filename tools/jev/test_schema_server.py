@@ -137,18 +137,30 @@ class TokenTests(unittest.TestCase):
 
 
 class JevBackendTests(unittest.TestCase):
-    """`--jev-backend`: workers-ai stays the default; typesafe needs a key and no token provider."""
+    """`--jev-backend`: typesafe is the default (ruling 2026-09-30 08:34 CT), with Workers AI behind
+    it; `--no-jev-fallback` gives the bare TypeSafe client, which needs no token provider."""
 
-    def test_default_is_workers_ai(self):
-        self.assertEqual(schema_server.parse_args([]).jev_backend, "workers-ai")
+    def test_default_is_typesafe(self):
+        self.assertEqual(schema_server.parse_args([]).jev_backend, "typesafe")
 
-    def test_typesafe_uses_the_api_key_and_never_a_token_provider(self):
+    def test_typesafe_without_the_fallback_never_needs_a_token_provider(self):
         with mock.patch.dict(os.environ, {"PROMPTLANE_JEV_API_KEY": "sk-test"}, clear=True), \
                 mock.patch.object(C, "resolve_workers_ai_token_provider") as resolve:
-            client = schema_server.make_client(schema_server.parse_args(["--jev-backend", "typesafe", "--timeout", "9"]))
+            client = schema_server.make_client(schema_server.parse_args(["--no-jev-fallback", "--timeout", "9"]))
         resolve.assert_not_called()
         self.assertIsInstance(client, C.SystemOneClient)
         self.assertEqual((client.timeout, client.model), (9.0, C.DEFAULT_MODEL))
+
+    def test_default_client_fails_over_to_workers_ai_and_health_counts_it(self):
+        with mock.patch.dict(os.environ, {"PROMPTLANE_JEV_API_KEY": "sk-test"}, clear=True), \
+                mock.patch.object(C, "resolve_workers_ai_token_provider", return_value=C.StaticToken("cf")) as resolve:
+            client = schema_server.make_client(schema_server.parse_args(["--timeout", "9", "--jev-fallback-cooldown-sec", "5"]))
+        resolve.assert_called_once()
+        self.assertIsInstance(client, C.FallbackJevClient)
+        self.assertEqual((client.deadline_sec, client.cooldown_sec), (9.0, 5.0))
+        snap = JevSchemaBackend(client, None).snapshot()
+        self.assertEqual((snap["jev_backend"], snap["jev_fallback"], snap["jev_fallback_failovers"]), ("typesafe", "workers-ai", 0))
+        self.assertNotIn("sk-test", json.dumps(snap))
 
     def test_health_names_the_backend(self):
         client = C.SystemOneClient("sk-test")

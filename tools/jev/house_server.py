@@ -11,7 +11,7 @@ Jev has no `prompt` field). This server's contract is different by design:
     GET  /health   -> {"ok": true, "backend": "jev-house", "model": ..., "requests", "errors",
                         "fallbacks", "last_fallback_error", "avg_seconds", "tokens_in", "cost_usd",
                         "budget_usd", "jev_backend", "token_source", "token_expires_in_sec",
-                        "token_renewals"}
+                        "token_renewals", "jev_fallback_*" (typesafe only)}
     POST /         body: {"hp", "wave", "tower", "foe", "cd", "instrument", "team", "tick",
                            "clockSec", "foeKind"?, "foeHp"?} -- exactly `rules.Worksheet`'s fields,
                            camelCase on the wire (the caller is TypeScript), snake_case once parsed
@@ -27,9 +27,12 @@ house-violet.md's seven rules evaluated in code (`rules.ground_truth_answers`, e
 returns 200 with `"fallback": "rules-in-code"`. Every fallback is logged to stderr with `!!!` and
 counted in `/health`, and the first successful Jev call afterwards logs `RECOVERED`.
 
-Transport: `--jev-backend workers-ai` (default) or `typesafe` (`client.make_jev_client`; `--backend`
+Transport: `--jev-backend typesafe` (default) or `workers-ai` (`client.make_jev_client`; `--backend`
 is the old spelling and still works). The wire contract above is identical either way; `/health`
-names the one in use as `jev_backend`. On workers-ai, tokens come from
+names the one in use as `jev_backend`. On typesafe, a TypeSafe rate limit, overload or connection
+failure fails that call over to Workers AI -- before the rules-in-code fallback below is ever
+needed -- and new calls go there for a short cool-down (`client.FallbackJevClient`, counted as
+`jev_fallback_*`; `--no-jev-fallback` turns it off). On workers-ai, and for that fallback, tokens come from
 `client.resolve_workers_ai_token_provider`: `$CLOUDFLARE_API_TOKEN` if set, else wrangler's OAuth
 token, renewed `--refresh-margin-sec` (default 900 = one 600 s match + slack) before expiry -- once
 per credential however many calls 401 together (`client.py`, "A NEW TOKEN IS NOT LIVE YET"), so
@@ -66,6 +69,7 @@ from client import (  # noqa: E402
     add_jev_backend_args,
     client_status,
     estimate_cost_usd,
+    jev_client_options,
     make_jev_client,
     resolve_api_key,
     resolve_workers_ai_token_provider,
@@ -260,7 +264,8 @@ def make_handler(backend: JevHouseBackend, model: str, verbose: bool = False):
 
 
 def make_client(args: argparse.Namespace):
-    return make_jev_client(args.jev_backend, timeout=args.timeout, model=args.model, refresh_margin_sec=args.refresh_margin_sec)
+    return make_jev_client(args.jev_backend, timeout=args.timeout, model=args.model, refresh_margin_sec=args.refresh_margin_sec,
+                           **jev_client_options(args))
 
 
 def serve(backend: JevHouseBackend, model: str, host: str, port: int, verbose: bool = False) -> BurstTolerantHTTPServer:
@@ -282,7 +287,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                          "approximate rule 3 (the pre-2026-09-25 live behaviour)")
     p.add_argument("--refresh-margin-sec", type=float, default=DEFAULT_REFRESH_MARGIN_SEC,
                     help="renew wrangler's OAuth token once it has less than this left (default 900 = "
-                         "one 600 s match + slack); ignored for $CLOUDFLARE_API_TOKEN and --jev-backend typesafe")
+                         "one 600 s match + slack); ignored for $CLOUDFLARE_API_TOKEN; on typesafe, applies to the "
+                         "Workers AI fallback's token")
     p.add_argument("--check-token", action="store_true",
                     help="resolve the credential (renewing a wrangler token if inside the margin), print "
                          "its source and time left, and exit -- no server, no Jev call")
@@ -290,22 +296,33 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return p.parse_args(argv)
 
 
-def check_token(args: argparse.Namespace) -> int:
-    if args.jev_backend == "typesafe":
-        resolve_api_key()  # exits with a clear message if no key is found; never prints the key
-        print(f"token OK: source=typesafe-api-key ({' or '.join(JEV_API_KEY_ENVS)}; does not expire, never renewed)")
-        return 0
+def check_workers_ai_token(args: argparse.Namespace, label: str = "token") -> int:
     provider = resolve_workers_ai_token_provider(margin_sec=args.refresh_margin_sec)
     provider.token()  # renews if inside the margin
     status = provider.status()
     left = status["token_expires_in_sec"]
     if left is None:
-        print(f"token OK: source={status['token_source']} (does not expire)")
+        print(f"{label} OK: source={status['token_source']} (does not expire)")
         return 0
     ok = left >= args.refresh_margin_sec
-    print(f"token {'OK' if ok else 'NOT OK'}: source={status['token_source']} expires in {left}s "
+    print(f"{label} {'OK' if ok else 'NOT OK'}: source={status['token_source']} expires in {left}s "
           f"(margin {args.refresh_margin_sec:.0f}s; the server renews automatically)")
     return 0 if ok else 1
+
+
+def check_token(args: argparse.Namespace) -> int:
+    if args.jev_backend != "typesafe":
+        return check_workers_ai_token(args)
+    resolve_api_key()  # exits with a clear message if no key is found; never prints the key
+    print(f"token OK: source=typesafe-api-key ({' or '.join(JEV_API_KEY_ENVS)}; does not expire, never renewed)")
+    if not args.jev_fallback:
+        print("fallback: off (--no-jev-fallback)")
+        return 0
+    try:
+        return check_workers_ai_token(args, label="fallback workers-ai token")
+    except SystemExit as err:  # the server starts anyway, with the fallback off
+        print(f"fallback: OFF -- no Workers AI credential; TypeSafe rate limits won't fail over ({err})")
+        return 0
 
 
 def main(argv: list[str] | None = None) -> int:

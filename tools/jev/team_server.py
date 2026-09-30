@@ -13,7 +13,8 @@ this experiment's own intent document, not house-violet.md's. Reuses `client.py`
                    -> 200 {"bucket": ..., "rule": 1-7, "answers": {qid: 0.0-1.0}, "ms": float}
                    -> non-2xx {"error": "..."} on any failure -- the caller holds, never crashes.
 
-Transport: `--jev-backend workers-ai` (default) or `typesafe`, exactly as `house_server.py`.
+Transport: `--jev-backend typesafe` (default, failing over to Workers AI) or `workers-ai`, exactly as
+`house_server.py`.
 
 Budget: `--budget-usd` (default 1.00) refuses new calls once cumulative estimated cost (from real
 `usage.input_tokens`) would exceed it -- identical posture to `house_server.py`.
@@ -34,6 +35,7 @@ from client import (  # noqa: E402
     add_jev_backend_args,
     client_status,
     estimate_cost_usd,
+    jev_client_options,
     make_jev_client,
 )
 from local_http import BurstTolerantHTTPServer  # noqa: E402
@@ -192,7 +194,7 @@ def make_handler(backend: JevTeamBackend, model: str, verbose: bool = False):
 
 
 def make_client(args: argparse.Namespace):
-    return make_jev_client(args.jev_backend, timeout=args.timeout, model=args.model)
+    return make_jev_client(args.jev_backend, timeout=args.timeout, model=args.model, **jev_client_options(args))
 
 
 def serve(backend: JevTeamBackend, model: str, host: str, port: int, verbose: bool = False) -> BurstTolerantHTTPServer:

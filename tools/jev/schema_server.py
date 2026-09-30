@@ -13,21 +13,26 @@ selector is resolved against the observation in Python (`target_resolve.py`).
 
     GET  /health  -> {"ok": true, "backend": "jev-schema", "model", "requests", "errors",
                       "avg_seconds", "tokens_in", "cost_usd", "budget_usd", "jev_backend",
-                      "token_source", "token_expires_in_sec", "token_renewals"}
+                      "token_source", "token_expires_in_sec", "token_renewals",
+                      "jev_fallback_*" (typesafe only)}
     POST /        body: {"schema": <compile.py schema JSON>, "observation": <Observation>}
                   -> 200 {"action": {kind, target?, ability?}, "rule": <rule id | null>,
                           "answers": {rule id: 0.0-1.0}, "ms": float}
                   -> non-2xx {"error": "..."} -- the caller (tools/match/jevSchemaPilot.ts) holds.
 
     python tools/jev/schema_server.py --stub             # no Jev: seeded random answers, $0
-    python tools/jev/schema_server.py                    # live Jev via Cloudflare Workers AI
-    python tools/jev/schema_server.py --jev-backend typesafe   # live Jev, TypeSafe's API direct
+    python tools/jev/schema_server.py                    # live Jev, TypeSafe direct, Workers AI behind it
+    python tools/jev/schema_server.py --jev-backend workers-ai   # live Jev via Cloudflare Workers AI only
 
-Transport: `--jev-backend workers-ai` (default) or `typesafe` (`client.make_jev_client`); the wire
+Transport: `--jev-backend typesafe` (default) or `workers-ai` (`client.make_jev_client`); the wire
 contract above is the same either way. On typesafe the key is `$PROMPTLANE_JEV_API_KEY` (or its
-Windows User-scope value) and nothing is ever renewed.
+Windows User-scope value) and is never renewed; a TypeSafe rate limit, overload or connection
+failure fails that decision over to Workers AI, and new decisions go there for a short cool-down
+(`client.FallbackJevClient`, counted as `jev_fallback_*` in `/health`; `--no-jev-fallback` turns it
+off). With no Workers AI credential the server still starts, with one warning, and without the
+fallback.
 
-Workers AI token: `$CLOUDFLARE_API_TOKEN` if set, else wrangler's OAuth token, renewed `--refresh-margin-sec`
+Workers AI token (workers-ai, and typesafe's fallback): `$CLOUDFLARE_API_TOKEN` if set, else wrangler's OAuth token, renewed `--refresh-margin-sec`
 (default 900) before it expires -- the same `client.resolve_workers_ai_token_provider` the house and
 team servers use. (Until 2026-09-30 this server read the token once at startup, so it answered every
 decision 401 once that hour-long token lapsed, and a practice match held on every call.) Concurrent
@@ -57,6 +62,7 @@ from client import (  # noqa: E402
     add_jev_backend_args,
     client_status,
     estimate_cost_usd,
+    jev_client_options,
     make_jev_client,
 )
 from compile import schema_from_dict  # noqa: E402
@@ -184,7 +190,8 @@ def make_client(args: argparse.Namespace):
     itself (never a token read once), or TypeSafe direct with an API key that needs no renewal."""
     if args.stub:
         return DumbStubJevClient()
-    return make_jev_client(args.jev_backend, timeout=args.timeout, refresh_margin_sec=args.refresh_margin_sec)
+    return make_jev_client(args.jev_backend, timeout=args.timeout, refresh_margin_sec=args.refresh_margin_sec,
+                           **jev_client_options(args))
 
 
 def parse_args(argv=None) -> argparse.Namespace:
@@ -195,7 +202,7 @@ def parse_args(argv=None) -> argparse.Namespace:
     p.add_argument("--timeout", type=float, default=30.0, help="seconds per Jev call")
     p.add_argument("--budget-usd", type=float, default=DEFAULT_BUDGET_USD, help="negative disables the cap")
     p.add_argument("--refresh-margin-sec", type=float, default=DEFAULT_REFRESH_MARGIN_SEC,
-                   help="renew wrangler's OAuth token this many seconds before it expires (default 900; workers-ai only)")
+                   help="renew wrangler's OAuth token this many seconds before it expires (default 900; workers-ai, and typesafe's Workers AI fallback)")
     p.add_argument("--verbose", action="store_true")
     return p.parse_args(argv)
 

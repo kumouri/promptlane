@@ -163,14 +163,15 @@ class JevBackendTests(unittest.TestCase):
     SECRET = "sk-live-must-never-leak-house"
 
     def test_old_backend_flag_still_selects(self):
-        self.assertEqual(house_server.parse_args([]).jev_backend, "workers-ai")
+        self.assertEqual(house_server.parse_args([]).jev_backend, "typesafe")
+        self.assertEqual(house_server.parse_args(["--backend", "workers-ai"]).jev_backend, "workers-ai")
         self.assertEqual(house_server.parse_args(["--backend", "typesafe"]).jev_backend, "typesafe")
 
     def test_check_token_on_typesafe_needs_no_renewal_and_never_prints_the_key(self):
         out = io.StringIO()
         with mock.patch.dict(os.environ, {"PROMPTLANE_JEV_API_KEY": self.SECRET}, clear=True), \
                 mock.patch("client.resolve_workers_ai_token_provider") as provider, redirect_stdout(out):
-            code = house_server.main(["--jev-backend", "typesafe", "--check-token"])
+            code = house_server.main(["--jev-backend", "typesafe", "--no-jev-fallback", "--check-token"])
         self.assertEqual(code, 0)
         provider.assert_not_called()
         self.assertIn("typesafe-api-key", out.getvalue())
