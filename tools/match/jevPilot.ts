@@ -164,6 +164,18 @@ export interface TracingPilot {
   decide(obs: Observation): Promise<TracingDecision>;
 }
 
+/** A transport failure's message with its cause. Node's fetch reports every socket-level failure as
+ * the bare `fetch failed` and puts the reason (`ECONNREFUSED`, `ECONNRESET`, ...) on `err.cause`.
+ * Without the cause, a refused connect can't be told apart from a reset one in a match trace.
+ * The listen-backlog bug (`tools/jev/local_http.py`) was this: 12 bots on one server got
+ * `fetch failed <- ECONNREFUSED`. */
+export function transportErrorMessage(err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err);
+  const cause = err instanceof Error ? (err.cause as { code?: string; message?: string } | undefined) : undefined;
+  if (!cause) return message;
+  return `${message} <- ${cause.code ?? cause.message ?? String(cause)}`;
+}
+
 /** POSTs the worksheet and turns the response into an Action; on any transport failure decides by
  * `decideByRules` instead -- never throws, never holds. `tick` comes from the caller (headless.ts tracks the
  * sim's own tick counter; the offline harness's `Worksheet.tick` has no live equivalent here). */
@@ -196,7 +208,7 @@ export function jevTracingPilot(config: JevPilotConfig, currentTick: () => numbe
       } catch (err) {
         // The server itself is down or timed out: never stop playing -- decide by the rules in code,
         // loudly. The `[jev-fallback` prefix makes headless.ts count it as a call error.
-        const message = (err as Error).message;
+        const message = transportErrorMessage(err);
         const { bucket, rule } = decideByRules(ws);
         console.error(`[jev-house] !!! FALLBACK (server unreachable: ${message}) -> rules-in-code rule=${rule} bucket=${bucket}`);
         return {

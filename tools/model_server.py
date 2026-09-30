@@ -442,11 +442,20 @@ def make_handler(backend: Backend, stats: Stats, verbose: bool = False):
     return Handler
 
 
-def serve(backend: Backend, host: str, port: int, verbose: bool = False) -> ThreadingHTTPServer:
+class BurstTolerantHTTPServer(ThreadingHTTPServer):
+    """Listen backlog 128 instead of socketserver's 5. Every bot in a match asks on the same tick,
+    each on a fresh connection, so two matches sharing this server can connect 12 at once. Past the
+    fifth, Windows refuses the connection (`fetch failed <- ECONNREFUSED` in the pilot). This is the
+    same fix and measurement as `tools/jev/local_http.py`. It is repeated here because this file
+    stays standalone."""
+
+    request_queue_size = 128  # read in __init__ (server_activate), so it must be a class attribute
+    daemon_threads = True
+
+
+def serve(backend: Backend, host: str, port: int, verbose: bool = False) -> BurstTolerantHTTPServer:
     stats = Stats()
-    server = ThreadingHTTPServer((host, port), make_handler(backend, stats, verbose))
-    server.daemon_threads = True
-    return server
+    return BurstTolerantHTTPServer((host, port), make_handler(backend, stats, verbose))
 
 
 # --- cli ------------------------------------------------------------------------------------------
