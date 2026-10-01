@@ -73,6 +73,11 @@ release, and
 B1's 24 matches re-run on Jev under `simultaneous-1`, scored against the gate's `eco-2` lines, with the
 recommendation for the 10-04 gate; metrics `economy-eco3-2026-10-01-*` beside it, logs on the
 [`data-economy-eco3-2026-10-01`](https://github.com/kumouri/promptlane/releases/tag/data-economy-eco3-2026-10-01)
+release), and
+[economy-eco3-check-2026-10-01.md](economy-eco3-check-2026-10-01.md) (`eco-3` on the shipping code:
+12 medium-vs-hard matches, each seed both ways, on the post-#57 tiers and `own-lane-1`; metrics
+`economy-eco3-check-2026-10-01-*` beside it, logs on the
+[`data-economy-eco3-check-2026-10-01`](https://github.com/kumouri/promptlane/releases/tag/data-economy-eco3-check-2026-10-01)
 release).
 The bulky captures those documents hash live under ignored `artifacts/<run>-evidence/` and
 `artifacts/<run>-reviewed/`.

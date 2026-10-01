@@ -56,7 +56,9 @@ test('a subset plan, the metrics commands, and bad input', () => {
   const [all, b1] = metricsCommands('2026-10-03');
   assert.match(all, /--group A runs\/economy-measure-2026-10-03-A-\*\.json --group R .* --group B0 .* --group B1 /);
   assert.match(b1, /^npm run metrics -- --group B0 .* --group B1 /);
-  assert.throws(() => planMeasurement({}), /--date YYYY-MM-DD is required/);
+  assert.throws(() => planMeasurement({}), /--date YYYY-MM-DD\[-run\] is required/);
+  assert.equal(planMeasurement({ date: '2026-10-01-check', conditions: ['B1'], pairings: ['hard'], seeds: [7] })[0].out, 'runs/economy-measure-2026-10-01-check-B1-medium-vs-hard-seed7.json');
+  assert.throws(() => planMeasurement({ date: '2026-10-01 x' }), /--date YYYY-MM-DD\[-run\] is required/);
   assert.throws(() => planMeasurement({ date: '2026-10-03', conditions: ['C'] }), /unknown condition C/);
   assert.throws(() => planMeasurement({ date: '2026-10-03', pairings: ['easy'] }), /unknown pairing easy/);
 });
@@ -103,4 +105,21 @@ test('every match names its targeting rule, and a run never mixes two', async ()
   assert.throws(() => checkTargeting(jobs, 'own-lane-1', readLog), /played under targeting first-min, not own-lane-1: pass --targeting first-min/);
   assert.doesNotThrow(() => checkTargeting(old, 'first-min', readLog));
   assert.doesNotThrow(() => checkTargeting(jobs, 'own-lane-1', (out) => (out === jobs[0].out ? { targeting: 'own-lane-1' } : null)));
+});
+
+test('--both-sides adds each match with the sides swapped: medium green on its green file, its own log', () => {
+  const plain = planMeasurement({ date: '2026-10-03', seeds: [7], conditions: ['B1'], pairings: ['hard'] });
+  const both = planMeasurement({ date: '2026-10-03', seeds: [7], conditions: ['B1'], pairings: ['hard'], bothSides: true });
+  assert.deepEqual(plain.map((j) => j.args), both.filter((j) => !j.swapped).map((j) => j.args));
+  const [swapped] = both.filter((j) => j.swapped);
+  assert.equal(swapped.out, 'runs/economy-measure-2026-10-03-B1-hard-vs-medium-seed7.json');
+  assert.equal(arg(swapped, '--name-a'), 'hard');
+  assert.equal(arg(swapped, '--a-schemas'), 'prompts/pilots/house-hard-eco.schemas.json');
+  assert.equal(arg(swapped, '--name-b'), 'medium');
+  assert.equal(arg(swapped, '--b'), 'prompts/pilots/house-eco-green.md');
+  assert.equal(arg(swapped, '--b-schemas'), 'prompts/pilots/house-medium-eco.schemas.json');
+  const all = planMeasurement({ date: '2026-10-03', bothSides: true });
+  assert.equal(new Set(all.map((j) => j.out)).size, 192);
+  for (const j of all) for (const flag of ['--a', '--b']) assert.ok(existsSync(path.join(ROOT, arg(j, flag))), `${j.out} ${flag}`);
+  assert.equal(arg(all.find((j) => j.swapped && j.condition === 'A'), '--b'), 'prompts/pilots/house-green.md');
 });
