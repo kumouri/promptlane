@@ -1764,7 +1764,8 @@ Items are identical in both, so its prompt is right for either.
 
 **The likely next knob.** If §6 confirms the smoke's first-item time (5:08 against ≤ 4:30), the
 pass §6.2 allows has `gold.start`, which is 0 today. Something like 100 moves the first item about a
-minute earlier and changes nothing else.
+minute earlier. It also adds 10 gold/min/bot to income, because start gold is paid as passive. §6
+confirmed the late first item, and §13.6 pairs this knob with a smaller kill bounty.
 
 ### 13.2 P2 as built
 
@@ -1904,4 +1905,23 @@ npm run metrics -- --group B0 runs/economy-measure-2026-10-03-B0-*.json --group 
 - **Wall time:** about 2.5 h at `--parallel 2`, as the slice ran, or about 4.5 h one at a time.
   Either way it outlives a 10-minute tool call, so run it detached (a Margo job, or `nohup`).
 - `--dry-run` prints every match command without running anything.
-- The logs are gitignored and go on a `data-economy-measure-<date>` release, as the slice's did.
+- The logs are gitignored and go on a data release, as the slice's did. The 2026-10-03 run's logs
+  are on `data-economy-gate-2026-10-03`.
+
+### 13.6 The §6 result
+
+[`runs/economy-gate-2026-10-03.md`](../runs/economy-gate-2026-10-03.md) scores the 96 matches.
+They were played before #56, on the sequential order.
+
+- **Pass:** every line on what the economy is for. That covers PvP share of damage, engagement, first
+  blood, no dive tax, lead changes, PvP share of earned gold, items, carried gold at death and
+  shopping recalls. B1 ≠ B0.
+- **Fail, narrowly:**
+  - income is 128.4 against 85–125;
+  - the first item comes at 4:44 against ≤ 4:30 (medium vs hard is at 5:07, which confirms §13.4);
+  - the gold gap at 6:00 is 0.261 against ≤ 0.25.
+- **Unscorable on the old order:** `decided` and comeback, which are winner reads.
+- **The proposed single pass (§6.2), `eco-3`:** `gold.start` 100, `kill` 250, `assistPool` 125.
+  - `gold.start` alone raises income, because start gold is paid as passive.
+  - Then re-run B1 only, on `--resolution sequential`.
+- **The recommendation for the Sun 10-04 gate is go** on the economy.

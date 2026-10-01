@@ -50,6 +50,12 @@ sim's update order, traced and fixed by the `simultaneous-1` tick resolution; bo
 symmetry, 489 old logs replayed byte-identically, 10 side-swapped Jev matches and a mirror probe;
 logs on the
 [`data-side-fairness-2026-10-01`](https://github.com/kumouri/promptlane/releases/tag/data-side-fairness-2026-10-01)
-release).
+release), and
+[economy-gate-2026-10-03.md](economy-gate-2026-10-03.md). That is the economy's §6 pre-registered
+gate: 96 matches on Jev across A, R, B0 and B1, scored line by line, with the tuning pass and the
+go / no-go for the 10-04 gate. Its metrics `economy-measure-2026-10-03-*` are beside it, and its
+logs are on the
+[`data-economy-gate-2026-10-03`](https://github.com/kumouri/promptlane/releases/tag/data-economy-gate-2026-10-03)
+release.
 The bulky captures those documents hash live under ignored `artifacts/<run>-evidence/` and
 `artifacts/<run>-reviewed/`.
