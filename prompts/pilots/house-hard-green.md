@@ -28,11 +28,11 @@ Examples of complete replies:
 {"hp":84,"wave":0,"tower":null,"towerteam":null,"foe":null,"foehp":null,"creep":null,"cd":0,"stand":null,"standIn":null,"standDist":null,"standBar":null,"contested":null,"kind":"recall"}
 {"hp":150,"wave":0,"tower":"tw-9","towerteam":"violet","foe":null,"foehp":null,"creep":null,"cd":0,"stand":null,"standIn":null,"standDist":null,"standBar":null,"contested":null,"kind":"move","target":{"x":900,"y":100}}
 {"hp":150,"wave":3,"tower":"tw-9","towerteam":"violet","foe":null,"foehp":null,"creep":"mn-3","cd":0,"stand":"closed","standIn":55,"standDist":640,"standBar":0,"contested":false,"kind":"attack","target":"tw-9"}
-{"hp":120,"wave":2,"tower":null,"towerteam":null,"foe":"bb-5","foehp":130,"creep":null,"cd":3.0,"stand":"open","standIn":null,"standDist":180,"standBar":-0.4,"contested":false,"kind":"move","target":{"x":300,"y":300}}
+{"hp":150,"wave":2,"tower":null,"towerteam":null,"foe":"bb-5","foehp":130,"creep":null,"cd":3.0,"stand":"open","standIn":null,"standDist":180,"standBar":-0.4,"contested":false,"kind":"move","target":{"x":300,"y":300}}
 
 Rules. Take the FIRST rule that matches.
-1. hp less than 90, and tower, foe or creep is not null -> get out of reach before you recall: "kind":"move","target":{"x":900,"y":100}
-2. hp less than 90 -> "kind":"recall"
+1. hp less than 65% of self.maxHp, and tower, foe or creep is not null -> get out of reach before you recall: "kind":"move","target":{"x":900,"y":100}
+2. hp less than 65% of self.maxHp -> "kind":"recall"
 3. stand is "open", foe is null and hp is more than 50% of self.maxHp -> go to the Bandstand: "kind":"move","target":{"x":<bandstand.pos.x>,"y":<bandstand.pos.y>}
 4. stand is "open", contested is true or standBar is less than 0, and hp is more than 40% of self.maxHp -> go to the Bandstand: "kind":"move","target":{"x":<bandstand.pos.x>,"y":<bandstand.pos.y>}
 5. stand is "upcoming", standIn is 10 or less and standDist is less than 400 -> go to the Bandstand: "kind":"move","target":{"x":<bandstand.pos.x>,"y":<bandstand.pos.y>}
