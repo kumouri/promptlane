@@ -16,5 +16,7 @@ __pycache__/
 /runs/house-tiers-jev-2026-09-30-*.json
 # PvP balance match logs live on the data-balance-pvp-2026-09-30 release, not in git
 /runs/balance-pvp-2026-09-30-*-seed*.json
+# economy slice match logs live on the data-economy-slice-2026-09-30 release, not in git
+/runs/economy-slice-2026-09-30-*-seed*.json
 /.runner-test-*/
 /acceptance/tmp*/

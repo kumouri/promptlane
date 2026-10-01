@@ -1399,3 +1399,8 @@ what is a default:
   Earn, buy, die, drop to the killers and respawn all happen on Jev, and every log replay-verifies.
   With prompts that ignore the economy, deaths were rare (0, 1 and 7) and income in the two quiet
   matches was well under the §3.2 band.
+- **Pre-gate slice, A vs B0** (24 seed-paired matches, medium vs hard, $1.66):
+  [`runs/economy-slice-2026-09-30.md`](../runs/economy-slice-2026-09-30.md). eco-1 raises the
+  PvP share of bot damage and engaged-PvP time a little and doesn't add dives. With today's prompts,
+  income is 59 gold/min/bot against the 85–125 band, short in every earned source. Deaths are too
+  rare to judge the death economy.
