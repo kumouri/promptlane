@@ -102,6 +102,17 @@ class FailoverPerCallTests(unittest.TestCase):
         self.assertGreater(snap["jev_fallback_cooldown_left_sec"], 0)
         self.assertIn("FAILOVER #1: typesafe 429", self.err.getvalue())
 
+    def test_ask_with_door_names_the_door_that_answered(self):
+        client, _ = make()
+        net = FakeNet([TYPESAFE_OK, lambda: http_error(C.API_URL, 429)])
+        with mock.patch("client.urllib.request.urlopen", side_effect=net), mock.patch("client.time.sleep"):
+            first = client.ask_with_door("s", questions())
+            second = client.ask_with_door("s", questions())  # TypeSafe 429 -> Workers AI answers
+            third = client.ask_with_door("s", questions())  # inside the cool-down: straight to Workers AI
+        self.assertEqual(first, (TYPESAFE_OK, "typesafe"))
+        self.assertEqual(second, (WORKERS_AI_ANSWER, "workers-ai"))
+        self.assertEqual(third[1], "workers-ai")
+
     def test_a_healthy_typesafe_never_touches_workers_ai(self):
         client, _ = make()
         net = FakeNet([TYPESAFE_OK])

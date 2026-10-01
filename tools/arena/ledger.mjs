@@ -7,6 +7,10 @@
  * `finished`, `void`, `timed-out`, `failed`, `cancelled`, `paused`, `resumed`; Phase B adds
  * `bracket` (a jam-day tournament, seeds pinned), `bracket-reveal` (a pre-run round is shown),
  * `ruling` (the organizer decides a slot). The bracket page is `bracketView()`, a fold.
+ *
+ * A match played on Jev (a `jev-schema-http` backend, docs/arena-site-spec.md §9) carries `jev` on
+ * its terminal row -- `{calls, unanswered, tokensIn, costUsd, doors, compile}` -- which lands on the
+ * job and is summed per Central day per backend into `jevSpend` (the daily ceiling, `jevSpentToday`).
  */
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -86,6 +90,14 @@ export function fold(rows) {
     seqByPrefix: new Map(),
     /** tournamentId → bracket row + {revealed: Set<round>, rulings: Map<"round:slot", ruling>} */
     brackets: new Map(),
+    /** "YYYY-MM-DD|backendId" (Central day of the terminal row) → Jev USD spent by matches */
+    jevSpend: new Map(),
+  };
+  const spend = (r) => {
+    if (!r.jev?.costUsd) return;
+    const backendId = s.jobs.get(r.id)?.backendId ?? r.backend?.id ?? '?';
+    const key = `${dayCT(r.ts)}|${backendId}`;
+    s.jevSpend.set(key, (s.jevSpend.get(key) ?? 0) + r.jev.costUsd);
   };
   for (const r of rows) {
     switch (r.type) {
@@ -93,7 +105,7 @@ export function fold(rows) {
         s.tournament = r.tournament;
         break;
       case 'house':
-        s.house = { handle: r.handle, hash: r.hash, file: r.file };
+        s.house = { handle: r.handle, hash: r.hash, file: r.file, ...(r.schemasFile ? { schemasFile: r.schemasFile, schemasHash: r.schemasHash } : {}) };
         break;
       case 'claim': {
         const prev = s.claims.get(r.email);
@@ -133,22 +145,26 @@ export function fold(rows) {
             backend: r.backend,
             verify: r.verify,
             wallMs: r.wallMs,
+            ...(r.jev ? { jev: r.jev } : {}),
           });
         }
         s.finished.push(r);
+        spend(r);
         break;
       }
       case 'void': {
         const j = s.jobs.get(r.id);
-        if (j) Object.assign(j, { status: 'void', finishedAt: r.ts, reason: r.reason, by: r.by });
+        if (j) Object.assign(j, { status: 'void', finishedAt: r.ts, reason: r.reason, by: r.by, ...(r.jev ? { jev: r.jev } : {}) });
         s.voided.add(r.id);
+        spend(r);
         break;
       }
       case 'timed-out':
       case 'failed':
       case 'cancelled': {
         const j = s.jobs.get(r.id);
-        if (j) Object.assign(j, { status: r.type, finishedAt: r.ts, reason: r.reason ?? r.error });
+        if (j) Object.assign(j, { status: r.type, finishedAt: r.ts, reason: r.reason ?? r.error, ...(r.jev ? { jev: r.jev } : {}) });
+        spend(r);
         break;
       }
       case 'bracket': {
@@ -186,6 +202,11 @@ export function dayCT(ts = new Date()) {
     month: '2-digit',
     day: '2-digit',
   }).format(d);
+}
+
+/** USD the ladder's matches on `backendId` spent on Jev on Central day `day` (finished or not). */
+export function jevSpentToday(state, backendId, day = dayCT()) {
+  return state.jevSpend.get(`${day}|${backendId}`) ?? 0;
 }
 
 /** `<tournament>-<yyyymmdd>-<seq>`: human-readable in a URL and in a Slack message (§3.3). */

@@ -17,7 +17,7 @@
     "arena": "node tools/arena/server.mjs",
     "evolve": "node tools/evolve/evolve.mjs",
     "test:evolve": "node --test tools/evolve/test_evolve.mjs tools/evolve/test_match_schema.mjs",
-    "test:arena": "node --test tools/arena/test_host.mjs tools/arena/test_house.mjs tools/arena/test_rating.mjs tools/arena/test_ledger.mjs tools/arena/test_prompts.mjs tools/arena/test_contract.mjs tools/arena/test_auth.mjs tools/arena/test_queue.mjs tools/arena/test_bracket.mjs tools/arena/test_live.mjs tools/arena/test_browser.mjs tools/arena/test_iso.mjs tools/arena/test_e2e.mjs tools/arena/test_compile.mjs tools/jev/test_merge_team_bench.mjs"
+    "test:arena": "node --test tools/arena/test_host.mjs tools/arena/test_house.mjs tools/arena/test_rating.mjs tools/arena/test_ledger.mjs tools/arena/test_prompts.mjs tools/arena/test_contract.mjs tools/arena/test_auth.mjs tools/arena/test_queue.mjs tools/arena/test_bracket.mjs tools/arena/test_live.mjs tools/arena/test_browser.mjs tools/arena/test_iso.mjs tools/arena/test_e2e.mjs tools/arena/test_compile.mjs tools/arena/test_jev_ladder.mjs tools/jev/test_merge_team_bench.mjs"
   },
   "devDependencies": {
     "esbuild": "0.21.5",

@@ -2,7 +2,10 @@
   "tournament": {
     "id": "ladder",
     "name": "Pre-jam ladder",
-    "backend": "qwen9b",
+    "_comment_backend": "jev-schema = the Jam's path for BOTH sides: entrant prose -> tools/jev/compile.py (once per prompt hash + compiler version) -> schema_server.py -> Jev; the house plays its tier's checked-in schemas (docs/arena-site-spec.md §9). qwen9b stays below as a named, non-default backend",
+    "backend": "jev-schema",
+    "_comment_map": "pinned so a change to the runner's DEFAULT_MAP never silently moves the ladder; pvp-1 is today's default (src/mapVariant.ts)",
+    "map": "pvp-1",
     "cadenceSec": 2,
     "maxSimSec": 600,
     "quick": { "maxSimSec": 180, "cadenceSec": 4, "seed": 7 },
@@ -10,12 +13,25 @@
     "quota": { "quick": 6, "full": 2 }
   },
   "backends": {
+    "jev-schema": {
+      "kind": "jev-schema-http",
+      "endpoint": "http://127.0.0.1:8797/",
+      "model": "typesafe/jev",
+      "avgSecPerCall": 0.5,
+      "timeoutSec": 30,
+      "dailyBudgetUsd": 5,
+      "maxUsdPerMatch": 0.25,
+      "maxUnansweredRate": 0.05,
+      "maxConsecutiveUnanswered": 30,
+      "_comment": "tools/jev/schema_server.py (TypeSafe, failing over to Workers AI -- both Jev). Ladder matches AND compile-panel practice matches. Spend: ~$0.06 a full match, ~$0.01 a quick one; dailyBudgetUsd holds new matches once today's (Central) Jev spend on this backend reaches it, maxUsdPerMatch stops one match. A side with more than maxUnansweredRate of its decisions unanswered fails the match (re-queued once); null turns a limit off"
+    },
     "qwen9b": {
       "kind": "http",
       "endpoint": "http://127.0.0.1:8787/",
       "model": "qwen3.5:9b",
       "avgSecPerCall": 0.9,
-      "timeoutSec": 60
+      "timeoutSec": 60,
+      "_comment": "the old text-model ladder (tools/model_server.py, local Ollama). Not the default: set tournament.backend to qwen9b (or --backend qwen9b) to play prose prompts on qwen3.5:9b again"
     },
     "openrouter-qwen32b": {
       "kind": "http",
@@ -34,32 +50,22 @@
       "model": "typesafe/jev",
       "avgSecPerCall": 0.7,
       "timeoutSec": 30,
-      "_comment": "tools/jev/house_server.py; SHADOW ONLY -- set house.backend below to 'jev-house' to go live (runs/jev-house-bot-2026-09-23.md)"
-    },
-    "jev-schema": {
-      "kind": "jev-schema-http",
-      "endpoint": "http://127.0.0.1:8797/",
-      "model": "typesafe/jev",
-      "avgSecPerCall": 0.9,
-      "timeoutSec": 30,
-      "_comment": "tools/jev/schema_server.py -- plays an entrant's COMPILED rules on Jev for the compile panel's practice match; set compile.practiceBackend to 'jev-schema' to offer it"
+      "_comment": "tools/jev/house_server.py's hand-written cascade; SHADOW ONLY and text-model ladders only -- on a jev-schema ladder the house plays house.schemas instead (runs/jev-house-bot-2026-09-23.md)"
     }
   },
   "entrants": { "kind": "gh", "repo": "kumouri/jamobair-entrants", "ref": "main", "syncIntervalSec": 60 },
   "house": {
     "handle": "house",
-    "files": [
-      { "violet": "prompts/pilots/house-violet.md", "green": "prompts/pilots/house-green.md" },
-      "prompts/pilots/house.md",
-      "prompts/pilots/drums.md"
-    ],
-    "_comment_tier": "null = files above (medium first). Set files to null and tier to easy | medium | hard to play that pair (runs/house-tiers-2026-09-30.md); --house-tier does both. A different house is a different placement bar",
-    "tier": null,
-    "_comment_backend": "unset = today's default (house plays tournament.backend, like every entrant); set to 'jev-house' to make the house bot play Jev instead -- entrants are never affected either way",
+    "_comment_tier": "medium = the placement bar (prompts/pilots/house-{violet,green}.md, on Jev prompts/pilots/house-medium.schemas.json). easy | hard play those pairs/schemas instead (runs/house-tiers-2026-09-30.md); a different house is a different placement bar. Set tier or files, not both",
+    "tier": "medium",
+    "files": null,
+    "_comment_schemas": "null = the tier's checked-in compile, prompts/pilots/house-<tier>.schemas.json; a path here plays that file instead. Required on a jev-schema ladder",
+    "schemas": null,
+    "_comment_backend": "text-model ladders only: 'jev-house' makes the house side play the shadow Jev house bot. Ignored on a jev-schema ladder",
     "backend": null
   },
   "compile": {
-    "_comment": "the /compile panel (docs/entrant-compile-preview.md): runs tools/jev/compile.py server-side; the model key stays in the arena's environment",
+    "_comment": "the /compile panel (docs/entrant-compile-preview.md) AND the ladder's own compiles of entrant prose for Jev: both run tools/jev/compile.py server-side on this backend (ollama = host Ollama, $OLLAMA_HOST; openrouter = hosted, $OPENROUTER_API_KEY in the arena's environment). The rate limits below are the panel's; ladder compiles are once per prompt and not limited",
     "enabled": true,
     "backend": "ollama",
     "model": null,
@@ -70,7 +76,7 @@
     "maxConcurrent": 1,
     "ipHeader": null,
     "_comment_ipHeader": "behind the Cloudflare Tunnel every request comes from 127.0.0.1 -- set to \"cf-connecting-ip\" there so the per-IP limits are per visitor",
-    "practiceBackend": null
+    "practiceBackend": "jev-schema"
   },
   "organizerEmail": "CHANGE-ME@inrhythm.com"
 }

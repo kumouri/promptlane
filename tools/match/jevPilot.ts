@@ -158,6 +158,10 @@ export interface JevPilotConfig {
 export interface TracingDecision {
   reply: string;
   action: Action | null;
+  /** What this one decision cost and which Jev door answered it, when the backend says
+   * (`jevSchemaPilot.ts`, which also puts the door in `reply`). The arena sums it per match
+   * (`tools/arena/queue.mjs`); the runner itself ignores it. */
+  usage?: { door: string; tokensIn: number; costUsd: number };
 }
 
 export interface TracingPilot {

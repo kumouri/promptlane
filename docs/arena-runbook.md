@@ -9,8 +9,12 @@ on the Cloudflare side, and what a jam-day operator does. The design is
 
 Everything the arena writes lives under `runs/arena/` (gitignored): `ledger.jsonl` (append-only,
 the whole truth), `logs/<matchId>.json` (one replayable match log per match), `prompts/<handle>/`
-(content-addressed cache of merged prompts), `scratch/` (scratch prompt text, deleted when its
+(content-addressed cache of merged prompts), `schemas/` (the Jev ladder's compiled prose, one file
+per prompt hash and compiler version; §1c), `scratch/` (scratch prompt text, deleted when its
 match ends).
+
+**The ladder plays on Jev** (both sides, the Jam's path) unless `tournament.backend` says otherwise:
+§1c, and [`arena-site-spec.md` §9](arena-site-spec.md#9-jev-as-the-ladders-main-backend-built-2026-09-30).
 
 ---
 
@@ -21,17 +25,22 @@ Dev mode = no Cloudflare Access; every request is you, as organizer. The listene
 
 ```sh
 npm ci && npm run build                     # once; `build` produces dist/ for the /play/ replay viewer
-cp tools/arena/config.example.json runs/arena/config.json   # edit: organizerEmail, backend
-python tools/model_server.py                # terminal 1 — Ollama qwen3.5:9b on :8787 (honours $OLLAMA_HOST)
+cp tools/arena/config.example.json runs/arena/config.json   # edit: organizerEmail
+python tools/jev/schema_server.py           # terminal 1 — Jev on :8797, the ladder's backend (§1c)
 npm run arena -- --config runs/arena/config.json --dev-user you@inrhythm.com   # terminal 2 — :8790
 ```
+
+Entrant prose compiles on host Ollama (`$OLLAMA_HOST`, `qwen3.5:9b`) unless `compile.backend` is
+`openrouter`. `python tools/model_server.py` (:8787) is only needed for a text-model backend
+(`--backend qwen9b`).
 
 Open <http://127.0.0.1:8790/>. Startup log lines to look for:
 
 ```
 arena: house bot loaded from prompts/pilots/house-violet.md + prompts/pilots/house-green.md (…)
+arena: Jev ladder — both sides play compiled schemas on http://127.0.0.1:8797/; house schemas prompts/pilots/house-medium.schemas.json (554c7ea5); entrant prose compiles on ollama (compiler …)
 arena: listening on http://127.0.0.1:8790/ (dev mode — every request is you@… (organizer))
-arena: tournament ladder backend=qwen9b data=…/runs/arena
+arena: tournament ladder backend=jev-schema data=…/runs/arena
 ```
 
 Flags (`npm run arena -- --help`): `--port`, `--data DIR`, `--backend mock` (no model server;
@@ -52,26 +61,27 @@ The entrants poller shells out to `gh api` for `kumouri/jamobair-entrants` (`mai
 
 | Key | Meaning |
 |---|---|
-| `tournament.backend` | which `backends` entry ranked matches and tests use — **the per-tournament model setting**; it is recorded in every match log (`backend.model`) and every `finished` ledger row |
+| `tournament.backend` | which `backends` entry ranked matches and tests use — **the per-tournament model setting**; it is recorded in every match log (`backend.model`) and every `finished` ledger row. `jev-schema` (a `kind: "jev-schema-http"` entry) = both sides on Jev, §1c; `qwen9b` = the old text-model ladder |
+| `tournament.map` | the map variant every match plays (`pvp-1`); checked at startup. Unset = the runner's `DEFAULT_MAP` |
 | `tournament.cadenceSec` / `maxSimSec` | ranked matches: cadence 2, full 600 s |
 | `tournament.quick` | quick tests: 3 sim-min at cadence 4 (ruling Q10) |
 | `tournament.placementSeeds` | `[7, 11, 42]` (Q14); sides alternate violet/green/violet (Q15) |
 | `tournament.quota` | `{quick: 6, full: 2}` per handle per Central-Time day (Q11); organizer exempt |
-| `backends.<id>` | `{kind: http, endpoint, model, avgSecPerCall, timeoutSec}` or `{kind: mock}`; `avgSecPerCall` sizes the wall-clock cap (3× expected) — raise it when the GPU is shared. A hosted backend (§1a) also carries `concurrency`, `usdPerMToken`, `dailyBudgetUsd` in the shape `docs/arena-site-spec.md` §5.4 wants; the arena doesn't read those three yet (§1a "not built") — they document the backend for now, the same way `runs/arena/config.json` has always been the record of what a tournament ran on |
+| `backends.<id>` | `{kind: jev-schema-http, endpoint, avgSecPerCall, timeoutSec, dailyBudgetUsd, maxUsdPerMatch, maxUnansweredRate, maxConsecutiveUnanswered}` (§1c; the four limits are enforced), `{kind: http, endpoint, model, avgSecPerCall, timeoutSec}` or `{kind: mock}`; `avgSecPerCall` sizes the wall-clock cap (3× expected) — raise it when the GPU is shared. A hosted backend (§1a) also carries `concurrency`, `usdPerMToken`, `dailyBudgetUsd` in the shape `docs/arena-site-spec.md` §5.4 wants; the arena doesn't read those three yet (§1a "not built") — they document the backend for now, the same way `runs/arena/config.json` has always been the record of what a tournament ran on |
 | `entrants` | `{kind: gh, repo, ref, syncIntervalSec}` or `{kind: dir, path}` |
-| `house` | `{handle, files}` — ordered candidates; a candidate is a `{violet, green}` pair (one prompt per side) or one file; the first whose files all exist wins: the `house-*.md` pair, then `house.md`, then `drums.md`. `backend` (default `null`) names a `kind: "jev-http"` entry to have Jev play the house side — §6, *5.3 Jam day with the Jev house bot* |
+| `house` | `{handle, tier}` (the example: `medium`) or `{handle, files}` — ordered candidates; a candidate is a `{violet, green}` pair (one prompt per side) or one file; the first whose files all exist wins: the `house-*.md` pair, then `house.md`, then `drums.md`. `schemas` (default `null` = the tier's `prompts/pilots/house-<tier>.schemas.json`) is what the house plays on a Jev ladder (§4). `backend` (default `null`, text-model ladders only) names a `kind: "jev-http"` entry to have Jev play the house side — §6, *5.3 Jam day with the Jev house bot* |
 | `organizerEmail` | the one organizer (Q19); refused if left as `CHANGE-ME` in Access mode; `ARENA_ORGANIZER_EMAIL` overrides |
-| `compile` | the `/compile` panel (§1b): `backend` (`ollama`/`openrouter`), per-IP and global limits, `ipHeader`, `practiceBackend` |
+| `compile` | the `/compile` panel (§1b) **and the Jev ladder's own compiles** (§1c): `backend` (`ollama`/`openrouter`), `model`, per-IP and global limits (panel only), `ipHeader`, `practiceBackend` |
 
 Changing the tournament block appends a new `tournament` row; nothing already played is altered.
 
 ---
 
-## 1a. Hosted backend (OpenRouter) — for jam day, not the everyday ladder
+## 1a. Hosted text-model backend (OpenRouter) — not the Jam's path
 
-The everyday ladder stays on `qwen9b` (Ollama, $0). A hosted backend is a per-tournament choice
-(§5.4) for when wall-clock matters more than the fraction-of-a-cent cost — the jam bracket itself,
-or a rehearsal of it. Full cost/latency reasoning is
+The everyday ladder runs on Jev (§1c). This section is the hosted *text-model* backend, kept as a
+per-tournament choice (§5.4) for running prose prompts on a bigger chat model; it is not the Jam's
+path. Full cost/latency reasoning is
 [`hosted-model-options.md`](hosted-model-options.md); a real proof run (spend, latency, a
 side-by-side against the `qwen9b` baseline on the same seed) is
 [`../runs/openrouter-phase-c-proof-2026-09-22.md`](../runs/openrouter-phase-c-proof-2026-09-22.md).
@@ -139,8 +149,10 @@ default and compiles with host Ollama; nothing to start.
   ```
 
   and set `"compile": {"practiceBackend": "jev-schema"}` (the `jev-schema` backend is already in
-  `config.example.json`). The entrant's compiled rules play violet on Jev against the house bot:
-  a quick test against their handle's quota, never ranked. The Workers AI token behind the
+  `config.example.json`, and the example sets this already). The entrant's compiled rules play
+  violet on Jev against the house bot: a quick test against their handle's quota, never ranked. On
+  a Jev ladder (§1c) the house plays its compiled schemas on the same server, and the match is
+  metered like any other. On a text-model ladder the house plays `tournament.backend`. The Workers AI token behind the
   fallback renews itself. `python tools/jev/house_server.py --check-token` checks both
   credentials.
 
@@ -150,6 +162,103 @@ default and compiles with host Ollama; nothing to start.
   which had a listen backlog of 5, so a second concurrent match overflowed it. Restart it from
   current develop. The Jev servers and `model_server.py` now listen with a backlog of 128 (see
   [`runs/jev-server-backlog-2026-09-30.md`](../runs/jev-server-backlog-2026-09-30.md)).
+
+---
+
+## 1c. The Jev ladder (default since 2026-09-30)
+
+`tournament.backend: "jev-schema"` makes every ladder match, test, bracket match and practice match
+play **both sides on Jev**, the way the Jam does. Design and evidence:
+[`arena-site-spec.md` §9](arena-site-spec.md).
+
+- **Entrant side.** The prose is compiled by `tools/jev/compile.py` on `compile.backend` the first
+  time a match needs it, then cached in `runs/arena/schemas/<sha256>.<compiler>.json`. Every later
+  match of that prompt plays the same rules.
+- **House side.** The house plays `prompts/pilots/house-<tier>.schemas.json`; medium is the
+  placement bar.
+- **Jev.** Every Jev call goes to `tools/jev/schema_server.py`: TypeSafe first, failing over to
+  Workers AI. Both are Jev. Each match records which door answered.
+
+**Start the schema server** (the ladder's only model process):
+
+```sh
+python tools/jev/house_server.py --check-token        # both credentials: TypeSafe key + Workers AI fallback token
+python tools/jev/schema_server.py --budget-usd 10     # 127.0.0.1:8797; --budget-usd is this process's lifetime cap
+curl http://127.0.0.1:8797/health                     # "backend": "jev-schema", "jev_backend": "typesafe", "jev_fallback": "workers-ai"
+```
+
+`PROMPTLANE_JEV_API_KEY` is a Windows *user* variable. A detached launcher may not inherit it; read
+it from the User scope in the launcher, as `run_arena.ps1` loads `arena.env`. `--budget-usd` counts
+from process start and resets on restart. Keep it above the arena's `dailyBudgetUsd`, so the arena's
+daily cap is the one that bites. It is a backstop, not the budget.
+
+**Spend guard** (on the `jev-schema` backend entry, all enforced):
+
+| Key | Example | What it does |
+|---|---|---|
+| `dailyBudgetUsd` | `5` | No new match starts once today's (Central) Jev spend on this backend, summed from the ledger, reaches it. Queued matches wait, and `/matches` says why. |
+| `maxUsdPerMatch` | `0.25` | Stops a match whose own spend reaches it. The match ends `failed` and is not retried. |
+| `maxUnansweredRate` | `0.05` | A side with more unanswered decisions than this fails the match, which is re-queued once. |
+| `maxConsecutiveUnanswered` | `30` | This many unanswered decisions in a row stops the match early, as `failed`, re-queued once. |
+
+`null` turns one off. Expected cost: about **$0.06 a full match**, **$0.005–0.01 a quick one**, and
+$0 per compile on Ollama (about $0.0006 on OpenRouter). Each match's spend is the `jev` field on its
+terminal ledger row: `{calls, unanswered, tokensIn, costUsd, doors, compile}`. Its log has the same
+counts under `backend.jev`. Today's total:
+
+```sh
+node -e "import('./tools/arena/ledger.mjs').then(({Ledger, jevSpentToday}) => console.log(jevSpentToday(new Ledger('runs/arena/ledger.jsonl').load().state(), 'jev-schema')))"
+```
+
+**When something goes wrong, the ladder says so and never falls back to qwen:**
+
+| You see | Meaning | Do |
+|---|---|---|
+| `/matches`: *Backend `jev-schema` is not starting matches: Jev schema server not reachable* | `schema_server.py` is down | start it; the worker retries every 30 s |
+| … *is not a Jev schema server (… backend="ollama")* | the endpoint points at a text-model server | fix `backends.jev-schema.endpoint` |
+| … *daily Jev budget reached* / *the schema server's own --budget-usd … is spent* | a cap did its job | wait for the Central day to turn, or raise the cap and restart |
+| a match `failed — compile failed — violin: …` | that instrument's prose got no valid schema | it re-runs once by itself; if the retry fails too, the entrant's prose needs work. `/compile` shows them why |
+| a match `failed — Jev stopped answering …` / `Jev left too many decisions unanswered …` | Jev outage mid-match | it re-runs once; read the server's `/health` (`jev_fallback_last_error`) and §6 *5.3* step 3 |
+| a match `failed — per-match Jev spend cap reached` | a match cost far more than ≈ $0.06 | look at the log before raising `maxUsdPerMatch` |
+
+**Switch the live ladder** (the arena on :8790, `runs/arena/config.json`):
+
+1. Start `schema_server.py` persistently on `127.0.0.1:8797`. A third scheduled task, shaped like
+   the other two (§3): `margo-elysium-jev` → `python tools/jev/schema_server.py --budget-usd 10`,
+   with its own port guard, logging to `runs/arena/jev-task.log`. Check `/health` as above.
+2. In `runs/arena/config.json`, change or add exactly these keys (everything else stays):
+
+   ```json
+   "tournament": { "backend": "jev-schema", "map": "pvp-1", ... },
+   "backends": {
+     "jev-schema": { "kind": "jev-schema-http", "endpoint": "http://127.0.0.1:8797/", "model": "typesafe/jev",
+                     "avgSecPerCall": 0.5, "timeoutSec": 30, "dailyBudgetUsd": 5, "maxUsdPerMatch": 0.25,
+                     "maxUnansweredRate": 0.05, "maxConsecutiveUnanswered": 30 },
+     "qwen9b": { ...unchanged... }, "mock": { ...unchanged... }
+   },
+   "house": { "handle": "house", "tier": "medium", "files": null, "schemas": null },
+   "compile": { "backend": "ollama", "practiceBackend": "jev-schema" }
+   ```
+
+   `house` can keep its current `files` list instead: its first pair is medium's, so it plays
+   `house-medium.schemas.json` either way. `compile` may stay absent, since the defaults are
+   `ollama` and no practice. `practiceBackend` turns on the panel's practice match on the same
+   server.
+3. Restart the arena: `Stop-ScheduledTask margo-elysium-arena`, then the orphan-port check (§3),
+   then `Start-ScheduledTask margo-elysium-arena`. The task's `npm run build` picks up the merged
+   code.
+4. Read `runs/arena/arena-task.log`. It should show `arena: Jev ladder — both sides play compiled
+   schemas on http://127.0.0.1:8797/ …` and `tournament ladder backend=jev-schema`.
+5. Optional proof: a quick test from `/test`. Its match page should show
+   `Jev: … decisions · $0.00… · answered by typesafe …`.
+
+**Back out:** set `tournament.backend` back to `qwen9b`, make sure `margo-elysium-model` (:8787)
+is up, and restart the arena. Jev matches already played keep their recorded backend.
+
+**Elo across the switch.** Standings fold every ranked match in the ledger. If the ladder already
+has ranked qwen matches, move `runs/arena/` aside first (§5.2 *Reset for a fresh ladder*), so Jev
+ratings don't start from qwen results. On 2026-09-30 the live ledger had no entrants, so there was
+nothing to reset.
 
 ---
 
@@ -212,6 +321,11 @@ warm-session restart or a cancelled job took the site down.
 |---|---|---|
 | `margo-elysium-arena` | `run_arena_task.cmd` → `run_arena.ps1` → `npm run build` + `npm run arena -- --config runs/arena/config.json` | `127.0.0.1:8790` |
 | `margo-elysium-model` | `run_model_server_task.cmd` → `run_model_server.ps1` → `python tools/model_server.py` | `127.0.0.1:8787` |
+| `margo-elysium-jev` (**to add** with the Jev ladder, §1c) | `run_jev_task.cmd` → `run_jev.ps1` → `python tools/jev/schema_server.py --budget-usd 10` | `127.0.0.1:8797` |
+
+On a Jev ladder `margo-elysium-model` plays nothing (it serves only the `qwen9b` backend). Leave it
+running if a back-out to `qwen9b` should be instant. The Jev task needs `PROMPTLANE_JEV_API_KEY`
+from the User scope, plus wrangler's login or `CLOUDFLARE_API_TOKEN` for the Workers AI fallback.
 
 The launcher scripts live **outside the repo**, in the host scratchpad
 (`%USERPROFILE%\workspace\_scratch\promptlane-next\`), deliberately: they are host-specific
@@ -300,6 +414,12 @@ are for practice or a demo arena. No page picks a tier yet.
 
 The house bot is a fixed Elo 1000 that never moves and does not appear on the ladder.
 
+**On a Jev ladder (§1c)** the house plays its tier's compiled schemas,
+`prompts/pilots/house-<tier>.schemas.json` (medium: `house-medium.schemas.json`, the cascades the
+tiers were measured with on Jev). Set `house.schemas` to play another file. The `house` ledger row
+records the schema file and its hash. A house that resolves to no schema file (a single-file
+`house.md` / `drums.md`) stops a Jev ladder at startup with a message saying so.
+
 The same rules can instead be played by Jev (shadow only unless Ceryce flips it): see *5.3 Jam day with the Jev house bot* in §6.
 
 ---
@@ -312,7 +432,12 @@ The same rules can instead be played by Jev (shadow only unless Ceryce flips it)
   entrant on violet/green/violet, full match on the tournament backend).
 - **Queue**: one worker per backend. Priority `organizer` > `bracket` > `placement` > `test`,
   FIFO within a class. Before each job the worker probes the model server's `/health`; if it is
-  down it waits 30 s and tries again without touching the job.
+  down it waits 30 s and tries again without touching the job. A Jev backend also checks that the
+  server really is `jev-schema` and that neither its own cap nor today's `dailyBudgetUsd` is spent,
+  and shows any hold on `/matches` (§1c).
+- **Jev matches** compile an entrant's prose on its first match (cached after that). They fail
+  visibly on a compile failure or a Jev outage, and are re-queued once; a per-match spend cap fails
+  a match without a retry. Each match's spend and doors go on its ledger row (§1c).
 - **Every match is re-simulated** (`verifyReplay`) before it counts. A log that does not replay
   is written as `logs/<id>.diverged.json`, a `void` row is appended, and the job is re-queued once
   as a new match id (`retryOf`). A job past its wall cap (3× expected, 60 s floor) is written as
@@ -357,7 +482,7 @@ seconds.
 | Cancel something queued | `/admin` → *Cancel* next to it (queued only; a running match cannot be cancelled — pause and wait). |
 | Force an entrants sync | `/admin` → *Sync now*. |
 | Give a handle to the right person | `/admin` → *Handle claims* → *Reassign*. |
-| Change the model | edit `runs/arena/config.json` `tournament.backend`, start that model server, restart the arena. The new setting is a new `tournament` row; old matches keep their recorded backend. |
+| Change the model | edit `runs/arena/config.json` `tournament.backend`, start that model server (`schema_server.py` for `jev-schema`, `model_server.py` for `qwen9b`), restart the arena. The new setting is a new `tournament` row; old matches keep their recorded backend. |
 | **Reset for a fresh ladder** | stop the arena, move `runs/arena/` aside (e.g. `runs/arena-pre-jam-<date>/`), start again. The next start has an empty ledger, re-loads the house bot, re-syncs the entrants repo and re-places everyone. Never edit `ledger.jsonl`. |
 | Re-verify any log by hand | `npm run match -- --verify runs/arena/logs/<id>.json` |
 | Watch a match **live** | `/matches` → *Watch … live*, or `/matches/<id>` → *Watch live* (`/play/?live=<id>`, the game's own page; needs `npm run build`). Works for a queued match (it waits), a running one, and a finished one (plays at the chosen speed). |
@@ -513,7 +638,7 @@ match plays Jev; entrants never do. **Back out:** set `"backend": null` and rest
 
 ## 7. Tests
 
-`npm run test:arena` — `node --test` over `tools/arena/test_*.mjs` (95 tests): the `arena.` →
+`npm run test:arena` — `node --test` over `tools/arena/test_*.mjs` (112 tests): the `arena.` →
 `elysium.` redirect, Elo and placements, ledger folds (quota, standings, recovery), the ported
 validator, Access JWT refusal, the verify gate and wall cap, the house pair, the bracket (seeding,
 byes, the Q7 tie order, the fold through void/re-run/ruling/reveal), the live stream (backlog,
@@ -524,4 +649,7 @@ stops on a tampered checkpoint, 16× replay paces itself), and headless end-to-e
 arena on the mock model — ladder, quota, Access refusal, and a whole bracket over HTTP with a
 held round hidden from a spectator, and the compile panel (the markdown renderer's escaping, the
 rate limiter, the real `compile.py` child against a fake Ollama, a practice match through a fake
-schema server). No GPU; it is what CI runs.
+schema server), and the Jev ladder (`test_jev_ladder.mjs`: the compile cache and compiler version,
+placements on a fake schema server with spend and doors on the ledger and nothing asking the qwen
+port, a compile failure, an outage mid-match, the unanswered-rate rule, both spend caps, the
+holds, and the house's schema files). No GPU and no Jev; it is what CI runs.

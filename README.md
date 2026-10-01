@@ -161,7 +161,9 @@ jam-day bracket: entrants paste a prompt and run a quick test against the house 
 prompts in `jamobair-entrants` are placed automatically on three seeds, an Elo ladder is folded
 from an append-only ledger with every match re-verified before it counts, every match can be
 watched live (`/play/?live=<id>`), and the organizer seeds a single-elimination bracket from the
-ladder, pre-runs the early rounds, and plays the semis and final live. Start it, expose it behind
+ladder, pre-runs the early rounds, and plays the semis and final live. The ladder plays both sides
+on Jev, as the Jam does: entrant prose is compiled once by `tools/jev/compile.py`, and the house
+plays its tier's compiled schemas (spec §9). Start it, expose it behind
 Cloudflare Access, and operate it — including the jam-day sequence — per
 [`docs/arena-runbook.md`](docs/arena-runbook.md); the design and rulings are in
 [`docs/arena-site-spec.md`](docs/arena-site-spec.md). `npm run test:arena` runs its suite on the
@@ -180,7 +182,8 @@ opponent, written for `qwen3.5:9b` specifically (one file per side, a worksheet 
 what it does and how it measured against `drums.md` is in
 [`runs/house-prompt-2026-09-21.md`](runs/house-prompt-2026-09-21.md). It is the *medium* of three
 strategy tiers (easy / medium / hard, [`prompts/pilots/README.md`](prompts/pilots/README.md));
-`npm run match -- --a house:hard --b house` plays any two.
+`npm run match -- --a house:hard --b house` plays any two. On Jev (the arena's ladder) each tier
+plays its compiled `prompts/pilots/house-<tier>.schemas.json` instead.
 
 ## Generate and compare
 

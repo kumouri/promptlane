@@ -22,10 +22,11 @@ function rowHtml(job) {
 }
 
 /** Spectator page: what is running (with the live link), the queue, and recent matches. */
-export function matchesPage({ user, queue, running, recent, paused, held = 0 }) {
+export function matchesPage({ user, queue, running, recent, paused, held = 0, holds = [] }) {
   const body = `
 <h1>Matches</h1>
 ${paused ? '<p class="warn">The queue is paused; nothing new starts until the organizer resumes it.</p>' : ''}
+${holds.map((h) => `<p class="warn">Backend <code>${esc(h.backendId)}</code> is not starting matches (since ${fmtDate(h.since)}): ${esc(h.reason)}. Queued matches keep their place and start once it clears.</p>`).join('')}
 ${held ? `<p class="warn">${held} pre-run <a href="/bracket">bracket</a> match${held === 1 ? ' is' : 'es are'} held until the organizer reveals the round on jam day.</p>` : ''}
 <h2>Running — watch live</h2>
 ${
@@ -58,6 +59,21 @@ ${fin ? `<tr><th>Nexus hp at end</th><td class="num violet">${fin.nexus?.[0] ?? 
 </table>`;
 }
 
+/** A Jev match's spend, doors and where each side's rules came from (docs/arena-site-spec.md §9). */
+function jevLine(jev) {
+  if (!jev) return '';
+  const doors = Object.entries(jev.doors ?? {}).map(([d, n]) => `${esc(d)} ${n}`).join(', ') || 'none';
+  const src = (s) => {
+    if (!s) return '—';
+    if (s.kind === 'house') return `house schemas <code>${esc(s.file ?? '?')}</code>`;
+    if (s.kind === 'practice') return 'the practice compile';
+    return `compiled prose (compiler <code>${esc(s.compilerVersion ?? '?')}</code>, ${s.cached ? 'cached' : 'compiled for this match'})`;
+  };
+  return `<p class="dim">Jev: ${jev.calls} decisions · $${Number(jev.costUsd ?? 0).toFixed(4)} · answered by ${doors} · unanswered violet ${jev.unanswered?.violet ?? 0}, green ${jev.unanswered?.green ?? 0}${
+    jev.compile ? ` · violet played ${src(jev.compile.violet)}; green played ${src(jev.compile.green)}` : ''
+  }</p>`;
+}
+
 /** One match: status, result line, stats, the replay link. */
 export function matchPage({ user, job, live, resultText, position }) {
   let status;
@@ -71,11 +87,12 @@ export function matchPage({ user, job, live, resultText, position }) {
     status = `<p><b>${outcome(job)}</b> · sim ${Math.round(job.result.durationSec)} s · wall ${fmtDuration(job.wallMs)} · verified ${job.verify.checkpointsCompared} checkpoints</p>
 <p><a class="btn" href="/play/?replay=/logs/${esc(job.id)}.json">Watch the replay</a> <a class="btn" href="/play/?replay=/logs/${esc(job.id)}.json&speed=4">at 4×</a> &nbsp; <a href="/logs/${esc(job.id)}.json">log JSON</a></p>
 <pre>${esc(resultText)}</pre>
+${jevLine(job.jev)}
 ${statsTable(job)}`;
   } else {
     status = `<p class="bad">${esc(job.status)}${job.reason ? ` — ${esc(job.reason)}` : ''}</p>${
-      job.status === 'timed-out' ? `<p><a href="/play/?replay=/logs/${esc(job.id)}.json">Watch what there is</a></p>` : ''
-    }`;
+      job.status === 'timed-out' || job.jev?.calls ? `<p><a href="/play/?replay=/logs/${esc(job.id)}.json">Watch what there is</a></p>` : ''
+    }${jevLine(job.jev)}`;
   }
   const body = `
 <h1>${esc(job.id)}</h1>

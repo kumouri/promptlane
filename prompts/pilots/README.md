@@ -56,6 +56,13 @@ compiled cascades and transparency reports are checked in
 the latter in `npm run match --a-schemas` shape, so a tier can also be played on Jev as an entrant is).
 Medium's `house-violet.md` was compiled the same way for the Jev sanity run
 (`runs/house-tiers-{compile,schemas}-medium-2026-09-30.*`); its side files are unchanged.
+
+**`house-<tier>.schemas.json`** (easy, medium, hard) are byte copies of those three
+`runs/house-tiers-schemas-*-2026-09-30.json` files. They are what the house plays on a Jev ladder
+(`tools/arena/house.mjs`, [`docs/arena-site-spec.md` §9](../../docs/arena-site-spec.md)). They are
+fixed, not recompiled, so the placement bar doesn't move with a sampled compile. To change what the
+house plays on Jev, recompile on purpose, replace the file, and restart the arena; the `house`
+ledger row records the new hash.
 `house-<tier>-{violet,green}.md` renders that compiled cascade rule for rule, in the house format
 `qwen3.5:9b` needs: a worksheet, team literals, and the first matching rule wins. Targets follow
 the translator's fixed selector vocabulary: `nearest_enemy` becomes easy's `foe` key or hard's

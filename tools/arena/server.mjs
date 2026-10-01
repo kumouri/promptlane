@@ -24,11 +24,12 @@ import { fileURLToPath } from 'node:url';
 import { ROOT, loadHeadless, resultLine } from '../match/load.mjs';
 import { AuthError, makeAuth } from './auth.mjs';
 import { CompileError, clientIp, makeCompiler, practiceSchemas } from './compile.mjs';
-import { bundleHouse, candidateLabel, houseCandidates, pickHouse } from './house.mjs';
+import { bundleHouse, candidateLabel, houseCandidates, houseSchemasFile, loadHouseSchemas, pickHouse } from './house.mjs';
 import { Ledger, bracketIds, bracketView, dayCT, isHeld, pendingPlacements, queued as queuedJobs, quotaUsed, standings } from './ledger.mjs';
 import { LiveHub, eventsFromLog, serveSse, sseFollow, sseFrame, sseHead } from './live.mjs';
 import { PromptStore, hashPrompt, isHandle, makeEntrantsSource, validatePromptText } from './prompts.mjs';
-import { Queue } from './queue.mjs';
+import { Queue, isJevBackend } from './queue.mjs';
+import { SchemaCache } from './schemas.mjs';
 import { bracketMatchSeed, bracketPlan, placementPlan } from './rating.mjs';
 import { adminPage } from './pages/admin.mjs';
 import { bracketPage } from './pages/bracket.mjs';
@@ -68,6 +69,12 @@ export function loadConfig(file, overrides = {}) {
   if (overrides.houseTier) cfg.house = { ...cfg.house, tier: overrides.houseTier, files: null };
   houseCandidates(cfg.house); // fail at load on an unknown tier or on tier + files together
   if (!cfg.backends[cfg.tournament.backend]) throw new Error(`tournament backend ${cfg.tournament.backend} is not in config.backends`);
+  // Jev ladder (docs/arena-site-spec.md §9): a `jev-schema-http` tournament backend plays both sides
+  // as compiled schemas on tools/jev/schema_server.py -- it needs an endpoint, and the house's
+  // compiled schemas (checked at startup, createArena).
+  for (const [id, b] of Object.entries(cfg.backends)) {
+    if (isJevBackend(b) && !b.endpoint) throw new Error(`backend ${id} (jev-schema-http) needs an endpoint`);
+  }
   // Jev house bot (SHADOW ONLY as of 2026-09-23 -- runs/jev-house-bot-2026-09-23.md): unset by
   // default, so the house bot plays through `tournament.backend` exactly as it always has. Setting
   // `house.backend` to a `kind: "jev-http"` entry in `config.backends` is the one config change
@@ -190,10 +197,24 @@ export async function createArena({
   const houseFile = candidateLabel(houseCandidate);
   const houseText = bundleHouse(houseCandidate, ROOT);
   const houseHash = promptStore.save(houseHandle, houseText);
-  if (ledger.state().house?.hash !== houseHash || ledger.state().house?.file !== houseFile) {
-    ledger.append({ type: 'house', handle: houseHandle, hash: houseHash, file: houseFile });
+  // What the house plays on Jev: its tier's checked-in compiled schemas (house.mjs houseSchemasFile).
+  const jevLadder = isJevBackend(backends[tournament.backend]);
+  const schemasFile = houseSchemasFile(config.house, houseCandidate);
+  const houseSchemas = schemasFile && (jevLadder || existsSync(path.join(ROOT, schemasFile))) ? loadHouseSchemas(schemasFile, ROOT) : null;
+  if (jevLadder && !houseSchemas) {
+    throw new Error(`tournament backend ${tournament.backend} is Jev, and the house (${houseFile}) has no compiled schemas: use a house tier or set house.schemas`);
   }
-  const house = { handle: houseHandle, hash: houseHash, file: houseFile, backend: config.house?.backend };
+  const prevHouse = ledger.state().house;
+  if (prevHouse?.hash !== houseHash || prevHouse?.file !== houseFile || (houseSchemas && prevHouse?.schemasHash !== houseSchemas.hash)) {
+    ledger.append({ type: 'house', handle: houseHandle, hash: houseHash, file: houseFile, ...(houseSchemas ? { schemasFile, schemasHash: houseSchemas.hash } : {}) });
+  }
+  const house = {
+    handle: houseHandle,
+    hash: houseHash,
+    file: houseFile,
+    backend: config.house?.backend,
+    ...(houseSchemas ? { schemas: houseSchemas.schemas, schemasFile, schemasHash: houseSchemas.hash } : {}),
+  };
   const compiler = makeCompiler({ config: config.compile, root: ROOT, run: hooks.compileRun });
   const practiceBackendId = compiler.cfg.practiceBackend;
   const houseRef = { handle: houseHandle, hash: houseHash, house: true };
@@ -202,8 +223,18 @@ export async function createArena({
   if (JSON.stringify(ledger.state().tournament) !== JSON.stringify(tournament)) ledger.append({ type: 'tournament', tournament });
 
   const headless = await loadHeadless();
+  if (tournament.map != null) headless.resolveMap(tournament.map); // fail at startup on an unknown map
+  // The ladder's compiles for Jev: once per prompt hash and compiler version, on disk (schemas.mjs).
+  const schemaCache = new SchemaCache({ dir: path.join(dataDir, 'schemas'), root: ROOT, config: config.compile, run: hooks.ladderCompileRun, version: hooks.compilerVersion });
+  if (jevLadder) {
+    const jb = backends[tournament.backend];
+    log.info(
+      `arena: Jev ladder — both sides play compiled schemas on ${jb.endpoint}; house schemas ${schemasFile} (${houseSchemas.hash.slice(0, 8)}); ` +
+        `entrant prose compiles on ${schemaCache.cfg.backend} (compiler ${schemaCache.version})`,
+    );
+  }
   const live = new LiveHub();
-  const queue = new Queue({ ledger, backends, headless, dataDir, promptStore, house, live, log, hooks });
+  const queue = new Queue({ ledger, backends, headless, dataDir, promptStore, house, schemaCache, map: tournament.map ?? null, live, log, hooks });
 
   // --- entrants sync ------------------------------------------------------------------------
   const source = makeEntrantsSource(config.entrants);
@@ -586,7 +617,8 @@ export async function createArena({
       const q = queuedJobs(state, queue.running).filter(visible);
       const running = [...queue.running.keys()].map((id) => state.jobs.get(id)).filter((j) => j && visible(j)).map((j) => ({ ...j, progress: queue.running.get(j.id)?.progress ?? null }));
       const recent = visibleJobs(state, user).filter((j) => j.status !== 'queued' && !queue.running.has(j.id)).sort((a, b) => (b.finishedAt ?? b.createdAt).localeCompare(a.finishedAt ?? a.createdAt)).slice(0, 50);
-      return sendHtml(res, matchesPage({ user, queue: q, running, recent, paused: state.paused, held: heldCount(state, user) }));
+      const holds = [...queue.holds].map(([backendId, h]) => ({ backendId, ...h }));
+      return sendHtml(res, matchesPage({ user, queue: q, running, recent, paused: state.paused, held: heldCount(state, user), holds }));
     }
     if (p === '/api/matches' && method === 'GET') {
       const state = ledger.state();
@@ -596,6 +628,7 @@ export async function createArena({
         running: [...queue.running.keys()].filter((id) => visible(state.jobs.get(id))),
         queued: queuedJobs(state, queue.running).filter(visible).map((j) => j.id),
         held: heldCount(state, user),
+        holds: Object.fromEntries(queue.holds),
         jobs: visibleJobs(state, user).map(jobView),
       });
     }

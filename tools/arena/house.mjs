@@ -16,7 +16,13 @@
  * easy (defend, recall early), medium (today's wave-rider, the placement bar), hard (towers with the
  * wave, finish low-hp bearbots). `config.house.tier` picks one instead of `files`; unset, the house
  * is medium exactly as before, so the fixed-1000 placement bar does not move.
+ *
+ * On Jev (a `jev-schema-http` tournament backend, docs/arena-site-spec.md §9) the house plays its
+ * tier's COMPILED schemas, `prompts/pilots/house-<tier>.schemas.json` -- the cascades the tiers were
+ * measured with on Jev (`runs/house-tiers-2026-09-30.md`), checked in and fixed, so the placement bar
+ * is not re-sampled on every restart. `config.house.schemas` names another file instead.
  */
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -24,6 +30,9 @@ const pair = (stem) => ({ violet: `prompts/pilots/${stem}-violet.md`, green: `pr
 
 export const HOUSE_TIERS = { easy: pair('house-easy'), medium: pair('house'), hard: pair('house-hard') };
 export const DEFAULT_HOUSE_TIER = 'medium';
+/** Each tier's prose compiled for Jev ({drums, keytar, violin}; `npm run match --a-schemas` shape). */
+export const HOUSE_TIER_SCHEMAS = Object.fromEntries(Object.keys(HOUSE_TIERS).map((t) => [t, `prompts/pilots/house-${t}.schemas.json`]));
+const INSTRUMENTS = ['drums', 'keytar', 'violin'];
 
 export const DEFAULT_HOUSE_FILES = [HOUSE_TIERS[DEFAULT_HOUSE_TIER], 'prompts/pilots/house.md', 'prompts/pilots/drums.md'];
 
@@ -79,6 +88,27 @@ export function bundleHouse(candidate, root, read = (f) => readFileSync(f, 'utf8
   const files = candidateFiles(candidate);
   if (files.length === 1) return read(path.join(root, files[0]));
   return SIDES.map((side, i) => mark(side) + read(path.join(root, files[i]))).join('\n');
+}
+
+/**
+ * The schema file the house plays on Jev: `house.schemas` if set, else the tier whose pair is the
+ * picked candidate (so a `files` list whose first pair is medium's still finds medium's schemas),
+ * else null -- a single-file house (`house.md`, `drums.md`) has no checked-in compile.
+ */
+export function houseSchemasFile(house = {}, candidate = null) {
+  if (house?.schemas) return house.schemas;
+  if (!candidate || typeof candidate === 'string') return null;
+  const tier = Object.keys(HOUSE_TIERS).find((t) => HOUSE_TIERS[t].violet === candidate.violet && HOUSE_TIERS[t].green === candidate.green);
+  return tier ? HOUSE_TIER_SCHEMAS[tier] : null;
+}
+
+/** `{schemas: {drums, keytar, violin}, hash}` from a schema file; throws unless all three are there. */
+export function loadHouseSchemas(file, root, read = (f) => readFileSync(f, 'utf8')) {
+  const text = read(path.join(root, file));
+  const schemas = JSON.parse(text);
+  const missing = INSTRUMENTS.filter((i) => !Array.isArray(schemas?.[i]?.rules));
+  if (missing.length) throw new Error(`house schemas ${file}: no compiled schema for ${missing.join(', ')}`);
+  return { schemas: Object.fromEntries(INSTRUMENTS.map((i) => [i, schemas[i]])), hash: createHash('sha256').update(text).digest('hex') };
 }
 
 /** The prompt text the given side plays: the bundle's half, or an unbundled text unchanged. */
