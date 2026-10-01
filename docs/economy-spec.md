@@ -1,7 +1,8 @@
 # Economy spec — gold, levels and items for the Jam (eco-1)
 
 **Status:** draft for Ceryce's rulings (§8). Spec only; nothing here is built yet.
-**Written:** 2026-09-30, after Ceryce chose "minimal economy before the jam" (19:57 CT).
+**Written:** 2026-09-30, after Ceryce chose "minimal economy before the jam" (19:57 CT). §9, the
+neutral river objective, was added the same evening after she backed the idea (20:34 CT).
 **Jam:** Fri 2026-10-16. Entry cutoff is midnight Central on Thu 10-15. Sign-ups close Tue 10-06.
 
 > "The MVP was supposed to have the minimum version of stats, items, gold, and leveling to give the
@@ -31,6 +32,7 @@ adds numbers, it is cut.
 | 8 | **All of it runs outside the frozen sim**, as `src/economy.ts` plus one constants file. Match logs record it as `economy: "eco-1"`. | This is the same pattern as the balance study's `src/mapVariant.ts`. Old logs replay unchanged. |
 | 9 | **Measure on Jev** with the balance study's metric tool, in four seed-paired conditions (§6). There are pre-registered pass/fail lines. | Standing rule: Jev, never qwen 9B. |
 | 10 | **Entrant-facing changes land by Mon 10-05**, numbers freeze Thu 10-08, and there is a go/no-go gate on Sun 10-04 (§7). | Sign-ups close Tue 10-06. Entrants must see the rules they are writing against. |
+| 11 | **A neutral river objective, the Bandstand** (§9). It alternates between two river sites outside every tower's range. A team takes it by holding the stage, and any enemy on the stage freezes the capture. The reward is a 45 s team Encore buff, plus gold and XP when the economy is on. Bots reach it through one new move selector, with no new action kind. It has its own layer and its own gate, and is measured on Jev before Sun 10-04. | `pvp-1` cut team fights from 4.6 to 2.75 a match by removing the one spot both teams converged on. This puts a shared spot back on neutral ground, and only PvP can win it. |
 
 ---
 
@@ -70,7 +72,7 @@ All `file:line` references are on `develop` at `850c7c7`.
 
 Ceryce asked (20:01 CT) for the two models to be compared against primary sources. Every claim below
 is quoted from the wikis, which were read through their MediaWiki APIs on 2026-09-30. The page
-revision IDs are listed in §9.
+revision IDs are listed in §10.
 
 ### 2.1 Dota 2: reliable and unreliable gold
 
@@ -361,6 +363,9 @@ The economy uses no RNG. Each tick runs in this order:
 7. Auto-buy for every bot at the shop.
 8. Re-derive stats.
 
+With the river objective on, its update runs between steps 3 and 4, and step 8 includes the Encore
+modifier (§9.6).
+
 ### 3.9 How it runs outside the frozen sim
 
 This is a ruleset layer, the same shape as `src/mapVariant.ts`. Nothing in `src/sim/*`, `src/types.ts` or `src/pilots/*` changes.
@@ -368,7 +373,7 @@ This is a ruleset layer, the same shape as `src/mapVariant.ts`. Nothing in `src/
 | Need | How, from outside | Precedent |
 |---|---|---|
 | Who damaged whom (kill credit, last hits, lifesteal) | Wrap four instance methods on the match: bearbot attack, ability, minion update and tower update. Diff every unit's hp before and after each call. | `tools/match/metrics.ts` (balance-pvp) does exactly this today. |
-| Stats from levels and items | Write the bot's own mutable fields (`maxHp`, `attackDamage`, `moveSpeed`, `attackCooldownSec`) between ticks. | `applyMapVariant` writes `tower.attackRange`. |
+| Stats from levels and items | Write the bot's own mutable fields (`maxHp`, `attackDamage`, `moveSpeed`, `attackCooldownSec`) between ticks, through the one stat derivation shared with the river objective (§9.6). | `applyMapVariant` writes `tower.attackRange`. |
 | Ability cooldown −30 % | After each tick, a cooldown that *rose* means a cast just happened. Scale what remains. | — |
 | Respawn | Between ticks, set `alive`, `hp`, `pos`, `recalling`, `buffs` and targets. Set the bot's private `pilotState.currentAction` to `hold`, reached by a cast exactly as `headless.ts` reaches `tick`. A revived bot is polled again on the next tick, because `pollPilots` skips only dead bots. | `headless.ts:44-47` |
 | New observation fields | Wrap `pilot.decide(obs)` so the observation is extended before the pilot sees it. | `RunOptions.decisionPilotFor` (`headless.ts:63`) |
@@ -403,9 +408,11 @@ eco-1 speaks to that gap without a new map feature. Tower gold is partly split a
 present (§3.2) and XP is shared by proximity (§3.4), so a push pays whoever shows up, and the
 defenders have to show up too. Proximity assist credit (§3.2) does the same for kills.
 
-If a river objective is built later, it should pay the same way: a local pool split among the bots
-present, plus XP by proximity. That needs one entry in the constants file, not a new mechanism.
-The swinginess increase is why §6 sets a no-runaway line.
+Those levers pay for showing up at something that already happens. They do not create a new place
+to meet. The **neutral river objective (§9)** is that place, and it pays the same way: a team share
+plus a local pool split among the bots present, and XP to the bots present. It is its own layer with
+its own constants file (`river-1.json`), because its main reward, the Encore buff, has to work even
+if the economy is cut. The swinginess increase is why §6 sets a no-runaway line.
 
 - **The layers are independent.** The map variant moves and re-ranges towers before the first tick. The economy hooks the tick and the pilot. The order is `applyMapVariant` and then attach the economy. A log records both `map` and `economy`.
 - **Nothing in eco-1 touches tower range or placement, or bearbot attack range.** Those belong to the balance study.
@@ -501,11 +508,10 @@ pattern as the other enemy selectors.
 
 **Wire format** (`compile.py:58-105`):
 - Add `"build"` and bump `FORMAT_VERSION` to 2. `schema_from_dict` reads a missing `build` as `None`.
-- **Found while scoping, not verified end-to-end:**
-  - `schema_to_dict` writes only `schema.rules`.
-  - For a tree with guards, that is just the root's own top-level rules (`translator.py:139-163`).
-  - So a compiled guard tree appears to lose its guards on the way to `schema_server.py`.
-  - This serializer is being changed for `build` anyway, so serialize `root` there (or fix it separately sooner).
+- **Guards now survive the wire format.** While scoping this spec, `schema_to_dict` was found to
+  write only `schema.rules`, so a compiled guard tree lost its guards on the way to
+  `schema_server.py`. PR #49 fixed that: the serializer walks `schema.root`. `build` is added
+  alongside the same tree.
 
 **Who consumes the build.** The economy layer reads the build, and Jev never does.
 - `cli.mjs` and the arena queue already load the compiled schema per side, and pass `schema.build` to the economy layer when the match starts.
@@ -602,8 +608,9 @@ whoever killed you.)
 | Translator | `tools/jev/translator.py`, `fidelity_harness.py`, `target_resolve.py`, `compile.py`, `transparency.py`, `scenarios.py`, tests | P2 |
 | House | `prompts/pilots/house*.md`, `*.prose.md`, `tools/jev/rules.py`, `team_rules.py`, `serializer*.py`, `tools/match/jevPilot.ts`, `jevTeamPilot.ts`, `tools/arena/house.mjs` | P2 |
 | Entrants | `jamobair-entrants`: `README.md`, `entrants/README.md`, `entrants/_template/pilot.md`, `tools/compile_preview.py` | P2 |
+| River objective (§9) | new `src/objective.ts`, `src/objective/river-1.json`, `src/ruleset/stats.ts` (the stat derivation shared with the economy); the same match plumbing, viewer and metrics files as above; `target_resolve.py`, `translator.py` (`bandstand` selector), `fidelity_harness.py` (description lines), house tiers, entrants README and template | O1/O2 |
 | Evolve | `tools/evolve/generation.mjs` `matchKey` (§7 P4), `fitness.mjs` | P4 |
-| Docs | this spec; `docs/design.md` (a ruleset paragraph, as the balance study adds for the map); `docs/arena-runbook.md`; `docs/prose-to-schema-translator.md` (`build`, selector) | with each phase |
+| Docs | this spec; `docs/design.md` (a ruleset paragraph, as the balance study adds for the map); `docs/arena-runbook.md`; `docs/prose-to-schema-translator.md` (`build`, selectors including `bandstand`) | with each phase |
 
 ---
 
@@ -616,6 +623,8 @@ The tool is the balance study's `tools/match/metrics.mjs`. It works by seed-pair
 
 **The backend is Jev, never qwen 9B** (standing rule). Use the TypeSafe default with Workers AI
 fallback, cadence 2 s and the Jam roster.
+
+The river objective is measured separately, on the map-only game, by §9.8.
 
 ### 6.1 Conditions (all on the balance study's shipped map)
 
@@ -683,35 +692,46 @@ Central Thu 10-15, and the Jam is Fri 10-16. Effort is agent working hours. Ever
 |---|---|---|---|---|
 | **P0 Rulings** | Thu 10-01 | — | Ceryce answers §8. (The balance study's `pvp-1` already shipped as `DEFAULT_MAP`, PR #48.) | Rulings recorded in this spec |
 | **P1 Ruleset layer** | Thu 10-01 – Fri 10-02 | 12–16 h | `eco-1.json`, `src/economy.ts`, `src/attribution.ts`, respawn, items and levels, observation wrapper, auto-buy, log and checkpoint fields, wired into all five places that build a match, HUD, metric-tool respawn support. Tests: ledger arithmetic, determinism, replay of old logs unchanged, replay of eco logs verified. | `npm test` green; an eco-1 match replays OK; v1 logs bit-identical |
-| **P2 Decision surface** | Fri 10-02 – Sun 10-04 | 12–16 h | Translator `build` + selector + prompt items block + wire format (+ guard serialization), `describe_observation`, transparency, house tiers and worksheets, entrants README, template and compile preview, Elysium panel | Compile preview shows a shopping list; house bots shop |
-| **Gate** | **Sun 10-04, end of day** | — | **Go/no-go:** if P1 is not merged and P2 not in review, the Jam runs on map-only, and the economy moves to after the Jam. The entrant-facing text is not published. | Ceryce decides |
-| **P2b Entrant freeze** | **Mon 10-05** | 1–2 h | Entrants README, template and preview merged in `jamobair-entrants`; `PROMPTLANE_REF` bumped. Announce to entrants. | Live before sign-ups close Tue 10-06 |
-| **P3 Measure + one tune** | Mon 10-05 – Wed 10-07 | 4–6 h wall clock + 3 h analysis | §6 conditions A, R, B0, B1; one tuning pass if needed | Pass lines met, or fallback ruled |
-| **Numbers freeze** | **Thu 10-08** | — | `eco-1.json` final; README tables regenerated. Only bug fixes after this. | — |
-| **P4 Re-tune house + campaign** | Thu 10-08 – Sun 10-11 | 6–8 h + background | House tier check re-run on Jev (easy < medium ≤ hard); per-tier builds tuned. **Fix `matchKey`** (`tools/evolve/generation.mjs:121-123`) to include the ruleset (map + economy + translator version); it currently hashes only sides, seed, cadence and length, so old cached matches would be reused silently. Campaign 1's results are void under eco-1; **campaign 2** relaunches on eco-1 within the epoch caps Ceryce set. | Tier ordering holds; campaign 2 running |
+| **O1 Objective layer** (§9) | Thu 10-01 – Fri 10-02, alongside P1 | 6–8 h | `river-1.json`, `src/objective.ts`, the shared `src/ruleset/stats.ts`, the `bandstand` observation block, log and checkpoint fields, the same five call sites, the stage and Encore in `src/render.ts`, and the §9.8 objective metrics. It is built by a separate agent and does not depend on the economy. Of P1 and O1, whichever merges second rebases onto the first (both touch `headless.ts` and the observation wrapper). Tests: determinism; capture, contest and drain arithmetic; v1 and `pvp-1` logs bit-identical; a river-1 match replays OK. | `npm test` green; a river-1 match replays OK |
+| **P2 Decision surface** | Fri 10-02 – Sun 10-04 | 12–16 h | Translator `build` + selector + prompt items block + wire format, `describe_observation`, transparency, house tiers and worksheets, entrants README, template and compile preview, Elysium panel | Compile preview shows a shopping list; house bots shop |
+| **O2 Objective surface + measurement** | Sat 10-03 – Sun 10-04 | 4–6 h + about 2 h wall clock | The `bandstand` selector and its fallback, description lines, the house-tier Bandstand rules (§9.7), then the §9.8 run: P vs O, 48 matches on Jev, map-only, plus one tuning pass if needed | The §9.8 verdict is written up before the gate |
+| **Gate** | **Sun 10-04, end of day** | — | **Go/no-go:** if P1 is not merged and P2 not in review, the Jam runs on map-only, and the economy moves to after the Jam. The entrant-facing text is not published. **The objective has its own go/no-go at the same time:** it ships if O1 is merged and §9.8 passes (or Ceryce rules per Q17), whatever the economy's verdict. Without the economy it ships with the Encore only (§9.5). | Ceryce decides |
+| **P2b Entrant freeze** | **Mon 10-05** | 1–2 h | Entrants README, template and preview merged in `jamobair-entrants`; `PROMPTLANE_REF` bumped. Announce to entrants. If the objective is go, this includes the Bandstand README section and template blank. | Live before sign-ups close Tue 10-06 |
+| **P3 Measure + one tune** | Mon 10-05 – Wed 10-07 | 4–6 h wall clock + 3 h analysis | §6 conditions A, R, B0, B1; one tuning pass if needed. If both ship, add B1 + objective against B1 (§9.8, 12 matches per condition). | Pass lines met, or fallback ruled |
+| **Numbers freeze** | **Thu 10-08** | — | `eco-1.json` and `river-1.json` final; README tables regenerated. Only bug fixes after this. | — |
+| **P4 Re-tune house + campaign** | Thu 10-08 – Sun 10-11 | 6–8 h + background | House tier check re-run on Jev (easy < medium ≤ hard), with the objective on if it shipped; per-tier builds tuned. **Fix `matchKey`** (`tools/evolve/generation.mjs:121-123`) to include the ruleset (map + economy + objective + translator version); it currently hashes only sides, seed, cadence and length, so old cached matches would be reused silently. Campaign 1's results are void under eco-1 or river-1; **campaign 2** relaunches on the shipped ruleset within the epoch caps Ceryce set. | Tier ordering holds; campaign 2 running |
 | **P5 Rehearsal + buffer** | Mon 10-12 – Thu 10-15 | 4 h | Full Jam dry run on Elysium with entrant-shaped prose; runbook updated | Dry run clean |
 
 **Things that must land before sign-ups close (Tue 10-06):** respawn and the economy rules in the entrants README, the
 shopping-list template blank, the observation fields, the new selector, and a compile preview that
-shows the shopping list. Numbers may still move until Thu 10-08, and entrants are told they are
-provisional.
+shows the shopping list. If the objective is go, the same deadline applies to the Bandstand rules,
+its observation fields, the `bandstand` selector and its template blank. Numbers may still move until
+Thu 10-08, and entrants are told they are provisional.
 
 **What to cut first**, in order, if the schedule slips:
 1. **Tip Jar** (it is already optional).
-2. **Metronome.** It is the only item that needs the cooldown-rescaling hook; three items in three slots means everyone owns everything, so drop to two slots.
-3. **The `highest_bounty_enemy` selector.** Bounty stays visible in the description, and "the enemy worth the most" degrades to `lowest_hp_enemy`.
-4. **Levels and XP.** Gold and items carry the decision surface; levels are a power curve.
-5. **The death drop**, i.e. the League-lite fallback.
+2. **Bandstand gold and XP.** The objective keeps the Encore, which is the part that pulls teams together. The economy loses a source it doesn't need.
+3. **Metronome.** It is the only item that needs the cooldown-rescaling hook; three items in three slots means everyone owns everything, so drop to two slots.
+4. **The `highest_bounty_enemy` selector.** Bounty stays visible in the description, and "the enemy worth the most" degrades to `lowest_hp_enemy`.
+5. **Levels and XP.** Gold and items carry the decision surface; levels are a power curve.
+6. **The death drop**, i.e. the League-lite fallback.
+
+**The objective as a whole is not on this list.** It is the only part of the spec aimed directly at
+the team fights `pvp-1` lost, so it is not traded against economy items to save time. It is cut
+only by its own gate: O1 not merged by Sun 10-04, or a §9.8 keep-line still regressing after the
+one tuning pass.
 
 **Never cut:** respawn (if ruled in), kill gold, the shopping list with default builds, shop-at-base,
-and the before/after measurement.
+the Bandstand's contest rule and Encore (once the objective passes its gate), and the before/after
+measurement.
 
 ---
 
 ## 8. Open for Ceryce
 
 Each question lists the options with the recommendation first. **Q1–Q4 and Q10 block P1.** Q2's
-answer selects the death rule in `eco-1.json`.
+answer selects the death rule in `eco-1.json`. **Q14–Q16 block O1**, and Q17 is needed by the Sun
+10-04 gate.
 
 **Q1. Respawn.**
 - **A (rec):** respawn at the lane spawn after `6 + 3 × level` s. This is the precondition for any gold risk.
@@ -770,12 +790,477 @@ answer selects the death rule in `eco-1.json`.
 - **A (rec):** not in eco-1. Proximity XP and assists already pay for grouping.
 - B: add it in P2 (about 1 h). Prose like "stay near an ally" becomes expressible, and grouping is the clause of your principle it serves most directly.
 
-**Q13. Names.** Amp, Road Case, Bass Strings, Metronome and Tip Jar are working names. Rename freely.
-Only the keys in `eco-1.json` are load-bearing.
+**Q13. Names.** Amp, Road Case, Bass Strings, Metronome and Tip Jar are working names, and so are
+Bandstand and Encore (§9). Rename freely. Only the keys in `eco-1.json` and `river-1.json` are
+load-bearing, plus the selector name `bandstand`, which entrants' compiled schemas will carry.
+
+**Q14. How the river objective is taken** (§9.4).
+- **A (rec):** hold the stage. Any bearbot of one team inside the 60 radius moves a shared bar
+  (15 / 10 / 7.5 s for 1 / 2 / 3 bots). Any enemy on the stage freezes it, and an empty stage drains.
+  Against opposition, only PvP wins it. The layer reads positions only. **Cost:** about 6–8 h (O1).
+- B: a damage race. It is a neutral bearbot-sized unit with hp, and the team that lands the last hit
+  takes it. This is familiar from Roshan and Baron. The first team to arrive can finish it before the
+  other team gets there, and the damage is PvE. **Cost:** the layer has to intercept `attack` and
+  `ability` aimed at a unit the frozen sim can't see, and re-implement range, cooldown and damage
+  outside the sim. It also needs a new `kind: "neutral"` in `visibleEnemies` and a new attack
+  selector. That adds about 6 h and a new determinism risk.
+- C: a channel. One bot stands still on the stage for 8 s, and any damage it takes resets the
+  channel. **Cost:** it is cheap to build (about the same as A). But it rewards one bot, not a group,
+  and a single keytar poke from range 160 cancels it, so it favours whoever brought the keytar rather
+  than whoever brought the team.
+
+**Q15. Where and how often** (§9.2–§9.3).
+- **A (rec):** two river sites, (300, 300) and (700, 700), alternating. One is open at a time. The
+  first opens at 1:30, the next 75 s after each capture, with 20 s warning and none after 9:00. Every
+  lane gets near-side objectives. **Cost:** nothing beyond the layer itself; alternating is a few
+  lines.
+- B: one fixed site, top-side. It is simplest for prose ("the Bandstand" is always in the same place).
+  **Cost:** it is always the drums' and keytars' fight. The violin, which gained the most from
+  `pvp-1`, is 849 away every time.
+- C: the map centre (500, 500). It is equidistant from all three lanes. **Cost:** it sits in mid's
+  132-unit neutral stretch, where the waves already meet, so it adds a reason to stand where mid
+  already fights instead of a new shared point. On v1 it would be under both mid towers.
+- D: both sites open at once. **Cost:** this splits the teams. It works against team fights, which
+  are the thing the objective is for.
+
+**Q16. The reward** (§9.5).
+- **A (rec):** a 45 s team Encore (+15 % attack damage, +10 % move speed, lost on death), plus 40
+  gold to every bot on the team, 60 gold split among the capturers, and 40 XP to each capturer when
+  the economy is on. It works under every Q2 answer, and as Encore only if the economy is cut.
+  **Cost:** one stat derivation shared with the economy (§9.6).
+- B: Encore only, in every case. It is simplest, and the objective never interacts with Q2.
+  **Cost:** the objective doesn't feed the economy, so the spend-vs-hold loop gets no new income
+  event to plan around.
+- C: gold and XP only. **Cost:** if the economy is cut, the objective pays nothing, so it needs a
+  separate fallback. Gold is also slower to turn into a fight than a buff that is live right now.
+- D: A, plus a League-style objective bounty that pays the team that is behind. **Cost:** it needs
+  the team-lead model that Q7 defers until swinginess is measured.
+
+**Q17. Shipping and the gate.**
+- **A (rec):** the objective has its own go/no-go at the Sun 10-04 gate. It is measured on the
+  map-only game before the gate (§9.8), and it ships with or without the economy. If the team-fight
+  target misses but nothing regresses, it still ships, as better than nothing. **Cost:** one more
+  layer to keep green through the Jam, and about $3 of Jev.
+- B: ship it only if the economy ships. **Cost:** if the economy slips, the team-fight loss from
+  `pvp-1` goes into the Jam unanswered.
+- C: after the Jam. **Cost:** the Jam runs on `pvp-1` as it is, with about 2.75 team fights a match.
 
 ---
 
-## 9. Sources
+## 9. Neutral river objective: the Bandstand (`river-1`)
+
+> "I like neutral river objective idea." — Ceryce, 2026-09-30 20:34 CT
+
+She was replying to the PvP balance study ([`runs/balance-pvp-2026-09-30.md`](../runs/balance-pvp-2026-09-30.md),
+PR #48). Its `pvp-1` map, now `DEFAULT_MAP` in [`src/mapVariant.ts`](../src/mapVariant.ts), pulled
+every tower back so each lane has ground no tower covers. On 8 seed-paired Jev matches:
+
+- **What `pvp-1` won:** PvP damage 143 → 180 per minute; PvP damage on neutral ground 21 % → 62 %;
+  deaths under the killer team's tower 96 % → 55 %; bot-time under an enemy tower 17.0 % → 10.4 %.
+- **What it lost:** team fights per match **4.6 → 2.75**. On v1, 34 of 52 team fights started inside
+  both mid outer towers' range, the one spot both teams had a reason to stand on. `pvp-1` removed
+  that spot and put nothing in its place.
+
+The Bandstand is that replacement, on neutral ground: a place both teams have a reason to be at the
+same time. It is judged by the same test as the rest of this spec. **Its PvE part (the objective)
+only pays out if the team wins the PvP around it.**
+
+### 9.1 What it is
+
+- **The Bandstand** is a neutral stage that rises out of the river. A team takes it by **playing a
+  set** on it, which means having bearbots on the stage with no enemy bearbot there.
+- **Taking it earns an Encore** for the whole team: a short buff, plus gold and XP when the economy
+  is on (§9.5).
+- **Every bearbot can hear it from anywhere.** That is the in-world reason its state is global in the
+  observation (§9.7), even though bearbot vision is only 260 (`src/sim/match.ts:22`).
+- **Only one Bandstand is open at a time.** It alternates between two river sites.
+
+### 9.2 Where it sits on `pvp-1`
+
+Both sites are on the river line `x = y`, one between each pair of adjacent lanes:
+
+| Site | Position | Between |
+|---|---|---|
+| **top-side** | (300, 300) | top and mid |
+| **bottom-side** | (700, 700) | mid and bottom |
+
+The capture circle has a **radius of 60**.
+
+The line `x = y` is the map's mirror axis. Reflecting `(x, y) → (y, x)` swaps the two bases and maps
+every violet tower onto its green twin. So every distance below is **identical for both teams**, and
+both teams have the same instrument in each lane. Distances use the same path maths as
+`laneCoverage()` in `src/mapVariant.ts`:
+
+| From the top-side site (bottom-side is its mirror) | Distance | Notes |
+|---|---:|---|
+| Nearest `pvp-1` towers: violet top outer (100, 420), green top outer (420, 100) | 233 | 73 beyond tower range 160 |
+| Mid outer towers, `pvp-1` | 362 | |
+| Nearest towers on v1, for reference | 213 | 53 beyond range |
+| Top lane (nearest point) / mid lane / bottom lane | 200 / 283 / 600 | |
+| Each team's base | 632 | |
+| Centre of the top and of the mid lane | 283 | walk 5.1 / 4.7 / 3.8 s (drums / keytar / violin) |
+| Centre of the bottom lane | 849 | walk 15.4 / 14.1 / 11.3 s |
+| Respawn points (§3.1): top / mid / bottom | 513 / 553 / 604 | |
+
+**What this geometry gives:**
+
+- **No tower covers any part of the circle.** Its nearest edge is 173 from the nearest tower, and
+  tower range is tested centre to centre. That holds on v1 too, but the objective is measured only
+  on `pvp-1` (§9.8).
+- **Nobody can see it from the middle of a lane.** Vision is 260 and the nearest lane centre is 283
+  away, so a pilot has to be told about the Bandstand rather than see it (§9.7).
+
+**Why two sites that alternate.** Each site is 283 from two lane centres and 849 from the third.
+
+- With **one fixed site**, it would always be the drums' and keytars' fight, and never the violin's.
+  The violin gained the most from `pvp-1` (study §3).
+- **Alternating** means openings 1, 3, 5 … are top-side and 2, 4, 6 … are bottom-side. Every lane
+  gets near-side objectives, and the far laner can rotate in within about 11–15 s.
+
+**Why not the centre (500, 500).**
+
+- It is *in* the mid lane, inside mid's 132-unit neutral stretch, where the minion waves meet. The
+  Bandstand would be one more reason to stand where mid already fights, not a new shared point.
+- On v1 the centre is inside both mid outer towers' range (91 away), so it would not survive a map
+  change back.
+
+This is Q15-C.
+
+### 9.3 Timing
+
+| Rule | Value | Reasoning |
+|---|---|---|
+| First opening | **1:30** (90 s), announced 20 s ahead | In the study's baseline, 0 of 52 team fights started before 5:00, and first blood on `pvp-1` averaged 6:00. An early shared point gives the early game a reason to meet. 1:30 is after three waves, so the lanes have formed. |
+| After a capture | the next opening comes **75 s later, at the other site**, announced 20 s ahead | 75 s is two and a half waves. That is long enough to use a 45 s Encore and go home to shop, and short enough that 4 or more contests fit into 600 s. |
+| If nobody takes it | it stays open until captured | A stand-off is still a meeting point. |
+| Last opening | no opening after **9:00** (540 s) | A reward with no time left to use it is noise. |
+
+If every set is quick, there are at most 7 openings: 1:30, 3:00, 4:30 … 9:00. A realistic match has
+4–6.
+
+### 9.4 How it is taken: hold the stage, not a damage race
+
+Capture progress is **one signed bar**, from −1 (green has it) to +1 (violet has it). It is updated
+every tick from the positions of alive bearbots within 60 of the site.
+
+| Who is on the stage | What the bar does |
+|---|---|
+| One team only, with *n* bearbots | It moves toward that team at `rate(n) / 15` per second, where `rate` is 1 / 1.5 / 2 for 1 / 2 / 3 bots. From empty, a capture takes **15 s / 10 s / 7.5 s**. Any progress the other team had is wiped out first. |
+| Both teams (**contested**) | It **freezes**. |
+| Nobody | It drains toward 0. A full bar empties in 15 s. |
+
+When the bar reaches ±1, the reward is paid (§9.5), the stage closes, and the next timer starts.
+
+**Why hold-the-stage rather than a damage race (Q14).**
+
+- **Against opposition, PvP is the only way to take it.** One enemy body on the stage freezes the
+  bar. To finish the set, a team has to kill that enemy or drive it off: a team fight, on neutral
+  ground.
+  - In a damage race (Roshan, Baron), the team that arrives first can finish the objective while the
+    other team is still walking. That is PvE that ends before the fight starts.
+  - Hitting a neutral is also exactly the kind of damage the principle wants less of.
+- **Grouping pays, but slowly enough that the enemy can answer.** Two bots capture in 10 s. An enemy
+  needs about 4–5 s to walk from an adjacent lane centre, plus at most one 2 s decision.
+- **It needs no new action, only a destination.** "Go to the Bandstand" is a `move` (§9.7).
+- **It is cheap outside the frozen sim.** The layer only reads positions.
+  - A damage race would need the layer to intercept `attack` and `ability` aimed at an entity the sim
+    doesn't know about. The sim's `findUnit` can't see it.
+  - So range, cooldown and damage would have to be re-implemented outside the sim.
+
+### 9.5 The reward, and how it ties to the economy
+
+When the bar reaches ±1:
+
+| Part | Value | Who gets it | Without the economy? |
+|---|---|---|---|
+| **Encore** (buff) | **45 s** of attack damage **+15 %** and move speed **+10 %**. Basic attacks only: ability damage comes from the shared `INSTRUMENTS` table (§1). **Lost on death.** | every alive bearbot on the capturing team | **Yes.** This is the part that always ships. |
+| Team gold | **40** | every bot on the team, alive or dead | eco only |
+| Local gold | **60**, split equally | the team's bearbots on the stage at the moment of capture | eco only |
+| XP | **40** | each bearbot on the stage at the moment of capture (the same as a tower) | eco only |
+
+**Why this shape.**
+
+- **The buff is a fight window, not a siege tool.** A team with Encore has 45 s in which a fight is
+  in its favour, so it has a reason to force one.
+- **Encore holders are worth killing,** because the buff ends when they die.
+- **The move speed helps the team regroup** after the set.
+- **Rejected: a bonus to tower damage.** It would turn the objective into a siege, and the fights
+  would move back under towers, where `pvp-1` just moved them away from.
+- **The gold copies the tower rule (§3.2):** a team share plus a share split among the bots who
+  showed up. A capture is worth 40 × 3 + 60 = 180 per team, against 420 for a tower. That is
+  enough to matter, but it is not the main income.
+
+**Under each answer to Q2.** The Bandstand is just one more gold source with its own ledger keys,
+`bandstand-team` and `bandstand-local`.
+
+| Q2 answer | What happens to Bandstand gold |
+|---|---|
+| A or D | It goes into the one pool, is unspent and at risk like all gold, and drops to the killers by §3.3. |
+| B (Dota-faithful) | It is earned gold, so it goes into the unreliable pool. |
+| C (League-lite) | It is paid and never lost. |
+| Q1-B (no respawn) | No change. |
+
+**If the economy is cut at the go/no-go gate.**
+
+- The gold and XP lines drop out with `eco-1.json`. The Encore stays.
+- The Bandstand is then a pure tempo objective, which is still a reason for both teams to meet.
+- The objective layer does not depend on the economy (§9.6), so it can ship on its own (Q17).
+
+**Effect on the economy's numbers.**
+
+- With about 3 captures per team, Bandstand gold adds roughly 150–200 per bot per match. §3.2's
+  850–1250 becomes about 1000–1450.
+- It is objective gold, not PvP gold, so it **dilutes** the PvP share of earned gold.
+- §6.2's gold lines are pre-registered for eco-1 alone. With the objective on, they are read with
+  Bandstand gold excluded, and Bandstand gold is reported beside them.
+
+**Snowball check.**
+
+- Encore covers 45 s of every ~90 s cycle and ends on death.
+- The gold is less than half a tower's.
+- The site alternates, so neither team keeps an advantage from a lane that happens to sit near it.
+- The capture-split line in §9.8 measures whether one team gets it for free.
+
+### 9.6 Implementation: outside the frozen sim
+
+This is a third ruleset layer, the same shape as `src/mapVariant.ts` and the economy (§3.9).
+
+- **New files:** `src/objective.ts`, and `src/objective/river-1.json` as the single source of truth
+  for every number in §9.2–§9.5.
+- **Unchanged:** everything in `src/sim/*`, `src/types.ts` and `src/pilots/*`.
+
+```json
+{
+  "name": "river-1",
+  "sites": [{ "id": "top-side", "x": 300, "y": 300 }, { "id": "bottom-side", "x": 700, "y": 700 }],
+  "radius": 60,
+  "schedule": { "firstOpenSec": 90, "afterCaptureSec": 75, "warnSec": 20, "lastOpenSec": 540 },
+  "capture": { "setSec": 15, "rateByCount": [0, 1, 1.5, 2], "drainSec": 15 },
+  "encore": { "durationSec": 45, "mods": { "attackDamage": 0.15, "moveSpeed": 0.10 }, "lostOnDeath": true },
+  "economy": { "goldTeam": 40, "goldLocalPool": 60, "xpCapturer": 40 }
+}
+```
+
+| Need | How, from outside | Precedent |
+|---|---|---|
+| Who is on the stage | Read alive bearbots' `pos` between ticks | `applyMapVariant` and `metrics.ts` read entity positions |
+| The Encore buff | Write `attackDamage` and `moveSpeed` between ticks. The sim reads both every tick (`match.ts:240`, `298`). | §3.9 items; `applyMapVariant` writes `attackRange` |
+| Avoiding two writers for one stat | **One stat derivation, `src/ruleset/stats.ts`:** `stat = base × (1 + level) × Π(1 + item) × (1 + encore)`. Both layers give it modifiers, and it is the only code that writes the fields. Without the economy, level and items are empty. | — |
+| Losing Encore on death | When a bot's `alive` turns false, clear its Encore. A respawned bot comes back without it. | §3.9 respawn |
+| Observation fields | The same `pilot.decide` wrapper as §4.1 | `RunOptions.decisionPilotFor` |
+| Replay | The log records `objective: "river-1"`. `checkpointOf` adds the bar, the status, the site and each bot's Encore expiry **only when the log has an objective**. No RNG is used. v1 and `pvp-1` logs without the field replay bit-identically. | `MatchLog.map` |
+| Viewer | `src/render.ts`: the stage disc on the river, the bar as a ring in the leading team's colour, a countdown while upcoming, and an Encore glow on buffed bots | — |
+
+**Tick order.**
+
+1. The sim tick runs, and then the economy's steps 2–3 (§3.8) if it is on.
+2. The objective runs:
+   1. clear Encore on dead bots;
+   2. count bots on the stage;
+   3. move the bar;
+   4. on a capture, grant Encore, then gold and XP if the economy is on;
+   5. advance the schedule.
+3. Then the economy's steps 4–8 run (passive gold, levels, respawn, auto-buy, deriving stats).
+4. Without the economy, the objective layer ends by expiring finished Encores and deriving stats itself.
+
+**Where it must be applied.** The same places as §3.9:
+
+- `tools/match/headless.ts`, in **both** `runMatch` and `verifyReplay`;
+- `src/live.ts` and the replay view;
+- `tools/arena/live.mjs` and the arena queue;
+- `tools/match/metrics.ts`.
+
+The order is `applyMapVariant`, then attach the economy, then attach the objective. The evolution
+harness's `matchKey` (§7 P4) must include the objective's name.
+
+### 9.7 The decision surface for bots
+
+**New observation fields.** These are added by the same wrapper as §4.1:
+
+```jsonc
+{
+  "self":   { /* … */ "encoreSec": 0 },              // seconds of Encore left; 0 = none
+  "allies": [{ "id": "bb-2", /* … */ "encoreSec": 21 }],
+  "visibleEnemies": [{ "id": "bb-5", "kind": "bearbot", /* … */ "encore": true }],
+  "bandstand": {
+    "site": "top-side",                  // the open or next site
+    "pos": { "x": 300, "y": 300 }, "radius": 60,
+    "status": "open",                    // "upcoming" | "open" | "closed" (between sets) | "done" (no more this match)
+    "opensInSec": null,                  // set while upcoming or closed
+    "progress": -0.4,                    // −1..+1 from YOUR team's side: +1 = your team takes it
+    "contested": false,                  // both teams on it right now
+    "alliesOn": 0                        // your team's bearbots on it
+  }
+}
+```
+
+The Bandstand is audible everywhere, so `progress` and `contested` are global. **How many enemies are
+on it is not shown.** A falling `progress` tells you the enemy is there, but their numbers and
+positions are visible only within normal vision.
+
+**What Jev sees.** `describe_observation` (`tools/jev/fidelity_harness.py:93`) gets one line per
+state, written so the stakes are explicit:
+
+> The Bandstand at the top-side river is open. The enemy team is 40 % of the way to taking it and
+> none of your team is on it. Taking it gives your whole team Encore (+15 % attack damage, +10 % move
+> speed for 45 s) and 40 gold each.
+>
+> Your team has Encore for 21 more seconds. Enemy bb-5 has Encore.
+
+In a match without an objective, the description says "There is no Bandstand in this match." That
+is what makes the paired measurement in §9.8 clean.
+
+**Actions. No new action kind** (the same reasoning as Q3-A).
+
+- Going to the Bandstand is a `move`. Fighting on it is the existing `attack` and `ability`.
+- **One new move selector, `bandstand`,** resolves to `bandstand.pos` while its status is `upcoming`
+  or `open`.
+- While the stage is `closed` or `done`, the selector falls back to `push_lane`, so a stale "go take
+  the Bandstand" rule moves the bot up its lane instead of parking it.
+- Move targets are already selectors (`home`, `push_lane`, `nearby_minion` in `TARGET_SELECTORS`,
+  `tools/jev/translator.py:61`). This adds one more of the same kind, like `highest_bounty_enemy`
+  (§4.2).
+
+**Translator and schema.**
+
+- `TARGET_SELECTORS` gains `"bandstand"`, and `target_resolve.py` gains its branch and fallback.
+- **No new schema field.** The selector is a value of the existing `target_selector`, so
+  `FORMAT_VERSION` does not change for it.
+- **Version coupling.** A schema that uses `bandstand` fails validation on an older server or
+  translator. So `PROMPTLANE_REF` in `jamobair-entrants` must be bumped after the merge, the same as
+  §4.6.
+- **Conditions need no new vocabulary.** "The Bandstand is open", "the enemy is taking it", "we have
+  Encore" are yes/no questions about the description.
+- **Tests:**
+  - `test_target_resolve.py`: the selector, including the `closed` → `push_lane` fallback;
+  - `test_translator.py`: the selectors listed in the prompt;
+  - `test_fidelity_harness.py`: the description lines;
+  - `scenarios.py`: synthetic observations gain the `bandstand` block.
+- **Docs:** `transparency.py` renders the new selector as "move to the Bandstand", and
+  `docs/prose-to-schema-translator.md` (its selector list, line 168) gains it.
+
+**House bots** (worksheet keys `stand` = status, `standDist`, `standBar` = progress, `encore`):
+
+| Tier | Bandstand rule, inserted after the low-hp recall |
+|---|---|
+| easy | none. Easy stays easy. |
+| medium | stand open **and** no visible foe **and** hp > 50 % → `move bandstand` |
+| hard | the medium rule, **plus:** (stand contested, or `standBar` < 0) **and** hp > 40 % → `move bandstand`; **plus:** stand upcoming within 10 s **and** `standDist` < 400 → `move bandstand`. With Encore, `foe` is the lowest-hp visible bearbot. |
+
+**Entrant prose.** These sentences go into the translator tests and the entrants README:
+
+| Prose | Compiles to |
+|---|---|
+| "When the Bandstand opens, go take it." | rule: *the Bandstand is open?* → `move bandstand` |
+| "If the enemy is taking the Bandstand, go stop them." | rule: *the enemy team is making progress on the Bandstand?* → `move bandstand` |
+| "If the Bandstand is contested and a teammate is on it, join the fight." | rule: *the Bandstand is contested and an ally is on it?* → `move bandstand` |
+| "While we have Encore, go after their weakest bot." | rule: *your team has Encore and an enemy bearbot is visible?* → `attack lowest_hp_enemy` |
+| "Leave the Bandstand alone unless I'm above half health." | rule: *hp below half?* placed before the Bandstand rule → the lane default |
+
+**The starter template** (`entrants/_template/pilot.md`) gets one blank:
+
+```
+____ (The Bandstand: when should you go to the river and play the stage, and when should you leave it alone?)
+```
+
+The entrants README gets a "River Bandstand" section generated from `river-1.json`, as §4.6 does for
+the economy.
+
+### 9.8 Measurement on Jev
+
+**The backend is Jev, never qwen 9B** (standing rule). The setup is the TypeSafe default, cadence 2 s
+and the Jam roster, with the balance study's metric tool.
+
+| Id | Ruleset | Prompts |
+|---|---|---|
+| **P** | `pvp-1`, no objective | objective-aware house medium and hard (§9.7), compiled once |
+| **O** | `pvp-1` + `river-1` | **the same compiled schemas** |
+
+**Why the same compiled schemas.** The only difference between P and O is the layer.
+
+- In P, the description says there is no Bandstand, and the selector falls back to `push_lane`. So
+  the Bandstand rules should not fire.
+- The run logs which rule fired. **Any Bandstand rule firing in P is reported**, as Jev answering a
+  question about something that isn't there.
+
+**Run size.**
+
+- **Pairings:** medium vs hard and hard vs hard. These are the balance study's pairings, so its 4.6
+  and 2.75 are comparable.
+- **Seeds:** 7, 11, 42 and 101 (the study's), plus 8 new ones. That is 12 seeds per pairing,
+  **24 pairs and 48 matches**.
+- **Spend:** about $3, at the study's $1.44 for 24 matches.
+- **Time:** at most about 2 h of wall clock, run sequentially, one batch per tool call.
+- **If the economy also ships,** P3 (§7) adds one more condition: B1 + objective against B1, on
+  medium vs hard with 12 seeds.
+
+**Pre-registered lines.** All are O − P, seed-paired, with 95 % bootstrap intervals over the 24 pairs.
+
+*The target:*
+
+| Metric | Pass line |
+|---|---|
+| `teamFightsPerMatch` | O mean **≥ 4.6** (v1's level) **and** the Δ CI lies wholly above 0 |
+
+*Keep `pvp-1`'s gains.* For each metric, O must stay on `pvp-1`'s side of the midpoint between v1 and
+`pvp-1`, so it keeps at least half the gain. Its Δ CI must also not lie wholly on the wrong side of 0.
+
+| Metric | v1 → `pvp-1` | O must be |
+|---|---|---|
+| `pvpDamagePerMin` | 143 → 180 | ≥ 161, and the CI not wholly below 0 |
+| `pvpDamageNeutral` | 20.7 % → 62.3 % | ≥ 41.5 %, and the CI not wholly below 0 (the Bandstand is neutral ground, so this should rise) |
+| `underEnemyTower` | 17.0 % → 10.4 % | ≤ 13.7 %, and the CI not wholly above 0 |
+| `deathsUnderEnemyTower` | 95.8 % → 54.8 % | ≤ 75.3 %, and the CI not wholly above 0 |
+| `firstBloodSec` | 443 → 360 | ≤ 402, and the CI not wholly above 0 |
+
+*The objective is in use* (new metrics, §9.6):
+
+| Metric | Pass line |
+|---|---|
+| Bandstand captures per match | median ≥ 3 |
+| Contested share: openings during which both teams were on the stage at some tick | ≥ 50 % |
+| Team fights starting within 250 of an open Bandstand | mean ≥ 1 per match. The new fights should be *at* the objective. |
+| Capture split: matches where the team with fewer captures still took at least 1 | ≥ 50 %. Otherwise one team gets the buff for free. |
+
+**Reported, not pass lines:**
+
+- `opponentSide`. The stage straddles `x = y`, so this metric moves for purely mechanical reasons.
+- `decided`, `towersDestroyed`, `engagedPve`, `swinginess`, and the win rate of the team that took
+  more Bandstands.
+
+**Metric tool changes:**
+
+- read the log's `objective`;
+- add the four new values above, per match;
+- draw the sites on the heatmaps.
+
+**After the run:**
+
+1. **Every line passes:** it ships, provided the gate in §7 is met.
+2. **The target fails but no keep-line regresses:**
+   - Do **one** tuning pass, in this order of preference:
+     1. set length 15 → 20 s, so contests last longer;
+     2. radius 60 → 80;
+     3. Encore +15 → +20 %.
+   - Re-run O only, on the same seeds.
+   - If the target still fails, Ceryce rules whether it ships anyway (it did no harm) or is cut (Q17).
+3. **A keep-line regresses:** one tuning pass; if it still regresses, the objective is **cut**.
+
+There is no third pass before the Jam.
+
+### 9.9 Plan, cut order and decisions
+
+- **Plan:** phases O1 and O2 in §7.
+- **Gate:** the objective has its own go/no-go at the §7 gate.
+- **Cut order:** in §7.
+- **Decisions:** Q14–Q17 in §8.
+
+The objective is built and measured on the **map-only** game, so its verdict is known **before** the
+Sun 10-04 gate, whatever the economy's state.
+
+---
+
+## 10. Sources
 
 All were read through each wiki's MediaWiki API (`action=parse`) on **2026-09-30**. Revision IDs are
 given so a later reader can see exactly what was cited.
