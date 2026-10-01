@@ -18,6 +18,7 @@ import { PromptPilot } from '../../src/pilots/promptPilot';
 import { DEFAULT_MAP, SPECIMEN_MAP, applyMapVariant, resolveMap, type MapVariant } from '../../src/mapVariant';
 import { DEFAULT_ECONOMY, attachEconomy, resolveBuilds, resolveEconomy, type EconomyRuleset } from '../../src/economy';
 import { DEFAULT_OBJECTIVE, attachObjective, resolveObjective, type ObjectiveRules } from '../../src/objective';
+import { DEFAULT_RECALL, attachRecall, resolveRecall, type RecallRules } from '../../src/recall';
 import type { CallModel } from '../../src/pilots/callModel';
 import type { TracingDecision, TracingPilot } from './jevPilot';
 import {
@@ -41,9 +42,10 @@ export { jevTeamTracingPilot } from './jevTeamPilot';
 export { jevSchemaTracingPilot } from './jevSchemaPilot';
 export { DEFAULT_MAP, MAP_VARIANTS, PVP_MAP, SPECIMEN_MAP, laneCoverage, resolveMap } from '../../src/mapVariant';
 export { DEFAULT_ECONOMY, ECONOMY_RULESETS, ECO_1, ECO_2, RESPAWN_ONLY, attachEconomy, getEconomy, resolveBuild, resolveEconomy } from '../../src/economy';
-export { DEFAULT_OBJECTIVE, OBJECTIVES, RIVER_1, attachObjective, getObjective, resolveObjective } from '../../src/objective';
+export { DEFAULT_OBJECTIVE, OBJECTIVES, RIVER_1, RIVER_2, attachObjective, getObjective, resolveObjective } from '../../src/objective';
+export { DEFAULT_RECALL, RECALL_2, RECALL_RULES, attachRecall, getRecall, recallTotals, resolveRecall } from '../../src/recall';
 export { setRewardSink } from '../../src/ruleset/rewards';
-/** For the economy's and the objective's rule tests (`test_economy.mjs`, `test_objective.mjs`), which build matches by hand. */
+/** For the economy's, the objective's and the recall's rule tests (`test_economy.mjs`, `test_objective.mjs`, `test_recall.mjs`), which build matches by hand. */
 export { Match, TICK_DT, applyMapVariant, checkpointOf };
 
 const MATCH_DURATION_SEC = 600;
@@ -96,6 +98,12 @@ export interface RunOptions {
    * a match without one writes no `objective` field, so its log is exactly what it was before.
    */
   objective?: string | ObjectiveRules | null;
+  /**
+   * Recall rule (`src/recall.ts`) — a name such as `'recall-2'`, a rule object, or `'none'` (the
+   * specimen's 3x run home). Default: `DEFAULT_RECALL` (none). Recorded in the log as `recall`; a
+   * match without one writes no `recall` field, so its log is exactly what it was before.
+   */
+  recall?: string | RecallRules | null;
   /** Yields to the event loop so the sim's own promise chain settles between ticks. */
   flush?: () => Promise<void>;
   /** Progress callback, once per sim-minute. */
@@ -216,6 +224,7 @@ export async function runMatch(opts: RunOptions): Promise<MatchLog> {
     ? resolveBuilds(economyRules, JAM_ROSTER.map((s) => s.instrument), JAM_ROSTER.map((_, i) => opts.buildFor?.(i)))
     : null;
   const objectiveRules = opts.objective === undefined ? DEFAULT_OBJECTIVE : resolveObjective(opts.objective);
+  const recallRules = opts.recall === undefined ? DEFAULT_RECALL : resolveRecall(opts.recall);
   const stats: Record<Team, SideStats> = { violet: emptyStats(), green: emptyStats() };
   const totalMs: Record<Team, { value: number }> = { violet: { value: 0 }, green: { value: 0 } };
 
@@ -229,6 +238,7 @@ export async function runMatch(opts: RunOptions): Promise<MatchLog> {
     ...(map.name === SPECIMEN_MAP.name ? {} : { map }),
     ...(economyRules && builds ? { economy: { ruleset: economyRules, builds } } : {}),
     ...(objectiveRules ? { objective: objectiveRules } : {}),
+    ...(recallRules ? { recall: recallRules } : {}),
     backend: opts.backend,
     sides: opts.sides,
     decisions: [],
@@ -264,7 +274,9 @@ export async function runMatch(opts: RunOptions): Promise<MatchLog> {
 
   match = new Match(opts.seed, roster);
   applyMapVariant(match, map);
-  // Map, then objective, then economy: the economy's steps run after the objective's update (§9.6).
+  // Map, then recall, then objective, then economy: the recall hugs the sim's own tick (src/recall.ts)
+  // and the economy's steps run after the objective's update (§9.6).
+  const recall = recallRules ? attachRecall(match, recallRules, TICK_DT) : null;
   const objective = objectiveRules ? attachObjective(match, objectiveRules, TICK_DT) : null;
   const economy = economyRules && builds ? attachEconomy(match, economyRules, builds, TICK_DT) : null;
   log.idBase = idNumber(match.nexuses[0].id);
@@ -325,6 +337,7 @@ export async function runMatch(opts: RunOptions): Promise<MatchLog> {
   log.result.ticks = tickOf(match);
   if (economy) log.result.economy = economy.summary();
   if (objective) log.result.objective = objective.summary();
+  if (recall) log.result.recall = recall.summary();
   return log;
 }
 
@@ -380,6 +393,8 @@ export async function verifyReplay(
   }));
   match = new Match(log.seed, roster);
   applyMapVariant(match, resolveMap(log.map));
+  const recallRules = resolveRecall(log.recall);
+  if (recallRules) attachRecall(match, recallRules, TICK_DT);
   const objectiveRules = resolveObjective(log.objective);
   if (objectiveRules) attachObjective(match, objectiveRules, TICK_DT);
   if (log.economy) attachEconomy(match, log.economy.ruleset, log.economy.builds, TICK_DT);

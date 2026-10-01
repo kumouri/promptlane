@@ -219,6 +219,7 @@ export const MATCH_ROWS = [
   ['towers destroyed / match', 'towersDestroyed', (x) => num(x, 2)],
   // The Bandstand (docs/economy-spec.md §9.8): only logs with the objective have these.
   ['Bandstand openings / match', 'bandstandOpenings', (x) => num(x, 2), true],
+  ['…closed untaken (river-2)', 'bandstandClosedUntaken', (x) => num(x, 2), true],
   ['Bandstand captures / match', 'bandstandCaptures', (x) => num(x, 2), true],
   ['…taken by violet', 'bandstandCapturesViolet', (x) => num(x, 2), true],
   ['…taken by green', 'bandstandCapturesGreen', (x) => num(x, 2), true],
@@ -240,6 +241,12 @@ export const MATCH_ROWS = [
   ['economy: comeback (behind at 5:00 wins)', 'ecoComeback', pct, true],
   ['economy: shopping recalls / match, violet', 'ecoShoppingRecallsViolet', (x) => num(x, 2), true],
   ['economy: shopping recalls / match, green', 'ecoShoppingRecallsGreen', (x) => num(x, 2), true],
+  // Recalls, under the log's rule: the specimen's 3x run home, or recall-2's channel (src/recall.ts).
+  ['recalls started / match', 'recallsStarted', (x) => num(x, 2)],
+  ['…got home', 'recallsHome', (x) => num(x, 2)],
+  ['…interrupted by damage (recall-2 only)', 'recallsInterrupted', (x) => num(x, 2)],
+  ['…cancelled by another action', 'recallsCancelled', (x) => num(x, 2)],
+  ['bot-time recalling (running home or channelling)', 'recallingShare', pct],
 ];
 
 export const BOT_COLS = [

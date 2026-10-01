@@ -25,3 +25,5 @@ __pycache__/
 /acceptance/tmp*/
 /runs/bandstand-2026-09-30-*-seed*.json
 /runs/bandstand-2026-09-30-*-seed*.json.*
+/runs/bandstand-2-2026-09-30-*-seed*.json
+/runs/bandstand-2-2026-09-30-*-seed*.json.*

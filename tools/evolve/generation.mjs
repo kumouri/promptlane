@@ -130,8 +130,9 @@ export const SIM_VERSION = 'specimen-v1';
  * The cache key of one match. A campaign whose shape names its ruleset (every campaign created
  * since the economy) hashes the sim, map and economy too, so a match played under one ruleset is
  * never reused under another; one whose shape also names the river objective (every campaign
- * created since the Bandstand) hashes that as well. A campaign created before either keeps the key
- * it always had, so its cache stays valid; its matches still play the runner's defaults.
+ * created since the Bandstand) hashes that as well, and so does one that names a recall rule
+ * (`shape.recall`, src/recall.ts). A campaign created before any of them keeps the key it always
+ * had, so its cache stays valid; its matches still play the runner's defaults.
  */
 export function matchKey({ violet, green, seed, shape }) {
   const parts = [violet, green, seed, shape.cadenceSec, shape.maxSimSec];
@@ -139,6 +140,7 @@ export function matchKey({ violet, green, seed, shape }) {
     parts.push(`sim=${SIM_VERSION}`, `map=${shape.map ?? 'default'}`, `economy=${shape.economy ?? 'default'}`);
   }
   if (shape.objective !== undefined) parts.push(`objective=${shape.objective}`);
+  if (shape.recall !== undefined) parts.push(`recall=${shape.recall}`);
   return sha256(parts.join('|')).slice(0, 16);
 }
 

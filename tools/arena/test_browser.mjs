@@ -17,10 +17,10 @@ import path from 'node:path';
 import { ROOT, flush, loadHeadless } from '../match/load.mjs';
 import { eventsFromLog } from './live.mjs';
 
-/** `src/live.ts` plus `getObjective` from the same bundle, so the objective's per-match registry is the one `buildMatch` wrote to. */
+/** `src/live.ts` plus `getObjective` and `getRecall` from the same bundle, so each layer's per-match registry is the one `buildMatch` wrote to. */
 async function loadLive() {
   const bundle = await build({
-    stdin: { contents: "export * from './src/live.ts';\nexport { getObjective } from './src/objective.ts';\n", resolveDir: ROOT, loader: 'ts' },
+    stdin: { contents: "export * from './src/live.ts';\nexport { getObjective } from './src/objective.ts';\nexport { getRecall } from './src/recall.ts';\n", resolveDir: ROOT, loader: 'ts' },
     absWorkingDir: ROOT,
     bundle: true,
     write: false,
@@ -34,7 +34,7 @@ async function loadLive() {
 
 const headless = await loadHeadless();
 const live = await loadLive();
-const { LiveFeed, Ticker, DivergenceCheck, buildMatch, LivePacer, getObjective } = live;
+const { LiveFeed, Ticker, DivergenceCheck, buildMatch, LivePacer, getObjective, getRecall } = live;
 
 const sides = (a, b) => ({ violet: { name: a, promptFile: 'x', promptText: `${a}. Reply with JSON.` }, green: { name: b, promptFile: 'y', promptText: `${b}. Reply with JSON.` } });
 const tickOf = (m) => Math.round(m.clockSec / 0.05);
@@ -185,6 +185,24 @@ test('objective: a river-1 log replayed WITHOUT its objective diverges at the fi
   const log = await mockLog(30, 7, { objective: 'river-1' });
   const { check } = await replayAll({ ...log, objective: undefined });
   assert.equal(check.divergedAt, log.checkpoints[0].tick);
+});
+
+test('recall: a recall-2 (and river-2) log carries both rules through meta, the rebuilt match attaches them, every checkpoint matches', async () => {
+  const log = await mockLog(150, 7, { objective: 'river-2', recall: 'recall-2' });
+  assert.equal(log.recall.name, 'recall-2');
+  assert.ok(log.result.recall.bots.some((b) => b.started > 0), 'the mock pilots recalled');
+  assert.ok(log.checkpoints.every((c) => Array.isArray(JSON.parse(c.state).r)), 'the log\'s checkpoints carry the channels');
+  assert.deepEqual(LiveFeed.fromLog(log).meta.recall, log.recall);
+  assert.deepEqual(eventsFromLog(log)[0].data.recall, log.recall);
+
+  const { check, match } = await replayAll(log);
+  assert.equal(getRecall(match)?.rules.name, 'recall-2', 'buildMatch attached the recall rule');
+  assert.equal(getObjective(match)?.rules.name, 'river-2');
+  assert.equal(check.divergedAt, null);
+  assert.equal(check.compared, log.checkpoints.length);
+  assert.deepEqual(getRecall(match).summary(), log.result.recall, 'every channel ended exactly as recorded');
+  const { check: without } = await replayAll({ ...log, recall: undefined });
+  assert.notEqual(without.divergedAt, null, 'replayed with the specimen recall, it diverges');
 });
 
 test('LivePacer: exactly one round behind is not yet "genuinely behind"; more than one round is real catch-up (Infinity)', () => {

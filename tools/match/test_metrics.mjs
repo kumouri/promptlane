@@ -36,6 +36,10 @@ const toStage = (obs) => ({ kind: 'move', target: { ...obs.bandstand.pos } });
 
 const objLog = await mockMatch({ map: 'pvp-1', objective: 'river-1' });
 const mo = await metrics.measureLog(objLog, flush, 'obj.json');
+// recall-2 and river-2 (docs/economy-spec.md §9.10), measured the same way; and the specimen recall.
+const recall2Log = await mockMatch({ map: 'pvp-1', recall: 'recall-2', objective: 'river-2' });
+const mr = await metrics.measureLog(recall2Log, flush, 'recall2.json');
+const mSpecimen = await metrics.measureLog(pvpLog, flush, 'pvp.json');
 // Violet walks to every stage (open or next); green stays home.
 const takeLog = await mockMatch({ maxSimSec: 330, objective: 'river-1', decisionPilotFor: scripted((i, obs) => (i < 3 ? toStage(obs) : HOLD)) });
 const mt = await metrics.measureLog(takeLog, flush, 'take.json');
@@ -423,4 +427,24 @@ test('heatmap draws the Bandstand sites in gold, on both panels', () => {
   const pixel = (x, y) => [...raw.subarray(y * stride + 1 + x * 3, y * stride + 1 + x * 3 + 3)];
   assert.deepEqual(pixel(30, 30), [255, 200, 0], 'centre dot');
   assert.deepEqual(pixel(W + 6 + 30, 30), [255, 200, 0], 'green panel too');
+});
+
+test('recalls: recall-2 logs report the layer\'s channels; specimen logs their 3x runs; river-2 counts untaken closes', () => {
+  assert.equal(mr.replayOk, true);
+  const sum = recall2Log.result.recall;
+  const total = (k) => sum.bots.reduce((n, b) => n + b[k], 0);
+  assert.equal(mr.recall.rule, 'recall-2');
+  assert.ok(total('started') > 0, 'the mock pilots recalled');
+  assert.deepEqual(
+    [mr.recall.started, mr.recall.home, mr.recall.interrupted, mr.recall.cancelled, mr.recall.died],
+    [total('started'), total('home'), total('damage'), total('action'), total('death')],
+  );
+  assert.ok(mr.recall.recallingShare > 0 && mr.recall.recallingShare < 1);
+  assert.equal(mSpecimen.recall.rule, 'specimen');
+  assert.equal(mSpecimen.recall.interrupted, 0, 'the specimen recall has no interrupt');
+  assert.ok(mSpecimen.recall.home <= mSpecimen.recall.started);
+  const v = metrics.matchValues(mr);
+  assert.equal(v.recallsStarted, total('started'));
+  assert.equal(v.bandstandClosedUntaken, recall2Log.result.objective.openings.filter((o) => o.closedSec !== undefined).length);
+  assert.equal(metrics.matchValues(mo).bandstandClosedUntaken, 0, 'river-1 never closes untaken');
 });

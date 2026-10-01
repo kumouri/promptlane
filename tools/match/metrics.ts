@@ -27,16 +27,22 @@
  * logged Jev decisions whose fired rule moves to the Bandstand, with or without an objective (in a
  * match without one, that is Jev answering a question about something that isn't there).
  * `bandstandVerdict` is §9.8's pre-registered table, P (no objective) against O (with it).
+ *
+ * `recall` measures recalls the same way under either rule, so the two can be compared: the
+ * specimen's 3x run home (`bearbot.recalling`) or `recall-2`'s channel (`src/recall.ts`, attached when
+ * the log has one) — how many started, how many got home, how many damage interrupted (recall-2 only),
+ * and the share of alive bot-time spent recalling.
  */
 import type { Action, Instrument, Lane, Team, Vec2 } from '../../src/types';
 import { Match, TICK_DT, type RosterSlot } from '../../src/sim/match';
 import type { Bearbot, Unit } from '../../src/sim/entities';
-import { WORLD_SIZE, dist, otherTeam } from '../../src/sim/map';
+import { BASE, WORLD_SIZE, dist, otherTeam } from '../../src/sim/map';
 import { JAM_ROSTER, ReplayPilot, checkpointOf, decisionsByBot, idNumber, tickOf, type MatchLog } from '../../src/replay';
 import { applyMapVariant, resolveMap, type MapVariant } from '../../src/mapVariant';
 import { attachAttribution } from '../../src/attribution';
 import { ECO_1_GOLD_SOURCES, GOLD_SOURCES, attachEconomy, type Economy, type GoldSource } from '../../src/economy';
 import { attachObjective, resolveObjective, type Objective } from '../../src/objective';
+import { attachRecall, resolveRecall, type Recall } from '../../src/recall';
 
 export { LANE_PATHS } from '../../src/sim/map';
 export { towerPos } from '../../src/mapVariant';
@@ -200,6 +206,8 @@ export interface MatchMetrics {
   objective: ObjectiveMetrics | null;
   /** Jev decisions that came from a Bandstand rule; null when no side played compiled schemas. */
   bandstandRuleFires: RuleFires | null;
+  /** Recalls, under whichever rule the log was played with (the specimen's 3x run, or `recall-2`). */
+  recall: RecallMetrics;
   /** Alive bot-ticks per HEAT_CELL cell, row-major [y][x] flattened, per team. */
   heat: Record<Team, number[]>;
 }
@@ -241,6 +249,21 @@ export interface EconomyMetrics {
   recallsAboveHalfHp: Record<Team, number>;
 }
 
+export interface RecallMetrics {
+  /** `specimen` (the sim's own 3x run home) or the recall rule's name. */
+  rule: string;
+  started: number;
+  /** Reached the fountain (specimen: arrived; recall-2: teleported). */
+  home: number;
+  /** recall-2 only: cancelled by damage in the interruptible window (specimen: always 0). */
+  interrupted: number;
+  /** Cancelled by choosing another action. */
+  cancelled: number;
+  died: number;
+  /** Share of alive bot-time spent recalling (running home, or channelling), all six bots pooled. */
+  recallingShare: number;
+}
+
 export interface ObjectiveMetrics {
   name: string;
   /** Where the stage can rise, for the heatmaps. */
@@ -249,6 +272,8 @@ export interface ObjectiveMetrics {
   openings: number;
   /** Openings during which both teams had a bearbot on the stage at some tick. */
   contestedOpenings: number;
+  /** Openings that closed untaken (river-2's close timer; always 0 under river-1). */
+  closedUntaken: number;
   /** contestedOpenings / openings; null without an opening. */
   contestedShare: number | null;
   captures: Record<Team, number> & { total: number };
@@ -323,9 +348,11 @@ export async function measureLog(log: MatchLog, flush: () => Promise<void> = def
   }));
   match = new Match(log.seed, roster);
   applyMapVariant(match, variant);
-  // Both layers wrap the instance's `tick` (map, then objective, then economy, as the runner
+  // The layers wrap the instance's `tick` (map, then recall, objective, economy, as the runner
   // attaches them). The loop below calls `p.tick` through the instance every tick, so it always
   // reaches the outermost wrapper.
+  const recallRules = resolveRecall(log.recall);
+  const recall: Recall | null = recallRules ? attachRecall(match, recallRules, TICK_DT) : null;
   const objectiveRules = resolveObjective(log.objective);
   const objective: Objective | null = objectiveRules ? attachObjective(match, objectiveRules, TICK_DT) : null;
   const economy: Economy | null = log.economy ? attachEconomy(match, log.economy.ruleset, log.economy.builds, TICK_DT) : null;
@@ -382,6 +409,12 @@ export async function measureLog(log: MatchLog, flush: () => Promise<void> = def
   const shoppingRecalls: Record<Team, number> = { violet: 0, green: 0 };
   const recallsAboveHalfHp: Record<Team, number> = { violet: 0, green: 0 };
   let ecoEventCursor = 0;
+  /** Bot `i` is recalling: the specimen's run home (`bearbot.recalling`), or recall-2's channel. */
+  const recallingNow = (b: Bearbot, i: number) => b.alive && (recall ? recall.channelling(i) : b.recalling);
+  /** The specimen's recall, read off `bearbot.recalling` (a recall-2 log reads its layer instead). */
+  const wasSpecimenRecalling = new Array<boolean>(n).fill(false);
+  const specimenRecall = { started: 0, home: 0, cancelled: 0, died: 0 };
+  const recallTicks = zero();
 
   const kindOfTarget = (action: Action, team: Team): 'pvp' | 'pve' | null => {
     if (action.kind !== 'attack' && action.kind !== 'ability') return null;
@@ -451,6 +484,24 @@ export async function measureLog(log: MatchLog, flush: () => Promise<void> = def
       }
     }
 
+    // Recalls.
+    m.bearbots.forEach((b, i) => {
+      if (recall) {
+        if (b.alive && recall.channelling(i)) recallTicks[i] += 1;
+        return;
+      }
+      // A dead bot keeps its `recalling` flag in the sim, so "recalling now" needs `alive` too.
+      const now = b.alive && b.recalling;
+      if (now && !wasSpecimenRecalling[i]) specimenRecall.started += 1;
+      else if (!now && wasSpecimenRecalling[i]) {
+        if (!b.alive) specimenRecall.died += 1;
+        else if (dist(b.pos, BASE[b.team]) < 20) specimenRecall.home += 1;
+        else specimenRecall.cancelled += 1;
+      }
+      wasSpecimenRecalling[i] = now;
+      if (now) recallTicks[i] += 1;
+    });
+
     // Positions.
     const engaged: number[] = [];
     m.bearbots.forEach((b, i) => {
@@ -512,11 +563,11 @@ export async function measureLog(log: MatchLog, flush: () => Promise<void> = def
         }
       }
       m.bearbots.forEach((b, i) => {
-        if (b.alive && b.recalling && !wasRecalling[i]) {
+        if (recallingNow(b, i) && !wasRecalling[i]) {
           shopRecall[i] = b.hp > 0.5 * b.maxHp;
           if (shopRecall[i]) recallsAboveHalfHp[b.team] += 1;
-        } else if (!b.alive || !b.recalling) shopRecall[i] = false;
-        wasRecalling[i] = b.alive && b.recalling;
+        } else if (!recallingNow(b, i)) shopRecall[i] = false;
+        wasRecalling[i] = recallingNow(b, i);
       });
     }
     if (t % Math.round(1 / TICK_DT) === 0) {
@@ -678,7 +729,22 @@ export async function measureLog(log: MatchLog, flush: () => Promise<void> = def
     economy: economyMetrics,
     objective: objectiveMetrics,
     bandstandRuleFires: countBandstandRuleFires(log),
+    recall: measureRecall(recall, specimenRecall, pooled(recallTicks, alive) ?? 0),
     heat,
+  };
+}
+
+function measureRecall(recall: Recall | null, specimen: { started: number; home: number; cancelled: number; died: number }, recallingShare: number): RecallMetrics {
+  if (!recall) return { rule: 'specimen', ...specimen, interrupted: 0, recallingShare };
+  const count = (kind: string) => recall.events.filter((e) => e.kind === kind).length;
+  return {
+    rule: recall.rules.name,
+    started: count('start'),
+    home: count('home'),
+    interrupted: count('damage'),
+    cancelled: count('action'),
+    died: count('death'),
+    recallingShare,
   };
 }
 
@@ -760,6 +826,7 @@ function measureObjective(
     radius: objective.rules.radius,
     openings,
     contestedOpenings,
+    closedUntaken: s.openings.filter((o) => o.closedSec !== undefined).length,
     contestedShare: ratio(contestedOpenings, openings),
     captures: { violet, green, total: violet + green },
     teamFightsNear,
@@ -935,6 +1002,7 @@ export function matchValues(m: MatchMetrics): Record<string, number | null> {
     ecoShoppingRecallsGreen: m.economy?.shoppingRecalls.green ?? null,
     // The Bandstand (docs/economy-spec.md §9.8); null on a log without an objective.
     bandstandOpenings: m.objective?.openings ?? null,
+    bandstandClosedUntaken: m.objective?.closedUntaken ?? null,
     bandstandCaptures: m.objective?.captures.total ?? null,
     bandstandCapturesViolet: m.objective?.captures.violet ?? null,
     bandstandCapturesGreen: m.objective?.captures.green ?? null,
@@ -945,6 +1013,12 @@ export function matchValues(m: MatchMetrics): Record<string, number | null> {
     encoreUptime: m.objective?.encoreUptime ?? null,
     // With or without an objective: without one, any fire is Jev answering about nothing (§9.8).
     bandstandRuleFires: m.bandstandRuleFires?.total ?? null,
+    // Recalls, under the log's rule (specimen 3x run or recall-2).
+    recallsStarted: m.recall.started,
+    recallsHome: m.recall.home,
+    recallsInterrupted: m.recall.interrupted,
+    recallsCancelled: m.recall.cancelled,
+    recallingShare: m.recall.recallingShare,
   };
 }
 

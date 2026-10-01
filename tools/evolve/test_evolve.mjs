@@ -197,6 +197,10 @@ test('matchKey covers the ruleset: map and economy change the key; a pre-ruleset
   assert.notEqual(k(river), k(pvp));
   assert.notEqual(k(river), k({ ...river, objective: 'river-1' }));
   assert.equal(DEFAULT_CAMPAIGN.shape.objective, headless.DEFAULT_OBJECTIVE?.name ?? 'none');
+  // A recall rule likewise: hashed only when named, so every existing campaign keeps its key.
+  assert.equal(k({ ...river, recall: undefined }), k(river));
+  assert.notEqual(k({ ...river, recall: 'recall-2' }), k(river));
+  assert.notEqual(k({ ...river, objective: 'river-2' }), k({ ...river, objective: 'river-1' }));
 });
 
 test('sentences: split on sentence ends and blank lines', () => {

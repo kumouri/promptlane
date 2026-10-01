@@ -59,7 +59,7 @@ proves out, it belongs in the next game prompt after the Jam, since the prompt i
 
 The river objective, the Bandstand, is a third layer of the same kind: `src/objective.ts` reads
 bearbot positions after each tick and adds its own observation fields, `src/objective/river-1.json`
-holds its numbers, and a log records it. Its Encore buff and the economy's levels and items reach
+holds its numbers (`river-2.json` its redesign), and a log records it. Its Encore buff and the economy's levels and items reach
 the bots' stats through one shared derivation (`src/ruleset/stats.ts`), and its gold and XP reach
 the economy through one hook (`src/ruleset/rewards.ts`), so neither layer imports the other. Design,
 rulings and measurement: `docs/economy-spec.md` §9.
@@ -91,6 +91,8 @@ the teaser. The original diagnosis described an instant teleport, but the checke
 arrival. Neither the cause of a stalemate nor the claim that no match can be won is independently
 established yet. Preserve the specimen and evaluate those claims rather than changing its code.
 A later prompt may specify a channel, delay, or another recall rule after that investigation.
+For the Jam, `recall-2` (`src/recall.ts`) is such a rule applied from outside: a 4 s channel, then a
+teleport home; it is opt-in and recorded in the match log (`docs/economy-spec.md` §9.10).
 The original behavior stays in the teaser: an honest example of what a short build session buys,
 not a requirement that other models reproduce the same failure.
 

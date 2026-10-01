@@ -13,6 +13,7 @@ import type { Match } from './sim/match';
 import type { MapVariant } from './mapVariant';
 import { getEconomy, type EconomySummary, type LogEconomy } from './economy';
 import { getObjective, type ObjectiveRules, type ObjectiveSummary } from './objective';
+import { getRecall, type RecallRules, type RecallSummary } from './recall';
 
 export const MATCH_LOG_SCHEMA = 'promptlane-match-log-1';
 
@@ -89,6 +90,8 @@ export interface MatchResult {
   economy?: EconomySummary;
   /** Every Bandstand opening and capture, when the match had an objective (`src/objective.ts`). */
   objective?: ObjectiveSummary;
+  /** Every channelled recall and how it ended, when the match had a recall rule (`src/recall.ts`). */
+  recall?: RecallSummary;
 }
 
 export interface MatchLog {
@@ -116,6 +119,11 @@ export interface MatchLog {
    * before the Bandstand existed; a replay attaches the same ruleset.
    */
   objective?: ObjectiveRules;
+  /**
+   * The recall rule (`src/recall.ts`, e.g. `recall-2`), recorded whole. Absent = the specimen's own
+   * recall (a 3x run home), which is every log written before `recall-2` existed.
+   */
+  recall?: RecallRules;
   /** Which model answered: `{kind:'mock'}` or `{kind:'http', endpoint, health}`. */
   backend: Record<string, unknown>;
   sides: Record<Team, LogSide>;
@@ -149,13 +157,15 @@ export function remapId(id: string, offset: number): string {
 /**
  * Compact, rounded snapshot of everything that decides a match. Equal strings ⇒ same state. With an
  * economy attached it adds each bot's `[atRisk, safe, xp, items]` as `e`; with a river objective
- * attached, the objective's state as `o`. Without them the string is exactly what it was before
- * either existed, so every older log still verifies.
+ * attached, the objective's state as `o`; with a recall rule (`src/recall.ts`), each bot's channel
+ * start as `r`. Without them the string is exactly what it was before any existed, so every older
+ * log still verifies.
  */
 export function checkpointOf(match: Match): string {
   const r = (n: number) => Math.round(n * 10) / 10;
   const economy = getEconomy(match);
   const objective = getObjective(match);
+  const recall = getRecall(match);
   return JSON.stringify({
     b: match.bearbots.map((b) => [r(b.hp), r(b.pos.x), r(b.pos.y), b.alive ? 1 : 0, b.recalling ? 1 : 0]),
     t: match.towers.map((t) => r(t.hp)),
@@ -163,6 +173,7 @@ export function checkpointOf(match: Match): string {
     m: match.minions.length,
     ...(economy ? { e: economy.checkpoint() } : {}),
     ...(objective ? { o: objective.checkpoint() } : {}),
+    ...(recall ? { r: recall.checkpoint() } : {}),
   });
 }
 
