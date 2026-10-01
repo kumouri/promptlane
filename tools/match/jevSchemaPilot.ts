@@ -28,6 +28,10 @@ interface SchemaDecideResponse {
   rule: string | null;
   answers: Record<string, number>;
   ms: number;
+  /** Which Jev door answered this call ("typesafe" / "workers-ai" / "stub"); absent from older servers. */
+  door?: string;
+  tokens_in?: number;
+  cost_usd?: number;
 }
 
 const KINDS: ReadonlySet<ActionKind> = new Set(['move', 'attack', 'ability', 'recall', 'hold']);
@@ -51,7 +55,12 @@ export function jevSchemaTracingPilot(config: JevSchemaPilotConfig): TracingPilo
         }
         const data = (await res.json()) as SchemaDecideResponse;
         if (!data.action || !KINDS.has(data.action.kind)) throw new Error(`bad action from jev-schema: ${JSON.stringify(data.action)}`);
-        return { action: data.action, reply: JSON.stringify({ rule: data.rule, action: data.action, answers: data.answers, ms: data.ms }) };
+        const door = data.door ?? 'unknown';
+        return {
+          action: data.action,
+          reply: JSON.stringify({ rule: data.rule, action: data.action, answers: data.answers, ms: data.ms, ...(data.door ? { door } : {}) }),
+          usage: { door, tokensIn: data.tokens_in ?? 0, costUsd: data.cost_usd ?? 0 },
+        };
       } catch (err) {
         return { action: null, reply: `[pilot error: ${transportErrorMessage(err)}]` };
       }

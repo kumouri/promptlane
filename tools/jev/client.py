@@ -813,12 +813,18 @@ class FallbackJevClient:
             raise SystemOneError(message, status=err.status) from None
 
     def ask(self, state, questions: list) -> dict:
+        return self.ask_with_door(state, questions)[0]
+
+    def ask_with_door(self, state, questions: list) -> tuple[dict, str]:
+        """`ask`, plus which door answered this one decision: "typesafe" or "workers-ai". Per call,
+        not a shared attribute, so concurrent matches on one server each get their own answer --
+        what the arena records per match (`schema_server.py`'s `door`)."""
         if self.fallback is None:
-            return self.primary.ask(state, questions)
+            return self.primary.ask(state, questions), self.primary.backend
         deadline = time.monotonic() + self.deadline_sec
         route = self._route()
         if route == "fallback":
-            return self._ask_fallback(state, questions, deadline, None)
+            return self._ask_fallback(state, questions, deadline, None), self.fallback.backend
         try:
             result = self.primary.ask(state, questions, max_retries=0, timeout=self.primary_timeout_sec, deadline=deadline)
         except SystemOneError as err:
@@ -827,14 +833,14 @@ class FallbackJevClient:
                     self._end_probe(recovered=False)  # the next call probes again
                 raise
             self._trip(err, route)
-            return self._ask_fallback(state, questions, deadline, err)
+            return self._ask_fallback(state, questions, deadline, err), self.fallback.backend
         except BaseException:
             if route == "probe":
                 self._end_probe(recovered=False)
             raise
         if route == "probe":
             self._end_probe(recovered=True)
-        return result
+        return result, self.primary.backend
 
     def status(self) -> dict:
         snap = self.primary.status()

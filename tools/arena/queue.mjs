@@ -10,14 +10,24 @@
  *
  * Phase B: every running job also feeds a `LiveStream` (`live.mjs`) from the runner's callbacks,
  * which is what `GET /api/matches/<id>/events` fans out.
+ *
+ * Jev (docs/arena-site-spec.md §9): a job whose backend has `kind: "jev-schema-http"` plays BOTH sides
+ * as compiled rule cascades on Jev through `tools/jev/schema_server.py` -- an entrant's prose compiled
+ * once per prompt and compiler (`schemas.mjs`), the house its tier's checked-in schemas. There is no
+ * text-model path in such a match: a side with no schemas fails the job. A compile failure, Jev
+ * leaving too many decisions unanswered, or the per-match spend cap ends the job `failed` with the
+ * reason on the match page; the first two are re-queued once. Every Jev match records its calls,
+ * tokens, USD and which door answered (`typesafe` / `workers-ai`) in its log (`backend.jev`) and on
+ * its terminal ledger row (`jev`); the day's total gates new matches (`dailyBudgetUsd`).
  */
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { flush, httpCallModel, probeBackend, backendLabel } from '../match/load.mjs';
-import { nextMatchId, queued as queuedJobs } from './ledger.mjs';
+import { jevSpentToday, nextMatchId, queued as queuedJobs } from './ledger.mjs';
 import { houseTextForSide } from './house.mjs';
 import { metaOf } from './live.mjs';
 import { shortHash } from './prompts.mjs';
+import { CompileFailed } from './schemas.mjs';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -25,6 +35,67 @@ export function wallCapMs({ maxSimSec, cadenceSec, avgSecPerCall }) {
   const rounds = maxSimSec / cadenceSec;
   const expectedSec = rounds * 6 * (avgSecPerCall ?? 0.9);
   return Math.max(60, 3 * expectedSec) * 1000;
+}
+
+/**
+ * Limits for a `jev-schema-http` backend; each can be set on the backend's config entry (null turns
+ * that one off).
+ *   dailyBudgetUsd           no new match starts once the day's (Central) Jev spend on this backend reaches it
+ *   maxUsdPerMatch           a match is stopped and failed (not retried) once its own spend reaches it
+ *   maxUnansweredRate        a side with more unanswered decisions than this fraction fails the match
+ *   maxConsecutiveUnanswered this many unanswered decisions in a row (any bot) stops the match early
+ */
+export const JEV_DEFAULTS = { dailyBudgetUsd: 5, maxUsdPerMatch: 0.25, maxUnansweredRate: 0.05, maxConsecutiveUnanswered: 30 };
+
+export const isJevBackend = (backend) => backend?.kind === 'jev-schema-http';
+
+/** Counts one Jev match's decisions, spend and doors; asks for an abort past its limits. */
+export class JevMeter {
+  constructor(limits, abort) {
+    this.limits = limits;
+    this.abort = abort;
+    this.calls = 0;
+    this.unanswered = { violet: 0, green: 0 };
+    this.tokensIn = 0;
+    this.costUsd = 0;
+    this.doors = {};
+    this.consecutive = 0;
+    this.lastError = null;
+  }
+
+  wrap(team, pilot) {
+    return {
+      decide: async (obs) => {
+        const d = await pilot.decide(obs);
+        this.record(team, d);
+        return d;
+      },
+    };
+  }
+
+  record(team, d) {
+    this.calls += 1;
+    if (d.usage) {
+      this.consecutive = 0;
+      this.tokensIn += d.usage.tokensIn;
+      this.costUsd += d.usage.costUsd;
+      this.doors[d.usage.door] = (this.doors[d.usage.door] ?? 0) + 1;
+    } else if (d.action === null) {
+      this.unanswered[team] += 1;
+      this.consecutive += 1;
+      this.lastError = d.reply;
+      if (this.limits.maxConsecutiveUnanswered != null && this.consecutive >= this.limits.maxConsecutiveUnanswered) {
+        this.abort('unanswered', `Jev stopped answering: ${this.consecutive} decisions in a row went unanswered (last: ${d.reply.slice(0, 160)})`);
+      }
+    }
+    if (this.limits.maxUsdPerMatch != null && this.costUsd >= this.limits.maxUsdPerMatch) {
+      this.abort('spend', `per-match Jev spend cap reached: $${this.costUsd.toFixed(4)} of $${this.limits.maxUsdPerMatch}`);
+    }
+  }
+
+  summary() {
+    return { calls: this.calls, unanswered: { ...this.unanswered }, tokensIn: this.tokensIn, costUsd: Math.round(this.costUsd * 1e6) / 1e6, doors: { ...this.doors } };
+  }
 }
 
 /** Tower and nexus hp from the last checkpoint, for the match page and the tie order. */
@@ -42,18 +113,22 @@ export function finalFromLog(log) {
 export class Queue {
   /**
    * @param opts.ledger      Ledger
-   * @param opts.backends    { id: {kind:'mock'|'http', endpoint?, model?, avgSecPerCall?, timeoutSec?} }
+   * @param opts.backends    { id: {kind:'mock'|'http'|'jev-schema-http', endpoint?, model?, avgSecPerCall?, timeoutSec?,
+   *                         ...JEV_DEFAULTS keys on a Jev backend} }
    * @param opts.headless    the bundle from `loadHeadless()`
    * @param opts.dataDir     runs/arena
    * @param opts.promptStore PromptStore
-   * @param opts.house       { handle, hash, file, backend? } -- `backend` names a `kind: "jev-http"`
+   * @param opts.house       { handle, hash, file, backend?, schemas?, schemasFile?, schemasHash? } --
+   *                         `schemas` is what the house plays on a Jev backend; `backend` names a `kind: "jev-http"`
    *                         entry in `opts.backends` that plays the house side only (see
    *                         `decisionPilotFor` below); unset by default
+   * @param opts.schemaCache SchemaCache (`schemas.mjs`) — compiles entrant prose for Jev backends
+   * @param opts.map         map variant name for every match (`tournament.map`); unset = the runner's DEFAULT_MAP
    * @param opts.live        LiveHub (optional) — running jobs stream their events into it
    * @param opts.hooks       test seams: `afterRun(log, job)` may replace the log before verify;
    *                         `callModelFor(job)` replaces the adapter; `wallCapMs` overrides the cap
    */
-  constructor({ ledger, backends, headless, dataDir, promptStore, house, live = null, log = console, hooks = {} }) {
+  constructor({ ledger, backends, headless, dataDir, promptStore, house, schemaCache = null, map = null, live = null, log = console, hooks = {} }) {
     this.ledger = ledger;
     this.backends = backends;
     this.headless = headless;
@@ -62,6 +137,8 @@ export class Queue {
     this.scratchDir = path.join(dataDir, 'scratch');
     this.promptStore = promptStore;
     this.house = house;
+    this.schemaCache = schemaCache;
+    this.map = map;
     this.live = live;
     this.log = log;
     this.hooks = hooks;
@@ -70,6 +147,35 @@ export class Queue {
     this.stopped = false;
     this.wakers = new Set();
     this.workers = [];
+    /** backendId → {reason, since}: why its worker is holding queued matches (shown on /matches) */
+    this.holds = new Map();
+  }
+
+  /** Record (or clear, with null) why `backendId`'s worker is not starting matches; logs each change once. */
+  hold(backendId, reason) {
+    const prev = this.holds.get(backendId);
+    if (!reason) {
+      if (prev) this.log.info(`arena: backend ${backendId} is starting matches again`);
+      this.holds.delete(backendId);
+      return;
+    }
+    if (prev?.reason === reason) return;
+    this.holds.set(backendId, { reason, since: new Date().toISOString() });
+    this.log.warn(`arena: backend ${backendId} holding queued matches: ${reason}`);
+  }
+
+  /** Why a Jev backend must not start a match now (wrong server, its own cap, today's budget), or null. */
+  jevHoldReason(backendId, backend, health) {
+    if (health?.backend !== 'jev-schema') {
+      return `${backend.endpoint} is not a Jev schema server (its /health says backend=${JSON.stringify(health?.backend ?? null)}); start python tools/jev/schema_server.py there`;
+    }
+    if (health.budget_usd != null && health.cost_usd >= health.budget_usd) {
+      return `the schema server's own --budget-usd $${health.budget_usd} is spent; restart it to reset`;
+    }
+    const cap = backend.dailyBudgetUsd === undefined ? JEV_DEFAULTS.dailyBudgetUsd : backend.dailyBudgetUsd;
+    const spent = jevSpentToday(this.state, backendId);
+    if (cap != null && spent >= cap) return `daily Jev budget reached: $${spent.toFixed(4)} of $${cap} today (Central Time); queued matches start again tomorrow or when dailyBudgetUsd is raised`;
+    return null;
   }
 
   get state() {
@@ -185,6 +291,21 @@ export class Queue {
           continue;
         }
       }
+      if (isJevBackend(backend)) {
+        let why;
+        try {
+          probe = { ...(await probeBackend(backend.endpoint)), kind: 'jev-schema-http' };
+          why = this.jevHoldReason(backendId, backend, probe.health);
+        } catch {
+          why = `Jev schema server not reachable at ${backend.endpoint}; retrying every 30 s`;
+        }
+        if (why) {
+          this.hold(backendId, why);
+          await this.sleepUntilWoken(30000);
+          continue;
+        }
+        this.hold(backendId, null);
+      }
       await this.runJob(job, backend, probe);
     }
   }
@@ -193,9 +314,10 @@ export class Queue {
    * SHADOW ONLY as of 2026-09-23 (runs/jev-house-bot-2026-09-23.md): `undefined` unless
    * `config.house.backend` names a `kind: "jev-http"` backend (validated in `server.mjs::
    * loadConfig`), in which case the house-playing side of `job` -- and only that side -- decides
-   * through Jev instead of `job.backendId`'s text-prompt model. An entrant never plays Jev: the
-   * other side always keeps its normal `callModelFor`/`PromptPilot` path via `headless.ts`'s
-   * fallback when this returns `undefined` for a bot index.
+   * through Jev instead of `job.backendId`'s text-prompt model. The other side keeps its normal
+   * `callModelFor`/`PromptPilot` path via `headless.ts`'s fallback when this returns `undefined` for
+   * a bot index. Text-model backends only: on a `jev-schema-http` backend both sides play compiled
+   * schemas (`runJob`), and neither this nor `house.backend` is consulted.
    */
   decisionPilotFor(job) {
     const houseFor = this.houseJevPilotFor(job);
@@ -246,6 +368,40 @@ export class Queue {
     return { name: ref.handle, promptFile, promptText };
   }
 
+  /**
+   * The compiled schemas `team` plays on Jev, and where they came from: the practice job's own
+   * compile, the house's checked-in tier schemas, or the entrant's prose through the compile cache.
+   */
+  async schemasForSide(job, team, side) {
+    const ref = job.sides[team];
+    if (ref.practice && job.practice?.schemas) {
+      return { schemas: job.practice.schemas, source: { kind: 'practice', compiledWith: job.practice.compiledWith ?? null } };
+    }
+    if (ref.house) {
+      if (!this.house?.schemas) throw new Error('the house has no compiled schemas to play on Jev (config.house.schemas / tier)');
+      return { schemas: this.house.schemas, source: { kind: 'house', file: this.house.schemasFile, hash: this.house.schemasHash } };
+    }
+    if (!this.schemaCache) throw new Error('no schema cache: this arena cannot compile prose for Jev');
+    const c = await this.schemaCache.schemasFor(side.promptText);
+    return {
+      schemas: c.schemas,
+      source: { kind: 'compiled', promptHash: c.hash, compilerVersion: c.compilerVersion, cached: c.cached, compiledWith: c.backend, ...(c.usage ? { compileUsage: c.usage } : {}) },
+    };
+  }
+
+  /** Re-queue a failed or voided job once, as a new match id (`retryOf`); a retry is never retried. */
+  requeueOnce(job, id) {
+    if (job.retryOf) return null;
+    const { id: _id, status, attempt: _a, createdAt, startedAt: _s, ...copy } = job;
+    const scratchSide = [job.sides.violet, job.sides.green].find((s) => s.scratch);
+    const f = path.join(this.scratchDir, `${id}.md`);
+    const scratchText = scratchSide && existsSync(f) ? readFileSync(f, 'utf8') : undefined;
+    if (scratchSide && scratchText === undefined) return null;
+    const retryId = this.enqueue({ ...copy, retryOf: id, scratchText });
+    this.log.warn(`arena: ${id} re-queued once as ${retryId}`);
+    return retryId;
+  }
+
   forgetScratch(id) {
     const f = path.join(this.scratchDir, `${id}.md`);
     if (existsSync(f)) rmSync(f);
@@ -259,13 +415,38 @@ export class Queue {
     this.ledger.append({ type: 'started', id, attempt });
     const stream = this.live?.open(id) ?? null;
     const ac = new AbortController();
+    let abortWhy = null;
+    const abort = (why, reason) => {
+      if (abortWhy) return;
+      abortWhy = { why, reason };
+      ac.abort();
+    };
     let timer = null;
     let ended = null;
+    let meter = null;
     try {
       const sides = { violet: this.resolveSide(job.sides.violet, id, 'violet'), green: this.resolveSide(job.sides.green, id, 'green') };
       let callModelFor;
       let logBackend;
-      if (backend.kind === 'mock') {
+      let jevPilotFor = null;
+      if (isJevBackend(backend)) {
+        const limits = { ...JEV_DEFAULTS, ...pick(backend, Object.keys(JEV_DEFAULTS)) };
+        const compile = {};
+        for (const team of ['violet', 'green']) {
+          const { schemas, source } = await this.schemasForSide(job, team, sides[team]);
+          sides[team] = { ...sides[team], schemas, schemaSource: source };
+          compile[team] = source;
+        }
+        meter = new JevMeter(limits, abort);
+        meter.compile = compile;
+        logBackend = { ...probe, arenaBackend: job.backendId, model: probe.health?.model ?? backend.model, jevBackend: probe.health?.jev_backend ?? null };
+        callModelFor = (i) => {
+          throw new Error(`bearbot ${i} has no compiled schema; a Jev match never falls back to a text model`);
+        };
+        const pilots = {};
+        jevPilotFor = (_botIndex, team) =>
+          (pilots[team] ??= meter.wrap(team, this.headless.jevSchemaTracingPilot({ endpoint: backend.endpoint, timeoutSec: backend.timeoutSec, schemas: sides[team].schemas })));
+      } else if (backend.kind === 'mock') {
         logBackend = { kind: 'mock', arenaBackend: job.backendId, model: backend.model ?? 'mock' };
         callModelFor = (i) => this.headless.mockCallModel(100 + i);
       } else {
@@ -273,11 +454,11 @@ export class Queue {
         const call = httpCallModel(backend.endpoint, backend.timeoutSec ?? 60);
         callModelFor = () => call;
       }
-      if (this.hooks.callModelFor) callModelFor = this.hooks.callModelFor(job);
-      const decisionPilotFor = this.hooks.decisionPilotFor ? this.hooks.decisionPilotFor(job) : this.decisionPilotFor(job);
+      if (this.hooks.callModelFor && !jevPilotFor) callModelFor = this.hooks.callModelFor(job);
+      const decisionPilotFor = jevPilotFor ?? (this.hooks.decisionPilotFor ? this.hooks.decisionPilotFor(job) : this.decisionPilotFor(job));
       const avgSecPerCall = Math.max(backend.avgSecPerCall ?? 0.9, job.practice ? this.backends[job.practice.backend]?.avgSecPerCall ?? 0.9 : 0);
       const capMs = this.hooks.wallCapMs ?? wallCapMs({ maxSimSec: job.maxSimSec, cadenceSec: job.cadenceSec, avgSecPerCall });
-      timer = setTimeout(() => ac.abort(), capMs);
+      timer = setTimeout(() => abort('wall', `wall-clock cap ${Math.round(capMs / 1000)}s`), capMs);
       this.log.info(
         `arena: ${id} start ${sides.violet.name} vs ${sides.green.name} seed=${job.seed} cadence=${job.cadenceSec} ` +
           `max=${job.maxSimSec}s backend=${backendLabel(logBackend)} cap=${Math.round(capMs / 1000)}s`,
@@ -290,6 +471,7 @@ export class Queue {
         cadenceSec: job.cadenceSec,
         maxSimSec: job.maxSimSec,
         backend: logBackend,
+        ...(this.map ? { map: this.map } : {}),
         flush,
         signal: ac.signal,
         onProgress: (p) => {
@@ -306,15 +488,42 @@ export class Queue {
       clearTimeout(timer);
       const wallMs = Date.now() - startedAt;
       if (this.hooks.afterRun) log = (await this.hooks.afterRun(log, job)) ?? log;
+      const jev = meter ? { ...meter.summary(), compile: meter.compile } : null;
+      if (jev) log.backend = { ...log.backend, jev: meter.summary() };
       stream?.push('result', log.result);
       mkdirSync(this.logsDir, { recursive: true });
       if (ac.signal.aborted) {
         writeFileSync(path.join(this.logsDir, `${id}.json`), JSON.stringify(log) + '\n');
-        const reason = `wall-clock cap ${Math.round(capMs / 1000)}s`;
-        this.ledger.append({ type: 'timed-out', id, wallMs, reason });
-        ended = { status: 'timed-out', reason };
-        this.log.warn(`arena: ${id} timed out after ${Math.round(wallMs / 1000)}s`);
+        const { why, reason } = abortWhy ?? { why: 'wall', reason: `wall-clock cap ${Math.round(capMs / 1000)}s` };
+        if (why === 'wall') {
+          this.ledger.append({ type: 'timed-out', id, wallMs, reason, ...(jev ? { jev } : {}) });
+          ended = { status: 'timed-out', reason };
+          this.log.warn(`arena: ${id} timed out after ${Math.round(wallMs / 1000)}s`);
+          return;
+        }
+        this.ledger.append({ type: 'failed', id, error: reason, wallMs, ...(jev ? { jev } : {}) });
+        ended = { status: 'failed', reason };
+        this.log.warn(`arena: ${id} failed: ${reason}`);
+        if (why === 'unanswered') this.requeueOnce(job, id);
         return;
+      }
+      if (jev) {
+        const { maxUnansweredRate } = { ...JEV_DEFAULTS, ...pick(backend, ['maxUnansweredRate']) };
+        const over = ['violet', 'green'].filter((t) => {
+          const st = log.result.stats[t];
+          return maxUnansweredRate != null && st.calls > 0 && st.callErrors / st.calls > maxUnansweredRate;
+        });
+        if (over.length) {
+          writeFileSync(path.join(this.logsDir, `${id}.json`), JSON.stringify(log) + '\n');
+          const reason =
+            `Jev left too many decisions unanswered: ${over.map((t) => `${t} ${log.result.stats[t].callErrors} of ${log.result.stats[t].calls}`).join(', ')}` +
+            ` (limit ${(maxUnansweredRate * 100).toFixed(0)}%)${meter.lastError ? `; last: ${meter.lastError.slice(0, 160)}` : ''}`;
+          this.ledger.append({ type: 'failed', id, error: reason, wallMs, jev });
+          ended = { status: 'failed', reason };
+          this.log.warn(`arena: ${id} failed: ${reason}`);
+          this.requeueOnce(job, id);
+          return;
+        }
       }
       const v = await this.headless.verifyReplay(log, flush);
       if (!v.ok) {
@@ -326,16 +535,11 @@ export class Queue {
           reason: `replay diverged at tick ${v.firstDivergenceTick ?? 'end'}`,
           divergenceTick: v.firstDivergenceTick,
           verify: v,
+          ...(jev ? { jev } : {}),
         });
         this.log.warn(`arena: ${id} REPLAY DIVERGED (tick ${v.firstDivergenceTick}); voided`);
         ended = { status: 'void', reason: `replay diverged at tick ${v.firstDivergenceTick ?? 'end'}` };
-        if (!job.retryOf) {
-          const { id: _id, status, attempt: _a, createdAt, startedAt: _s, ...copy } = job;
-          const scratchSide = [job.sides.violet, job.sides.green].find((s) => s.scratch);
-          const scratchText = scratchSide ? readFileSync(path.join(this.scratchDir, `${id}.md`), 'utf8') : undefined;
-          const retryId = this.enqueue({ ...copy, retryOf: id, scratchText });
-          this.log.warn(`arena: ${id} re-queued once as ${retryId}`);
-        }
+        this.requeueOnce(job, id);
         return;
       }
       writeFileSync(path.join(this.logsDir, `${id}.json`), JSON.stringify(log) + '\n');
@@ -356,14 +560,22 @@ export class Queue {
         final: finalFromLog(log),
         verify: { checkpointsCompared: v.checkpointsCompared, ticks: v.ticks },
         wallMs,
+        ...(jev ? { jev } : {}),
       });
       ended = { status: 'finished', verify: { checkpointsCompared: v.checkpointsCompared, ticks: v.ticks } };
-      this.log.info(`arena: ${id} done winner=${log.result.winner ?? 'draw'} by=${log.result.endReason ?? 'unfinished'} wall=${Math.round(wallMs / 1000)}s verified=${v.checkpointsCompared} checkpoints`);
+      const jevNote = jev ? ` jev=$${jev.costUsd.toFixed(4)} doors=${JSON.stringify(jev.doors)}` : '';
+      this.log.info(`arena: ${id} done winner=${log.result.winner ?? 'draw'} by=${log.result.endReason ?? 'unfinished'} wall=${Math.round(wallMs / 1000)}s verified=${v.checkpointsCompared} checkpoints${jevNote}`);
     } catch (err) {
       if (timer) clearTimeout(timer);
-      this.ledger.append({ type: 'failed', id, error: String(err?.message ?? err) });
-      ended = { status: 'failed', reason: String(err?.message ?? err) };
-      this.log.error(`arena: ${id} failed: ${err?.stack ?? err}`);
+      const error = String(err?.message ?? err);
+      this.ledger.append({ type: 'failed', id, error, ...(meter ? { jev: { ...meter.summary(), compile: meter.compile } } : {}) });
+      ended = { status: 'failed', reason: error };
+      if (err instanceof CompileFailed) {
+        this.log.warn(`arena: ${id} failed: ${error}`);
+        this.requeueOnce(job, id);
+      } else {
+        this.log.error(`arena: ${id} failed: ${err?.stack ?? err}`);
+      }
     } finally {
       this.running.delete(id);
       this.forgetScratch(id);
@@ -373,4 +585,8 @@ export class Queue {
       }
     }
   }
+}
+
+function pick(obj, keys) {
+  return Object.fromEntries(keys.filter((k) => obj?.[k] !== undefined).map((k) => [k, obj[k]]));
 }

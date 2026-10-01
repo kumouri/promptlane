@@ -82,6 +82,30 @@ class DecideTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             JevSchemaBackend(FakeJev(set())).decide({"schema": SCHEMA})
 
+    def test_each_reply_carries_its_door_and_spend(self):
+        """The arena sums these per match into its ledger (docs/arena-site-spec.md §9)."""
+        out = JevSchemaBackend(FakeJev(set(), input_tokens=500)).decide({"schema": SCHEMA, "observation": OBS})
+        self.assertEqual(out["door"], "unknown")  # a client that names no door
+        self.assertEqual(out["tokens_in"], 500)
+        self.assertAlmostEqual(out["cost_usd"], 500 / 1_000_000 * C.PRICE_IN_PER_M)
+        stub = JevSchemaBackend(schema_server.DumbStubJevClient()).decide({"schema": SCHEMA, "observation": OBS})
+        self.assertEqual(stub["door"], "stub")
+
+    def test_the_door_is_the_one_that_answered_this_call(self):
+        class Doors(FakeJev):
+            backend = "typesafe"
+
+            def __init__(self, doors):
+                super().__init__(set())
+                self.doors = list(doors)
+
+            def ask_with_door(self, state, questions):
+                return self.ask(state, questions), self.doors.pop(0)
+
+        b = JevSchemaBackend(Doors(["typesafe", "workers-ai"]))
+        doors = [b.decide({"schema": SCHEMA, "observation": OBS})["door"] for _ in range(2)]
+        self.assertEqual(doors, ["typesafe", "workers-ai"])
+
 
 class HttpTests(unittest.TestCase):
     def setUp(self):

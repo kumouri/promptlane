@@ -2,8 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import {
-  DEFAULT_HOUSE_FILES, DEFAULT_HOUSE_TIER, HOUSE_TIERS, bundleHouse, candidateFiles, candidateLabel, houseCandidates, houseSpecFile,
-  houseTextForSide, pickHouse,
+  DEFAULT_HOUSE_FILES, DEFAULT_HOUSE_TIER, HOUSE_TIERS, HOUSE_TIER_SCHEMAS, bundleHouse, candidateFiles, candidateLabel, houseCandidates,
+  houseSchemasFile, houseSpecFile, houseTextForSide, loadHouseSchemas, pickHouse,
 } from './house.mjs';
 import { DEFAULT_CONFIG, loadConfig } from './server.mjs';
 
@@ -65,7 +65,7 @@ test('tiers: config.house.tier names exactly one pair; files still work; both or
 });
 
 test('tiers: --house-tier on the arena replaces the config files; an unknown tier fails at load', () => {
-  assert.equal(loadConfig(DEFAULT_CONFIG).house.tier, null);
+  assert.equal(loadConfig(DEFAULT_CONFIG).house.tier, 'medium', 'the example names the placement bar outright');
   const cfg = loadConfig(DEFAULT_CONFIG, { houseTier: 'easy' });
   assert.deepEqual(houseCandidates(cfg.house), [HOUSE_TIERS.easy]);
   assert.equal(cfg.house.handle, 'house');
@@ -105,4 +105,20 @@ test('tiers: every checked-in pair exists, bundles, and its sides differ only in
       .replaceAll('{HOME}', '{"x":100,"y":900}');
     assert.equal(towerIds(swapped), towerIds(violet), `${tier}: green is violet with the team literals swapped`);
   }
+});
+
+test('Jev: each tier has checked-in compiled schemas, found from the tier, the picked pair, or house.schemas', () => {
+  const root = path.resolve(import.meta.dirname, '..', '..');
+  for (const tier of Object.keys(HOUSE_TIERS)) {
+    assert.equal(houseSchemasFile({ tier }, HOUSE_TIERS[tier]), HOUSE_TIER_SCHEMAS[tier]);
+    const { schemas, hash } = loadHouseSchemas(HOUSE_TIER_SCHEMAS[tier], root);
+    assert.deepEqual(Object.keys(schemas), ['drums', 'keytar', 'violin'], tier);
+    for (const [inst, s] of Object.entries(schemas)) assert.equal(s.instrument, inst, `${tier} ${inst}`);
+    assert.match(hash, /^[0-9a-f]{64}$/);
+  }
+  // A `files` list whose picked candidate is medium's pair (the live config's shape) still finds medium.
+  assert.equal(houseSchemasFile({ files: DEFAULT_HOUSE_FILES }, PAIR), 'prompts/pilots/house-medium.schemas.json');
+  assert.equal(houseSchemasFile({}, 'prompts/pilots/drums.md'), null, 'a single-file house has no checked-in compile');
+  assert.equal(houseSchemasFile({ schemas: 'x.json' }, PAIR), 'x.json');
+  assert.throws(() => loadHouseSchemas('x.json', '/r', () => JSON.stringify({ drums: { rules: [] } })), /no compiled schema for keytar, violin/);
 });

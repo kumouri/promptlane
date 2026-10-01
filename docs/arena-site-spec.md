@@ -9,7 +9,8 @@ to start it, expose it and operate it — including the jam-day sequence — is
 limits, a Worker/R2 mirror) is still a proposal, but its hosted-model backend
 (`tools/model_server.py --backend openrouter`) is built and proven on OpenRouter — see the Phase C
 as-built list under §6. The "as built" lists under §6 say where the code departs from or fills in
-this text; where they disagree, the as-built list is the rule.
+this text; where they disagree, the as-built list is the rule. **Since 2026-09-30 the ladder's main
+backend is Jev on both sides (§9)**; where §§1–6 say "the 9b model" for ladder play, read §9.
 
 Read with: [`../README.md`](../README.md) ("Run a jam match"), [`design.md`](design.md),
 [`../tools/match/`](../tools/match/), [`../tools/model_server.py`](../tools/model_server.py),
@@ -280,6 +281,8 @@ it is an extra deploy for nothing. Revisit in Phase C.
 - **Crash recovery**: the queue is itself persisted as ledger rows (`queued`, `started`,
   `finished|void|timed-out`). On restart, any `started` without a terminal row is re-queued at the
   same priority; nothing is lost but the wall time.
+- **A `jev-schema-http` backend** (§9): both sides play compiled schemas on Jev, with a compile step,
+  holds, failure rules and per-match spend that the text-model path doesn't have.
 
 ### 3.2 Prompt store: git-backed vs upload
 
@@ -541,6 +544,11 @@ and refuses with a clear message when the day's committed estimate would exceed 
 Local Ollama backends have `usdPerMToken: 0` and are bounded by `dailyMinutesBudget` (GPU time is
 the cost). Actuals are folded from `finished` rows (`stats.calls`, `avgMs`) and shown on `/admin` per
 backend per day, so the estimate can be corrected after the first real day.
+
+**As built for Jev (§9):** a `jev-schema-http` backend enforces `dailyBudgetUsd` on **actuals**, not
+estimates. Each match's Jev spend is on its terminal ledger row, and new matches are held once
+today's sum reaches the cap. `maxUsdPerMatch` stops a single match. The estimate-before-enqueue
+and `/admin` view above are still unbuilt for every backend.
 
 ### 5.5 Replay determinism
 
@@ -896,3 +904,115 @@ with a `"jev-house": { "kind": "jev-http", "endpoint": "http://<host>:8798/" }` 
 `backends` (see `tools/arena/config.example.json`, where it's present but not selected). The
 operator procedure — token check, starting the server, the fallback, going live and backing out —
 is `docs/arena-runbook.md` §6, *5.3 Jam day with the Jev house bot*.
+
+On a Jev ladder (§9) this switch doesn't apply: the house plays its tier's compiled schemas there.
+
+## 9. Jev as the ladder's main backend (built 2026-09-30)
+
+Ceryce, 2026-09-30 20:40 CT: *"We need to hook up Jev as the main backend for the Elysium tests.
+That's gotta be next."* The Jam plays on Jev (ruling 2026-09-25, [`entrant-compile-preview.md`](entrant-compile-preview.md)),
+so the ladder now plays the same path: **entrant prose → `tools/jev/compile.py` → schema →
+`tools/jev/schema_server.py` → Jev, on both sides.** `qwen9b` stays in config as a named,
+non-default backend; nothing about it was removed. Operator steps: [`arena-runbook.md`](arena-runbook.md) §1c.
+
+**Switch.** `tournament.backend` names a backend with `kind: "jev-schema-http"` (`jev-schema` in
+[`tools/arena/config.example.json`](../tools/arena/config.example.json)). Every match on such a backend
+— placements, tests, bracket matches, compile-panel practice — plays both sides as compiled schemas.
+A text-model backend (`http`, `mock`) plays exactly as before.
+
+**Entrant side: compile once per prompt and compiler** (`tools/arena/schemas.mjs`).
+
+- A compile is sampled, so the ladder compiles a prompt **once** and every match it plays uses that
+  result. Its placements, tests and bracket matches play the same rules, and a restart doesn't
+  re-roll them.
+- The cache is `runs/arena/schemas/<prompt sha256>.<compiler version>.json`, holding the schemas,
+  the compile's usage and its transparency markdown. The compiler version is 12 hex chars over the
+  source of `compile.py` and everything it imports for translation (`translator.py`,
+  `scenarios.py`, `number_normalize.py`, `ground_truth.py`, `llm_backends.py`), plus
+  `compile.backend` and `compile.model`. Changing the translator or its model is a new compiler, and
+  each prompt compiles again on its next match. Old files are left alone.
+- It runs on `config.compile`'s backend, the same one the `/compile` panel uses (`ollama` by
+  default, `openrouter` for hosted). The panel's per-IP limits don't apply to ladder compiles, which
+  happen at most once per prompt per compiler.
+- The compile runs inside the match job, before the sim starts. A cache hit costs nothing. A miss
+  took 38 s on Ollama in the live smoke. That time counts in the match's `wallMs` but not against
+  its wall-clock cap.
+
+**House side: the tier's checked-in schemas** (`tools/arena/house.mjs`).
+
+- The house plays `prompts/pilots/house-<tier>.schemas.json`, a byte copy of
+  `runs/house-tiers-schemas-<tier>-2026-09-30.json`, the cascades the tiers were measured with on Jev
+  ([`../runs/house-tiers-2026-09-30.md`](../runs/house-tiers-2026-09-30.md)).
+- They're checked in and fixed, so the placement bar isn't re-sampled on each restart.
+  `config.house.schemas` names another file.
+- The tier comes from `house.tier`, or from the picked `house.files` pair, so the live config's
+  `files` list still finds medium's schemas.
+- A house with no compiled schemas (a single-file `house.md` / `drums.md`) refuses to start a Jev
+  ladder.
+- The `house` ledger row records `schemasFile` and `schemasHash`.
+- `house.backend` (the shadow `jev-http` house bot, §8) applies only to text-model ladders.
+
+**Never a silent fallback.** A Jev match has no text-model path: `callModelFor` throws, so a side
+without schemas fails the job. The cases:
+
+| What goes wrong | What the ladder does |
+|---|---|
+| The compile fails: an instrument got no valid schema, the backend is down, or the token cap hit | The job ends `failed`, with `compile failed — <instrument>: <error>` on the match page. It is re-queued once. Nothing is cached and nothing is played. |
+| The schema server is down, or its `/health` isn't `jev-schema` (e.g. the qwen model server on that port) | The worker doesn't start the match. It **holds** that backend and checks again every 30 s. The reason is shown on `/matches` and in `/api/matches` → `holds`. Queued matches keep their place. |
+| Jev stops answering mid-match: `maxConsecutiveUnanswered` (30) unanswered decisions in a row | The match is stopped early and ends `failed` ("Jev stopped answering…"). The log is kept and the job is re-queued once. |
+| A side's unanswered decisions exceed `maxUnansweredRate` (5%) by the end | The match ends `failed`. It is not counted, the log is kept, and it is re-queued once. |
+| The match's own Jev spend reaches `maxUsdPerMatch` ($0.25) | The match is stopped and ends `failed`. It is not retried. |
+| Today's (Central) Jev spend on the backend reaches `dailyBudgetUsd` ($5), or the server's own `--budget-usd` is used up | The worker holds the backend (see the second row) until the day turns over or the cap is raised. |
+
+A retry is never retried again. The auto-fallback that remains is inside `schema_server.py`: TypeSafe,
+failing over to Workers AI. That is another door to the same Jev, not another model.
+
+**What gets recorded.**
+
+- Each `schema_server.py` reply now carries `door` (`typesafe` / `workers-ai` / `stub`), `tokens_in`
+  and `cost_usd`. `FallbackJevClient.ask_with_door` names the door per call.
+- The queue sums these per match (`JevMeter`) and writes `jev` = `{calls, unanswered: {violet,
+  green}, tokensIn, costUsd, doors, compile}` on the terminal ledger row (`finished`, `failed`,
+  `timed-out` or a replay `void`). `compile` is where each side's rules came from: `compiled`, with
+  `promptHash`, `compilerVersion`, `cached` and, on a fresh compile, `compileUsage`; or `house`, with
+  file and hash; or `practice`.
+- The fold sums `costUsd` per Central day per backend (`ledger.mjs jevSpentToday`). That sum is the
+  daily ceiling.
+- The match log gets `backend.jev`, the same counts, plus `sides.<team>.schemas` and `schemaSource`.
+  Every Jev decision's `reply` names its `door`.
+- The match page shows one line: decisions, $, doors, unanswered, and what each side played.
+
+**Map.** `tournament.map` (`"pvp-1"` in the example) is passed to every match and checked at startup.
+Unset, the runner's `DEFAULT_MAP` applies, which is also `pvp-1` today (PR #48). Pinning it means a
+later default change can't move the ladder silently.
+
+**Cost** (Jev input tokens at $0.042/M; output is free):
+
+| Match | Measured | Source |
+|---|---|---|
+| full (600 sim-s, cadence 2, both sides on Jev) | **≈ $0.06** | the PvP study: $1.44 for 24 matches, 38,649 calls ([`../runs/balance-pvp-2026-09-30.md`](../runs/balance-pvp-2026-09-30.md)); the tier check: $2.55 for 44 ([`../runs/house-tiers-2026-09-30.md`](../runs/house-tiers-2026-09-30.md)) |
+| quick (180 sim-s, cadence 4) | **≈ $0.005–0.01** | the live smoke below: $0.0051 for 162 calls. At most 270 calls (45 rounds × 6) if no bearbot dies or recalls: ≈ $0.009 |
+| compile (once per prompt per compiler) | $0 on Ollama, ≈ $0.0006 on OpenRouter | [`entrant-compile-preview.md`](entrant-compile-preview.md) |
+
+A new entrant's three placements cost ≈ $0.18. A day of a handle's full quota (6 quick + 2 full)
+costs ≈ $0.17. `dailyBudgetUsd` 5 covers ≈ 80 full matches.
+
+**Live smoke (2026-09-30).** Private ports (schema server :8841, `--budget-usd 0.25`; arena :8843,
+dev mode, scratch data dir), the example config, `keytar.md` submitted as a quick scratch test:
+
+- the prose compiled on Ollama `qwen3.5:9b` in 38.3 s: 3 calls, 7,447 tokens, $0, all three
+  instruments, each with its own ability;
+- the match played 180 sim-s against the medium house schemas: 162 Jev calls, all answered by
+  `typesafe`, 0 unanswered, 0.25 s mean, **$0.0051**;
+- it replay-verified at 36/36 checkpoints, in the arena and again from disk with
+  `npm run match -- --verify`;
+- the `finished` row carried `jev`, and the log carried `backend.jev`, both sides' schemas, and
+  `door` on every reply;
+- the `qwen9b` backend pointed at a dead port the whole time. Nothing asked it.
+
+**Not built.** No per-day spend view on `/admin`; the day's total is the ledger fold, and holds show
+on `/matches`. A practice match on a *text-model* ladder still runs through `practicePilotFor` and
+isn't metered. Changing the compile backend or the translator re-compiles every prompt on its next
+match, and their Elo carries over across that change. Switching an existing ladder from `qwen9b` to
+Jev also carries its Elo across engines. Start a fresh data dir if that ladder has ranked matches;
+the live one had none on 2026-09-30.

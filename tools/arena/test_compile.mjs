@@ -230,7 +230,7 @@ test('HTTP: /compile page, /api/compile limits with Retry-After, practice match 
 });
 
 test('HTTP: no practice backend configured → the panel compiles but refuses practice', async () => {
-  const f = fixture({ handles: {} });
+  const f = fixture({ handles: {}, tweak: (cfg) => (cfg.compile = { ...cfg.compile, practiceBackend: null }) });
   const arena = await createArena({ config: f.config, dataDir: f.data, devUser: 'dev@example.com', log: quiet, sync: false, hooks: { compileRun: async () => fakeCompileOutput() } });
   try {
     const base = await arena.listen(0);

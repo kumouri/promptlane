@@ -81,6 +81,8 @@ class DumbStubJevClient:
     questions are LLM-authored prose, not fixed formulas, so there is no such oracle to stub
     against). Exercises the wire shape and the rest of the pipeline; says nothing about fidelity."""
 
+    backend = "stub"  # the "door" a stub decision reports (`run_prediction`)
+
     def __init__(self, seed: int = 20260923):
         self._rng = random.Random(seed)
 
@@ -157,7 +159,11 @@ def run_prediction(client, schema: TranslatedSchema, obs: dict) -> dict:
     questions = [BoundQuestion(n.id, n.condition, {"true": n.criteria_true, "false": n.criteria_false}) for n in all_nodes]
     state = describe_observation(obs)
     start = time.perf_counter()
-    response = client.ask(state, questions)
+    # Which Jev door answered: `FallbackJevClient` says per call; any other client is one door.
+    if hasattr(client, "ask_with_door"):
+        response, door = client.ask_with_door(state, questions)
+    else:
+        response, door = client.ask(state, questions), getattr(client, "backend", None)
     latency_sec = time.perf_counter() - start
     answers = response.get("answers", {})
     usage = response.get("usage", {})
@@ -194,6 +200,7 @@ def run_prediction(client, schema: TranslatedSchema, obs: dict) -> dict:
         "per_question": per_question,
         "input_tokens": input_tokens,
         "latency_sec": latency_sec,
+        "door": door,
     }
 
 

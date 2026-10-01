@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
-"""Jev backend for an entrant's COMPILED schema -- what the Elysium compile panel's practice match
-plays (`docs/entrant-compile-preview.md`, door B). Sibling to `house_server.py` / `team_server.py`,
+"""Jev backend for an entrant's COMPILED schema -- what the Elysium ladder plays on both sides when
+`tournament.backend` is a `jev-schema-http` entry (`docs/arena-site-spec.md` §9), and what the compile
+panel's practice match plays (`docs/entrant-compile-preview.md`, door B). Each reply carries the door
+that answered and the call's spend, which the arena sums per match into its ledger.
+Sibling to `house_server.py` / `team_server.py`,
 but where those two ask a fixed, hand-written cascade, this one asks whatever rules the entrant's
 prose compiled to (`compile.py`): the schema arrives with each request, so the server is stateless
 and one process serves every practice match at once. (Its listen backlog is sized for that:
@@ -18,7 +21,9 @@ rule's target selector is resolved against the observation in Python (`target_re
                       "jev_fallback_*" (typesafe only)}
     POST /        body: {"schema": <compile.py schema JSON>, "observation": <Observation>}
                   -> 200 {"action": {kind, target?, ability?}, "rule": <rule id | null>,
-                          "answers": {rule id: 0.0-1.0}, "ms": float}
+                          "answers": {rule id: 0.0-1.0}, "ms": float,
+                          "door": "typesafe" | "workers-ai" | "stub",   (which door answered THIS call)
+                          "tokens_in": int, "cost_usd": float}          (this call's Jev spend)
                   -> non-2xx {"error": "..."} -- the caller (tools/match/jevSchemaPilot.ts) holds.
 
     python tools/jev/schema_server.py --stub             # no Jev: seeded random answers, $0
@@ -99,16 +104,21 @@ class JevSchemaBackend:
             if self.budget_usd is not None and self.cost_usd >= self.budget_usd:
                 raise BudgetExceeded(f"jev-schema budget ${self.budget_usd:.2f} reached (spent ${self.cost_usd:.4f})")
         pred = run_prediction(self.client, schema, body["observation"])
+        tokens_in = int(pred["input_tokens"])
+        cost = estimate_cost_usd(tokens_in)
         with self.lock:
             self.requests += 1
             self.total_seconds += pred["latency_sec"]
-            self.tokens_in += int(pred["input_tokens"])
-            self.cost_usd += estimate_cost_usd(int(pred["input_tokens"]))
+            self.tokens_in += tokens_in
+            self.cost_usd += cost
         return {
             "action": pred["action"],
             "rule": pred["fired_rule"],
             "answers": {rid: round(q["noul"], 4) for rid, q in pred["per_question"].items()},
             "ms": round(pred["latency_sec"] * 1000, 1),
+            "door": pred.get("door") or "unknown",
+            "tokens_in": tokens_in,
+            "cost_usd": round(cost, 8),
         }
 
     def snapshot(self) -> dict:

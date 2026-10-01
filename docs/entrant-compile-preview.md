@@ -35,6 +35,15 @@ json` as a child process. The PR bot checks out promptlane at a pinned ref and r
 - `compile.py` supplies what entrants need on top: arbitrary prose, all three instruments, a
   choice of backend, a spend cap, and JSON output.
 
+**The ladder uses the same file.** Since 2026-09-30 Elysium's ladder plays merged prose on Jev
+([`arena-site-spec.md` §9](arena-site-spec.md)). It runs this same `compile.py` on `compile.backend`
+once per prompt hash and compiler version, and plays that one compile in every match of the prompt.
+What a door shows is the same translation the ladder runs, but each run is a sample: the ladder's
+rules for a prose can differ from the ones a door showed a minute earlier
+([`prose-to-schema-translator.md` §4.3](prose-to-schema-translator.md)). The ladder's compile is
+kept, with its transparency markdown, in `runs/arena/schemas/` on the arena host. No page shows it
+yet.
+
 ## What the view shows
 
 One prompt drives all three of an entrant's bearbots, so every instrument is compiled separately.
@@ -143,7 +152,9 @@ decisions unanswered (`runs/jev-client-renew-2026-09-30.md`). How it plays:
   unchanged: one Jev call per decision covering every node in the tree (guards and the rules inside
   their branches included), the first "yes" in cascade order wins, a guard routes to its yes- or
   no-branch, and the target is resolved in Python.
-- The house plays green as usual.
+- The house plays green. On a Jev ladder ([`arena-site-spec.md` §9](arena-site-spec.md), the
+  example config's default) it plays its tier's compiled schemas on the same server, so both sides
+  are on Jev. On a text-model ladder it plays `tournament.backend`.
 - It counts as a quick test: same quota, never ranked, replay-verified.
 - The match log records each of the entrant's decisions as `{rule, action, answers, ms}`, so the
   match page shows which rule fired.
@@ -262,7 +273,8 @@ questions Jev is asked). No checked-in compile was affected: none of the 1,629 c
 - **Per-day limits reset on restart.** Door B's limits live in memory, so an arena restart resets
   them. That's acceptable while it binds 127.0.0.1; revisit before any public exposure.
 - **Practice uses the mock model in the live proof above.** The measured match ran the house on the
-  mock model. On the real ladder the house plays `tournament.backend` (qwen3.5:9b), so a practice
+  mock model. On a Jev ladder (the default since 2026-09-30) the house plays its compiled schemas on
+  Jev too. On a text-model ladder the house plays `tournament.backend` (qwen3.5:9b), so a practice
   match takes the usual quick-test wall time.
 - **Automatic labels are a heuristic.** Their measured agreement is above. They were not validated
   on real entrant prose, because none existed yet.

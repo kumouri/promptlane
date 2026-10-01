@@ -1,0 +1,233 @@
+{
+ "drums": {
+  "pilot_file": "prompts/pilots/house-violet.md",
+  "instrument": "drums",
+  "rules": [
+   {
+    "id": "low_hp_retreat",
+    "condition": "is this bot's hp below 75 of its max?",
+    "criteria_true": "bot is critically low on health",
+    "criteria_false": "bot has sufficient health",
+    "action_kind": "recall",
+    "action_ability": null,
+    "action_target_selector": "none"
+   },
+   {
+    "id": "tower_threat_home",
+    "condition": "is there a visible enemy tower and are there no allied minions nearby?",
+    "criteria_true": "tower exists and wave count is zero",
+    "criteria_false": "no tower or minions present",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "drum_kick_opportunity",
+    "condition": "is the drum cooldown at zero and is there an enemy bearbot with less than 100 hp?",
+    "criteria_true": "cooldown ready and soft target available",
+    "criteria_false": "cooldown active or no soft target",
+    "action_kind": "ability",
+    "action_ability": "kick",
+    "action_target_selector": "lowest_hp_enemy"
+   },
+   {
+    "id": "engage_foe",
+    "condition": "is there a visible enemy bearbot?",
+    "criteria_true": "an enemy bearbot is present",
+    "criteria_false": "no enemy bearbot is present",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_enemy"
+   },
+   {
+    "id": "engage_tower",
+    "condition": "is there a visible enemy tower?",
+    "criteria_true": "an enemy tower is present",
+    "criteria_false": "no enemy tower is present",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_tower"
+   },
+   {
+    "id": "ride_wave",
+    "condition": "are there allied minions in the wave?",
+    "criteria_true": "at least one allied minion exists",
+    "criteria_false": "no allied minions exist",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "nearby_minion"
+   },
+   {
+    "id": "wait_home",
+    "condition": "is this a fallback state with no specific target?",
+    "criteria_true": "no other conditions matched",
+    "criteria_false": "other condition matched",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   }
+  ],
+  "default_action": {
+   "kind": "move",
+   "ability": null,
+   "target_selector": "home"
+  },
+  "validation_notes": [
+   "instrument scope: 2 clause(s) your prose marks for another instrument were left out of the drums schema (each is compiled only for the instrument it names): \"3. keytar only: cd is 0 and foe is not null -> \"kind\":\"ability\",\"ability\":\"chord…\"; \"violin only: cd is 0 and foe is a bearbot with hp less than 100 -> \"kind\":\"abili…\""
+  ]
+ },
+ "keytar": {
+  "pilot_file": "prompts/pilots/house-violet.md",
+  "instrument": "keytar",
+  "rules": [
+   {
+    "id": "low_hp_retreat",
+    "condition": "is this bot's hp below 75% of its max?",
+    "criteria_true": "bot is low on health",
+    "criteria_false": "bot has sufficient health",
+    "action_kind": "recall",
+    "action_ability": null,
+    "action_target_selector": "none"
+   },
+   {
+    "id": "tower_threat_home",
+    "condition": "is there an enemy tower and no minion wave?",
+    "criteria_true": "tower present and wave empty",
+    "criteria_false": "no tower or wave exists",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "chord_ready_attack",
+    "condition": "is keytar cooldown 0 and an enemy target exists?",
+    "criteria_true": "cooldown ready and foe visible",
+    "criteria_false": "cooldown active or no foe",
+    "action_kind": "ability",
+    "action_ability": "chord",
+    "action_target_selector": "nearest_enemy"
+   },
+   {
+    "id": "attack_foe",
+    "condition": "is there an enemy target available?",
+    "criteria_true": "foe is present",
+    "criteria_false": "no foe present",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_enemy"
+   },
+   {
+    "id": "attack_tower",
+    "condition": "is there an enemy tower?",
+    "criteria_true": "tower is visible",
+    "criteria_false": "no tower visible",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_tower"
+   },
+   {
+    "id": "ride_wave",
+    "condition": "are there allied minions in the wave?",
+    "criteria_true": "wave count is 1 or more",
+    "criteria_false": "wave is empty",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "nearby_minion"
+   },
+   {
+    "id": "wait_home",
+    "condition": "is this a fallback state to wait at home?",
+    "criteria_true": "no other conditions matched",
+    "criteria_false": "other condition matched",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   }
+  ],
+  "default_action": {
+   "kind": "move",
+   "ability": null,
+   "target_selector": "home"
+  },
+  "validation_notes": [
+   "instrument scope: 2 clause(s) your prose marks for another instrument were left out of the keytar schema (each is compiled only for the instrument it names): \"violin only: cd is 0 and foe is a bearbot with hp less than 100 -> \"kind\":\"abili…\"; \"drums only: cd is 0 and foe is a bearbot with hp less than 100 -> \"kind\":\"abilit…\""
+  ]
+ },
+ "violin": {
+  "pilot_file": "prompts/pilots/house-violet.md",
+  "instrument": "violin",
+  "rules": [
+   {
+    "id": "low_hp_retreat",
+    "condition": "is this bot's hp below 75% of its max?",
+    "criteria_true": "bot is critically low on health",
+    "criteria_false": "bot has sufficient health",
+    "action_kind": "recall",
+    "action_ability": null,
+    "action_target_selector": "none"
+   },
+   {
+    "id": "tower_threat_home",
+    "condition": "is there an enemy tower and no minion wave nearby?",
+    "criteria_true": "tower exists and wave count is zero",
+    "criteria_false": "no tower or wave present",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "violin_staccato",
+    "condition": "is cooldown zero and foe is a low hp enemy bearbot?",
+    "criteria_true": "cooldown ready and target is vulnerable bearbot",
+    "criteria_false": "cooldown active or target not vulnerable",
+    "action_kind": "ability",
+    "action_ability": "staccato",
+    "action_target_selector": "lowest_hp_enemy"
+   },
+   {
+    "id": "engage_foe",
+    "condition": "is there a visible enemy target?",
+    "criteria_true": "foe is present",
+    "criteria_false": "no foe present",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_enemy"
+   },
+   {
+    "id": "attack_tower",
+    "condition": "is there an enemy tower?",
+    "criteria_true": "tower exists",
+    "criteria_false": "no tower exists",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_tower"
+   },
+   {
+    "id": "ride_wave",
+    "condition": "is there at least one allied minion wave?",
+    "criteria_true": "wave count is one or more",
+    "criteria_false": "no minions present",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "nearby_minion"
+   },
+   {
+    "id": "wait_home",
+    "condition": "none",
+    "criteria_true": "all other conditions failed",
+    "criteria_false": "none",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   }
+  ],
+  "default_action": {
+   "kind": "move",
+   "ability": null,
+   "target_selector": "home"
+  },
+  "validation_notes": [
+   "instrument scope: 2 clause(s) your prose marks for another instrument were left out of the violin schema (each is compiled only for the instrument it names): \"3. keytar only: cd is 0 and foe is not null -> \"kind\":\"ability\",\"ability\":\"chord…\"; \"drums only: cd is 0 and foe is a bearbot with hp less than 100 -> \"kind\":\"abilit…\""
+  ]
+ }
+}
