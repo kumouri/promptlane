@@ -164,7 +164,9 @@ model hosted, `qwen/qwen3.5-9b`, ≈$0.0006 per three-instrument compile — see
 
 **Target vocabulary — the one place prose nuance is deliberately flattened.** Jev's questions judge
 *conditions*, but nothing in this pipeline asks Jev to pick *which entity*. Once a rule fires, its
-target is resolved deterministically in Python (`tools/jev/target_resolve.py`) from a **fixed,
+target is resolved deterministically in Python (`tools/jev/target_resolve.py`, under the targeting
+rule the match names: `own-lane-1` since 2026-10-01, where a bot at its own fountain takes
+`nearby_minion` to mean the start of its own lane and near-ties break side-symmetrically) from a **fixed,
 12-item vocabulary** (`home`, `push_lane`, `nearest_enemy`, `lowest_hp_enemy`,
 `densest_cluster_enemy`, `isolated_enemy`, `nearest_tower`, `threatened_ally_enemy`,
 `nearby_minion`, `bandstand`, `highest_bounty_enemy`, `none`). *(2026-09-30: `bandstand` is the river objective's stage,

@@ -6,7 +6,26 @@ into a concrete target: an entity id string (for `attack`/`ability`) or an `{x,y
 pipeline that turns "which selector" (the translator's job) into "which specific entity, right now"
 (arithmetic over the current Observation, same job `bind_questions`/target logic would do in any of
 this repo's other rule-based pilots). `bandstand` is the one selector that reads an optional
-Observation field (the objective's `bandstand` block); without it, it falls back to `push_lane`."""
+Observation field (the objective's `bandstand` block); without it, it falls back to `push_lane`.
+
+Targeting rules (`TARGETING_RULES`), named the way `src/resolution.ts` names a tick resolution so a
+match log and an evolution campaign can pin the one they played:
+
+- `own-lane-1` (the default since 2026-10-01). Two changes from `first-min`:
+  - **A bot at its own fountain rides its own lane.** Within `FOUNTAIN_RADIUS` of its base,
+    `nearby_minion` sends the bot to the start of its own assigned lane (`obs.self.lane`, its match
+    slot), not to whichever minion is nearest. That point is `LANE_START_T` along the lane, where
+    the match spawns the bot and the economy respawns it. Once it is out there, `nearby_minion` is
+    the nearest allied minion again.
+  - **Float noise decides nothing.** A selector that picks the nearest (or farthest) candidate
+    counts every candidate within `TIE_TOLERANCE` of the best score as tied. It breaks the tie
+    side-symmetrically: the bot's own lane, then lane order (top, mid, bottom), then position in
+    the bot's own frame, then spawn order. A mirrored state gives the mirrored choice.
+- `first-min`: a plain `min()`/`max()` over the float scores, so an exact tie went to whichever
+  candidate floating-point noise put a hair ahead. At its own fountain a bot sees all three
+  lanes' minions 42.5 units away, and that noise sent green's bots up the top lane 135 times of
+  136 (runs/bandstand-4-2026-10-01.md). Kept so a campaign cached under it plays on under it, and
+  so a request that names no rule (a runner older than the field) gets what it always got."""
 from __future__ import annotations
 
 import sys
@@ -15,20 +34,129 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from scenarios import HOME_POS  # noqa: E402
 
+TARGETING_FIRST_MIN = "first-min"
+TARGETING_OWN_LANE_1 = "own-lane-1"
+TARGETING_RULES = (TARGETING_FIRST_MIN, TARGETING_OWN_LANE_1)
+DEFAULT_TARGETING = TARGETING_OWN_LANE_1
+
+# Map units. Far above the sim's mirror noise (#56 measured ~1e-11) and far below anything a bot can
+# act on: it walks at least 2.75 units a tick (55/s at 20 tps).
+TIE_TOLERANCE = 0.5
+
+# src/sim/map.ts LANE_PATHS (the frozen specimen sim), violet base -> green base. The mirror
+# (x, y) -> (y, x) swaps the bases and maps every lane onto itself.
+LANES = ("top", "mid", "bottom")
+LANE_PATHS = {
+    "top": ((100, 900), (100, 100), (900, 100)),
+    "mid": ((100, 900), (900, 100)),
+    "bottom": ((100, 900), (900, 900), (900, 100)),
+}
+
+# "At its fountain": within the nexus's own radius of the base point (src/sim/map.ts NEXUS_RADIUS).
+# Both recalls land inside it (recall-2 teleports to the base point; the specimen's run home stops
+# within 20), and so does `home`. It ends 35 units short of the nearest lane start (mid's, 90.5 out),
+# so a bot standing where the match or a respawn put it is already in its lane.
+FOUNTAIN_RADIUS = 55
+# "A bit down the lane": the lane fraction a bot spawns at (src/sim/match.ts) and respawns at
+# (src/economy.ts), measured from its own base -- 128 units out on top and bottom, 90.5 on mid.
+LANE_START_T = 0.08
+
 
 def _dist(a: dict, b: dict) -> float:
     return ((a["x"] - b["x"]) ** 2 + (a["y"] - b["y"]) ** 2) ** 0.5
 
 
-def resolve_target(selector: str | None, obs: dict) -> object | None:
+def _point_along_path(path: tuple, t: float) -> dict:
+    """src/sim/map.ts pointAlongPath: the point at fraction `t` of the polyline's length."""
+    segments = list(zip(path, path[1:]))
+    total = sum(_dist({"x": a[0], "y": a[1]}, {"x": b[0], "y": b[1]}) for a, b in segments)
+    left = total * max(0.0, min(1.0, t))
+    for i, (a, b) in enumerate(segments):
+        seg = _dist({"x": a[0], "y": a[1]}, {"x": b[0], "y": b[1]})
+        if left <= seg or i == len(segments) - 1:
+            f = 0 if seg == 0 else left / seg
+            return {"x": a[0] + (b[0] - a[0]) * f, "y": a[1] + (b[1] - a[1]) * f}
+        left -= seg
+    return {"x": path[-1][0], "y": path[-1][1]}
+
+
+def lane_start(lane: str, team: str) -> dict:
+    """Where `team`'s bot on `lane` starts it: `LANE_START_T` along the lane from its own base."""
+    return _point_along_path(LANE_PATHS[lane], LANE_START_T if team == "violet" else 1 - LANE_START_T)
+
+
+def at_fountain(self_: dict) -> bool:
+    return _dist(self_["pos"], HOME_POS[self_["team"]]) <= FOUNTAIN_RADIUS
+
+
+def _segment_dist(p: dict, a: tuple, b: tuple) -> float:
+    ax, ay = a
+    dx, dy = b[0] - ax, b[1] - ay
+    t = max(0.0, min(1.0, ((p["x"] - ax) * dx + (p["y"] - ay) * dy) / (dx * dx + dy * dy)))
+    return _dist(p, {"x": ax + t * dx, "y": ay + t * dy})
+
+
+def lane_of(pos: dict) -> str | None:
+    """The lane whose path runs nearest `pos`, or None when two lanes are within `TIE_TOLERANCE` of
+    it (only at a base, where all three start). The Observation doesn't say which lane a minion
+    walks, but a minion is always on its own lane's path."""
+    by_lane = sorted((min(_segment_dist(pos, a, b) for a, b in zip(path, path[1:])), lane) for lane, path in LANE_PATHS.items())
+    return by_lane[0][1] if by_lane[1][0] - by_lane[0][0] > TIE_TOLERANCE else None
+
+
+def _own_frame(pos: dict, team: str) -> tuple:
+    """`pos` as the bot's own side sees the map: violet's frame is the map; green's is its mirror."""
+    return (pos["x"], pos["y"]) if team == "violet" else (pos["y"], pos["x"])
+
+
+def _spawn_order(id_: str) -> tuple:
+    """Entity ids are `<kind>-<counter>` (src/sim/entities.ts nextId): sort by the counter, which is
+    creation order, and a mirrored state creates both sides' entities in the same order."""
+    prefix, _, n = str(id_).rpartition("-")
+    return (prefix, int(n)) if n.isdigit() else (str(id_), -1)
+
+
+def _pick(pool: list, score, self_: dict, targeting: str, best=min):
+    """The candidate with the best `score` (`best` = min for nearest, max for farthest)."""
+    if targeting == TARGETING_FIRST_MIN:
+        return best(pool, key=score)
+    scores = [score(c) for c in pool]
+    top = best(scores)
+    tied = [c for c, s in zip(pool, scores) if s == top or abs(s - top) <= TIE_TOLERANCE]
+    if len(tied) == 1:
+        return tied[0]
+    own_lane, team = self_.get("lane"), self_["team"]
+
+    def tie_key(c):
+        lane = lane_of(c["pos"])
+        fx, fy = _own_frame(c["pos"], team)
+        return (
+            0 if own_lane is not None and lane == own_lane else 1,
+            LANES.index(lane) if lane in LANES else len(LANES),
+            round(fx / TIE_TOLERANCE),
+            round(fy / TIE_TOLERANCE),
+            _spawn_order(c.get("id", "")),
+        )
+
+    return min(tied, key=tie_key)
+
+
+def resolve_target(selector: str | None, obs: dict, targeting: str = DEFAULT_TARGETING) -> object | None:
     """`None` means either `selector` needs no target, or the selector's candidate pool is empty
     for this Observation (e.g. `lowest_hp_enemy` with no visible enemies) -- both are legitimate,
-    distinguished by the caller only caring whether a target was actually produced."""
+    distinguished by the caller only caring whether a target was actually produced. `targeting` is
+    one of `TARGETING_RULES` (module docstring)."""
+    if targeting not in TARGETING_RULES:
+        raise ValueError(f"unknown targeting {targeting!r} (known: {', '.join(TARGETING_RULES)})")
     if selector in (None, "none"):
         return None
     self_ = obs["self"]
     team = self_["team"]
     enemy_team = "green" if team == "violet" else "violet"
+
+    def nearest(pool, origin=None):
+        origin = origin or self_["pos"]
+        return _pick(pool, lambda e: _dist(origin, e["pos"]), self_, targeting)
 
     if selector == "home":
         return dict(HOME_POS[team])
@@ -41,18 +169,19 @@ def resolve_target(selector: str | None, obs: dict) -> object | None:
         stand = obs.get("bandstand")
         if stand and stand.get("status") in ("upcoming", "open"):
             return {"x": stand["pos"]["x"], "y": stand["pos"]["y"]}
-        return resolve_target("push_lane", obs)
+        return resolve_target("push_lane", obs, targeting)
 
     enemies = obs.get("visibleEnemies", [])
     bearbots = [e for e in enemies if e.get("kind") == "bearbot"]
 
     if selector == "nearest_enemy":
-        pool = enemies
-        return min(pool, key=lambda e: _dist(self_["pos"], e["pos"]))["id"] if pool else None
+        return nearest(enemies)["id"] if enemies else None
     if selector == "lowest_hp_enemy":
+        # hp ties are exact (no position in them), and list order is the same for both sides
         pool = bearbots or enemies
         return min(pool, key=lambda e: e["hp"])["id"] if pool else None
     if selector == "densest_cluster_enemy":
+        # an integer count: ties are exact, and list order is the same for both sides
         pool = enemies
         if not pool:
             return None
@@ -66,29 +195,58 @@ def resolve_target(selector: str | None, obs: dict) -> object | None:
         def min_dist_to_others(e):
             others = [o for o in pool if o["id"] != e["id"]]
             return min((_dist(e["pos"], o["pos"]) for o in others), default=float("inf"))
-        return max(pool, key=min_dist_to_others)["id"]
+        return _pick(pool, min_dist_to_others, self_, targeting, best=max)["id"]
     if selector == "nearest_tower":
         towers = [e for e in enemies if e.get("kind") in ("tower", "nexus")]
-        return min(towers, key=lambda e: _dist(self_["pos"], e["pos"]))["id"] if towers else None
+        return nearest(towers)["id"] if towers else None
     if selector == "threatened_ally_enemy":
         allies = obs.get("allies", [])
         if not allies or not enemies:
             return None
         weakest_ally = min(allies, key=lambda a: a["hp"] / a["maxHp"])
-        return min(enemies, key=lambda e: _dist(weakest_ally["pos"], e["pos"]))["id"]
+        return nearest(enemies, weakest_ally["pos"])["id"]
     if selector == "highest_bounty_enemy":
         # docs/economy-spec.md §4.3: the visible enemy bearbot with the largest `bounty` (the economy
         # layer's field). Ties go to the nearer one. No bounty-bearing bearbot (none visible, or a match
         # without an economy) falls back to `nearest_enemy`, as the other enemy selectors fall back.
         pool = [e for e in bearbots if isinstance(e.get("bounty"), (int, float))]
         if pool:
-            return max(pool, key=lambda e: (e["bounty"], -_dist(self_["pos"], e["pos"])))["id"]
-        return resolve_target("nearest_enemy", obs)
+            if targeting == TARGETING_FIRST_MIN:
+                return max(pool, key=lambda e: (e["bounty"], -_dist(self_["pos"], e["pos"])))["id"]
+            richest = max(e["bounty"] for e in pool)
+            return nearest([e for e in pool if e["bounty"] == richest])["id"]
+        return resolve_target("nearest_enemy", obs, targeting)
     if selector == "nearby_minion":
         minions = [m for m in obs.get("nearbyMinions", []) if m.get("team") == team]
         if not minions:
             return None
-        nearest = min(minions, key=lambda m: _dist(self_["pos"], m["pos"]))
-        return {"x": nearest["pos"]["x"], "y": nearest["pos"]["y"]}
+        if targeting == TARGETING_OWN_LANE_1 and self_.get("lane") in LANE_PATHS and at_fountain(self_):
+            return lane_start(self_["lane"], team)
+        target = nearest(minions)
+        return {"x": target["pos"]["x"], "y": target["pos"]["y"]}
 
     raise ValueError(f"unknown target_selector {selector!r}")
+
+
+def main() -> int:
+    """`python tools/jev/target_resolve.py`: one JSON request a line on stdin, `{"selector",
+    "observation", "targeting"?}` (absent = first-min, as at the schema server), one `{"target"}` or
+    `{"error"}` line back. It lets a test drive this resolver from the real sim's observations
+    (tools/match/test_targeting.mjs)."""
+    import json
+
+    for line in sys.stdin:
+        if not line.strip():
+            continue
+        try:
+            req = json.loads(line)
+            out = {"target": resolve_target(req["selector"], req["observation"], req.get("targeting", TARGETING_FIRST_MIN))}
+        except Exception as exc:  # noqa: BLE001 -- reported to the caller, line by line
+            out = {"error": f"{type(exc).__name__}: {exc}"}
+        sys.stdout.write(json.dumps(out) + "\n")
+        sys.stdout.flush()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -50,7 +50,7 @@ from client import (  # noqa: E402
 from economy_rules import item_name  # noqa: E402
 from ground_truth import ground_truth_action  # noqa: E402
 from scenarios import all_scenarios, build_observation, river_rules, ABILITIES  # noqa: E402
-from target_resolve import resolve_target  # noqa: E402
+from target_resolve import DEFAULT_TARGETING, resolve_target  # noqa: E402
 from translator import (  # noqa: E402
     GuardNode,
     TranslatedSchema,
@@ -313,13 +313,14 @@ def _bandstand_lines(obs: dict) -> list[str]:
     return lines
 
 
-def run_prediction(client, schema: TranslatedSchema, obs: dict) -> dict:
+def run_prediction(client, schema: TranslatedSchema, obs: dict, targeting: str = DEFAULT_TARGETING) -> dict:
     """One systemone call, EVERY node's condition anywhere in the tree batched together (spec §2.2:
     "evaluation stays one systemone call per decision" no matter how deep the tree gets --
     `translator.collect_nodes`), then the tree-walk in Python (`translator.evaluate_schema`) --
     same posture as `rules.first_match` and as house-violet.md's own prose ("Take the FIRST rule
     that matches"), generalized to guards. For a schema with zero guards this is exactly the old
-    flat first-match behavior; `all_nodes == schema.rules` in that case."""
+    flat first-match behavior; `all_nodes == schema.rules` in that case. The winning rule's target
+    resolves under `targeting` (`target_resolve.TARGETING_RULES`)."""
     all_nodes = collect_nodes(schema.root)
     questions = [BoundQuestion(n.id, n.condition, {"true": n.criteria_true, "false": n.criteria_false}) for n in all_nodes]
     state = describe_observation(obs)
@@ -350,7 +351,7 @@ def run_prediction(client, schema: TranslatedSchema, obs: dict) -> dict:
     fired_id = next((t["fired_id"] for t in guard_trace if "fired_id" in t), None)
     guard_answers = [t for t in guard_trace if "guard_id" in t]
 
-    target = resolve_target(selector, obs)
+    target = resolve_target(selector, obs, targeting)
     action = {"kind": kind}
     if ability:
         action["ability"] = ability

@@ -132,7 +132,8 @@ ledger row records the new hash.
 `qwen3.5:9b` needs: a worksheet, team literals, and the first matching rule wins. Targets follow
 the translator's fixed selector vocabulary: `nearest_enemy` becomes easy's `foe` key or hard's
 `creep` key, `lowest_hp_enemy` becomes hard's `foe` key, `nearest_tower` the `tower` key,
-`nearby_minion` a friendly minion's position, and `home` your own corner. So the house can only
+`nearby_minion` a friendly minion's position (from your own fountain, the start of your own lane:
+`target_resolve.py` `own-lane-1`), and `home` your own corner. So the house can only
 say what an entrant's prose can compile to. There is no "hold at my own tower" selector, for
 example, so easy leashes itself by leaving whenever an enemy tower comes into view.
 
