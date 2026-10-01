@@ -1,5 +1,5 @@
 /**
- * Bundle `headless.ts` with esbuild and import it in-process. Shared by the CLI (`cli.mjs`) and
+ * Bundle `headless.ts` (and `metrics.ts`) with esbuild and import it in-process. Shared by the CLI (`cli.mjs`) and
  * the arena (`tools/arena/`), so both drive the same runner and the same `verifyReplay`.
  * The bundle is built once per process; the sim in `src/` is bundled unchanged.
  */
@@ -10,25 +10,39 @@ import { fileURLToPath } from 'node:url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const ROOT = path.resolve(HERE, '..', '..');
 
-let loaded = null;
+const loaded = new Map();
 
-export async function loadHeadless() {
-  if (loaded) return loaded;
-  loaded = (async () => {
-    const bundle = await build({
-      entryPoints: [path.join(HERE, 'headless.ts')],
-      absWorkingDir: ROOT,
-      bundle: true,
-      write: false,
-      format: 'esm',
-      platform: 'node',
-      target: 'node20',
-      logLevel: 'silent',
-    });
-    const code = Buffer.from(bundle.outputFiles[0].contents).toString('base64');
-    return import(`data:text/javascript;base64,${code}`);
-  })();
-  return loaded;
+/** Bundle one TypeScript entry next to this file and import it; once per entry per process. */
+function loadTs(entry) {
+  if (!loaded.has(entry)) {
+    loaded.set(
+      entry,
+      (async () => {
+        const bundle = await build({
+          entryPoints: [path.join(HERE, entry)],
+          absWorkingDir: ROOT,
+          bundle: true,
+          write: false,
+          format: 'esm',
+          platform: 'node',
+          target: 'node20',
+          logLevel: 'silent',
+        });
+        const code = Buffer.from(bundle.outputFiles[0].contents).toString('base64');
+        return import(`data:text/javascript;base64,${code}`);
+      })(),
+    );
+  }
+  return loaded.get(entry);
+}
+
+export function loadHeadless() {
+  return loadTs('headless.ts');
+}
+
+/** The match metrics module (`metrics.ts`), bundled the same way; see `metrics.mjs`. */
+export function loadMetrics() {
+  return loadTs('metrics.ts');
 }
 
 /** Yields to the event loop so the sim's own promise chain settles between ticks. */
