@@ -61,6 +61,21 @@ class DecideTests(unittest.TestCase):
         self.assertEqual(out["action"], {"kind": "ability", "ability": "kick", "target": "bb-4"})
         self.assertEqual(set(out["answers"]), {"low_hp", "enemy_near"})
 
+    def test_targeting_absent_is_first_min_and_every_reply_names_its_rule(self):
+        backend = JevSchemaBackend(FakeJev(set()))
+        at_fountain = {**OBS, "self": {**OBS["self"], "pos": {"x": 100, "y": 900}}, "visibleEnemies": [],
+                       "nearbyMinions": [{"id": "mn-1", "team": "violet", "pos": {"x": 100, "y": 857.5}, "hp": 60, "maxHp": 60}]}
+        schema = {**SCHEMA, "default_action": {"kind": "move", "ability": None, "target_selector": "nearby_minion"}}
+        old = backend.decide({"schema": schema, "observation": at_fountain})
+        self.assertEqual(old["targeting"], "first-min", "a caller from before the field gets what it always got")
+        self.assertEqual(old["action"]["target"], {"x": 100, "y": 857.5})
+        new = backend.decide({"schema": schema, "observation": at_fountain, "targeting": "own-lane-1"})
+        self.assertEqual(new["targeting"], "own-lane-1")
+        self.assertAlmostEqual(new["action"]["target"]["y"], 772)
+        with self.assertRaisesRegex(ValueError, "unknown targeting 'nearest-ish'"):
+            backend.decide({"schema": schema, "observation": at_fountain, "targeting": "nearest-ish"})
+        self.assertEqual(backend.snapshot()["targeting"], ["first-min", "own-lane-1"])
+
     def test_cascade_order_beats_later_yes(self):
         out = JevSchemaBackend(FakeJev({"low_hp", "enemy_near"})).decide({"schema": SCHEMA, "observation": OBS})
         self.assertEqual(out["action"], {"kind": "recall"})

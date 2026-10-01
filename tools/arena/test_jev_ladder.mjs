@@ -43,21 +43,23 @@ function compileOutput({ failInstrument = null } = {}) {
 
 /**
  * A fake schema_server.py. `answer(n, body)` → undefined (a normal 200), or `{status, error}`.
- * Every reply names a door: every 4th answered call is "workers-ai", the rest "typesafe".
+ * Every reply names a door: every 4th answered call is "workers-ai", the rest "typesafe", and echoes
+ * the targeting rule the request named, as the real server does.
  */
 async function fakeJev({ answer = () => undefined, costUsd = 0.00002, health = {} } = {}) {
-  const seen = { posts: 0, pilotFiles: new Set(), instruments: new Set() };
+  const seen = { posts: 0, pilotFiles: new Set(), instruments: new Set(), targeting: new Set() };
   const srv = createServer((req, res) => {
     let body = '';
     req.on('data', (c) => (body += c));
     req.on('end', () => {
       res.setHeader('content-type', 'application/json');
       if (req.method === 'GET') {
-        res.end(JSON.stringify({ ok: true, backend: 'jev-schema', model: 'fake-jev', jev_backend: 'typesafe', cost_usd: 0, budget_usd: 3, ...health }));
+        res.end(JSON.stringify({ ok: true, backend: 'jev-schema', model: 'fake-jev', jev_backend: 'typesafe', cost_usd: 0, budget_usd: 3, targeting: ['first-min', 'own-lane-1'], ...health }));
         return;
       }
       seen.posts += 1;
-      const { schema, observation } = JSON.parse(body);
+      const { schema, observation, targeting } = JSON.parse(body);
+      seen.targeting.add(targeting);
       seen.pilotFiles.add(schema.pilot_file);
       seen.instruments.add(schema.instrument);
       assert.equal(schema.instrument, observation.self.instrument);
@@ -68,7 +70,7 @@ async function fakeJev({ answer = () => undefined, costUsd = 0.00002, health = {
         return;
       }
       const door = seen.posts % 4 === 0 ? 'workers-ai' : 'typesafe';
-      res.end(JSON.stringify({ action: { kind: 'move', target: { x: 500, y: 500 } }, rule: null, answers: { enemy_close: 0.2 }, ms: 1, door, tokens_in: 500, cost_usd: costUsd }));
+      res.end(JSON.stringify({ action: { kind: 'move', target: { x: 500, y: 500 } }, rule: null, answers: { enemy_close: 0.2 }, ms: 1, door, tokens_in: 500, cost_usd: costUsd, targeting: targeting ?? 'first-min' }));
     });
   });
   await new Promise((r) => srv.listen(0, '127.0.0.1', r));
@@ -186,6 +188,7 @@ test('Jev ladder: placements compile the prose once, both sides play schemas on 
     assert.deepEqual([...jev.seen.instruments].sort(), ['drums', 'keytar', 'violin']);
     assert.deepEqual([...jev.seen.pilotFiles].sort(), ['entrants/x/pilot.md', 'prompts/pilots/house-violet.md'], 'the entrant plays its compile, the house plays house-medium.schemas.json');
     assert.deepEqual(qwen.hits, [], 'nothing ever asked the text-model server');
+    assert.deepEqual([...jev.seen.targeting], ['own-lane-1'], 'every ask names the default targeting rule');
 
     const j = placed[0];
     assert.ok(j.jev.calls > 0);
@@ -203,6 +206,7 @@ test('Jev ladder: placements compile the prose once, both sides play schemas on 
     assert.equal(log.backend.jevBackend, 'typesafe');
     assert.deepEqual(log.backend.jev.doors, j.jev.doors, 'the log records which door played');
     assert.equal(log.map.name, 'pvp-1');
+    assert.equal(log.targeting, 'own-lane-1', 'the log records the targeting rule its schemas played');
     assert.deepEqual(Object.keys(log.sides[entrantSide].schemas), ['drums', 'keytar', 'violin']);
     assert.equal(log.sides[entrantSide].schemaSource.kind, 'compiled');
     assert.ok(log.decisions.some((d) => (d.reply ?? '').includes('"door":"workers-ai"')));
@@ -344,6 +348,19 @@ test('Jev ladder: an unreachable server, or a text-model server on the Jev port,
   } finally {
     await u.cleanup();
     await qwenLike.close();
+  }
+  // a schema server from before the targeting rule (no `targeting` in /health) resolves first-min only
+  const old = await fakeJev({ health: { targeting: undefined } });
+  const o = await jevArena({ endpoint: old.endpoint });
+  try {
+    await json(`${o.base}api/tests`, { method: 'POST', body: JSON.stringify({ handle: 'zed', prompt: 'Zed rules.', kind: 'quick' }) });
+    const deadline = Date.now() + 10000;
+    while (!o.arena.queue.holds.has('jev-schema') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50));
+    assert.match(o.arena.queue.holds.get('jev-schema').reason, /resolves targets under first-min only, not own-lane-1; restart tools\/jev\/schema_server\.py/);
+    assert.equal(old.seen.posts, 0, 'nothing is played on the old rule by mistake');
+  } finally {
+    await o.cleanup();
+    await old.close();
   }
 });
 

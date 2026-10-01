@@ -130,6 +130,13 @@ export interface MatchLog {
    * a replay attaches the same resolution.
    */
   resolution?: string;
+  /**
+   * The rule a schema side's targets resolved under (`tools/match/jevSchemaPilot.ts` TARGETINGS),
+   * e.g. `own-lane-1`. Absent = `first-min`, which is every log written before the field existed and
+   * every match with no schema side. The log keeps each action's resolved target, so a replay doesn't
+   * read this.
+   */
+  targeting?: string;
   /** Which model answered: `{kind:'mock'}` or `{kind:'http', endpoint, health}`. */
   backend: Record<string, unknown>;
   sides: Record<Team, LogSide>;

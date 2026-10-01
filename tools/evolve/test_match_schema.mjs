@@ -21,13 +21,19 @@ let endpoint;
 let dir;
 let asked = 0;
 
-/** Answers like schema_server.py: the first rule fires when the bearbot sees an enemy. */
+const targetingAsked = new Set();
+/** The rules /health lists; a test sets null to play a server from before the targeting field. */
+let healthTargeting = ['first-min', 'own-lane-1'];
+
+/** Answers like schema_server.py: the first rule fires when the bearbot sees an enemy; echoes the targeting rule. */
 function decide(body) {
   const rule = body.schema.rules[0];
   const obs = body.observation;
   const foe = obs.visibleEnemies?.[0];
-  if (foe) return { action: { kind: 'attack', target: foe.id }, rule: rule.id, answers: { [rule.id]: 1 }, ms: 1 };
-  return { action: { kind: 'move', target: { x: 1000, y: 100 } }, rule: null, answers: { [rule.id]: 0 }, ms: 1 };
+  const targeting = body.targeting ?? 'first-min';
+  targetingAsked.add(targeting);
+  if (foe) return { action: { kind: 'attack', target: foe.id }, rule: rule.id, answers: { [rule.id]: 1 }, ms: 1, targeting };
+  return { action: { kind: 'move', target: { x: 1000, y: 100 } }, rule: null, answers: { [rule.id]: 0 }, ms: 1, targeting };
 }
 
 function schemas(tag) {
@@ -43,7 +49,7 @@ before(async () => {
   server = createServer((req, res) => {
     if (req.method === 'GET') {
       res.writeHead(200, { 'content-type': 'application/json' });
-      return res.end(JSON.stringify({ ok: true, backend: 'jev-schema', model: 'fake-jev' }));
+      return res.end(JSON.stringify({ ok: true, backend: 'jev-schema', model: 'fake-jev', ...(healthTargeting ? { targeting: healthTargeting } : {}) }));
     }
     const chunks = [];
     req.on('data', (c) => chunks.push(c));
@@ -94,9 +100,35 @@ test('npm run match: both sides on compiled schemas, logged and replay-verified'
   assert.ok(real.length >= 6 * 5, `only ${real.length} real decisions`);
   assert.ok(real.every((d) => JSON.parse(d.reply).action), 'every real decision came from the schema server');
   assert.equal(log.result.stats.violet.callErrors + log.result.stats.green.callErrors, 0);
+  assert.equal(log.targeting, 'own-lane-1', 'a schema match records the default targeting rule');
+  assert.ok(targetingAsked.has('own-lane-1'));
   const v = await cli(['--verify', out]);
   assert.equal(v.status, 0, v.stdout + v.stderr);
   assert.match(v.stdout, /^VERIFY ok/);
+});
+
+test('npm run match: --targeting first-min plays and logs the old rule; a server without the field is refused for own-lane-1', async () => {
+  const out = path.join(dir, 'm-first-min.json');
+  const args = ['--a', path.join(dir, 'a.md'), '--a-schemas', path.join(dir, 'a.json'), '--b', path.join(dir, 'b.md'), '--b-schemas', path.join(dir, 'b.json'),
+    '--jev-schema', endpoint, '--seed', '7', '--cadence', '4', '--max-sim-sec', '40', '--quiet'];
+  targetingAsked.clear();
+  const r = await cli([...args, '--targeting', 'first-min', '--out', out]);
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(JSON.parse(readFileSync(out, 'utf8')).targeting, undefined, 'first-min is the absent field, as in every older log');
+  assert.deepEqual([...targetingAsked], ['first-min']);
+  healthTargeting = null;
+  try {
+    const refused = await cli([...args, '--out', path.join(dir, 'm-old-server.json')]);
+    assert.notEqual(refused.status, 0);
+    assert.match(refused.stderr, /resolves targets under first-min only, not own-lane-1/);
+    const stillOk = await cli([...args, '--targeting', 'first-min', '--out', path.join(dir, 'm-old-server-first-min.json')]);
+    assert.equal(stillOk.status, 0, stillOk.stderr);
+  } finally {
+    healthTargeting = ['first-min', 'own-lane-1'];
+  }
+  const unknown = await cli([...args, '--targeting', 'nearest-ish', '--out', path.join(dir, 'm-x.json')]);
+  assert.notEqual(unknown.status, 0);
+  assert.match(unknown.stderr, /unknown targeting "nearest-ish"/);
 });
 
 test('npm run match: schema flags are checked', async () => {
