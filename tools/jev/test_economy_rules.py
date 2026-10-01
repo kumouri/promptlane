@@ -14,7 +14,7 @@ import economy_rules as E  # noqa: E402
 class EconomyFileTests(unittest.TestCase):
     def test_eco_2_changes_only_gold(self):
         # The translator reads ONE ruleset file for items; that is only right for both rulesets while
-        # the income tuning pass (docs/economy-spec.md §12.1) leaves everything but gold alone.
+        # the income tuning pass (docs/economy-spec.md §13.1) leaves everything but gold alone.
         eco1 = json.loads((E.ECONOMY_PATH.parent / "eco-1.json").read_text(encoding="utf-8"))
         eco2 = E.load_economy()
         self.assertEqual(eco2["name"], "eco-2")

@@ -96,7 +96,7 @@ export interface EconomyRuleset {
 /** P1's starting values (spec §3.7), kept so `--economy eco-1` still reproduces the slice. */
 export const ECO_1: EconomyRuleset = ECO_1_JSON as EconomyRuleset;
 /**
- * The income tuning pass (spec §12.1): eco-1 with more gold per source, same design, same items.
+ * The income tuning pass (spec §13.1): eco-1 with more gold per source, same design, same items.
  * The ruleset the §6 measurement plays.
  */
 export const ECO_2: EconomyRuleset = ECO_2_JSON as EconomyRuleset;

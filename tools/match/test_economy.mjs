@@ -510,7 +510,7 @@ test('metrics: a shopping recall is a recall started above half hp that buys on 
   assert.equal(vals.ecoShoppingRecallsGreen, 0);
 });
 
-test('eco-2 is eco-1 with only the gold retuned (spec §12.1); both stay selectable by name', () => {
+test('eco-2 is eco-1 with only the gold retuned (spec §13.1); both stay selectable by name', () => {
   assert.equal(h.resolveEconomy('eco-2'), h.ECO_2);
   assert.equal(h.resolveEconomy('eco-1'), h.ECO_1);
   const { name: n1, gold: g1, ...rest1 } = h.ECO_1;

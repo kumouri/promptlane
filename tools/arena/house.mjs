@@ -23,7 +23,7 @@
  * is not re-sampled on every restart. `config.house.schemas` names another file instead.
  *
  * Under an economy (`tournament.economy`, `npm run match --economy`) each tier plays its
- * ECONOMY-AWARE version instead (docs/economy-spec.md §4.4, §12.2): the same strategy plus a declared
+ * ECONOMY-AWARE version instead (docs/economy-spec.md §4.4, §13.2): the same strategy plus a declared
  * shopping list and, for medium and hard, a recall-to-shop rule (hard also spends before a losing
  * fight and hunts the enemy worth the most gold). Medium stays a worksheet pair
  * (`house-eco-{violet,green}.md`, worksheet keys `gold`/`next`/`home` added); easy and hard are prose

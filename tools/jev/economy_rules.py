@@ -20,7 +20,7 @@ from functools import lru_cache
 from pathlib import Path
 
 # The tuned ruleset. Its items, slots and default builds are eco-1's exactly (only gold changed,
-# `docs/economy-spec.md` §12.1; `test_economy_rules` checks it), so the translator's items block is
+# `docs/economy-spec.md` §13.1; `test_economy_rules` checks it), so the translator's items block is
 # right for a match on either.
 ECONOMY_PATH = Path(__file__).resolve().parents[2] / "src" / "economy" / "eco-2.json"
 

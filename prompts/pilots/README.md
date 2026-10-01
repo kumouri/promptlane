@@ -146,7 +146,7 @@ gives each tier. With no economy nothing changes, so the placement bar above doe
   Transparency reports: `runs/house-eco-compile-{easy,medium,hard}-2026-09-30.md`.
 - **The worksheet keys reach only the worksheet prompt and its compile.** The Jev worksheet house
   bot (`tools/jev/rules.py`, `house_server.py`, `jevPilot.ts`, shadow only) still mirrors the plain
-  medium cascade; see `docs/economy-spec.md` §12.2.
+  medium cascade; see `docs/economy-spec.md` §13.2.
 
 ## Sample entrants for the economy measurement: `sample-entrant*.prose.md`
 
