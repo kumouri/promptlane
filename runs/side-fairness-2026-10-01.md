@@ -50,13 +50,14 @@ what makes the two sides symmetric without changing how any old log replays?
     and bot order no longer matters. Both are tests in `tools/match/test_resolution.mjs`.
 - **Old logs replay exactly as before.** A log records `resolution` only when it isn't
   sequential. A log without the field replays on the specimen's own order.
-  - **Checked across 457 distinct match logs on this machine:** every log in the repo and in every
-    promptlane worktree, including the running gate and Bandstand v2 jobs' logs written so far.
-  - **What was compared:** each replayed on `origin/develop` and on this branch. Replay outcome and
-    the full `npm run metrics` JSON were byte-identical for all 457.
-  - **What they covered:** v1, pvp-1, respawn-1, eco-1, eco-2, river-1, river-2.
-  - **36 logs don't verify on either side:** the Bandstand v2 job's logs, written by its unmerged
-    branch.
+  - **Checked across 489 distinct match logs on this machine:** every log in the repo and in every
+    promptlane worktree, including the running gate job's and Bandstand v2's (#55) logs.
+  - **What was compared:** each replayed on `origin/develop` (`4ba0054`, after #55) and on this
+    branch. Both verify every one, and the full `npm run metrics` JSON is byte-identical for all
+    489.
+  - **What they covered:** v1, pvp-1, respawn-1, eco-1, eco-2, river-1, river-2, recall-2.
+  - The only logs that differ are this run's 10 new `simultaneous-1` logs. Develop can't replay
+    them, and this branch verifies them.
 - **Jev check, sides swapped, $0.76:** house medium vs house hard on `pvp-1`, 5 seeds, each played
   both ways (10 full matches), all under `simultaneous-1`.
   - **The tiers came out level:**
@@ -123,7 +124,7 @@ resolution is a new name; `simultaneous-1` stays as written so its logs replay.
 
 **Attribution.** `src/attribution.ts` now counts a hit as the kill when it takes a still-living
 unit from above 0 hp to 0 or below, and stops damage at 0. Under the sequential order a living unit
-never has hp ≤ 0, so that branch never runs and every old log measures byte-identically (the 457
+never has hp ≤ 0, so that branch never runs and every old log measures byte-identically (the 489
 above).
 
 **What pins it.**
