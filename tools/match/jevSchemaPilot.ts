@@ -5,8 +5,9 @@
  * frozen `src/pilots/` and only imports the frozen types.
  *
  * The decision logic is not here: each ask POSTs `{schema, observation}` to
- * `tools/jev/schema_server.py`, which asks Jev every rule's condition in one call, takes the first
- * "yes" in cascade order, and resolves its target. This file only picks the schema for the
+ * `tools/jev/schema_server.py`, which asks Jev every node's condition (guards and their branches
+ * included) in one call, walks the tree taking the first "yes" in cascade order, and resolves its
+ * target. This file only picks the schema for the
  * instrument this bearbot is holding (one entrant prompt drives all three) and turns the reply into
  * a `TracingDecision`. Any transport failure is `action: null` -- the same hold path `PromptPilot`
  * and `jevTracingPilot` take -- so a practice match never crashes on a dropped call.

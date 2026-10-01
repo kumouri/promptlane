@@ -132,13 +132,13 @@ class Cascade:
 class TranslatedSchema:
     """The tree is the canonical representation (`root: Cascade`, spec §2.2). `rules`/`default_kind`/
     `default_ability`/`default_target_selector` are kept as a backward-compatible VIEW: every reader
-    that only ever looked at a flat rule list (`fidelity_harness.py`, `compile.py`'s
-    schema_to_dict/schema_from_dict, every pre-existing test fixture that constructs a
+    that only ever looked at a flat rule list (every pre-existing test fixture that constructs a
     `TranslatedSchema(rules=[...], default_kind=..., ...)` directly) keeps working unchanged, because
     `__post_init__` derives whichever side (`root` <-> `rules`+`default_*`) wasn't given explicitly.
     `rules` for a tree WITH guards is the root cascade's own top-level `TranslatedRule` nodes only
     (guard nodes and everything nested inside a branch are not in it) -- `root` is the only
-    representation that sees the whole tree."""
+    representation that sees the whole tree, so anything that saves or sends a schema must walk
+    `root` (as `compile.py`'s schema_to_dict does), never `rules`."""
 
     pilot_file: str
     instrument: str
