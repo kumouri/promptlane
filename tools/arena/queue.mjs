@@ -173,11 +173,16 @@ export class Queue {
     this.log.warn(`arena: backend ${backendId} holding queued matches: ${reason}`);
   }
 
-  /** Why a Jev backend must not start a match now (wrong server, its own cap, today's budget), or null. */
+  /**
+   * Why a Jev backend must not start a match now (wrong server, one too old for the targeting rule,
+   * its own cap, today's budget), or null.
+   */
   jevHoldReason(backendId, backend, health) {
     if (health?.backend !== 'jev-schema') {
       return `${backend.endpoint} is not a Jev schema server (its /health says backend=${JSON.stringify(health?.backend ?? null)}); start python tools/jev/schema_server.py there`;
     }
+    const unsupported = this.headless.targetingUnsupported(health, this.headless.DEFAULT_TARGETING);
+    if (unsupported) return `${backend.endpoint}: ${unsupported}`;
     if (health.budget_usd != null && health.cost_usd >= health.budget_usd) {
       return `the schema server's own --budget-usd $${health.budget_usd} is spent; restart it to reset`;
     }
@@ -492,6 +497,8 @@ export class Queue {
         economy: this.economy ?? 'none',
         buildFor: (i) => this.buildFor(job, sides, i),
         backend: logBackend,
+        // the schema pilots resolve targets under the runner's default rule (jevSchemaPilot.ts)
+        ...(isJevBackend(backend) || job.practice ? { targeting: this.headless.DEFAULT_TARGETING } : {}),
         ...(this.map ? { map: this.map } : {}),
         ...(this.objective ? { objective: this.objective } : {}),
         ...(this.recall ? { recall: this.recall } : {}),

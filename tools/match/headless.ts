@@ -22,6 +22,7 @@ import { DEFAULT_RECALL, attachRecall, resolveRecall, type RecallRules } from '.
 import { DEFAULT_RESOLUTION, SEQUENTIAL, attachResolution, resolveResolution } from '../../src/resolution';
 import type { CallModel } from '../../src/pilots/callModel';
 import type { TracingDecision, TracingPilot } from './jevPilot';
+import { FIRST_MIN, resolveTargeting } from './jevSchemaPilot';
 import {
   CHECKPOINT_EVERY_TICKS,
   JAM_ROSTER,
@@ -40,15 +41,16 @@ import {
 export { mockCallModel } from '../../src/pilots/callModel';
 export { jevTracingPilot } from './jevPilot';
 export { jevTeamTracingPilot } from './jevTeamPilot';
-export { jevSchemaTracingPilot } from './jevSchemaPilot';
+export { DEFAULT_TARGETING, FIRST_MIN, OWN_LANE_1, TARGETINGS, jevSchemaTracingPilot, resolveTargeting, targetingUnsupported } from './jevSchemaPilot';
 export { DEFAULT_MAP, MAP_VARIANTS, PVP_MAP, SPECIMEN_MAP, laneCoverage, resolveMap } from '../../src/mapVariant';
 export { DEFAULT_ECONOMY, ECONOMY_RULESETS, ECO_1, ECO_2, ECO_3, RESPAWN_ONLY, attachEconomy, getEconomy, resolveBuild, resolveEconomy } from '../../src/economy';
-export { DEFAULT_OBJECTIVE, OBJECTIVES, RIVER_1, RIVER_2, attachObjective, getObjective, resolveObjective } from '../../src/objective';
+export { DEFAULT_OBJECTIVE, OBJECTIVES, RIVER_1, RIVER_2, RIVER_2_SET10, attachObjective, getObjective, resolveObjective } from '../../src/objective';
 export { DEFAULT_RECALL, RECALL_2, RECALL_RULES, attachRecall, getRecall, recallTotals, resolveRecall } from '../../src/recall';
 export { setRewardSink } from '../../src/ruleset/rewards';
 export { DEFAULT_RESOLUTION, RESOLUTIONS, SEQUENTIAL, SIMULTANEOUS_1, attachResolution, getResolution, resolveResolution } from '../../src/resolution';
 /** For the economy's, the objective's and the recall's rule tests (`test_economy.mjs`, `test_objective.mjs`, `test_recall.mjs`), which build matches by hand. */
 export { Match, TICK_DT, applyMapVariant, checkpointOf };
+export { BASE, LANE_PATHS, pointAlongPath } from '../../src/sim/map';
 
 const MATCH_DURATION_SEC = 600;
 const MAX_TICKS = Math.ceil(MATCH_DURATION_SEC / TICK_DT) + 2;
@@ -112,6 +114,12 @@ export interface RunOptions {
    * a sequential log is byte-for-byte what it was before the option existed.
    */
   resolution?: string;
+  /**
+   * The targeting rule the schema sides' pilots resolve under (`jevSchemaPilot.ts` TARGETINGS), for
+   * the log: the caller builds those pilots and passes the same name to them. Recorded as
+   * `targeting` unless `first-min`, so a log with no schema side is what it was before the field.
+   */
+  targeting?: string;
   /** Yields to the event loop so the sim's own promise chain settles between ticks. */
   flush?: () => Promise<void>;
   /** Progress callback, once per sim-minute. */
@@ -234,6 +242,7 @@ export async function runMatch(opts: RunOptions): Promise<MatchLog> {
   const objectiveRules = opts.objective === undefined ? DEFAULT_OBJECTIVE : resolveObjective(opts.objective);
   const recallRules = opts.recall === undefined ? DEFAULT_RECALL : resolveRecall(opts.recall);
   const resolution = opts.resolution === undefined ? DEFAULT_RESOLUTION : resolveResolution(opts.resolution);
+  const targeting = resolveTargeting(opts.targeting);
   const stats: Record<Team, SideStats> = { violet: emptyStats(), green: emptyStats() };
   const totalMs: Record<Team, { value: number }> = { violet: { value: 0 }, green: { value: 0 } };
 
@@ -249,6 +258,7 @@ export async function runMatch(opts: RunOptions): Promise<MatchLog> {
     ...(objectiveRules ? { objective: objectiveRules } : {}),
     ...(recallRules ? { recall: recallRules } : {}),
     ...(resolution === SEQUENTIAL ? {} : { resolution }),
+    ...(targeting === FIRST_MIN ? {} : { targeting }),
     backend: opts.backend,
     sides: opts.sides,
     decisions: [],

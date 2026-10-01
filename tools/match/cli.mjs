@@ -54,8 +54,9 @@ options:
                       pass on it), eco-1 (P1's starting values), respawn-1, or none (the default until the Sun 10-04 go/no-go). Respawn, gold, levels, items; each schema side buys the
                       \`build\` its prose compiled to, else its instrument's default. Recorded in the
                       log with every bot's shopping list, applied on --verify
-  --objective NAME    river objective (src/objective.ts): river-1 (the Bandstand) or none (the
-                      default until the 10-04 gate); recorded in the log, applied on --verify
+  --objective NAME    river objective (src/objective.ts): river-1 (the Bandstand), river-2 (its
+                      redesign), river-2-set10 (river-2 with a 10 s set, §9.8's tuning pass) or
+                      none (the default until the 10-04 gate); recorded in the log, applied on --verify
   --recall NAME       recall rule (src/recall.ts): recall-2 (a 4 s channel, then a teleport home;
                       damage in its first 3.5 s cancels it) or none (the specimen's 3x run home,
                       the default); recorded in the log, applied on --verify
@@ -63,6 +64,11 @@ options:
                       sides' bearbots and minions act on the same start-of-step world) or
                       sequential (the frozen sim's own order, which favours violet); recorded in
                       the log unless sequential, applied on --verify
+  --targeting NAME    how a schema side's winning rule picks its target (tools/jev/target_resolve.py):
+                      own-lane-1 (the default: a bot at its fountain heads down its own lane, and
+                      ties within 0.5 units break side-symmetrically) or first-min (a plain min()
+                      over float distances, every schema match before 2026-10-01); recorded in the
+                      log unless first-min
   --quiet             no progress lines`;
 
 function parseArgs(argv) {
@@ -93,6 +99,7 @@ function parseArgs(argv) {
       case '--objective': args.objective = next(); break;
       case '--recall': args.recall = next(); break;
       case '--resolution': args.resolution = next(); break;
+      case '--targeting': args.targeting = next(); break;
       case '--verify': args.verify = next(); break;
       case '--quiet': args.quiet = true; break;
       case '-h': case '--help': args.help = true; break;
@@ -161,6 +168,7 @@ async function main() {
   const objective = args.objective === undefined ? headless.DEFAULT_OBJECTIVE : headless.resolveObjective(args.objective);
   const recall = args.recall === undefined ? headless.DEFAULT_RECALL : headless.resolveRecall(args.recall);
   const resolution = args.resolution === undefined ? headless.DEFAULT_RESOLUTION : headless.resolveResolution(args.resolution);
+  const targeting = args.targeting === undefined ? headless.DEFAULT_TARGETING : headless.resolveTargeting(args.targeting);
   if (!(args.cadence >= 0.5)) throw new Error('--cadence must be >= 0.5 (the game asks every 0.5 s)');
   if (args.maxSimSec !== undefined && !(args.maxSimSec > 0)) throw new Error('--max-sim-sec must be a positive number');
 
@@ -187,9 +195,11 @@ async function main() {
   if (schemaTeams.length && !args.jevSchema) throw new Error('--a-schemas/--b-schemas need --jev-schema <schema_server URL>');
   if (args.jevSchema && !schemaTeams.length) throw new Error('--jev-schema needs --a-schemas and/or --b-schemas');
   const jevBackend = args.jevSchema ? await probeBackend(args.jevSchema) : null;
+  const unsupported = jevBackend ? headless.targetingUnsupported(jevBackend.health, targeting) : null;
+  if (unsupported) throw new Error(`${args.jevSchema}: ${unsupported}`);
   const decisionPilotFor = jevBackend
     ? (_i, team) =>
-        schemas[team] ? headless.jevSchemaTracingPilot({ endpoint: args.jevSchema, timeoutSec: args.timeout, schemas: schemas[team] }) : undefined
+        schemas[team] ? headless.jevSchemaTracingPilot({ endpoint: args.jevSchema, timeoutSec: args.timeout, schemas: schemas[team], targeting }) : undefined
     : undefined;
 
   let backend;
@@ -213,7 +223,7 @@ async function main() {
   if (jevBackend && backend !== jevBackend) backend = { ...backend, jevSchema: jevBackend };
 
   if (!args.quiet) {
-    console.error(`match: ${sides.violet.name} (violet) vs ${sides.green.name} (green) seed=${args.seed} cadence=${args.cadence}s map=${map.name} economy=${economy?.name ?? 'none'} objective=${objective?.name ?? 'none'} recall=${recall?.name ?? 'none'} resolution=${resolution} backend=${backendLabel(backend)}`);
+    console.error(`match: ${sides.violet.name} (violet) vs ${sides.green.name} (green) seed=${args.seed} cadence=${args.cadence}s map=${map.name} economy=${economy?.name ?? 'none'} objective=${objective?.name ?? 'none'} recall=${recall?.name ?? 'none'} resolution=${resolution}${schemaTeams.length ? ` targeting=${targeting}` : ''} backend=${backendLabel(backend)}`);
   }
   const started = Date.now();
   const log = await headless.runMatch({
@@ -228,6 +238,7 @@ async function main() {
     objective,
     recall,
     resolution,
+    ...(schemaTeams.length ? { targeting } : {}),
     maxSimSec: args.maxSimSec,
     backend,
     flush,

@@ -207,6 +207,11 @@ test('matchKey covers the ruleset: map and economy change the key; a pre-ruleset
   assert.notEqual(k(resolved), k(river));
   assert.notEqual(k(resolved), k({ ...resolved, resolution: 'sequential' }));
   assert.equal(DEFAULT_CAMPAIGN.shape.resolution, headless.DEFAULT_RESOLUTION, 'the campaign default follows DEFAULT_RESOLUTION');
+  // The targeting rule likewise: a campaign cached before it (campaign 2) keeps its key and plays first-min.
+  assert.equal(k({ ...resolved, targeting: undefined }), k(resolved));
+  assert.notEqual(k({ ...resolved, targeting: 'own-lane-1' }), k(resolved));
+  assert.notEqual(k({ ...resolved, targeting: 'own-lane-1' }), k({ ...resolved, targeting: 'first-min' }));
+  assert.equal(DEFAULT_CAMPAIGN.shape.targeting, headless.DEFAULT_TARGETING, 'the campaign default follows DEFAULT_TARGETING');
 });
 
 test('sentences: split on sentence ends and blank lines', () => {

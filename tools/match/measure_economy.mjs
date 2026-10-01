@@ -36,6 +36,8 @@
  * simultaneous-1, the runner's DEFAULT_RESOLUTION). A date whose existing logs were played under
  * another one (every log written before the option existed is `sequential`) refuses to resume
  * rather than mix the two: pass `--resolution sequential` to finish such a run as it started.
+ * `--targeting` (tools/jev/target_resolve.py; default own-lane-1) works the same way, and a log
+ * written before that option existed is `first-min`.
  */
 import { spawn } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
@@ -72,11 +74,13 @@ export const PAIRINGS = { hard: ['medium', 'hard'], entrant: ['medium', 'entrant
 
 /** Mirrors DEFAULT_RESOLUTION in src/resolution.ts (a test holds them equal). */
 export const DEFAULT_RESOLUTION = 'simultaneous-1';
+/** Mirrors DEFAULT_TARGETING in tools/match/jevSchemaPilot.ts (a test holds them equal). */
+export const DEFAULT_TARGETING = 'own-lane-1';
 
 export const logFile = (date, condition, pairing, seed) => `runs/economy-measure-${date}-${condition}-medium-vs-${pairing}-seed${seed}.json`;
 
 /** Every match of the plan, seed-major, as the `npm run match` arguments that play it. */
-export function planMeasurement({ date, jevSchema = 'http://127.0.0.1:8851/', seeds = SEEDS, conditions = Object.keys(CONDITIONS), pairings = Object.keys(PAIRINGS), recall = null, resolution = DEFAULT_RESOLUTION, economy = null }) {
+export function planMeasurement({ date, jevSchema = 'http://127.0.0.1:8851/', seeds = SEEDS, conditions = Object.keys(CONDITIONS), pairings = Object.keys(PAIRINGS), recall = null, resolution = DEFAULT_RESOLUTION, targeting = DEFAULT_TARGETING, economy = null }) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date ?? '')) throw new Error('--date YYYY-MM-DD is required (it names the logs)');
   const jobs = [];
   for (const seed of seeds) {
@@ -92,7 +96,7 @@ export function planMeasurement({ date, jevSchema = 'http://127.0.0.1:8851/', se
           '--a', a.prompt, '--a-schemas', a.schemas, '--name-a', a.name,
           '--b', b.prompt, '--b-schemas', b.schemas, '--name-b', b.name,
           '--jev-schema', jevSchema, '--map', 'pvp-1', '--cadence', '2', '--seed', String(seed),
-          '--economy', ruleset, '--resolution', resolution, '--out', out, '--quiet',
+          '--economy', ruleset, '--resolution', resolution, '--targeting', targeting, '--out', out, '--quiet',
           ...(recall ? ['--recall', recall] : []),
         ];
         jobs.push({ seed, pairing, condition, economy: ruleset, out, args });
@@ -128,6 +132,18 @@ export function checkEconomy(jobs, readLog) {
   }
 }
 
+/** Likewise for the targeting rule. A log without the field is `first-min`. */
+export function checkTargeting(jobs, targeting, readLog) {
+  for (const j of jobs) {
+    const log = readLog(j.out);
+    if (!log) continue;
+    const played = log.targeting ?? 'first-min';
+    if (played !== targeting) {
+      throw new Error(`${j.out} was played under targeting ${played}, not ${targeting}: pass --targeting ${played} to finish this run, or use a new --date`);
+    }
+  }
+}
+
 /** The two metrics runs §6.2 reads: everything paired against A, and B1 paired against B0. */
 export function metricsCommands(date, conditions = Object.keys(CONDITIONS)) {
   const g = (c) => `--group ${c} runs/economy-measure-${date}-${c}-*.json`;
@@ -155,6 +171,7 @@ function parseArgs(argv) {
       case '--parallel': args.parallel = Number(next()); break;
       case '--recall': args.recall = next(); break;
       case '--resolution': args.resolution = next(); break;
+      case '--targeting': args.targeting = next(); break;
       case '--economy': args.economy = next(); break;
       case '--dry-run': args.dryRun = true; break;
       default: throw new Error(`unknown option ${a}`);
@@ -180,6 +197,7 @@ async function main() {
     return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : null;
   };
   checkResolution(jobs, args.resolution ?? DEFAULT_RESOLUTION, readLog);
+  checkTargeting(jobs, args.targeting ?? DEFAULT_TARGETING, readLog);
   checkEconomy(jobs, readLog);
   const todo = jobs.filter((j) => !existsSync(path.join(ROOT, j.out)));
   console.log(`economy measurement ${args.date}: ${jobs.length} matches planned, ${jobs.length - todo.length} already logged, ${todo.length} to run`);

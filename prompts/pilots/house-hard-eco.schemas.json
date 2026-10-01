@@ -5,21 +5,21 @@
   "rules": [
    {
     "id": "recall_low_hp_threat",
-    "condition": "is this bot's hp below 90 and is an enemy minion, tower, or bearbot in sight?",
-    "criteria_true": "hp < 90 and threat present",
-    "criteria_false": "hp >= 90 or no threat",
+    "condition": "is this bot's hp below 65% of its max hp AND is an enemy minion, enemy tower, or enemy bearbot in sight?",
+    "criteria_true": "low hp with threat present",
+    "criteria_false": "safe or high hp",
     "action_kind": "move",
     "action_ability": null,
     "action_target_selector": "home"
    },
    {
     "id": "recall_low_hp_safe",
-    "condition": "is this bot's hp below 90 and no enemy is in sight?",
-    "criteria_true": "hp < 90 and safe",
-    "criteria_false": "hp >= 90 or threat present",
+    "condition": "is this bot's hp below 65% of its max hp AND is no enemy in sight?",
+    "criteria_true": "low hp with no threat",
+    "criteria_false": "safe or high hp",
     "action_kind": "recall",
     "action_ability": null,
-    "action_target_selector": "none"
+    "action_target_selector": "home"
    },
    {
     "id": "bandstand_open_take_it",
@@ -158,22 +158,22 @@
   "instrument": "keytar",
   "rules": [
    {
-    "id": "recall_hp_low_threat",
-    "condition": "is this bot's hp below 90 and is an enemy minion, enemy tower, or enemy bearbot in sight?",
-    "criteria_true": "hp < 90 and threat present",
-    "criteria_false": "hp >= 90 or no threat present",
+    "id": "recall_low_hp_threat",
+    "condition": "is this bot's hp below 65% of its max hp AND is an enemy minion, enemy tower, or enemy bearbot in sight?",
+    "criteria_true": "low hp with threat present",
+    "criteria_false": "safe or high hp",
     "action_kind": "move",
     "action_ability": null,
     "action_target_selector": "home"
    },
    {
-    "id": "recall_hp_low_safe",
-    "condition": "is this bot's hp below 90 and are no enemies in sight?",
-    "criteria_true": "hp < 90 and safe",
-    "criteria_false": "hp >= 90 or enemy present",
+    "id": "recall_low_hp_safe",
+    "condition": "is this bot's hp below 65% of its max hp AND are no enemies in sight?",
+    "criteria_true": "low hp with no threat",
+    "criteria_false": "safe or high hp",
     "action_kind": "recall",
     "action_ability": null,
-    "action_target_selector": "none"
+    "action_target_selector": "home"
    },
    {
     "id": "bandstand_open_take_it",
@@ -313,18 +313,18 @@
   "rules": [
    {
     "id": "recall_low_hp_threat",
-    "condition": "is this bot's hp below 90 and is an enemy minion, enemy tower, or enemy bearbot in sight?",
-    "criteria_true": "hp < 90 and threat present",
-    "criteria_false": "hp >= 90 or no threat",
+    "condition": "is this bot's hp below 65% of its max hp and is an enemy minion, enemy tower, or enemy bearbot in sight?",
+    "criteria_true": "low hp with threat present",
+    "criteria_false": "safe to stay or fight",
     "action_kind": "move",
     "action_ability": null,
     "action_target_selector": "home"
    },
    {
     "id": "recall_low_hp_safe",
-    "condition": "is this bot's hp below 90 and no enemy is in sight?",
-    "criteria_true": "hp < 90 and safe",
-    "criteria_false": "hp >= 90 or threat present",
+    "condition": "is this bot's hp below 65% of its max hp and are no enemies in sight?",
+    "criteria_true": "low hp with no threat",
+    "criteria_false": "hp above threshold or threat present",
     "action_kind": "recall",
     "action_ability": null,
     "action_target_selector": "home"

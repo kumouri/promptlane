@@ -13,20 +13,28 @@ The decision itself is `fidelity_harness.run_prediction`, unchanged -- the same 
 the translator (`docs/prose-to-schema-translator.md` §3): every node's condition anywhere in the
 tree (rules, guards, and the rules inside a guard's branches) is one `noul` question in a single Jev
 call, the first "yes" in cascade order wins, a guard routes to its yes- or no-branch, and the winning
-rule's target selector is resolved against the observation in Python (`target_resolve.py`).
+rule's target selector is resolved against the observation in Python (`target_resolve.py`), under
+the targeting rule the request names (`target_resolve.TARGETING_RULES`). A request that names none
+gets `first-min`, the rule every caller had before the field existed: a runner from an older
+checkout (an evolution campaign already under way, an arena not yet restarted) plays on exactly as
+it started. `jevSchemaPilot.ts` names `own-lane-1` and checks the reply's `targeting` echoes it.
 
     GET  /health  -> {"ok": true, "backend": "jev-schema", "model", "requests", "errors",
                       "avg_seconds", "tokens_in", "cost_usd", "budget_usd", "jev_backend",
+                      "targeting": [the rules this server resolves],
                       "token_source", "token_expires_in_sec", "token_renewals",
                       "jev_fallback_*" (typesafe only)}
-    POST /        body: {"schema": <compile.py schema JSON>, "observation": <Observation>}
+    POST /        body: {"schema": <compile.py schema JSON>, "observation": <Observation>,
+                         "targeting"?: "own-lane-1" | "first-min"}  (absent = first-min)
                   -> 200 {"action": {kind, target?, ability?}, "rule": <rule id | null>,
+                          "targeting": <the rule the target resolved under>,
                           "answers": {rule id: 0.0-1.0}, "ms": float,
                           "door": "typesafe" | "workers-ai" | "stub",   (which door answered THIS call)
                           "tokens_in": int, "cost_usd": float}          (this call's Jev spend)
                   -> non-2xx {"error": "..."} -- the caller (tools/match/jevSchemaPilot.ts) holds.
 
     python tools/jev/schema_server.py --stub             # no Jev: seeded random answers, $0
+    python tools/jev/schema_server.py --stub --port 0    # any free port; the start line names it
     python tools/jev/schema_server.py                    # live Jev, TypeSafe direct, Workers AI behind it
     python tools/jev/schema_server.py --jev-backend workers-ai   # live Jev via Cloudflare Workers AI only
 
@@ -73,6 +81,7 @@ from client import (  # noqa: E402
 )
 from compile import schema_from_dict  # noqa: E402
 from fidelity_harness import DumbStubJevClient, run_prediction  # noqa: E402
+from target_resolve import TARGETING_FIRST_MIN, TARGETING_RULES  # noqa: E402
 from local_http import BurstTolerantHTTPServer  # noqa: E402
 
 DEFAULT_PORT = 8797
@@ -100,10 +109,13 @@ class JevSchemaBackend:
         schema = schema_from_dict(body["schema"])
         if not schema.root.nodes:
             raise ValueError("schema has no rules")
+        targeting = body.get("targeting", TARGETING_FIRST_MIN)
+        if targeting not in TARGETING_RULES:
+            raise ValueError(f"unknown targeting {targeting!r} (this server resolves: {', '.join(TARGETING_RULES)})")
         with self.lock:
             if self.budget_usd is not None and self.cost_usd >= self.budget_usd:
                 raise BudgetExceeded(f"jev-schema budget ${self.budget_usd:.2f} reached (spent ${self.cost_usd:.4f})")
-        pred = run_prediction(self.client, schema, body["observation"])
+        pred = run_prediction(self.client, schema, body["observation"], targeting)
         tokens_in = int(pred["input_tokens"])
         cost = estimate_cost_usd(tokens_in)
         with self.lock:
@@ -114,6 +126,7 @@ class JevSchemaBackend:
         return {
             "action": pred["action"],
             "rule": pred["fired_rule"],
+            "targeting": targeting,
             "answers": {rid: round(q["noul"], 4) for rid, q in pred["per_question"].items()},
             "ms": round(pred["latency_sec"] * 1000, 1),
             "door": pred.get("door") or "unknown",
@@ -130,6 +143,7 @@ class JevSchemaBackend:
                 "tokens_in": self.tokens_in,
                 "cost_usd": round(self.cost_usd, 4),
                 "budget_usd": self.budget_usd,
+                "targeting": list(TARGETING_RULES),
             }
         snap.update(client_status(self.client))
         return snap
@@ -225,7 +239,7 @@ def main(argv=None) -> int:
     jev_backend = "stub" if args.stub else args.jev_backend
     budget = None if args.budget_usd < 0 else args.budget_usd
     server = serve(JevSchemaBackend(client, budget), model, "127.0.0.1", args.port, args.verbose)
-    print(f"promptlane jev-schema server on http://127.0.0.1:{args.port}/  jev_backend={jev_backend} model={model} budget_usd={budget}", flush=True)
+    print(f"promptlane jev-schema server on http://127.0.0.1:{server.server_address[1]}/  jev_backend={jev_backend} model={model} budget_usd={budget}", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

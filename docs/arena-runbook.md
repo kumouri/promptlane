@@ -62,7 +62,7 @@ The entrants poller shells out to `gh api` for `kumouri/jamobair-entrants` (`mai
 | Key | Meaning |
 |---|---|
 | `tournament.backend` | which `backends` entry ranked matches and tests use — **the per-tournament model setting**; it is recorded in every match log (`backend.model`) and every `finished` ledger row. `jev-schema` (a `kind: "jev-schema-http"` entry) = both sides on Jev, §1c; `qwen9b` = the old text-model ladder |
-| `tournament.map` | the map variant every match plays (`pvp-1`); checked at startup. Unset = the runner's `DEFAULT_MAP`. Every match also plays the runner's `DEFAULT_RESOLUTION` (`simultaneous-1`, `src/resolution.ts`; no config key), recorded in its log |
+| `tournament.map` | the map variant every match plays (`pvp-1`); checked at startup. Unset = the runner's `DEFAULT_MAP`. Every match also plays the runner's `DEFAULT_RESOLUTION` (`simultaneous-1`, `src/resolution.ts`; no config key), recorded in its log. A Jev match's targets resolve under `DEFAULT_TARGETING` (`own-lane-1`, `tools/jev/target_resolve.py`; no config key), also recorded |
 | `tournament.economy` | the economy ruleset every match plays: `null`/unset (none) or a name such as `"eco-2"` (`src/economy.ts`, `docs/economy-spec.md`): respawn, gold, levels and items. Off until Ceryce's Sun 10-04 go/no-go; checked at startup. A side buys the shopping list (`build`) its compiled schema carries, else its instrument's default. Each log records the ruleset, so changing it never alters a match already played |
 | `tournament.objective` | the river objective every match plays (`river-1` = the Bandstand, `river-2` = its redesign, `none` = off; docs/economy-spec.md §9); checked at startup and recorded in every log. Unset = the runner's `DEFAULT_OBJECTIVE`, which is none until the Sun 10-04 gate |
 | `tournament.recall` | the recall rule every match plays (`recall-2` = a 4 s channel then a teleport home, `none` = the specimen's 3× run; docs/economy-spec.md §9.10); checked at startup and recorded in every log. Unset = the runner's `DEFAULT_RECALL`, the specimen's recall |
@@ -219,6 +219,7 @@ node -e "import('./tools/arena/ledger.mjs').then(({Ledger, jevSpentToday}) => co
 |---|---|---|
 | `/matches`: *Backend `jev-schema` is not starting matches: Jev schema server not reachable* | `schema_server.py` is down | start it; the worker retries every 30 s |
 | … *is not a Jev schema server (… backend="ollama")* | the endpoint points at a text-model server | fix `backends.jev-schema.endpoint` |
+| … *the schema server resolves targets under first-min only, not own-lane-1* | `schema_server.py` is older than the arena's code | restart it from the arena's checkout |
 | … *daily Jev budget reached* / *the schema server's own --budget-usd … is spent* | a cap did its job | wait for the Central day to turn, or raise the cap and restart |
 | a match `failed — compile failed — violin: …` | that instrument's prose got no valid schema | it re-runs once by itself; if the retry fails too, the entrant's prose needs work. `/compile` shows them why |
 | a match `failed — Jev stopped answering …` / `Jev left too many decisions unanswered …` | Jev outage mid-match | it re-runs once; read the server's `/health` (`jev_fallback_last_error`) and §6 *5.3* step 3 |

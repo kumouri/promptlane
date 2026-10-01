@@ -47,7 +47,7 @@ easy and hard are only played when asked for (`config.house.tier` or `--house-ti
 |---|---|---|
 | easy | defend, never risk a bearbot | under 100 hp: walk home while an enemy is in sight, else recall → leave whenever an enemy tower is near → attack the nearest enemy → stay with a friendly minion → wait at home. No abilities. |
 | medium | ride the wave (above) | under 75: walk home while an enemy is in sight, else recall → *the Bandstand* → leave a tower without a wave → ability → attack the foe → the tower → ride → home |
-| hard | towers and kills | under 90: walk home while an enemy is in sight, else recall → *the Bandstand, three rules* → leave a tower without a wave → ability on a bearbot under 100 hp → attack that bearbot → the tower if 2+ friendly minions are in sight → the lowest-hp bearbot → the nearest minion → ride → home |
+| hard | towers and kills | under 65 % of max hp (drums 143, keytar 91, violin 97.5): walk home while an enemy is in sight, else recall → *the Bandstand, three rules* → leave a tower without a wave → ability on a bearbot under 100 hp → attack that bearbot → the tower if 2+ friendly minions are in sight → the lowest-hp bearbot → the nearest minion → ride → home |
 
 **Recall: out of reach first** (2026-10-01, for `recall-2`, [`docs/economy-spec.md`
 §9.10](../../docs/economy-spec.md)). Under `recall-2` a recall is a 4 s channel that any hit in its
@@ -80,6 +80,18 @@ change only delays a recall until the bot is out of sight.
   plays the new pair; the `house` ledger row records the new hash.
 - `tools/arena/test_house.mjs` checks that every recall rule, in every tier's schema and side file,
   follows a move home.
+
+**Hard leaves at 65 % of its max hp** (2026-10-01, Bandstand 4). Walking out under `recall-2`, a
+flat 90 hp left hard drums (max 220) dying in the lane before 1:30. 65 % of max is drums 143,
+keytar 91 and violin 97.5, so no instrument's trigger went down. The derivation from Bandstand 3's
+walks is in [`runs/bandstand-4-2026-10-01.md`](../../runs/bandstand-4-2026-10-01.md).
+- **Only the trigger changed**, in `house-hard.prose.md`, `house-hard-eco.prose.md` and both hard
+  side files. Rules 1–2 say "less than 65% of self.maxHp", like rules 3–4. The side files' one
+  example that goes to the Bandstand with a foe in sight now has 150 hp, so it holds on drums too.
+- **The schemas were spliced the same way as above.** `compile.py --backend ollama` was run three
+  times per source, and only the low-hp pair was taken (each instrument's first sample, s1).
+  Every other rule object is byte for byte.
+- `test_house.mjs` pins the 65 % in the prose, both cascades and both side files.
 
 **The Bandstand** (the river objective, [`docs/economy-spec.md` §9.7](../../docs/economy-spec.md)).
 Medium and hard go to `bandstand.pos` by rules placed right after the low-hp pair. Easy has no
@@ -120,7 +132,8 @@ ledger row records the new hash.
 `qwen3.5:9b` needs: a worksheet, team literals, and the first matching rule wins. Targets follow
 the translator's fixed selector vocabulary: `nearest_enemy` becomes easy's `foe` key or hard's
 `creep` key, `lowest_hp_enemy` becomes hard's `foe` key, `nearest_tower` the `tower` key,
-`nearby_minion` a friendly minion's position, and `home` your own corner. So the house can only
+`nearby_minion` a friendly minion's position (from your own fountain, the start of your own lane:
+`target_resolve.py` `own-lane-1`), and `home` your own corner. So the house can only
 say what an entrant's prose can compile to. There is no "hold at my own tower" selector, for
 example, so easy leashes itself by leaving whenever an enemy tower comes into view.
 

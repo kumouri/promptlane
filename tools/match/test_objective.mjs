@@ -477,6 +477,20 @@ test('river-2 constants: river-1 plus a 30 s / 45 s close timer, sets of 7.5 / 5
   assert.equal(R.capture.contest, undefined, 'river-1 freezes');
 });
 
+test('river-2-set10: river-2 with a 10 s set, nothing else', async () => {
+  const T = h.RIVER_2_SET10;
+  assert.equal(h.resolveObjective('river-2-set10'), T);
+  assert.deepEqual({ ...T, name: R2.name, capture: { ...T.capture, setSec: R2.capture.setSec } }, R2);
+  assert.equal(T.capture.setSec, 10);
+  const s = setup({ rules: T });
+  await s.stepTo(OPEN);
+  s.place(0, TOP);
+  await s.stepTo(OPEN + 10 * HZ - 1);
+  assert.equal(s.obj.status, 'open', 'not yet');
+  await s.stepTo(OPEN + 10 * HZ);
+  assert.equal(s.obj.openings[0].captureSec, 100);
+});
+
 for (const [n, sec] of [[1, 7.5], [2, 5], [3, 2.5]]) {
   test(`river-2: ${n} bearbot(s) of one team take an empty stage in ${sec} s`, async () => {
     const s = r2();
