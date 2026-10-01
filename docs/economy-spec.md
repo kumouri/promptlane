@@ -1,6 +1,8 @@
 # Economy spec — gold, levels and items for the Jam (eco-1)
 
-**Status:** draft for Ceryce's rulings (§8). Spec only; nothing here is built yet.
+**Status:** P1's blocking questions are ruled: Q1, Q2, Q3, Q4 and Q10 (Telegram, 2026-09-30
+20:35–20:37 CT; §8). The spec body below reads against those rulings. Q5–Q9 and Q11–Q17 are still
+open, and Q14–Q17 block the river objective (§9). Spec only; nothing here is built yet.
 **Written:** 2026-09-30, after Ceryce chose "minimal economy before the jam" (19:57 CT). §9, the
 neutral river objective, was added the same evening after she backed the idea (20:34 CT).
 **Jam:** Fri 2026-10-16. Entry cutoff is midnight Central on Thu 10-15. Sign-ups close Tue 10-06.
@@ -22,13 +24,13 @@ adds numbers, it is cut.
 
 | # | Recommendation | Why, in one line |
 |---|---|---|
-| 1 | **Respawn becomes part of the ruleset.** Timer is `6 s + 3 s × level`. | Today a death is permanent (§1). That makes any risk to carried gold pointless and rewards hiding. |
-| 2 | **One gold pool, and unspent gold is at risk.** On death, half of your unspent gold **goes to the bots that killed you**. | This is Ceryce's recollection of Dota. Neither Dota nor League actually does it (§2). For her principle it beats both: it creates a hold-vs-spend choice, a risk-while-carrying choice and a hunt-the-carrier choice from one rule. |
+| 1 | **Respawn becomes part of the ruleset.** Timer is `6 s + 3 s × level`. *Ruled, Q1.* | Today a death is permanent (§1). That makes any risk to carried gold pointless and rewards hiding. |
+| 2 | **Dota's two-pool shape, every knob a constant.** Unspent gold sits in an at-risk pool and a safe pool; which sources feed the safe pool, how much of the at-risk pool a death costs, and how much of that loss the killers get are all in `eco-1.json`. **The default:** safe pool empty, half of unspent gold lost on death, **all of it to the bots that killed you**. *Ruled, Q2.* | The default is Ceryce's recollection of Dota, which neither game actually ships (§2). For her principle it beats both: hold-vs-spend, risk-while-carrying and hunt-the-carrier from one rule. Modelling it the Dota way means it can be tuned toward Dota or League by editing numbers (§3.3). |
 | 3 | **Kill gold 200, an assist pool of 100, first blood +100.** Minion last hit 15. Passive 0.5 gold/s. | One kill is worth about 13 last hits. Passive is a floor so even a weak bot gets one item. Most income has to be earned, and about a third of it should come from PvP. |
 | 4 | **Tower gold is part team-wide, part split among the bots standing near it.** | This is the PvE that pulls bots together: objectives pay the bots that show up, so the other team has to show up too. |
 | 5 | **Five levels from shared-proximity XP.** Each level gives +8 % max hp and +8 % attack damage. No level-up choice. | XP for being near a fight or a push, not for last hits, pays for grouping. A level-up choice would add a decision the translator can't express well. |
-| 6 | **Four items in three slots, each with a real cost** (Amp, Road Case, Bass Strings, Metronome). A fifth, Tip Jar, is optional. | A bot can't own everything, and every item gives something up. Bass Strings heals only from damage dealt to enemy bearbots. |
-| 7 | **Buy only at your own base. The prose declares a shopping list.** It is bought automatically when you're at base and can afford the next item. There is no new action kind. | The decision a bot makes during play is *when to go home*. That is a yes/no question Jev already answers well. A `buy` action would be a new failure mode in the translator. |
+| 6 | **Four items in three slots, each with a real cost** (Amp, Road Case, Bass Strings, Metronome). No Tip Jar. *Ruled, Q4; names still placeholders (Q13).* | A bot can't own everything, and every item gives something up. Bass Strings heals only from damage dealt to enemy bearbots. |
+| 7 | **Buy only at your own base. The prose declares a shopping list.** It is bought automatically when you're at base and can afford the next item. There is no new action kind. *Ruled, Q3.* | The decision a bot makes during play is *when to go home*. That is a yes/no question Jev already answers well. A `buy` action would be a new failure mode in the translator. |
 | 8 | **All of it runs outside the frozen sim**, as `src/economy.ts` plus one constants file. Match logs record it as `economy: "eco-1"`. | This is the same pattern as the balance study's `src/mapVariant.ts`. Old logs replay unchanged. |
 | 9 | **Measure on Jev** with the balance study's metric tool, in four seed-paired conditions (§6). There are pre-registered pass/fail lines. | Standing rule: Jev, never qwen 9B. |
 | 10 | **Entrant-facing changes land by Mon 10-05**, numbers freeze Thu 10-08, and there is a go/no-go gate on Sun 10-04 (§7). | Sign-ups close Tue 10-06. Entrants must see the rules they are writing against. |
