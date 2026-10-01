@@ -14,6 +14,7 @@ import type { MapVariant } from './mapVariant';
 import { getEconomy, type EconomySummary, type LogEconomy } from './economy';
 import { getObjective, type ObjectiveRules, type ObjectiveSummary } from './objective';
 import { getRecall, type RecallRules, type RecallSummary } from './recall';
+import type { EndReason, FinaleRules, FinaleSummary } from './finale';
 
 export const MATCH_LOG_SCHEMA = 'promptlane-match-log-1';
 
@@ -80,7 +81,12 @@ export interface SideStats {
 
 export interface MatchResult {
   winner: Team | null;
-  endReason: 'nexus' | 'timeout' | null;
+  /**
+   * Why it ended: `nexus`, `timeout` (the 10:00 tiebreak), or under a finale (`src/finale.ts`)
+   * `chorus-lead` (a tower lead at 8:00) or `sudden-death` (the first tower after a level 8:00).
+   * `null` = unfinished.
+   */
+  endReason: EndReason;
   durationSec: number;
   ticks: number;
   /** Every bearbot death; with an economy a bot can die more than once. */
@@ -92,6 +98,8 @@ export interface MatchResult {
   objective?: ObjectiveSummary;
   /** Every channelled recall and how it ended, when the match had a recall rule (`src/recall.ts`). */
   recall?: RecallSummary;
+  /** Where the Chorus found the towers and how it ended the match, under a finale (`src/finale.ts`). */
+  finale?: FinaleSummary;
 }
 
 export interface MatchLog {
@@ -124,6 +132,11 @@ export interface MatchLog {
    * recall (a 3x run home), which is every log written before `recall-2` existed.
    */
   recall?: RecallRules;
+  /**
+   * The finale (`src/finale.ts`, e.g. `final-chorus-1`), recorded whole. Absent = none: the match
+   * runs to 10:00 and the timeout tiebreak, which is every log written before the Final Chorus existed.
+   */
+  finale?: FinaleRules;
   /**
    * How a tick resolves its bearbot and minion steps (`src/resolution.ts`), e.g. `simultaneous-1`.
    * Absent = the specimen's sequential order, which is every log written before the field existed;

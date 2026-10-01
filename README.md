@@ -162,6 +162,12 @@ channel standing still, then a teleport to the fountain; damage in its first 3.5
 (`src/recall.ts`, numbers in `src/recall/recall-2.json`, design in `docs/economy-spec.md` §9.10).
 Off by default. The log records it, `--verify` replays with it, and logs without one keep the
 specimen's recall.
+**Finale.** `--finale final-chorus-1` plays the Final Chorus: a team ahead on towers at 8:00 wins on
+the spot; if towers are level, the last two minutes are sudden death, structures take ×3 damage and
+the first tower to fall wins (`src/finale.ts`, numbers in `src/finale/final-chorus-1.json`, design and
+measurement plan in `docs/fewer-draws-spec.md`). Nothing gets longer than 600 s. Off by default. The
+result says why a match ended (`by=chorus-lead`, `by=sudden-death`, as well as `nexus-kill` and
+`timeout`), the log records the rule, `--verify` replays with it, and logs without one play to 10:00.
 **Metrics.** `npm run metrics -- --group <label> <log.json>… [--group …] --md out.md --heatmaps pfx`
 replays logs and reports how they were played: PvP vs PvE damage and time, team fights, team
 proximity, where fights and deaths happen relative to towers, a gold proxy and its swinginess,
@@ -170,7 +176,8 @@ seed-paired differences against the first group (`tools/match/metrics.ts` has th
 Logs played with the river objective add the Bandstand's numbers (openings, captures, contested
 share, team fights at an open Bandstand, capture split, Encore uptime) and its sites on the
 heatmaps. Every log reports its recalls (started, got home, interrupted, share of bot-time spent
-recalling), under either recall rule; `--prereg bandstand` appends the pre-registered verdict of
+recalling), under either recall rule; logs with a finale add how many it ended at 8:00 and in
+sudden death; `--prereg bandstand` appends the pre-registered verdict of
 [`docs/economy-spec.md`](docs/economy-spec.md) §9.8, the first group read as P and each later one as O.
 
 **Cadence.** The runner is lockstep: the sim does not advance while a model is thinking, so a

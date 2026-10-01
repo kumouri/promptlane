@@ -20,6 +20,7 @@ import { DEFAULT_ECONOMY, attachEconomy, resolveBuilds, resolveEconomy, type Eco
 import { DEFAULT_OBJECTIVE, attachObjective, resolveObjective, type ObjectiveRules } from '../../src/objective';
 import { DEFAULT_RECALL, attachRecall, resolveRecall, type RecallRules } from '../../src/recall';
 import { DEFAULT_RESOLUTION, SEQUENTIAL, attachResolution, resolveResolution } from '../../src/resolution';
+import { DEFAULT_FINALE, attachFinale, resolveFinale, type EndReason, type FinaleRules } from '../../src/finale';
 import type { CallModel } from '../../src/pilots/callModel';
 import type { TracingDecision, TracingPilot } from './jevPilot';
 import { FIRST_MIN, resolveTargeting } from './jevSchemaPilot';
@@ -48,7 +49,8 @@ export { DEFAULT_OBJECTIVE, OBJECTIVES, RIVER_1, RIVER_2, RIVER_2_SET10, attachO
 export { DEFAULT_RECALL, RECALL_2, RECALL_RULES, attachRecall, getRecall, recallTotals, resolveRecall } from '../../src/recall';
 export { setRewardSink } from '../../src/ruleset/rewards';
 export { DEFAULT_RESOLUTION, RESOLUTIONS, SEQUENTIAL, SIMULTANEOUS_1, attachResolution, getResolution, resolveResolution } from '../../src/resolution';
-/** For the economy's, the objective's and the recall's rule tests (`test_economy.mjs`, `test_objective.mjs`, `test_recall.mjs`), which build matches by hand. */
+export { DEFAULT_FINALE, FINALES, FINAL_CHORUS_1, attachFinale, endReasonLabel, getFinale, resolveFinale } from '../../src/finale';
+/** For the economy's, the objective's, the recall's and the finale's rule tests (`test_economy.mjs`, `test_objective.mjs`, `test_recall.mjs`, `test_finale.mjs`), which build matches by hand. */
 export { Match, TICK_DT, applyMapVariant, checkpointOf };
 export { BASE, LANE_PATHS, pointAlongPath } from '../../src/sim/map';
 
@@ -108,6 +110,12 @@ export interface RunOptions {
    * match without one writes no `recall` field, so its log is exactly what it was before.
    */
   recall?: string | RecallRules | null;
+  /**
+   * Finale (`src/finale.ts`) — a name such as `'final-chorus-1'`, a rule object, or `'none'`.
+   * Default: `DEFAULT_FINALE` (none). Recorded in the log as `finale`; a match without one writes no
+   * `finale` field, so its log is exactly what it was before.
+   */
+  finale?: string | FinaleRules | null;
   /**
    * Tick resolution (`src/resolution.ts`): `'simultaneous-1'` or `'sequential'` (the specimen's own
    * order). Default: `DEFAULT_RESOLUTION`. Recorded in the log as `resolution` unless sequential, so
@@ -242,6 +250,7 @@ export async function runMatch(opts: RunOptions): Promise<MatchLog> {
   const objectiveRules = opts.objective === undefined ? DEFAULT_OBJECTIVE : resolveObjective(opts.objective);
   const recallRules = opts.recall === undefined ? DEFAULT_RECALL : resolveRecall(opts.recall);
   const resolution = opts.resolution === undefined ? DEFAULT_RESOLUTION : resolveResolution(opts.resolution);
+  const finaleRules = opts.finale === undefined ? DEFAULT_FINALE : resolveFinale(opts.finale);
   const targeting = resolveTargeting(opts.targeting);
   const stats: Record<Team, SideStats> = { violet: emptyStats(), green: emptyStats() };
   const totalMs: Record<Team, { value: number }> = { violet: { value: 0 }, green: { value: 0 } };
@@ -257,6 +266,7 @@ export async function runMatch(opts: RunOptions): Promise<MatchLog> {
     ...(economyRules && builds ? { economy: { ruleset: economyRules, builds } } : {}),
     ...(objectiveRules ? { objective: objectiveRules } : {}),
     ...(recallRules ? { recall: recallRules } : {}),
+    ...(finaleRules ? { finale: finaleRules } : {}),
     ...(resolution === SEQUENTIAL ? {} : { resolution }),
     ...(targeting === FIRST_MIN ? {} : { targeting }),
     backend: opts.backend,
@@ -295,12 +305,13 @@ export async function runMatch(opts: RunOptions): Promise<MatchLog> {
   match = new Match(opts.seed, roster);
   applyMapVariant(match, map);
   // Map, then resolution (before anything wraps the sim's steps), then recall, then objective,
-  // then economy: the recall hugs the sim's own tick (src/recall.ts) and the economy's steps run
-  // after the objective's update (§9.6).
+  // then economy, then finale: the recall hugs the sim's own tick (src/recall.ts), the economy's
+  // steps run after the objective's update (§9.6), and the finale reads the finished tick.
   attachResolution(match, resolution);
   const recall = recallRules ? attachRecall(match, recallRules, TICK_DT) : null;
   const objective = objectiveRules ? attachObjective(match, objectiveRules, TICK_DT) : null;
   const economy = economyRules && builds ? attachEconomy(match, economyRules, builds, TICK_DT) : null;
+  const finale = finaleRules ? attachFinale(match, finaleRules, TICK_DT) : null;
   log.idBase = idNumber(match.nexuses[0].id);
   opts.onStart?.(log);
 
@@ -360,6 +371,7 @@ export async function runMatch(opts: RunOptions): Promise<MatchLog> {
   if (economy) log.result.economy = economy.summary();
   if (objective) log.result.objective = objective.summary();
   if (recall) log.result.recall = recall.summary();
+  if (finale) log.result.finale = finale.summary();
   return log;
 }
 
@@ -369,7 +381,7 @@ export interface VerifyResult {
   checkpointsCompared: number;
   firstDivergenceTick: number | null;
   winner: Team | null;
-  endReason: 'nexus' | 'timeout' | null;
+  endReason: EndReason;
 }
 
 /**
@@ -421,6 +433,8 @@ export async function verifyReplay(
   const objectiveRules = resolveObjective(log.objective);
   if (objectiveRules) attachObjective(match, objectiveRules, TICK_DT);
   if (log.economy) attachEconomy(match, log.economy.ruleset, log.economy.builds, TICK_DT);
+  const finaleRules = resolveFinale(log.finale);
+  if (finaleRules) attachFinale(match, finaleRules, TICK_DT);
 
   const expected = new Map(log.checkpoints.map((c) => [c.tick, c.state]));
   let compared = 0;
@@ -445,7 +459,7 @@ export async function verifyReplay(
     checkpointsCompared: compared,
     firstDivergenceTick,
     winner: match.winner,
-    endReason: match.endReason,
+    endReason: match.endReason as EndReason,
   };
 }
 

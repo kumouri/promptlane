@@ -69,6 +69,10 @@ options:
                       ties within 0.5 units break side-symmetrically) or first-min (a plain min()
                       over float distances, every schema match before 2026-10-01); recorded in the
                       log unless first-min
+  --finale NAME       finale (src/finale.ts): final-chorus-1 (a tower lead at 8:00 wins; level
+                      towers start sudden death, structures take x3 damage and the first tower to
+                      fall wins) or none (the default: play to 10:00); recorded in the log, applied
+                      on --verify
   --quiet             no progress lines`;
 
 function parseArgs(argv) {
@@ -100,6 +104,7 @@ function parseArgs(argv) {
       case '--recall': args.recall = next(); break;
       case '--resolution': args.resolution = next(); break;
       case '--targeting': args.targeting = next(); break;
+      case '--finale': args.finale = next(); break;
       case '--verify': args.verify = next(); break;
       case '--quiet': args.quiet = true; break;
       case '-h': case '--help': args.help = true; break;
@@ -169,6 +174,7 @@ async function main() {
   const recall = args.recall === undefined ? headless.DEFAULT_RECALL : headless.resolveRecall(args.recall);
   const resolution = args.resolution === undefined ? headless.DEFAULT_RESOLUTION : headless.resolveResolution(args.resolution);
   const targeting = args.targeting === undefined ? headless.DEFAULT_TARGETING : headless.resolveTargeting(args.targeting);
+  const finale = args.finale === undefined ? headless.DEFAULT_FINALE : headless.resolveFinale(args.finale);
   if (!(args.cadence >= 0.5)) throw new Error('--cadence must be >= 0.5 (the game asks every 0.5 s)');
   if (args.maxSimSec !== undefined && !(args.maxSimSec > 0)) throw new Error('--max-sim-sec must be a positive number');
 
@@ -223,7 +229,7 @@ async function main() {
   if (jevBackend && backend !== jevBackend) backend = { ...backend, jevSchema: jevBackend };
 
   if (!args.quiet) {
-    console.error(`match: ${sides.violet.name} (violet) vs ${sides.green.name} (green) seed=${args.seed} cadence=${args.cadence}s map=${map.name} economy=${economy?.name ?? 'none'} objective=${objective?.name ?? 'none'} recall=${recall?.name ?? 'none'} resolution=${resolution}${schemaTeams.length ? ` targeting=${targeting}` : ''} backend=${backendLabel(backend)}`);
+    console.error(`match: ${sides.violet.name} (violet) vs ${sides.green.name} (green) seed=${args.seed} cadence=${args.cadence}s map=${map.name} economy=${economy?.name ?? 'none'} objective=${objective?.name ?? 'none'} recall=${recall?.name ?? 'none'} resolution=${resolution}${schemaTeams.length ? ` targeting=${targeting}` : ''} finale=${finale?.name ?? 'none'} backend=${backendLabel(backend)}`);
   }
   const started = Date.now();
   const log = await headless.runMatch({
@@ -238,6 +244,7 @@ async function main() {
     objective,
     recall,
     resolution,
+    finale,
     ...(schemaTeams.length ? { targeting } : {}),
     maxSimSec: args.maxSimSec,
     backend,
