@@ -612,6 +612,18 @@ the boss rush is part of this Jam.
 
 ## 7. Open questions for Ceryce
 
+**Ceryce's answers, Telegram, Thu 2026-10-01 18:42 CT** (verbatim where quoted):
+
+- **Q1 room/projector:** "There may be a room and a projector at the office but the main view will be
+  from separate computers." So the primary surface is each person's own screen (desktop first), with
+  `?cast=1` as a nice-to-have for a possible shared projector, not the main event.
+- **Q2 dates:** the Jam is **Fri 2026-10-16**; the cutoff is midnight Central going into the 16th
+  (her ruling 2026-09-30, entrants README; `teams.mjs` `submissions.cutoff`). The home page's
+  "Fri 2 Oct / Thu 1 Oct" was stale copy, fixed in #68.
+- **Q3 boss rush:** "Boss rush at this jam, yes." I12 needs a minimal version for 10-16, not after.
+- Q4 and Q5 are still open.
+
+
 1. **Is there a room, a projector or a stream at the Jam?** The repo says no shared screen, ever
    (F13). If there is one, I7 is worth more than its CSS slice before 10-16. If there isn't, the
    slice is enough and phone layout (I10) moves up.
