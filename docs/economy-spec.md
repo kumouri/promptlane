@@ -1989,7 +1989,14 @@ They were played before #56, on the sequential order.
 - **Caveats:**
   - The lines are pooled medians, and medium vs hard's own first item is 4:47. The entrant pairing
     carries the pass.
-  - Both presets were measured on the eco tiers from before #57. #57's walk-out-of-sight recalls
-    (§13.2) haven't been measured on either preset.
+  - Both presets were measured on the eco tiers from before #57 and on `first-min` targeting.
+- **The check on the shipping code:** [`runs/economy-eco3-check-2026-10-01.md`](../runs/economy-eco3-check-2026-10-01.md).
+  - It ran 12 medium-vs-hard matches on `eco-3`, each seed both ways, with today's tiers (#57, #60)
+    and `own-lane-1` (#62). It cost $1.40.
+  - Every line it can score passes. The house pairing's first item is 4:16, against 4:47 before.
+  - Income fell to 96.7 as tower gold collapsed, and items are thin (median 2, mean 1.85).
+  - Tiers and targeting changed together, so their effects can't be separated. The entrant pairing
+    wasn't re-run.
+  - Its recommendation is unchanged: ship `eco-3`, and on a GO flip the default to it.
 - **Recommendation for the gate: ship `eco-3`.** Nothing flips automatically. `DEFAULT_ECONOMY`
   stays none, and §6's conditions stay `eco-2` until Ceryce rules.

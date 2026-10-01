@@ -38,6 +38,14 @@
  * rather than mix the two: pass `--resolution sequential` to finish such a run as it started.
  * `--targeting` (tools/jev/target_resolve.py; default own-lane-1) works the same way, and a log
  * written before that option existed is `first-min`.
+ *
+ * `--both-sides` also plays every match with the sides swapped: medium green, its opponent violet,
+ * medium on its green file (`house-eco-green.md` / `house-green.md`, the arena's own; the schemas are
+ * the same). The swapped log is `...-<pairing>-vs-medium-seed<N>.json`, so it pairs (`metrics`'
+ * `pairKey`) only with another swapped log. Without it the plan is exactly the one above.
+ *
+ * `--date` may carry a run suffix (`--date 2026-10-01-check`), for a second run on a day that
+ * already has one: its logs, `economy-measure-2026-10-01-check-*`, can't match the first run's glob.
  */
 import { spawn } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
@@ -53,12 +61,12 @@ export const SEEDS = [7, 11, 42, 101, 3, 5, 13, 17, 23, 29, 31, 37];
 const P = 'prompts/pilots/';
 const SIDE_FILES = {
   plain: {
-    medium: { prompt: `${P}house-violet.md`, schemas: `${P}house-medium.schemas.json` },
+    medium: { prompt: `${P}house-violet.md`, green: `${P}house-green.md`, schemas: `${P}house-medium.schemas.json` },
     hard: { prompt: `${P}house-hard.prose.md`, schemas: `${P}house-hard.schemas.json` },
     entrant: { prompt: `${P}sample-entrant.prose.md`, schemas: `${P}sample-entrant.schemas.json` },
   },
   eco: {
-    medium: { prompt: `${P}house-eco-violet.md`, schemas: `${P}house-medium-eco.schemas.json` },
+    medium: { prompt: `${P}house-eco-violet.md`, green: `${P}house-eco-green.md`, schemas: `${P}house-medium-eco.schemas.json` },
     hard: { prompt: `${P}house-hard-eco.prose.md`, schemas: `${P}house-hard-eco.schemas.json` },
     entrant: { prompt: `${P}sample-entrant-eco.prose.md`, schemas: `${P}sample-entrant-eco.schemas.json` },
   },
@@ -77,20 +85,26 @@ export const DEFAULT_RESOLUTION = 'simultaneous-1';
 /** Mirrors DEFAULT_TARGETING in tools/match/jevSchemaPilot.ts (a test holds them equal). */
 export const DEFAULT_TARGETING = 'own-lane-1';
 
-export const logFile = (date, condition, pairing, seed) => `runs/economy-measure-${date}-${condition}-medium-vs-${pairing}-seed${seed}.json`;
+export const logFile = (date, condition, pairing, seed, swapped = false) =>
+  `runs/economy-measure-${date}-${condition}-${swapped ? `${pairing}-vs-medium` : `medium-vs-${pairing}`}-seed${seed}.json`;
 
 /** Every match of the plan, seed-major, as the `npm run match` arguments that play it. */
-export function planMeasurement({ date, jevSchema = 'http://127.0.0.1:8851/', seeds = SEEDS, conditions = Object.keys(CONDITIONS), pairings = Object.keys(PAIRINGS), recall = null, resolution = DEFAULT_RESOLUTION, targeting = DEFAULT_TARGETING, economy = null }) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date ?? '')) throw new Error('--date YYYY-MM-DD is required (it names the logs)');
+export function planMeasurement({ date, jevSchema = 'http://127.0.0.1:8851/', seeds = SEEDS, conditions = Object.keys(CONDITIONS), pairings = Object.keys(PAIRINGS), recall = null, resolution = DEFAULT_RESOLUTION, targeting = DEFAULT_TARGETING, economy = null, bothSides = false }) {
+  if (!/^\d{4}-\d{2}-\d{2}(-[a-z0-9]+)?$/.test(date ?? '')) throw new Error('--date YYYY-MM-DD[-run] is required (it names the logs)');
   const jobs = [];
   for (const seed of seeds) {
     for (const pairing of pairings) {
       if (!PAIRINGS[pairing]) throw new Error(`unknown pairing ${pairing} (known: ${Object.keys(PAIRINGS).join(', ')})`);
-      for (const condition of conditions) {
+      for (const condition of conditions) for (const swapped of bothSides ? [false, true] : [false]) {
         const c = CONDITIONS[condition];
         if (!c) throw new Error(`unknown condition ${condition} (known: ${Object.keys(CONDITIONS).join(', ')})`);
-        const [a, b] = PAIRINGS[pairing].map((side) => ({ name: side, ...SIDE_FILES[c.prompts][side] }));
-        const out = logFile(date, condition, pairing, seed);
+        const sides = PAIRINGS[pairing].map((side) => ({ name: side, ...SIDE_FILES[c.prompts][side] }));
+        if (swapped) {
+          sides.reverse();
+          sides[1].prompt = sides[1].green;
+        }
+        const [a, b] = sides;
+        const out = logFile(date, condition, pairing, seed, swapped);
         const ruleset = c.priced && economy ? economy : c.economy;
         const args = [
           '--a', a.prompt, '--a-schemas', a.schemas, '--name-a', a.name,
@@ -99,7 +113,7 @@ export function planMeasurement({ date, jevSchema = 'http://127.0.0.1:8851/', se
           '--economy', ruleset, '--resolution', resolution, '--targeting', targeting, '--out', out, '--quiet',
           ...(recall ? ['--recall', recall] : []),
         ];
-        jobs.push({ seed, pairing, condition, economy: ruleset, out, args });
+        jobs.push({ seed, pairing, condition, economy: ruleset, swapped, out, args });
       }
     }
   }
@@ -173,6 +187,7 @@ function parseArgs(argv) {
       case '--resolution': args.resolution = next(); break;
       case '--targeting': args.targeting = next(); break;
       case '--economy': args.economy = next(); break;
+      case '--both-sides': args.bothSides = true; break;
       case '--dry-run': args.dryRun = true; break;
       default: throw new Error(`unknown option ${a}`);
     }
@@ -214,7 +229,7 @@ async function main() {
         const started = Date.now();
         const { code, line } = await runOne(job);
         if (code !== 0) failed += 1;
-        console.log(`[${new Date().toISOString()}] ${job.condition} ${job.pairing} seed ${job.seed} exit ${code} ${Math.round((Date.now() - started) / 1000)}s ${line}`);
+        console.log(`[${new Date().toISOString()}] ${job.condition} ${job.pairing}${job.swapped ? ' (swapped)' : ''} seed ${job.seed} exit ${code} ${Math.round((Date.now() - started) / 1000)}s ${line}`);
       }
     };
     await Promise.all(Array.from({ length: args.parallel }, worker));
