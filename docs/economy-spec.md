@@ -1522,6 +1522,25 @@ on Jev, §9.8's lines unchanged, $1.39.
 - **What it needs before `recall-2` can be judged:** house tiers that walk out of reach before they
   recall.
 
+**Re-measurement with those tiers, on the fixed map.**
+[`runs/bandstand-3-2026-10-01.md`](../runs/bandstand-3-2026-10-01.md): `simultaneous-1`, sides
+balanced, 8 seed pairs, §9.8's lines unchanged, $2.28.
+
+- **The tiers now walk out of sight before they recall.** No `recall-2` channel was broken by
+  damage; most got home.
+- **As briefed (P2 vs O2): FAIL, 5 of 10.** Captures (median 4.0) and the split now pass, and team
+  fights rise 0 → 1.88 (CI above 0). The misses:
+  - team fights (1.88 against 4.6);
+  - PvP damage (96.5 against 161);
+  - the contested share (45.2 %);
+  - fights at the stage (0.88);
+  - first blood, which comes later with the objective.
+  - Every remaining death is a hard bot whose 90-hp trigger fires too late to leave on foot.
+- **`river-2` with the specimen recall, on the fixed map: 6 of 10.** That is down from 8. Deaths
+  under the killer's tower (79.2 %, from 11 deaths) and the capture split (37.5 %) now miss.
+- **Violet still takes most captures** (42–16 across both objective arms). Yet a scripted mirror
+  match with `river-2` and `recall-2` stays exact, so the cause is not the sim or the layers.
+
 ---
 
 ## 10. Sources
