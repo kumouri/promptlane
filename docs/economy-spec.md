@@ -62,7 +62,7 @@ All `file:line` references are on `develop` at `850c7c7`.
   - The bracket adds "fewer deaths" before tower hp (`tools/arena/rating.mjs:127-144`).
   - Recent test matches were mostly timeout draws.
 - **Jam shape.** It's 3v3 with the Jam roster (`src/replay.ts:26-33`): drums top, keytar mid and violin bottom on each side. Decisions come every 2 s (`tools/match/cli.mjs:53`). Entrants write prose, which the translator (`tools/jev/translator.py`) compiles into a cascade, and Jev answers each rule's yes/no question against a prose description of the observation (`tools/jev/fidelity_harness.py:93-146`).
-- **The sim is frozen.** `src/sim/*`, `src/rng.ts`, `src/pilots/*` and `src/types.ts` are the v1 specimen, with hashes in `runs/historical-v1.md`. Jam tooling drives the sim from outside (`tools/match/headless.ts:44-47` reaches the private `tick`). The balance study's `src/mapVariant.ts` (branch `feat/balance-pvp`) is the precedent for a ruleset change applied from outside.
+- **The sim is frozen.** `src/sim/*`, `src/rng.ts`, `src/pilots/*` and `src/types.ts` are the v1 specimen, with hashes in `runs/historical-v1.md`. Jam tooling drives the sim from outside (`tools/match/headless.ts:44-47` reaches the private `tick`). The balance study's `src/mapVariant.ts` (PR #48; `pvp-1` is `DEFAULT_MAP`) is the precedent for a ruleset change applied from outside.
 
 ---
 
@@ -389,13 +389,29 @@ is the next prompt (`prompts/v2.md`), not a patch. An external ruleset layer is 
 map variant is. If the economy proves out, it should be written into `prompts/v2.md` after the
 Jam (§8 Q11).
 
-### 3.10 How it composes with the PvP balance study (`feat/balance-pvp`)
+### 3.10 How it composes with the PvP balance study (PR #48, merged)
+
+The balance study is merged. `pvp-1` is `DEFAULT_MAP`: both towers of every lane are pulled back,
+and range stays 160. The findings that matter here come from `runs/balance-pvp-2026-09-30.md`
+(8 seed-paired Jev matches):
+
+- First kills came earlier, and swinginess rose (+31.5 per minute).
+- **Team fights fell, from 4.6 to 2.75 a match.** On v1, most team fights formed in the overlap of the two mid outer towers. That was the one point both teams had a reason to stand on, and `pvp-1` removed it.
+- The study names "a neutral objective that pulls the teams together" as the next step.
+
+eco-1 speaks to that gap without a new map feature. Tower gold is partly split among the bots
+present (§3.2) and XP is shared by proximity (§3.4), so a push pays whoever shows up, and the
+defenders have to show up too. Proximity assist credit (§3.2) does the same for kills.
+
+If a river objective is built later, it should pay the same way: a local pool split among the bots
+present, plus XP by proximity. That needs one entry in the constants file, not a new mechanism.
+The swinginess increase is why §6 sets a no-runaway line.
 
 - **The layers are independent.** The map variant moves and re-ranges towers before the first tick. The economy hooks the tick and the pilot. The order is `applyMapVariant` and then attach the economy. A log records both `map` and `economy`.
 - **Nothing in eco-1 touches tower range or placement, or bearbot attack range.** Those belong to the balance study.
   - Tower gold doesn't depend on where towers stand.
   - The local share's 300 radius is measured from the tower's actual position, so it follows any variant.
-- **The economy is measured on whatever map the balance study ships as `DEFAULT_MAP`.** That avoids confounding the two changes. If the balance study changes its map after the economy is tuned, one re-run of §6 condition B1 confirms the economy still passes.
+- **The economy is measured on `DEFAULT_MAP`, currently `pvp-1`.** That avoids confounding the two changes. If the balance study changes its map after the economy is tuned, one re-run of §6 condition B1 confirms the economy still passes.
 - **Respawn changes the balance study's world.** Its runs are measured where a death is final. Condition R in §6 (respawn only) shows how much of any change is down to respawn rather than gold. Tell the balance study's owner before that run.
 - **The metric tool needs two changes:**
   - it must allow more than one death per bot (`aliveSec`, first-blood logic);
@@ -665,7 +681,7 @@ Central Thu 10-15, and the Jam is Fri 10-16. Effort is agent working hours. Ever
 
 | Phase | Dates | Effort | Contents | Done when |
 |---|---|---|---|---|
-| **P0 Rulings** | Thu 10-01 | — | Ceryce answers §8. The balance study ships `DEFAULT_MAP`. | Rulings recorded in this spec |
+| **P0 Rulings** | Thu 10-01 | — | Ceryce answers §8. (The balance study's `pvp-1` already shipped as `DEFAULT_MAP`, PR #48.) | Rulings recorded in this spec |
 | **P1 Ruleset layer** | Thu 10-01 – Fri 10-02 | 12–16 h | `eco-1.json`, `src/economy.ts`, `src/attribution.ts`, respawn, items and levels, observation wrapper, auto-buy, log and checkpoint fields, wired into all five places that build a match, HUD, metric-tool respawn support. Tests: ledger arithmetic, determinism, replay of old logs unchanged, replay of eco logs verified. | `npm test` green; an eco-1 match replays OK; v1 logs bit-identical |
 | **P2 Decision surface** | Fri 10-02 – Sun 10-04 | 12–16 h | Translator `build` + selector + prompt items block + wire format (+ guard serialization), `describe_observation`, transparency, house tiers and worksheets, entrants README, template and compile preview, Elysium panel | Compile preview shows a shopping list; house bots shop |
 | **Gate** | **Sun 10-04, end of day** | — | **Go/no-go:** if P1 is not merged and P2 not in review, the Jam runs on map-only, and the economy moves to after the Jam. The entrant-facing text is not published. | Ceryce decides |
@@ -783,4 +799,5 @@ given so a later reader can see exactly what was cited.
 
 **Repo**
 - `src/sim/match.ts`, `src/sim/entities.ts`, `src/sim/map.ts` and `src/types.ts` at `850c7c7`.
-- `feat/balance-pvp` working tree (2026-09-30): `src/mapVariant.ts`, `tools/match/metrics.ts`.
+- PR #48 (balance study, merged 2026-09-30): `src/mapVariant.ts`, `tools/match/metrics.ts` and
+  `runs/balance-pvp-2026-09-30.md`.
