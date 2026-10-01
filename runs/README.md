@@ -29,6 +29,11 @@ full matches on Jev, logs `house-tiers-jev-2026-09-30-*.json`, plus the earlier 
 `house-tiers-2026-09-30-*.json` — both in a zip on the
 [`data-house-tiers-2026-09-30`](https://github.com/kumouri/promptlane/releases/tag/data-house-tiers-2026-09-30)
 release, not in git; compile reports `house-tiers-compile-*` and schemas `house-tiers-schemas-*`
-beside it).
+beside it), and
+[balance-pvp-2026-09-30.md](balance-pvp-2026-09-30.md) (tower range/placement vs PvP, measured on
+Jev: the house-tier logs plus 24 seed-paired matches on three maps; metrics, heatmaps
+`balance-pvp-2026-09-30-*` beside it, logs on the
+[`data-balance-pvp-2026-09-30`](https://github.com/kumouri/promptlane/releases/tag/data-balance-pvp-2026-09-30)
+release).
 The bulky captures those documents hash live under ignored `artifacts/<run>-evidence/` and
 `artifacts/<run>-reviewed/`.

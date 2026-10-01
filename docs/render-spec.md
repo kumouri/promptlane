@@ -49,7 +49,7 @@ From `src/sim/map.ts`, `src/sim/entities.ts`, `src/sim/match.ts`:
 | River | the band `\|x−y\| < 55` (the *other* diagonal), purely visual |
 | Lanes | `top`: via `(100,100)`; `mid`: the straight `(100,900)→(900,100)` diagonal; `bottom`: via `(900,900)` — always drawn violet-base → green-base |
 | Nexus | 1 per team, r=55, 2200 hp, at each base |
-| Tower | 12 total (2 tiers × 3 lanes × 2 teams), r=28, 900 hp, at path fractions 0.22/0.42 from each team's own base |
+| Tower | 12 total (2 tiers × 3 lanes × 2 teams), r=28, 900 hp, at path fractions 0.22/0.42 from each team's own base on the specimen map; a Jam map variant (`src/mapVariant.ts`, default `pvp-1`: 0.16/0.30) moves them before the first tick, and the renderer just draws `match.towers` |
 | Bearbot | 6 total, fixed roster: `{drums:top, keytar:mid, violin:bottom}` per side, r=14. Spawns at path fraction 0.08 (violet) / 0.92 (green) |
 | Minion | r=8, 60 hp, waves of 3 per team per lane (18/wave) every 30 sim-seconds, up to 20 waves in a 600 s match |
 | Sim tick | fixed 20 Hz (`TICK_DT = 0.05 s`) |
