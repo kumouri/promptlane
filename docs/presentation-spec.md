@@ -621,7 +621,10 @@ the boss rush is part of this Jam.
   (her ruling 2026-09-30, entrants README; `teams.mjs` `submissions.cutoff`). The home page's
   "Fri 2 Oct / Thu 1 Oct" was stale copy, fixed in #68.
 - **Q3 boss rush:** "Boss rush at this jam, yes." I12 needs a minimal version for 10-16, not after.
-- Q4 and Q5 are still open.
+- **Q4 probabilities** (18:45 CT): "Probabilities yes" — spectators see the yes-probabilities, not
+  only the rule in words.
+- **Q5 score wording** (18:45 CT): "towers taken" — the scoreboard counts towers taken, not towers
+  standing (overrides GPT's pick in I1).
 
 
 1. **Is there a room, a projector or a stream at the Jam?** The repo says no shared screen, ever
