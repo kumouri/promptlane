@@ -59,6 +59,10 @@ release), and
 and a Bandstand-state Jev mirror probe; logs and probe rows on the
 [`data-bandstand-4-2026-10-01`](https://github.com/kumouri/promptlane/releases/tag/data-bandstand-4-2026-10-01)
 release), and
+[bandstand-5-2026-10-01.md](bandstand-5-2026-10-01.md) (the first Bandstand read on the lane fix,
+`own-lane-1`, and §9.8's one tuning pass, `river-2-set10`; logs on the
+[`data-bandstand-5-2026-10-01`](https://github.com/kumouri/promptlane/releases/tag/data-bandstand-5-2026-10-01)
+release), and
 [economy-gate-2026-10-03.md](economy-gate-2026-10-03.md). That is the economy's §6 pre-registered
 gate: 96 matches on Jev across A, R, B0 and B1, scored line by line, with the tuning pass and the
 go / no-go for the 10-04 gate. Its metrics `economy-measure-2026-10-03-*` are beside it, and its

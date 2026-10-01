@@ -1558,6 +1558,26 @@ unchanged, $2.04.
   allied minion" is the start of the bot's own lane, and near-ties break side-symmetrically.
   `tools/match/test_targeting.mjs` drives it from both fountains of a real mirror match.)*
 
+**The lane fix, and §9.8's one tuning pass.**
+[`runs/bandstand-5-2026-10-01.md`](../runs/bandstand-5-2026-10-01.md): the same 8 slots, both arms
+on `own-lane-1`, $1.24.
+
+- **The pass took §9.8's first knob, a longer set:** `river-2-set10`, one bot fills it in 10 s
+  instead of 7.5 (×4/3, as 15 → 20 s), nothing else changed. P2 was played again too, because the
+  lane fix moves both arms.
+- **The violet lean is gone at this sample size:** captures 12–8, hard vs hard 2–1, first openings
+  2–2 (4 untaken).
+- **As pre-registered: FAIL, 6 of 10.** All four "in use" lines pass (contested 86.8 %, fights at
+  the stage 2.0 a match). The target misses (2.75 against 4.6, Δ CI wholly above 0). Three
+  keep-lines miss on their Δ-CI clause only, every level staying on `pvp-1`'s side.
+- **Against Bandstand 4's P2 (§9.8's "re-run O only"): 9 of 10**, only the target missing.
+- **Why the readings differ:** with every bot in its own lane, the no-objective game became lane
+  duels (0 team fights, first blood at 136 s). And §9.8's levels were set on `first-min` play.
+- **Hard vs hard is a mirror now.** P2's four hard-vs-hard matches are byte-identical, and in O2
+  equal numbers freeze the stage (15 of 16 openings closed untaken).
+- **Ceryce rules at the gate:** under Q17 (ship or cut), or by the letter (a keep-line still
+  regresses, so cut).
+
 ---
 
 ## 10. Sources

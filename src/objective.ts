@@ -29,6 +29,10 @@
  * - **the bigger group pushes** (`capture.contest: 'outnumber'`): with both teams on the stage, the
  *   team with more bots lowers the other team's progress at the margin's rate, but never raises its
  *   own while any enemy is on it. Equal numbers: nothing moves (river-1's freeze).
+ *
+ * `river-2-set10` is §9.8's one tuning pass on `river-2` (runs/bandstand-5-2026-10-01.md): its first
+ * knob, a longer set so contests last longer, scaled as §9.8 scales river-1's (15 -> 20 s, x4/3).
+ * One bot fills it in 10 s instead of 7.5; everything else is `river-2`.
  */
 import type { Observation, Team, Vec2 } from './types';
 import type { Match } from './sim/match';
@@ -38,6 +42,7 @@ import { deriveStats, setStatMultiplier } from './ruleset/stats';
 import { rewardSinkOf } from './ruleset/rewards';
 import RIVER_1_JSON from './objective/river-1.json';
 import RIVER_2_JSON from './objective/river-2.json';
+import RIVER_2_SET10_JSON from './objective/river-2-set10.json';
 
 export interface ObjectiveSite {
   id: string;
@@ -98,8 +103,13 @@ export interface ObjectiveRules {
 
 export const RIVER_1: ObjectiveRules = RIVER_1_JSON as ObjectiveRules;
 export const RIVER_2: ObjectiveRules = RIVER_2_JSON as ObjectiveRules;
+export const RIVER_2_SET10: ObjectiveRules = RIVER_2_SET10_JSON as ObjectiveRules;
 
-export const OBJECTIVES: Record<string, ObjectiveRules> = { [RIVER_1.name]: RIVER_1, [RIVER_2.name]: RIVER_2 };
+export const OBJECTIVES: Record<string, ObjectiveRules> = {
+  [RIVER_1.name]: RIVER_1,
+  [RIVER_2.name]: RIVER_2,
+  [RIVER_2_SET10.name]: RIVER_2_SET10,
+};
 
 /**
  * The objective new matches play with when the caller names none: none, until Ceryce's go/no-go at
