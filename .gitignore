@@ -31,3 +31,5 @@ __pycache__/
 /runs/bandstand-3-2026-10-01-*-seed*.json.*
 /runs/bandstand-4-2026-10-01-*-seed*.json
 /runs/bandstand-4-2026-10-01-*-seed*.json.*
+/runs/bandstand-5-2026-10-01-*-seed*.json
+/runs/bandstand-5-2026-10-01-*-seed*.json.*
