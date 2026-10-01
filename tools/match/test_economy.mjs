@@ -525,6 +525,20 @@ test('eco-2 is eco-1 with only the gold retuned (spec §13.1); both stay selecta
   );
 });
 
+test('eco-3 is eco-2 with only start gold, kill and assist pool changed (spec §13.6); eco-2 stays selectable', () => {
+  assert.equal(h.resolveEconomy('eco-3'), h.ECO_3);
+  assert.equal(h.resolveEconomy('eco-2'), h.ECO_2);
+  const { name: n2, gold: g2, ...rest2 } = h.ECO_2;
+  const { name: n3, gold: g3, ...rest3 } = h.ECO_3;
+  assert.deepEqual([n2, n3], ['eco-2', 'eco-3']);
+  assert.deepEqual(rest3, rest2, 'respawn, credit, xp, shop, items and default builds unchanged');
+  const { start: s2, kill: k2, assistPool: a2, ...other2 } = g2;
+  const { start: s3, kill: k3, assistPool: a3, ...other3 } = g3;
+  assert.deepEqual(other3, other2, 'every other gold price, the pools and the death drop unchanged');
+  assert.deepEqual([s2, k2, a2], [0, 400, 200]);
+  assert.deepEqual([s3, k3, a3], [100, 250, 125]);
+});
+
 test('respawn-1 (§6 condition R): a kill respawns the victim after 9 s and pays nothing; pilots see only who is respawning', async () => {
   const s = await midKill({ ruleset: h.RESPAWN_ONLY }, 0);
   const ev = s.eco.events.find((e) => e.kind === 'death');
@@ -545,6 +559,14 @@ test('an eco-2 match pays passive in whole coins at 0.75/s and replay-verifies',
   const log = await mock({ economy: 'eco-2', maxSimSec: 120 });
   assert.equal(log.economy.ruleset.name, 'eco-2');
   assert.ok(log.result.economy.bots.every((b) => b.earned.passive === 90), '120 s × 0.75');
+  assert.equal((await h.verifyReplay(log, flush)).ok, true);
+});
+
+test('an eco-3 match pays 100 start gold as passive at t = 0, records its ruleset and replay-verifies', async () => {
+  const log = await mock({ economy: 'eco-3', maxSimSec: 120 });
+  assert.equal(log.economy.ruleset.name, 'eco-3');
+  assert.deepEqual(log.economy.ruleset, h.ECO_3, 'the whole ruleset is in the log');
+  assert.ok(log.result.economy.bots.every((b) => b.earned.passive === 190), '100 + 120 s × 0.75');
   assert.equal((await h.verifyReplay(log, flush)).ok, true);
 });
 

@@ -187,6 +187,7 @@ test('matchKey covers the ruleset: map and economy change the key; a pre-ruleset
   assert.notEqual(k(pvp), k(legacy));
   assert.notEqual(k(pvp), k({ ...pvp, map: 'v1' }));
   assert.notEqual(k(pvp), k({ ...pvp, economy: 'eco-1' }));
+  assert.notEqual(k({ ...pvp, economy: 'eco-2' }), k({ ...pvp, economy: 'eco-3' }), 'each preset is its own cache');
   assert.equal(k(pvp), k({ ...pvp }));
   const { loadHeadless } = await import('../match/load.mjs');
   const headless = await loadHeadless();

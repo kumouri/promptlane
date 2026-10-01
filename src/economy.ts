@@ -30,6 +30,7 @@ import { deriveStats, setStatMultiplier } from './ruleset/stats';
 import { setRewardSink, type RewardSink } from './ruleset/rewards';
 import ECO_1_JSON from './economy/eco-1.json';
 import ECO_2_JSON from './economy/eco-2.json';
+import ECO_3_JSON from './economy/eco-3.json';
 import RESPAWN_1_JSON from './economy/respawn-1.json';
 
 /**
@@ -100,6 +101,11 @@ export const ECO_1: EconomyRuleset = ECO_1_JSON as EconomyRuleset;
  * The ruleset the §6 measurement plays.
  */
 export const ECO_2: EconomyRuleset = ECO_2_JSON as EconomyRuleset;
+/**
+ * The one constants pass §6.2 allows (spec §13.6): eco-2 with 100 start gold and a smaller PvP
+ * bounty (kill 250, assist pool 125). Everything else is eco-2's. Played by §6's B1 re-run.
+ */
+export const ECO_3: EconomyRuleset = ECO_3_JSON as EconomyRuleset;
 
 /**
  * §6 condition R, "map + respawn only": the economy layer with every gold and XP source at 0, so
@@ -108,7 +114,7 @@ export const ECO_2: EconomyRuleset = ECO_2_JSON as EconomyRuleset;
  */
 export const RESPAWN_ONLY: EconomyRuleset = RESPAWN_1_JSON as EconomyRuleset;
 
-export const ECONOMY_RULESETS: Record<string, EconomyRuleset> = { [ECO_1.name]: ECO_1, [ECO_2.name]: ECO_2, [RESPAWN_ONLY.name]: RESPAWN_ONLY };
+export const ECONOMY_RULESETS: Record<string, EconomyRuleset> = { [ECO_1.name]: ECO_1, [ECO_2.name]: ECO_2, [ECO_3.name]: ECO_3, [RESPAWN_ONLY.name]: RESPAWN_ONLY };
 
 /**
  * The economy new matches get when none is named: none, until Ceryce's go/no-go gate on Sun 10-04

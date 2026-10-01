@@ -141,7 +141,8 @@ fountain's three-way tie went to float noise and sent green's bots up the top la
 old rule. The log records the rule; a log without one played `first-min`.
 **Economy.** `--economy eco-2` plays the Jam economy: respawn, gold, levels, four items and a shop
 at base (`src/economy.ts`, every number in `src/economy/eco-2.json`; the design is
-`docs/economy-spec.md`). `eco-1` is P1's starting values, kept so older runs reproduce. It is off
+`docs/economy-spec.md`). `eco-3` is the spec's one tuning pass on it (§13.6: 100 start gold, a
+smaller kill bounty), the candidate for the Jam. `eco-1` is P1's starting values, kept so older runs reproduce. It is off
 by default until the Sun 10-04 go/no-go. Under an economy, `house:<tier>` plays that tier's
 economy-aware version (`prompts/pilots/README.md`). A schema side buys the
 shopping list its prose compiled to (`build`), else its instrument's default. The log records the

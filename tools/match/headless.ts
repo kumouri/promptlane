@@ -43,7 +43,7 @@ export { jevTracingPilot } from './jevPilot';
 export { jevTeamTracingPilot } from './jevTeamPilot';
 export { DEFAULT_TARGETING, FIRST_MIN, OWN_LANE_1, TARGETINGS, jevSchemaTracingPilot, resolveTargeting, targetingUnsupported } from './jevSchemaPilot';
 export { DEFAULT_MAP, MAP_VARIANTS, PVP_MAP, SPECIMEN_MAP, laneCoverage, resolveMap } from '../../src/mapVariant';
-export { DEFAULT_ECONOMY, ECONOMY_RULESETS, ECO_1, ECO_2, RESPAWN_ONLY, attachEconomy, getEconomy, resolveBuild, resolveEconomy } from '../../src/economy';
+export { DEFAULT_ECONOMY, ECONOMY_RULESETS, ECO_1, ECO_2, ECO_3, RESPAWN_ONLY, attachEconomy, getEconomy, resolveBuild, resolveEconomy } from '../../src/economy';
 export { DEFAULT_OBJECTIVE, OBJECTIVES, RIVER_1, RIVER_2, RIVER_2_SET10, attachObjective, getObjective, resolveObjective } from '../../src/objective';
 export { DEFAULT_RECALL, RECALL_2, RECALL_RULES, attachRecall, getRecall, recallTotals, resolveRecall } from '../../src/recall';
 export { setRewardSink } from '../../src/ruleset/rewards';
