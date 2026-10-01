@@ -51,6 +51,12 @@ The specimen sim's tower placement and range are frozen with it; Jam balance var
 (e.g. a neutral fighting stretch between opposing towers) are applied from outside the sim by
 `src/mapVariant.ts`, and each match log records the variant it was played on.
 
+The Jam economy — respawn, gold, levels, items, a shop at base — is the same kind of outside
+layer: `src/economy.ts` hooks the sim's tick and its pilots' observations without editing either,
+every number lives in one constants file (`src/economy/eco-1.json`), and a match log records the
+ruleset it was played under. Its design and Ceryce's rulings are `docs/economy-spec.md`. If it
+proves out, it belongs in the next game prompt after the Jam, since the prompt is the source.
+
 ## "One prompt" — what it means here
 
 - The **game** is built from one prompt (`prompts/initial_prompt.md`) handed to a coding agent. The

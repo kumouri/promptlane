@@ -24,7 +24,9 @@ jobs:
         run: |
           npm run match -- --a prompts/pilots/drums.md --b prompts/pilots/keytar.md --model mock --seed 7 --out artifacts/ci-smoke.json --quiet
           npm run match -- --verify artifacts/ci-smoke.json
-      - name: Map variants + match metrics (mock model)
+          npm run match -- --a prompts/pilots/drums.md --b prompts/pilots/keytar.md --model mock --seed 7 --economy eco-1 --out artifacts/ci-smoke-eco.json --quiet
+          npm run match -- --verify artifacts/ci-smoke-eco.json
+      - name: Map variants + match metrics + economy rules (mock model)
         run: npm run test:match
       - name: Arena unit + headless end-to-end (mock model)
         run: npm run test:arena

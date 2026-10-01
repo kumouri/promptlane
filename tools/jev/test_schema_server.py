@@ -193,5 +193,25 @@ class JevBackendTests(unittest.TestCase):
         self.assertNotIn("sk-test", json.dumps(snap))
 
 
+class EconomyObservationTests(unittest.TestCase):
+    def test_economy_facts_reach_jev_and_build_does_not_disturb_the_decision(self):
+        obs = json.loads(json.dumps(OBS))
+        obs["self"].update(gold=340, goldAtRisk=340, deathLoss=170, deathPayout=170, bounty=470, level=3, xp=230,
+                           xpToNext=130, items=["amp"], slotsFree=2, nextItem={"item": "bass-strings", "cost": 350}, atShop=False)
+        obs["respawning"] = [{"id": "bb-6", "team": "green", "inSec": 7}]
+        jev = FakeJev({"enemy_near"})
+        out = JevSchemaBackend(jev).decide({"schema": {**SCHEMA, "build": ["amp", "bass-strings"]}, "observation": obs})
+        self.assertEqual(out["rule"], "enemy_near")
+        self.assertIn("level 3", jev.last_state)
+        self.assertIn("killing it is worth 470 gold", jev.last_state)
+        self.assertIn("Enemy bb-6 respawns in 7 s.", jev.last_state)
+
+    def test_an_observation_without_economy_fields_is_described_as_before(self):
+        jev = FakeJev(set())
+        JevSchemaBackend(jev).decide({"schema": SCHEMA, "observation": OBS})
+        for word in ("gold", "level", "Items", "respawns", "shop"):
+            self.assertNotIn(word, jev.last_state)
+
+
 if __name__ == "__main__":
     unittest.main()

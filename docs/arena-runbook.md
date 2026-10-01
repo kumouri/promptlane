@@ -63,6 +63,7 @@ The entrants poller shells out to `gh api` for `kumouri/jamobair-entrants` (`mai
 |---|---|
 | `tournament.backend` | which `backends` entry ranked matches and tests use — **the per-tournament model setting**; it is recorded in every match log (`backend.model`) and every `finished` ledger row. `jev-schema` (a `kind: "jev-schema-http"` entry) = both sides on Jev, §1c; `qwen9b` = the old text-model ladder |
 | `tournament.map` | the map variant every match plays (`pvp-1`); checked at startup. Unset = the runner's `DEFAULT_MAP` |
+| `tournament.economy` | the economy ruleset every match plays: `null`/unset (none) or a name such as `"eco-1"` (`src/economy.ts`, `docs/economy-spec.md`): respawn, gold, levels and items. Off until Ceryce's Sun 10-04 go/no-go; checked at startup. A side buys the shopping list (`build`) its compiled schema carries, else its instrument's default. Each log records the ruleset, so changing it never alters a match already played |
 | `tournament.cadenceSec` / `maxSimSec` | ranked matches: cadence 2, full 600 s |
 | `tournament.quick` | quick tests: 3 sim-min at cadence 4 (ruling Q10) |
 | `tournament.placementSeeds` | `[7, 11, 42]` (Q14); sides alternate violet/green/violet (Q15) |

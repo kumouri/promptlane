@@ -196,6 +196,24 @@ clause the prose marks for another instrument (`keytar only: …`) is set aside 
 the prose, and any rule that still fires another instrument's ability is removed at schema assembly.
 See [`translator-guards-and-defaults-spec.md` §10](translator-guards-and-defaults-spec.md#10-instrument-scope--the-schema-assembly-guard-against-cross-instrument-leaks-2026-09-30).
 
+**Shopping list (`build`), added with the economy.** The schema also carries `build`: an ordered
+tuple of at most `shop.slots` unique item keys, or `None` for "the prose names no items" (the
+economy layer then buys the instrument's default build). Everything about items comes from
+`src/economy/eco-1.json` through `tools/jev/economy_rules.py`; nothing is copied. The translation
+prompt gets an items block generated from that file (key, name, cost, what it gives, what it gives
+up, one line each) plus the instruction *"If the prose names items or a shopping order, emit
+"build" in that order; otherwise omit it."* The model's `build` is run through
+`economy_rules.normalize_build`: names match an item's key or display name case-insensitively and
+tolerate punctuation, spacing, "the"/"a" and a plural "s" (the item-name counterpart of
+`number_normalize.py`); an unknown or repeated item is dropped and a list longer than the slot count
+is cut, each with a `build:` note in `validation_notes`. A list with nothing usable left becomes
+`None`. No new target selector was added. The transparency view prints "Shopping list: Amp → Bass
+Strings → Road Case (from your prose)" or "(default for keytar — your prose names no items)", and
+`describe_observation` (`fidelity_harness.py`) states the economy fields (`gold`, `level`, items,
+bounty, respawns, ...) in plain sentences whenever an observation carries them, so a rule such as
+"can this bot afford its next item?" is answerable. Observations without those fields are described
+byte-for-byte as before. See `docs/economy-spec.md` §4.1, §4.3 and §4.5.
+
 ## 3. Evaluation harness and methodology
 
 **Why synthetic Observations, not replayed match logs.** The obvious plan — replay

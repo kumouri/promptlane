@@ -187,7 +187,9 @@ It reads the repository secret `OPENROUTER_API_KEY`. Until an organizer adds it,
 **Reproduces the checked-in runs, byte for byte.** `tools/jev/test_compile.py` parses each
 checked-in transparency run (drums, keytar, violin, and keytar's ORIGINAL bad compile) back into
 the schema it rendered. It then feeds that schema through `compile.py` exactly as an entrant's
-prose would go, and requires identical output. All four pass.
+prose would go, and requires identical output. All four pass. *(Since economy P1 the view has one
+more line, "Shopping list: ...", that these runs predate; the test removes that line before the
+byte comparison and checks it separately.)*
 
 **Live compiles.** Translation is sampled, so a live compile can't be byte-compared.
 `runs/entrant-compile-{drums,keytar,violin}-{ollama,openrouter}-2026-09-25.md` are six live compiles
@@ -267,6 +269,11 @@ whole tree: a guard sits inline in `rules` as `{"type": "guard", ..., "then": {"
 `test_compile.GuardNodesSurviveTheSavePathTests` pins it end to end (compile → JSON → server → the
 questions Jev is asked). No checked-in compile was affected: none of the 1,629 compiled schemas in
 `runs/`, the evolve-campaign store or the entrants repo had a guard in its view.
+
+**Added with the economy: `build` on the wire, `FORMAT_VERSION` 2.** `schema_to_dict` also writes
+`"build"` (a list of `eco-1.json` item keys, or `null` for the instrument's default build). A
+version-1 dict has no `build` and reads as `null`, so saved v1 schemas still load.
+`--format json` reports `"version": 2`. See [`prose-to-schema-translator.md`](prose-to-schema-translator.md).
 
 ## Not done / known limits
 

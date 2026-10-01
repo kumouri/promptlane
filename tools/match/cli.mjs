@@ -49,6 +49,10 @@ options:
   --jev-schema URL    tools/jev/schema_server.py endpoint for the schema sides (the Jam backend)
   --map NAME          map variant (src/mapVariant.ts): pvp-1 (the default, DEFAULT_MAP there),
                       v1 (the specimen map) or pvp-1r; recorded in the log, applied on --verify
+  --economy NAME      economy ruleset (src/economy.ts): eco-1, or none (the default until the
+                      Sun 10-04 go/no-go). Respawn, gold, levels, items; each schema side buys the
+                      \`build\` its prose compiled to, else its instrument's default. Recorded in the
+                      log with every bot's shopping list, applied on --verify
   --quiet             no progress lines`;
 
 function parseArgs(argv) {
@@ -75,6 +79,7 @@ function parseArgs(argv) {
       case '--b-schemas': args.bSchemas = next(); break;
       case '--jev-schema': args.jevSchema = next(); break;
       case '--map': args.map = next(); break;
+      case '--economy': args.economy = next(); break;
       case '--verify': args.verify = next(); break;
       case '--quiet': args.quiet = true; break;
       case '-h': case '--help': args.help = true; break;
@@ -85,6 +90,8 @@ function parseArgs(argv) {
 }
 
 const INSTRUMENTS = ['drums', 'keytar', 'violin'];
+/** The Jam roster's team per bot index (src/replay.ts JAM_ROSTER: violet 0–2, green 3–5; instruments repeat drums, keytar, violin). */
+const ROSTER_TEAMS = ['violet', 'violet', 'violet', 'green', 'green', 'green'];
 
 /**
  * One schema per instrument from a `--a-schemas`/`--b-schemas` file: either `compile.py --format
@@ -137,6 +144,7 @@ async function main() {
   }
   if (!Number.isFinite(args.seed)) throw new Error('--seed must be a number');
   const map = args.map === undefined ? headless.DEFAULT_MAP : headless.resolveMap(args.map);
+  const economy = args.economy === undefined ? headless.DEFAULT_ECONOMY : headless.resolveEconomy(args.economy);
   if (!(args.cadence >= 0.5)) throw new Error('--cadence must be >= 0.5 (the game asks every 0.5 s)');
   if (args.maxSimSec !== undefined && !(args.maxSimSec > 0)) throw new Error('--max-sim-sec must be a positive number');
 
@@ -188,7 +196,7 @@ async function main() {
   if (jevBackend && backend !== jevBackend) backend = { ...backend, jevSchema: jevBackend };
 
   if (!args.quiet) {
-    console.error(`match: ${sides.violet.name} (violet) vs ${sides.green.name} (green) seed=${args.seed} cadence=${args.cadence}s map=${map.name} backend=${backendLabel(backend)}`);
+    console.error(`match: ${sides.violet.name} (violet) vs ${sides.green.name} (green) seed=${args.seed} cadence=${args.cadence}s map=${map.name} economy=${economy?.name ?? 'none'} backend=${backendLabel(backend)}`);
   }
   const started = Date.now();
   const log = await headless.runMatch({
@@ -198,6 +206,8 @@ async function main() {
     decisionPilotFor,
     cadenceSec: args.cadence,
     map,
+    economy,
+    buildFor: (i) => schemas[ROSTER_TEAMS[i]]?.[INSTRUMENTS[i % 3]]?.build,
     maxSimSec: args.maxSimSec,
     backend,
     flush,

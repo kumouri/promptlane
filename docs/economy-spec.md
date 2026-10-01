@@ -2,7 +2,9 @@
 
 **Status:** P1's blocking questions are ruled: Q1, Q2, Q3, Q4 and Q10 (Telegram, 2026-09-30
 20:35–20:37 CT; §8). The spec body below reads against those rulings. Q5–Q9 and Q11–Q17 are still
-open, and Q14–Q17 block the river objective (§9). Spec only; nothing here is built yet.
+open, and Q14–Q17 block the river objective (§9). **P1 (§7) is built**, off by default until the
+Sun 10-04 gate; §11 records how it was built and the choices the spec left open. P2 onward and the
+river objective are not built.
 **Written:** 2026-09-30, after Ceryce chose "minimal economy before the jam" (19:57 CT). §9, the
 neutral river objective, was added the same evening after she backed the idea (20:34 CT).
 **Jam:** Fri 2026-10-16. Entry cutoff is midnight Central on Thu 10-15. Sign-ups close Tue 10-06.
@@ -356,7 +358,8 @@ measured against (§3.10).
 
 One file, `src/economy/eco-1.json`, is read by the TypeScript layer, the Python translator and serializers, the
 house bots, and the generator for the README table. Changing a number is an edit to that file plus
-a new ruleset name, not a code change.
+a new ruleset name, not a code change. (As built, each item also carries its `gives` and `givesUp`
+text, which the translator prompt and Jev's description read; the block below shows the numbers.)
 
 ```json
 {
@@ -417,7 +420,7 @@ This is a ruleset layer, the same shape as `src/mapVariant.ts`. Nothing in `src/
 | Ability cooldown −30 % | After each tick, a cooldown that *rose* means a cast just happened. Scale what remains. | — |
 | Respawn | Between ticks, set `alive`, `hp`, `pos`, `recalling`, `buffs` and targets. Set the bot's private `pilotState.currentAction` to `hold`, reached by a cast exactly as `headless.ts` reaches `tick`. A revived bot is polled again on the next tick, because `pollPilots` skips only dead bots. | `headless.ts:44-47` |
 | New observation fields | Wrap `pilot.decide(obs)` so the observation is extended before the pilot sees it. | `RunOptions.decisionPilotFor` (`headless.ts:63`) |
-| Replay | The log records `economy: { name, builds }`. `checkpointOf` adds per-bot `[gold, xp, items]` **only when the log has an economy**, so every existing log replays bit-identically. | `MatchLog.map` in balance-pvp |
+| Replay | The log records `economy: { ruleset, builds }`: the whole ruleset object, as `MatchLog.map` records the whole variant, so retuning `eco-1.json` can never change an old replay. `checkpointOf` adds per-bot `[atRisk, safe, xp, items]` **only when the log has an economy**, so every existing log replays bit-identically. | `MatchLog.map` in balance-pvp |
 
 **Where it must be applied.** Everywhere a match is built:
 - `tools/match/headless.ts`, in **both** `runMatch` and `verifyReplay`, which have duplicate tick loops;
@@ -480,6 +483,7 @@ unchanged.
     "gold": 340,                 // unspent, both pools
     "goldAtRisk": 340,           // the part a death can take; equals gold under the default (§3.3)
     "deathLoss": 170,            // what you would lose if you died now
+    "deathPayout": 170,          // how much of that loss the killers would get (floor(toKillers × deathLoss))
     "bounty": 470,               // what killing you pays the enemy team: 200 + 100 + floor(toKillers × deathLoss)
     "level": 3, "xp": 230, "xpToNext": 130,
     "items": ["amp"], "slotsFree": 2,
@@ -1341,3 +1345,57 @@ given so a later reader can see exactly what was cited.
 - `src/sim/match.ts`, `src/sim/entities.ts`, `src/sim/map.ts` and `src/types.ts` at `850c7c7`.
 - PR #48 (balance study, merged 2026-09-30): `src/mapVariant.ts`, `tools/match/metrics.ts` and
   `runs/balance-pvp-2026-09-30.md`.
+
+---
+
+## 11. P1 as built
+
+PR "feat(economy): P1 ruleset layer" (2026-09-30), on `develop` after #47 and #50. What the spec
+above did not decide, and what the build decided, so a later tuning pass knows what is a rule and
+what is a default:
+
+- **Where things live.** `src/economy.ts` (the layer), `src/economy/eco-1.json` (every number),
+  `src/attribution.ts` (damage attribution, extracted from `tools/match/metrics.ts` and shared),
+  `tools/jev/economy_rules.py` (the translator's reader of the same JSON). Tests:
+  `tools/match/test_economy.mjs` (one per rule, plus replay determinism) and
+  `tools/jev/test_economy_rules.py`.
+- **Off by default.** `DEFAULT_ECONOMY` is none until the Sun 10-04 gate (Q10). Opt in with
+  `npm run match -- --economy eco-1`, the arena's `tournament.economy`, or an evolve campaign's
+  `shape.economy`.
+- **Open questions built at the recommendation, as constants:** Q5 (five levels, +8 % hp and attack
+  damage, no choice), Q6 (0.5 gold/s into the at-risk pool), Q7 (no comeback mechanic), Q9 (enemy
+  items visible). Q8 (tiebreak) is untouched: the sim's tiebreak is frozen and the bracket's is the
+  arena's.
+- **Choices the spec left open:**
+  - *Amp and levels scale basic attacks only.* Ability damage comes from the sim's shared
+    `INSTRUMENTS` table, so scaling it needs a wrapper (§3.9); P1 leaves abilities at base.
+  - *Respawn resets ability cooldowns to ready* and clears buffs, targets and recall; the bot comes
+    back holding and is asked again on its next tick.
+  - *Passive gold is paid to dead bots too*, in whole coins (one coin every 2 s at 0.5/s), so there
+    is no fractional gold anywhere.
+  - *Several deaths in one tick resolve in roster order*, each against the victim's gold at that
+    moment; a bot killed in the same tick it was paid a drop can lose part of that drop.
+  - *XP goes to every credited bot, dead or alive.* Kill XP goes to the killer and assisters even if
+    one of them died in the same exchange; tower and minion XP go to living bots in range.
+  - *Remainders.* The drop's remainder goes to the killer (§3.3). The assist pool's and the tower
+    local pool's go to the first recipient in roster order.
+  - *An item already owned is passed over*, never bought twice, even if it appears on the list.
+  - *Stats are re-derived every tick* from instrument base × level × items; a bot with no levels
+    and no items gets its exact base values back, so the layer never drifts a stat.
+- **Observation.** §4.1 as written, plus `deathPayout`. `describe_observation` turns the fields into
+  sentences for Jev, and an observation without them reads exactly as before.
+- **Translator.** `build` on the schema (validated, wire format v2), an items block in the prompt
+  generated from `eco-1.json`, and a "Shopping list:" line in the transparency view. The
+  `highest_bounty_enemy` selector, the house worksheet keys and tiers, and the entrant README and
+  template are P2 and are not built.
+- **Metrics.** A log with an economy is measured with the economy attached: bots can die more than
+  once, gold is the real ledger, and `economy` carries the §6.2 numbers (gold per minute by source,
+  PvP share of earned gold, items, first item time, carried gold at death, gold-diff share at 6:00,
+  comeback). Shopping recalls are not measured yet.
+- **Evolve.** A campaign's `shape` now names `map` and `economy`, every match plays them explicitly,
+  and `matchKey` hashes them with the sim version (§7 P4). A campaign created before this keeps its
+  old keys, so its cache stays valid.
+- **Jev smoke** (3 full matches, $0.236): [`runs/economy-p1-smoke-2026-09-30.md`](../runs/economy-p1-smoke-2026-09-30.md).
+  Earn, buy, die, drop to the killers and respawn all happen on Jev, and every log replay-verifies.
+  With prompts that ignore the economy, deaths were rare (0, 1 and 7) and income in the two quiet
+  matches was well under the §3.2 band.

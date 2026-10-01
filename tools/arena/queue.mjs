@@ -125,10 +125,12 @@ export class Queue {
    * @param opts.schemaCache SchemaCache (`schemas.mjs`) — compiles entrant prose for Jev backends
    * @param opts.map         map variant name for every match (`tournament.map`); unset = the runner's DEFAULT_MAP
    * @param opts.live        LiveHub (optional) — running jobs stream their events into it
+   * @param opts.economy     economy ruleset name for every match (`tournament.economy`, src/economy.ts);
+   *                         null/unset = none (the default until the Sun 10-04 gate)
    * @param opts.hooks       test seams: `afterRun(log, job)` may replace the log before verify;
    *                         `callModelFor(job)` replaces the adapter; `wallCapMs` overrides the cap
    */
-  constructor({ ledger, backends, headless, dataDir, promptStore, house, schemaCache = null, map = null, live = null, log = console, hooks = {} }) {
+  constructor({ ledger, backends, headless, dataDir, promptStore, house, schemaCache = null, map = null, live = null, economy = null, log = console, hooks = {} }) {
     this.ledger = ledger;
     this.backends = backends;
     this.headless = headless;
@@ -140,6 +142,7 @@ export class Queue {
     this.schemaCache = schemaCache;
     this.map = map;
     this.live = live;
+    this.economy = economy;
     this.log = log;
     this.hooks = hooks;
     /** id → { startedAt, progress } for jobs in flight */
@@ -355,6 +358,16 @@ export class Queue {
     return (botIndex, team) => (team === side ? pilot : undefined);
   }
 
+  /**
+   * The shopping list a bot buys in an economy match: the `build` its side's compiled schema carries
+   * (a Jev match's schemas, or a practice side's own compile), else undefined = the instrument default.
+   */
+  buildFor(job, sides, botIndex) {
+    const team = botIndex < 3 ? 'violet' : 'green';
+    const schemas = sides[team]?.schemas ?? (job.sides[team]?.practice ? job.practice?.schemas : undefined);
+    return schemas?.[['drums', 'keytar', 'violin'][botIndex % 3]]?.build;
+  }
+
   resolveSide(ref, id, side) {
     if (ref.scratch) {
       const f = path.join(this.scratchDir, `${id}.md`);
@@ -470,6 +483,8 @@ export class Queue {
         decisionPilotFor,
         cadenceSec: job.cadenceSec,
         maxSimSec: job.maxSimSec,
+        economy: this.economy ?? 'none',
+        buildFor: (i) => this.buildFor(job, sides, i),
         backend: logBackend,
         ...(this.map ? { map: this.map } : {}),
         flush,

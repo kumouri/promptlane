@@ -49,7 +49,11 @@ export const MUTATION_FOCI = [
 export const DEFAULT_CAMPAIGN = {
   version: STORE_VERSION,
   seed: 1,
-  shape: { cadenceSec: 2, maxSimSec: 600 },
+  // The ruleset is part of the shape: every match plays it explicitly (`--map`, `--economy`) and the
+  // cache key hashes it, so a later change to the runner's defaults can't leak into a campaign or
+  // reuse a match played under other rules. `map` mirrors DEFAULT_MAP (src/mapVariant.ts; a test
+  // holds them equal); `economy` is none until the Sun 10-04 gate (src/economy.ts DEFAULT_ECONOMY).
+  shape: { cadenceSec: 2, maxSimSec: 600, map: 'pvp-1', economy: 'none' },
   evaluation: { seedsPerEpoch: 4 },
   population: { parents: 2, childrenPerParent: 2 },
   // hall of fame capped at the last 3 champions: ruled 2026-09-30 01:50 CT (spec §10 Q2)
@@ -118,8 +122,21 @@ export function promotionSeeds(campaign, epoch) {
   return Array.from({ length: campaign.epoch.promotionSeeds }, (_, i) => deriveSeed(campaign.seed, 'promotion', epoch, 'seed', i));
 }
 
+/** The frozen specimen sim (`src/sim/*`, hashes in runs/historical-v1.md). A new sim is a new name. */
+export const SIM_VERSION = 'specimen-v1';
+
+/**
+ * The cache key of one match. A campaign whose shape names its ruleset (every campaign created
+ * since the economy) hashes the sim, map and economy too, so a match played under one ruleset is
+ * never reused under another. A campaign created before that has no ruleset in its shape and keeps
+ * the key it always had, so its cache stays valid; its matches still play the runner's defaults.
+ */
 export function matchKey({ violet, green, seed, shape }) {
-  return sha256([violet, green, seed, shape.cadenceSec, shape.maxSimSec].join('|')).slice(0, 16);
+  const parts = [violet, green, seed, shape.cadenceSec, shape.maxSimSec];
+  if (shape.map !== undefined || shape.economy !== undefined) {
+    parts.push(`sim=${SIM_VERSION}`, `map=${shape.map ?? 'default'}`, `economy=${shape.economy ?? 'default'}`);
+  }
+  return sha256(parts.join('|')).slice(0, 16);
 }
 
 /** Both sides of every seed, the candidate first as violet: the plan order is the fold order. */

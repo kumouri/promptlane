@@ -35,6 +35,15 @@ CHECKED_IN = {
 }
 KEYTAR_BAD = RUNS / "jev-translator-transparency-keytar-ORIGINAL-bad-compile-2026-09-23.md"
 
+# The checked-in runs predate the shopping-list line, so they are compared without it; the line
+# itself is tested in test_transparency.py and below.
+_SHOPPING = re.compile(r"\nShopping list: [^\n]*\n")
+
+
+def _without_shopping_line(md: str) -> str:
+    return _SHOPPING.sub("", md, count=1)
+
+
 _SELECTOR_BY_DESC = {v: k for k, v in TARGET_SELECTORS.items()}
 
 
@@ -85,7 +94,9 @@ class ReproducesCheckedInRunsTests(unittest.TestCase):
         entry = C.compile_instrument(text, f"prompts/pilots/{instrument}.md", instrument, backend=None, schema=schema)
         self.assertTrue(entry["ok"], entry.get("error"))
         self.assertEqual(entry["labels"], "hand")
-        self.assertEqual(entry["markdown"], expected)
+        self.assertIn(f"Shopping list: ", entry["markdown"])
+        self.assertIn(f"(default for {instrument} — your prose names no items)", entry["markdown"])
+        self.assertEqual(_without_shopping_line(entry["markdown"]), expected)
 
     def test_drums(self):
         self._check("drums", CHECKED_IN["drums"])
@@ -110,7 +121,7 @@ class ReproducesCheckedInRunsTests(unittest.TestCase):
             rc = C.main([str(PILOTS / "drums.md"), "--schema-in", str(f), "--out", str(out)])
             self.assertEqual(rc, 0)
             rendered = out.read_text(encoding="utf-8")
-        self.assertTrue(rendered.endswith(CHECKED_IN["drums"].read_text(encoding="utf-8")))
+        self.assertTrue(_without_shopping_line(rendered).endswith(CHECKED_IN["drums"].read_text(encoding="utf-8")))
         self.assertIn("saved schema (no model call)", rendered)
 
 
@@ -194,7 +205,7 @@ class EntrantProseTests(unittest.TestCase):
                     rc = C.main([str(f), "--format", "json"])
                 self.assertEqual(rc, 0)
                 data = json.loads(buf.getvalue())
-                self.assertEqual(data["version"], 1)
+                self.assertEqual(data["version"], 2)
                 self.assertEqual(data["cap_tokens"], C.DEFAULT_MAX_TOTAL_TOKENS)
                 self.assertEqual(data["usage"]["calls"], 3)
                 self.assertEqual(sorted(data["prompts"][0]["instruments"]), sorted(C.INSTRUMENTS))
@@ -319,3 +330,48 @@ class GuardNodesSurviveTheSavePathTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BuildWireFormatTests(unittest.TestCase):
+    """`build` is on the wire (FORMAT_VERSION 2): a list or null, and a v1 dict without the key still
+    loads as "no build"."""
+
+    def _schema(self, build):
+        rule = TranslatedRule("r1", "is hp low?", "low", "ok", "recall", None, "none")
+        return TranslatedSchema(pilot_file="p.md", instrument="keytar", raw_model_output="", rules=[rule],
+                                default_kind="move", default_ability=None, default_target_selector="push_lane", build=build)
+
+    def test_format_version_is_2(self):
+        self.assertEqual(C.FORMAT_VERSION, 2)
+
+    def test_build_round_trips_as_a_list(self):
+        d = C.schema_to_dict(self._schema(("amp", "bass-strings", "road-case")))
+        self.assertEqual(d["build"], ["amp", "bass-strings", "road-case"])
+        back = C.schema_from_dict(json.loads(json.dumps(d)))
+        self.assertEqual(back.build, ("amp", "bass-strings", "road-case"))
+        self.assertEqual(C.schema_to_dict(back), d)
+
+    def test_no_build_is_written_as_null_and_reads_back_none(self):
+        d = C.schema_to_dict(self._schema(None))
+        self.assertIn("build", d)
+        self.assertIsNone(d["build"])
+        self.assertIsNone(C.schema_from_dict(d).build)
+
+    def test_a_version_1_dict_without_build_still_loads(self):
+        d = C.schema_to_dict(self._schema(None))
+        del d["build"]
+        loaded = C.schema_from_dict(d)
+        self.assertIsNone(loaded.build)
+        self.assertEqual([r.id for r in loaded.rules], ["r1"])
+
+    def test_compiled_build_reaches_the_saved_schema(self):
+        reply = json.loads(_reply("keytar"))
+        reply["build"] = ["The Amp", "bass strings", "Tip Jar"]
+        entry = C.compile_instrument("Buy the Amp, then Bass Strings.", "pilot.md", "keytar",
+                                     ScriptedBackend([json.dumps(reply)], budget=TokenBudget(None)))
+        self.assertTrue(entry["ok"], entry.get("error"))
+        self.assertEqual(entry["schema"]["build"], ["amp", "bass-strings"])
+        self.assertTrue(any("Tip Jar" in n for n in entry["schema"]["validation_notes"]))
+        self.assertIn("Shopping list: Amp → Bass Strings (from your prose)", entry["markdown"])
+        self.assertIn("## Shopping list — what was changed", entry["markdown"])
+        self.assertNotIn("Automatic priority fixes", entry["markdown"])

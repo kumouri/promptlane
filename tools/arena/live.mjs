@@ -87,7 +87,7 @@ export class LiveHub {
 
 /** The `meta` payload: the log header the browser needs to build the match before any decision. */
 export function metaOf(log) {
-  return { seed: log.seed, tickDt: log.tickDt, cadenceSec: log.cadenceSec, idBase: log.idBase, ...(log.map ? { map: log.map } : {}), backend: log.backend, sides: log.sides, createdAt: log.createdAt };
+  return { seed: log.seed, tickDt: log.tickDt, cadenceSec: log.cadenceSec, idBase: log.idBase, ...(log.map ? { map: log.map } : {}), ...(log.economy ? { economy: log.economy } : {}), backend: log.backend, sides: log.sides, createdAt: log.createdAt };
 }
 
 /**

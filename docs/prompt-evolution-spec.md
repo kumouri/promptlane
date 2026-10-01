@@ -431,7 +431,7 @@ ollama/openrouter; `mutation.backend`: claude/ollama/openrouter, through
 | File | What |
 |---|---|
 | `tools/evolve/evolve.mjs` | CLI |
-| `tools/evolve/generation.mjs` | `initCampaign`, `runGeneration`: plan → mutate → compile → play → rate → select → epoch; defaults in `DEFAULT_CAMPAIGN` |
+| `tools/evolve/generation.mjs` | `initCampaign`, `runGeneration`: plan → mutate → compile → play → rate → select → epoch; defaults in `DEFAULT_CAMPAIGN`. The match `shape` names its ruleset (`map`, `economy`); every match plays it explicitly and `matchKey` hashes it with the sim version, so a cached match is never reused under other rules. A campaign created before that has no ruleset in its shape: it keeps its old keys and plays the runner's defaults |
 | `tools/evolve/fitness.mjs` | `jamScore`, `summarizeSide` (descriptors, rule-fire counts), `towardWeight`/`awayWeight`/`moveBearing` (§3), `fitnessOf`, `bootstrapCI`, `promotionDecision`, `eloFold` |
 | `tools/evolve/store.mjs` | the population store (layout in its docstring) |
 | `tools/evolve/seeds.mjs` | `deriveSeed`, `mulberry32`, `pick` |

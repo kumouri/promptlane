@@ -11,6 +11,7 @@
 import type { Action, Instrument, Lane, Observation, Pilot, Team } from './types';
 import type { Match } from './sim/match';
 import type { MapVariant } from './mapVariant';
+import { getEconomy, type EconomySummary, type LogEconomy } from './economy';
 
 export const MATCH_LOG_SCHEMA = 'promptlane-match-log-1';
 
@@ -80,8 +81,11 @@ export interface MatchResult {
   endReason: 'nexus' | 'timeout' | null;
   durationSec: number;
   ticks: number;
+  /** Every bearbot death; with an economy a bot can die more than once. */
   deaths: Array<{ tick: number; bot: number }>;
   stats: Record<Team, SideStats>;
+  /** End-of-match gold, items, levels and ledger per bot, when the match had an economy. */
+  economy?: EconomySummary;
 }
 
 export interface MatchLog {
@@ -97,6 +101,12 @@ export interface MatchLog {
    * is every log written before variants existed; a replay applies the same variant.
    */
   map?: MapVariant;
+  /**
+   * The economy ruleset the match was played under (`src/economy.ts`), recorded whole with each
+   * bot's shopping list, so a later retune of the constants can't change an old replay. Absent = no
+   * economy (no gold, no respawn), which is every log written before it existed.
+   */
+  economy?: LogEconomy;
   /** Which model answered: `{kind:'mock'}` or `{kind:'http', endpoint, health}`. */
   backend: Record<string, unknown>;
   sides: Record<Team, LogSide>;
@@ -127,14 +137,20 @@ export function remapId(id: string, offset: number): string {
   return m ? `${m[1]}-${Number(m[2]) + offset}` : id;
 }
 
-/** Compact, rounded snapshot of everything that decides a match. Equal strings ⇒ same state. */
+/**
+ * Compact, rounded snapshot of everything that decides a match. Equal strings ⇒ same state. With an
+ * economy attached it adds each bot's `[atRisk, safe, xp, items]` as `e`; without one the string is
+ * exactly what it was before economies existed, so every older log still verifies.
+ */
 export function checkpointOf(match: Match): string {
   const r = (n: number) => Math.round(n * 10) / 10;
+  const economy = getEconomy(match);
   return JSON.stringify({
     b: match.bearbots.map((b) => [r(b.hp), r(b.pos.x), r(b.pos.y), b.alive ? 1 : 0, b.recalling ? 1 : 0]),
     t: match.towers.map((t) => r(t.hp)),
     n: match.nexuses.map((n) => r(n.hp)),
     m: match.minions.length,
+    ...(economy ? { e: economy.checkpoint() } : {}),
   });
 }
 
