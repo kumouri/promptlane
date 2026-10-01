@@ -32,6 +32,12 @@
 > the hard archetype lineage. Easy and medium lineages are later campaigns (§6). (3) **"Medium
 > (the placement bar)"**: the first opponent is the medium house tier. The invocation for
 > campaign 1 is in §10.
+>
+> **Campaign 2 rulings, 2026-09-30 21:34–21:35 CT.** *"You should probably end the evo campaign
+> making new house bots at the next Epoch or something and start from there on the new branch."*
+> Budget picker: **"Bigger: $40 total"**. The accepted plan: seed from campaign 1's champion, play
+> the new rules (pvp-1, eco-2, simultaneous-1), cap the first epoch at $20, give epoch 2 what's left
+> of the $40 under campaign 1's rule, and keep the same blackout. The invocation is in §10.
 
 *Written 2026-09-30. The loop is **Ceryce's design**. Her ask (2026-09-30 01:10 CT, verbatim excerpt):*
 
@@ -51,9 +57,9 @@ added three suggestions. They appear in §6 as proposals. Ceryce ruled on all th
 (§10 Q1–Q3).*
 
 **Status.** v0 is built (`tools/evolve/`, §8). One smoke generation ran on the Jam's real backend
-(§9). **No campaign has been launched.** Launching one is Ceryce's call after she reads this spec.
-Numbers marked *measured* come from `runs/prompt-evolution-smoke-2026-09-30*.{md,json}`. Anything
-else is labelled as an estimate.
+(§9). Campaign 1 ran on the original rules and stopped at its $25 total cap. Campaign 2 starts
+from its champion on the new rules (§10). Numbers marked *measured* come from
+`runs/prompt-evolution-smoke-2026-09-30*.{md,json}`. Anything else is labelled as an estimate.
 
 ## 1. Goal
 
@@ -530,6 +536,45 @@ npm run evolve -- init --name campaign-1-hard \
   promotion seeds, 3 generations an epoch, μ = 2 parents × 2 children, and the budget above. With
   one seed, generation 0 has one parent, and from generation 1 there are two. Nothing is in
   `--config`.
+
+**How it ended.** It stopped on its $25 total cap at $24.88 on 2026-10-01 03:55 CT, partway through
+generation 5. Epoch 1 spent $7.71 and epoch 2 spent $17.17. The champion is `45b17e27e139`, a
+one-number child of `house-hard.prose.md`'s line: it finishes kills below 120 hp instead of 100. It
+was promoted at the end of generation 2 (lower bound 1.000 over 16 held-out seeds) and went 8-0-0 in
+generations 2–4. All of this was on the original rules: the v1 map, no economy, sequential
+resolution.
+
+### Campaign 2: the hard lineage on the new rules (ruled 2026-09-30 21:34–21:35 CT)
+
+```
+npm run evolve -- init --name campaign-2-hard \
+  --seed-prompt runs/evolve-campaign-1-champion-45b17e27e139-2026-10-01.md \
+  --opponent-prompt prompts/pilots/house-eco-violet.md \
+  --config runs/evolve-campaign-2-config-2026-10-01.json
+```
+
+- **Seed: campaign 1's champion.** `runs/evolve-campaign-1-champion-…md` is a byte copy of its
+  genome, so the seed keeps the id `45b17e27e139`. It is the only seed. Campaign 1's other
+  survivor, `f47f80d588d7`, is the champion's own child, and the harness runs from one seed, as
+  campaign 1 did.
+- **First opponent: the medium house tier as it plays under the economy.** That is
+  `house-eco-violet.md`, the file `tools/arena/house.mjs` picks for medium under `--economy`
+  (`prompts/pilots/README.md`). It is campaign 1's opponent with the economy rules added.
+  **Its phenotype is the house's checked-in compile, not a fresh one.**
+  `compiled/91083d425da8.json` in the store wraps `prompts/pilots/house-medium-eco.schemas.json`
+  in compile.py's shape and was written before the first `step`. In the dry run, a fresh sampled
+  compile of this prose failed on keytar (`unknown target_selector 'nearest_minion'`). The harness
+  records a failed compile for the rest of the generation and never retries it, so the step
+  stopped with "no opponent compiled". The checked-in file is the cleanest of four samples, and it
+  is what the house plays on a Jev ladder, so the campaign plays the real placement bar.
+- **The new rules, pinned in the shape:** `map: pvp-1`, `economy: eco-2`, `objective: none` (the
+  Bandstand hasn't passed its gate), `recall: none` and `resolution: simultaneous-1`. `matchKey`
+  hashes all five, and the store is new, so no campaign 1 match is reused.
+- **Budget:** the first epoch is capped at $20 and the total at $40. Epoch 2 gets what's left of
+  the $40, under campaign 1's rule: it runs only if epoch 1 stayed under its cap, and there are at
+  most 2 epochs. The blackout is unchanged.
+- **Its own Jev server on port 8823** (`jevSchemaEndpoint`). 8790, 8797, 8813 and 8851 belong to other servers.
+- **Everything else is the default**, as in campaign 1.
 
 ## 11. Found along the way
 

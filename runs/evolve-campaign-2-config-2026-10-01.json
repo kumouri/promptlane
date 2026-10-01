@@ -1,0 +1,17 @@
+{
+ "shape": {
+  "cadenceSec": 2,
+  "maxSimSec": 600,
+  "map": "pvp-1",
+  "economy": "eco-2",
+  "objective": "none",
+  "recall": "none",
+  "resolution": "simultaneous-1"
+ },
+ "jevSchemaEndpoint": "http://127.0.0.1:8823/",
+ "budget": {
+  "firstEpochCapUsd": 20,
+  "totalCapUsd": 40,
+  "maxEpochs": 2
+ }
+}
