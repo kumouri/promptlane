@@ -1,0 +1,39 @@
+{
+  "name": "respawn-1",
+  "observe": false,
+  "respawn": { "baseSec": 6, "perLevelSec": 3 },
+  "gold": {
+    "start": 0,
+    "passivePerSec": 0,
+    "minionLastHit": 0,
+    "kill": 0,
+    "assistPool": 0,
+    "firstBlood": 0,
+    "towerTeam": 0,
+    "towerLocalPool": 0,
+    "towerLocalRadius": 300,
+    "pools": { "safeSources": [] },
+    "death": { "lossOfAtRisk": 0, "lossOfNetWorth": 0, "toKillers": 0 }
+  },
+  "credit": { "windowSec": 10, "assistRadius": 250 },
+  "xp": {
+    "radius": 300,
+    "minion": 0,
+    "kill": 0,
+    "tower": 0,
+    "thresholds": [0, 80, 200, 360, 560],
+    "perLevel": { "maxHp": 0.08, "attackDamage": 0.08 }
+  },
+  "shop": { "radius": 150, "slots": 3 },
+  "items": {
+    "amp": { "name": "Amp", "cost": 350, "gives": "attack damage +35%", "givesUp": "max hp -15%", "mods": { "attackDamage": 0.35, "maxHp": -0.15 } },
+    "road-case": { "name": "Road Case", "cost": 300, "gives": "max hp +35%", "givesUp": "move speed -12%", "mods": { "maxHp": 0.35, "moveSpeed": -0.12 } },
+    "bass-strings": { "name": "Bass Strings", "cost": 350, "gives": "heals 30% of the damage you deal to enemy bearbots", "givesUp": "no healing from minions, towers or the nexus", "mods": { "pvpLifesteal": 0.3 } },
+    "metronome": { "name": "Metronome", "cost": 350, "gives": "ability cooldowns -30%", "givesUp": "basic attacks 15% slower", "mods": { "abilityCooldown": -0.3, "attackCooldownSec": 0.15 } }
+  },
+  "defaultBuilds": {
+    "drums": ["road-case", "bass-strings", "metronome"],
+    "keytar": ["metronome", "amp", "road-case"],
+    "violin": ["amp", "bass-strings", "road-case"]
+  }
+}

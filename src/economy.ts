@@ -17,7 +17,7 @@
  *   pays Bandstand gold and XP (§9.5): with no economy attached there is no sink, and a capture pays
  *   the Encore only.
  *
- * Every number is in the ruleset (`src/economy/eco-1.json`); nothing here is a tuning constant. The
+ * Every number is in a ruleset file (`src/economy/eco-<n>.json`); nothing here is a tuning constant. The
  * layer uses no RNG and resolves everything in roster order, so a match is a function of its seed and
  * its decisions exactly as before.
  */
@@ -29,6 +29,8 @@ import { attachAttribution } from './attribution';
 import { deriveStats, setStatMultiplier } from './ruleset/stats';
 import { setRewardSink, type RewardSink } from './ruleset/rewards';
 import ECO_1_JSON from './economy/eco-1.json';
+import ECO_2_JSON from './economy/eco-2.json';
+import RESPAWN_1_JSON from './economy/respawn-1.json';
 
 /**
  * Ledger keys, one per income source. `pools.safeSources` names the ones paid into the safe pool.
@@ -83,15 +85,34 @@ export interface EconomyRuleset {
   shop: { radius: number; slots: number };
   items: Record<string, ItemDef>;
   defaultBuilds: Record<Instrument, string[]>;
+  /**
+   * Whether pilots see the economy's observation fields (§4.1). Absent = true. `respawn-1` (§6
+   * condition R) sets false: its pilots see only `respawning`, so nothing about gold, levels or the
+   * shop reaches Jev's description in a game that has none.
+   */
+  observe?: boolean;
 }
 
+/** P1's starting values (spec §3.7), kept so `--economy eco-1` still reproduces the slice. */
 export const ECO_1: EconomyRuleset = ECO_1_JSON as EconomyRuleset;
+/**
+ * The income tuning pass (spec §12.1): eco-1 with more gold per source, same design, same items.
+ * The ruleset the §6 measurement plays.
+ */
+export const ECO_2: EconomyRuleset = ECO_2_JSON as EconomyRuleset;
 
-export const ECONOMY_RULESETS: Record<string, EconomyRuleset> = { [ECO_1.name]: ECO_1 };
+/**
+ * §6 condition R, "map + respawn only": the economy layer with every gold and XP source at 0, so
+ * bots respawn (after 9 s, level 1 for good) and nothing else happens. The observation still
+ * carries the economy's fields, all zero.
+ */
+export const RESPAWN_ONLY: EconomyRuleset = RESPAWN_1_JSON as EconomyRuleset;
+
+export const ECONOMY_RULESETS: Record<string, EconomyRuleset> = { [ECO_1.name]: ECO_1, [ECO_2.name]: ECO_2, [RESPAWN_ONLY.name]: RESPAWN_ONLY };
 
 /**
  * The economy new matches get when none is named: none, until Ceryce's go/no-go gate on Sun 10-04
- * (§7, ruled Q10). Matches opt in with `--economy eco-1` (CLI) or `economy` (runner, arena config).
+ * (§7, ruled Q10). Matches opt in with `--economy eco-2` (CLI) or `economy` (runner, arena config).
  */
 export const DEFAULT_ECONOMY: EconomyRuleset | null = null;
 
@@ -530,7 +551,16 @@ export class Economy {
 
   // --- what pilots see (§4.1) ------------------------------------------------------------------------
 
-  observe(obs: Observation, tick: number): EconomyObservation {
+  /** Who is dead and when they come back (part of every economy observation). */
+  private respawning(tick: number): EconomyObservation['respawning'] {
+    return this.match.bearbots.flatMap((b, j) => {
+      const at = this.bots[j].respawnAtTick;
+      return !b.alive && at !== null ? [{ id: b.id, team: b.team, inSec: Math.round(Math.max(0, at - tick) * this.tickDt * 10) / 10 }] : [];
+    });
+  }
+
+  observe(obs: Observation, tick: number): EconomyObservation | (Observation & Pick<EconomyObservation, 'respawning'>) {
+    if (this.ruleset.observe === false) return { ...obs, respawning: this.respawning(tick) };
     const i = this.idIndex.get(obs.self.id)!;
     const e = this.bots[i];
     const r = this.ruleset;
@@ -560,10 +590,7 @@ export class Economy {
         const j = v.kind === 'bearbot' ? this.idIndex.get(v.id) : undefined;
         return j === undefined ? v : { ...v, level: this.bots[j].level, bounty: this.bounty(j), items: [...this.bots[j].items] };
       }),
-      respawning: this.match.bearbots.flatMap((b, j) => {
-        const at = this.bots[j].respawnAtTick;
-        return !b.alive && at !== null ? [{ id: b.id, team: b.team, inSec: Math.round(Math.max(0, at - tick) * this.tickDt * 10) / 10 }] : [];
-      }),
+      respawning: this.respawning(tick),
       shop: Object.entries(r.items).map(([item, def]) => ({ item, cost: def.cost })),
     };
   }

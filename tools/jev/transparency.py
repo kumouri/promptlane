@@ -329,7 +329,7 @@ def build_report(schema: TranslatedSchema, pilot_file: str, segments=None, label
 
 def shopping_list_line(schema: TranslatedSchema) -> str:
     """The entrant-facing shopping list: their own (`schema.build`) or, when their prose names no
-    items, the instrument's default from `eco-1.json` -- said so, so a default is never mistaken
+    items, the instrument's default from the ruleset file -- said so, so a default is never mistaken
     for something the entrant wrote."""
     if schema.build:
         return f"Shopping list: {format_build(schema.build)} (from your prose)"

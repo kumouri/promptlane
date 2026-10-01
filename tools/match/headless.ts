@@ -40,7 +40,7 @@ export { jevTracingPilot } from './jevPilot';
 export { jevTeamTracingPilot } from './jevTeamPilot';
 export { jevSchemaTracingPilot } from './jevSchemaPilot';
 export { DEFAULT_MAP, MAP_VARIANTS, PVP_MAP, SPECIMEN_MAP, laneCoverage, resolveMap } from '../../src/mapVariant';
-export { DEFAULT_ECONOMY, ECONOMY_RULESETS, ECO_1, attachEconomy, getEconomy, resolveBuild, resolveEconomy } from '../../src/economy';
+export { DEFAULT_ECONOMY, ECONOMY_RULESETS, ECO_1, ECO_2, RESPAWN_ONLY, attachEconomy, getEconomy, resolveBuild, resolveEconomy } from '../../src/economy';
 export { DEFAULT_OBJECTIVE, OBJECTIVES, RIVER_1, attachObjective, getObjective, resolveObjective } from '../../src/objective';
 export { setRewardSink } from '../../src/ruleset/rewards';
 /** For the economy's and the objective's rule tests (`test_economy.mjs`, `test_objective.mjs`), which build matches by hand. */
@@ -80,7 +80,7 @@ export interface RunOptions {
    */
   map?: string | MapVariant;
   /**
-   * Economy ruleset (`src/economy.ts`) — a name such as `'eco-1'`, a ruleset object, or `'none'`.
+   * Economy ruleset (`src/economy.ts`) — a name such as `'eco-2'`, a ruleset object, or `'none'`.
    * Default: `DEFAULT_ECONOMY` (none until the Sun 10-04 gate). Recorded in the log, with every
    * bot's shopping list, as `economy`; a match without one writes no `economy` field at all.
    */
