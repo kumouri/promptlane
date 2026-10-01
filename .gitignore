@@ -18,6 +18,9 @@ __pycache__/
 /runs/balance-pvp-2026-09-30-*-seed*.json
 # economy slice match logs live on the data-economy-slice-2026-09-30 release, not in git
 /runs/economy-slice-2026-09-30-*-seed*.json
+# economy P2 smoke and §6 measurement match logs go on a data-* release, not in git
+/runs/economy-p2-smoke-*-seed*.json
+/runs/economy-measure-*-seed*.json
 /.runner-test-*/
 /acceptance/tmp*/
 /runs/bandstand-2026-09-30-*-seed*.json
