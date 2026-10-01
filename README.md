@@ -69,8 +69,8 @@ docs/                current design notes and historical recordings; not implici
                      (docs/arena-site-spec.md: the arena spec, Phases A+B built; arena-runbook.md: how to run it;
                      render-spec.md: isometric viewer spec — phase 1 (silhouettes, hit/death feedback,
                      live-pacing fix, HUD legibility) and phase 2 (isometric camera, depth sort,
-                     elevation) both built; economy-spec.md: gold, levels, items and respawn for the Jam,
-                     with the Dota 2 / League gold comparison)
+                     elevation) both built; economy-spec.md: gold, levels, items, respawn and a neutral
+                     river objective for the Jam, with the Dota 2 / League gold comparison)
 assets/logo/         Jamobair, the mascot (PNG on black, on near-black, and transparent)
 assets/favicon/      the bearbot tab icon (SVG, PNG, ICO) and make_favicon.mjs, which draws them
 ```
