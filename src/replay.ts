@@ -124,6 +124,12 @@ export interface MatchLog {
    * recall (a 3x run home), which is every log written before `recall-2` existed.
    */
   recall?: RecallRules;
+  /**
+   * How a tick resolves its bearbot and minion steps (`src/resolution.ts`), e.g. `simultaneous-1`.
+   * Absent = the specimen's sequential order, which is every log written before the field existed;
+   * a replay attaches the same resolution.
+   */
+  resolution?: string;
   /** Which model answered: `{kind:'mock'}` or `{kind:'http', endpoint, health}`. */
   backend: Record<string, unknown>;
   sides: Record<Team, LogSide>;

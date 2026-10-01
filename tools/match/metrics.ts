@@ -43,6 +43,7 @@ import { attachAttribution } from '../../src/attribution';
 import { ECO_1_GOLD_SOURCES, GOLD_SOURCES, attachEconomy, type Economy, type GoldSource } from '../../src/economy';
 import { attachObjective, resolveObjective, type Objective } from '../../src/objective';
 import { attachRecall, resolveRecall, type Recall } from '../../src/recall';
+import { attachResolution, resolveResolution } from '../../src/resolution';
 
 export { LANE_PATHS } from '../../src/sim/map';
 export { towerPos } from '../../src/mapVariant';
@@ -348,6 +349,7 @@ export async function measureLog(log: MatchLog, flush: () => Promise<void> = def
   }));
   match = new Match(log.seed, roster);
   applyMapVariant(match, variant);
+  attachResolution(match, resolveResolution(log.resolution)); // before anything wraps the sim's steps
   // The layers wrap the instance's `tick` (map, then recall, objective, economy, as the runner
   // attaches them). The loop below calls `p.tick` through the instance every tick, so it always
   // reaches the outermost wrapper.

@@ -19,6 +19,7 @@ import { DEFAULT_MAP, SPECIMEN_MAP, applyMapVariant, resolveMap, type MapVariant
 import { DEFAULT_ECONOMY, attachEconomy, resolveBuilds, resolveEconomy, type EconomyRuleset } from '../../src/economy';
 import { DEFAULT_OBJECTIVE, attachObjective, resolveObjective, type ObjectiveRules } from '../../src/objective';
 import { DEFAULT_RECALL, attachRecall, resolveRecall, type RecallRules } from '../../src/recall';
+import { DEFAULT_RESOLUTION, SEQUENTIAL, attachResolution, resolveResolution } from '../../src/resolution';
 import type { CallModel } from '../../src/pilots/callModel';
 import type { TracingDecision, TracingPilot } from './jevPilot';
 import {
@@ -45,6 +46,7 @@ export { DEFAULT_ECONOMY, ECONOMY_RULESETS, ECO_1, ECO_2, RESPAWN_ONLY, attachEc
 export { DEFAULT_OBJECTIVE, OBJECTIVES, RIVER_1, RIVER_2, attachObjective, getObjective, resolveObjective } from '../../src/objective';
 export { DEFAULT_RECALL, RECALL_2, RECALL_RULES, attachRecall, getRecall, recallTotals, resolveRecall } from '../../src/recall';
 export { setRewardSink } from '../../src/ruleset/rewards';
+export { DEFAULT_RESOLUTION, RESOLUTIONS, SEQUENTIAL, SIMULTANEOUS_1, attachResolution, getResolution, resolveResolution } from '../../src/resolution';
 /** For the economy's, the objective's and the recall's rule tests (`test_economy.mjs`, `test_objective.mjs`, `test_recall.mjs`), which build matches by hand. */
 export { Match, TICK_DT, applyMapVariant, checkpointOf };
 
@@ -104,6 +106,12 @@ export interface RunOptions {
    * match without one writes no `recall` field, so its log is exactly what it was before.
    */
   recall?: string | RecallRules | null;
+  /**
+   * Tick resolution (`src/resolution.ts`): `'simultaneous-1'` or `'sequential'` (the specimen's own
+   * order). Default: `DEFAULT_RESOLUTION`. Recorded in the log as `resolution` unless sequential, so
+   * a sequential log is byte-for-byte what it was before the option existed.
+   */
+  resolution?: string;
   /** Yields to the event loop so the sim's own promise chain settles between ticks. */
   flush?: () => Promise<void>;
   /** Progress callback, once per sim-minute. */
@@ -225,6 +233,7 @@ export async function runMatch(opts: RunOptions): Promise<MatchLog> {
     : null;
   const objectiveRules = opts.objective === undefined ? DEFAULT_OBJECTIVE : resolveObjective(opts.objective);
   const recallRules = opts.recall === undefined ? DEFAULT_RECALL : resolveRecall(opts.recall);
+  const resolution = opts.resolution === undefined ? DEFAULT_RESOLUTION : resolveResolution(opts.resolution);
   const stats: Record<Team, SideStats> = { violet: emptyStats(), green: emptyStats() };
   const totalMs: Record<Team, { value: number }> = { violet: { value: 0 }, green: { value: 0 } };
 
@@ -239,6 +248,7 @@ export async function runMatch(opts: RunOptions): Promise<MatchLog> {
     ...(economyRules && builds ? { economy: { ruleset: economyRules, builds } } : {}),
     ...(objectiveRules ? { objective: objectiveRules } : {}),
     ...(recallRules ? { recall: recallRules } : {}),
+    ...(resolution === SEQUENTIAL ? {} : { resolution }),
     backend: opts.backend,
     sides: opts.sides,
     decisions: [],
@@ -274,8 +284,10 @@ export async function runMatch(opts: RunOptions): Promise<MatchLog> {
 
   match = new Match(opts.seed, roster);
   applyMapVariant(match, map);
-  // Map, then recall, then objective, then economy: the recall hugs the sim's own tick (src/recall.ts)
-  // and the economy's steps run after the objective's update (§9.6).
+  // Map, then resolution (before anything wraps the sim's steps), then recall, then objective,
+  // then economy: the recall hugs the sim's own tick (src/recall.ts) and the economy's steps run
+  // after the objective's update (§9.6).
+  attachResolution(match, resolution);
   const recall = recallRules ? attachRecall(match, recallRules, TICK_DT) : null;
   const objective = objectiveRules ? attachObjective(match, objectiveRules, TICK_DT) : null;
   const economy = economyRules && builds ? attachEconomy(match, economyRules, builds, TICK_DT) : null;
@@ -393,6 +405,7 @@ export async function verifyReplay(
   }));
   match = new Match(log.seed, roster);
   applyMapVariant(match, resolveMap(log.map));
+  attachResolution(match, resolveResolution(log.resolution));
   const recallRules = resolveRecall(log.recall);
   if (recallRules) attachRecall(match, recallRules, TICK_DT);
   const objectiveRules = resolveObjective(log.objective);
