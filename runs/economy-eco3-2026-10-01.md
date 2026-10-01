@@ -44,6 +44,8 @@ gate?
   **`simultaneous-1`**; why is [below](#eco-2-was-pre-56-eco-3-is-post-56-what-that-touches).
   - **The tiers are the gate's own,** from before #57. Every log carries its prompt text and schemas,
     so it replays on any later `develop`.
+  - **The targeting is `first-min`,** from before #62, like the gate's. The plan now defaults to
+    `own-lane-1`, so add `--targeting first-min` to repeat this run like for like.
 - **Results:** 24 of 24 exited 0, and all 24 replay-verify (`npm run match -- --verify`, and
   `npm run metrics`, `replay=ok`). **All 24 ended on timeout**, as every §6 match has.
   - 7 went to violet, 7 to green and 10 were drawn.
@@ -238,10 +240,21 @@ condition A's medium-vs-hard shape exactly.
   on `eco-3` (about $1.1) would show whether the house pairing's 4:47 first item got later. That is
   not a second tuning pass; §6.2 allows none.
 
+**Caveat: the targeting rule moved after this run (#62).**
+- **What changed:** `own-lane-1` became the default. A schema bot at its own fountain now rides its
+  own lane, where under `first-min` float noise sent green's bots up top 135 times of 136
+  ([`bandstand-4-2026-10-01.md`](bandstand-4-2026-10-01.md)).
+- **What it can move:** every shopping trip ends at the fountain, so who farms which lane after it
+  changes. That is income, the gold gap at 6:00 and PvP's share of earned gold, and through them
+  comeback. The first item mostly isn't: matches and respawns put a bot in its lane, outside the
+  fountain, so the rule only fires once a bot has been home.
+- **Status:** unmeasured, under either preset. Both played `first-min`, so `eco-3` vs `eco-2` stays
+  like for like; the absolute lines are what could shift.
+
 **The default is not flipped in this PR, and the spec doesn't flip it automatically.**
 - `DEFAULT_ECONOMY` stays `none` until Ceryce's go/no-go (Q10, §7: "Ceryce decides").
-- The economy conditions in `measure_economy.mjs` stay on `eco-2`, so the gate's command still
-  reproduces the gate.
+- The economy conditions in `measure_economy.mjs` stay on `eco-2`, so the gate's command, with
+  `--targeting first-min` (the gate predates #62's `own-lane-1`), still reproduces the gate.
 - **If the gate is GO on `eco-3`, a follow-up PR would:**
   - set `DEFAULT_ECONOMY` to `ECO_3`;
   - name `eco-3` in the arena's `tournament.economy` and the README;
