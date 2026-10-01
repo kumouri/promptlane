@@ -71,6 +71,7 @@ docs/                current design notes and historical recordings; not implici
                      live-pacing fix, HUD legibility) and phase 2 (isometric camera, depth sort,
                      elevation) both built)
 assets/logo/         Jamobair, the mascot (PNG on black, on near-black, and transparent)
+assets/favicon/      the bearbot tab icon (SVG, PNG, ICO) and make_favicon.mjs, which draws them
 ```
 
 ## Run a jam match
