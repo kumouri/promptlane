@@ -90,7 +90,9 @@ one-paragraph changelog of what it asks for that the previous version didn't.
 
 `#8e00ff` (electric violet) and `#00ff0f` (toxic green) on black, white for text. The mascot was
 generated and then colour-snapped onto exactly those two hex values by `assets/logo/brandify_logo.py`
-(hue → brand hue, lightness kept, saturation scaled).
+(hue → brand hue, lightness kept, saturation scaled). The favicon (`assets/favicon/`) is drawn from
+the same two hexes by `assets/favicon/make_favicon.mjs`: a violet bearbot head with a green visor on
+a black tile.
 
 ## Naming provenance
 

@@ -88,6 +88,7 @@ test('e2e: merged prompt → placements → scratch quick test over HTTP → lad
       assert.equal(res.status, 200, p);
       const html = await res.text();
       assert.ok(html.includes('· Elysium</title>'), p);
+      assert.ok(html.includes('<link rel="icon" href="/assets/favicon/favicon.svg"'), `${p}: favicon link`);
       if (p === 'ladder') assert.ok(html.includes('alice'));
       if (p.startsWith('matches/')) assert.ok(html.includes(`?replay=/logs/${sub.body.id}.json`), 'match page links the replay');
     }
@@ -227,7 +228,22 @@ test('e2e: Access mode refuses a request with no token, accepts a signed one', a
     assert.equal(arena.auth.mode, 'access');
     assert.equal((await fetch(base)).status, 401);
     assert.equal((await json(`${base}api/ladder`)).status, 401);
-    assert.equal((await fetch(`${base}assets/logo/jamobair-logo-transparent.png`)).status, 200, 'the logo is the one thing served without identity');
+    assert.equal((await fetch(`${base}assets/logo/jamobair-logo-transparent.png`)).status, 200, 'the logo is served without identity');
+    // The favicon too: browsers fetch it on their own, the 401 page's tab included.
+    const unauth = await (await fetch(base)).text();
+    assert.ok(unauth.includes('<link rel="icon" href="/assets/favicon/favicon.svg"'), 'the 401 page links the favicon');
+    const ico = await fetch(`${base}favicon.ico`);
+    assert.equal(ico.status, 200, '/favicon.ico is served without identity');
+    assert.equal(ico.headers.get('content-type'), 'image/x-icon');
+    const icoBytes = Buffer.from(await ico.arrayBuffer());
+    assert.deepEqual([...icoBytes.subarray(0, 4)], [0, 0, 1, 0], 'ICO header');
+    assert.equal(icoBytes.readUInt16LE(4), 3, '16, 32 and 48 px');
+    for (const [file, type] of [['favicon.svg', 'image/svg+xml'], ['favicon-32.png', 'image/png'], ['favicon-180.png', 'image/png']]) {
+      const res = await fetch(`${base}assets/favicon/${file}`);
+      assert.equal(res.status, 200, file);
+      assert.equal(res.headers.get('content-type'), type, file);
+    }
+    assert.equal((await fetch(`${base}assets/favicon/make_favicon.mjs`)).status, 404, 'only images are served from assets/');
     const t = token('x@inrhythm.com');
     const me = await json(`${base}api/me`, { headers: { 'cf-access-jwt-assertion': t } });
     assert.equal(me.status, 200);

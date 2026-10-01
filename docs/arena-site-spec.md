@@ -643,7 +643,15 @@ Where this document was silent, the smallest thing was chosen and is now the rul
   `ARENA_ORGANIZER_EMAIL` (organizer email also accepted in config). With the AUD unset the arena is
   in dev mode (`--dev-user`, organizer) — there is no `--tunnel` flag to guard against because the
   listener is `127.0.0.1` in every mode; the tunnel is the only way in, and Access is the only role.
-- **The logo is the one path served without identity** (`/assets/logo/*`), so the 401 page can show it.
+- **The logo and the favicon are the only paths served without identity** (`/assets/logo/*`,
+  `/favicon.ico`, `/assets/favicon/*`), so the 401 page can show them. Only `.png`/`.svg`/`.ico`
+  files are served from the repo's `assets/`.
+- **Favicon.** Every page `layout.mjs` renders (the 401 included) links `/assets/favicon/favicon.svg`,
+  `/favicon.ico` (16/32/48 px) and a 180 px `apple-touch-icon`; the game's `index.html` links the
+  SVG and the 32 px PNG, which Vite copies into `dist/assets/` so `/play/` has it too. All four
+  files come from one shape list in `assets/favicon/make_favicon.mjs` (standard library only):
+  edit the shapes there and run `node assets/favicon/make_favicon.mjs`; never edit the outputs.
+  `test_e2e.mjs` checks the route, the content types and the links.
 - **Pages do not auto-refresh.** A match page says "reload for progress"; the live view (Phase B) is
   the page that does.
 

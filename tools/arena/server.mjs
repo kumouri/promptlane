@@ -15,7 +15,7 @@
  * headless runner in-process, the append-only ledger, and the entrants-repo poller. Always binds
  * 127.0.0.1 — the only way in from outside is the Cloudflare Tunnel, and role comes from the
  * Access JWT alone (`auth.mjs`). Static: the Vite build under `/play/` (replays), logs under
- * `/logs/`, the logo under `/assets/logo/`.
+ * `/logs/`, the logo under `/assets/logo/`, the favicon at `/favicon.ico` and under `/assets/favicon/`.
  */
 import { createServer } from 'node:http';
 import { existsSync, readFileSync, statSync } from 'node:fs';
@@ -469,13 +469,15 @@ export async function createArena({
     const p = url.pathname;
     const method = req.method;
 
-    // Static assets that need no identity to be useful and leak nothing: the logo.
+    // Static assets that need no identity to be useful and leak nothing: the logo and the favicon
+    // (the browser asks for `/favicon.ico` on its own, the 401 page included).
+    if (method === 'GET' && p === '/favicon.ico') return sendFile(res, path.join(ROOT, 'assets', 'favicon', 'favicon.ico'), { cache: 'public, max-age=86400' });
     if (method === 'GET' && p.startsWith('/assets/')) {
       const rel = p.slice('/assets/'.length);
       const fromDist = safeJoin(path.join(distDir, 'assets'), rel);
       if (fromDist && existsSync(fromDist) && statSync(fromDist).isFile()) return sendFile(res, fromDist, { cache: 'public, max-age=31536000, immutable' });
-      const fromRepo = safeJoin(path.join(ROOT, 'assets', 'logo'), rel.replace(/^logo\//, ''));
-      if (rel.startsWith('logo/') && fromRepo && existsSync(fromRepo) && statSync(fromRepo).isFile()) return sendFile(res, fromRepo, { cache: 'public, max-age=86400' });
+      const fromRepo = safeJoin(path.join(ROOT, 'assets'), rel);
+      if (/^(logo|favicon)\/[^/]+\.(png|svg|ico)$/.test(rel) && fromRepo && existsSync(fromRepo) && statSync(fromRepo).isFile()) return sendFile(res, fromRepo, { cache: 'public, max-age=86400' });
       throw new HttpError(404, 'not found');
     }
 
