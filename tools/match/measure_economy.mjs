@@ -27,9 +27,14 @@
  * `--recall recall-2` plays every match with the channelled recall (src/recall.ts, docs/economy-spec.md
  * §9.10) instead of the specimen's 3x run. Without it the plan is exactly the one above. Use a new
  * `--date` for such a run, so its logs never mix with a run on the specimen recall.
+ *
+ * Every match plays the tick resolution `--resolution` names (src/resolution.ts; default
+ * simultaneous-1, the runner's DEFAULT_RESOLUTION). A date whose existing logs were played under
+ * another one (every log written before the option existed is `sequential`) refuses to resume
+ * rather than mix the two: pass `--resolution sequential` to finish such a run as it started.
  */
 import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -61,10 +66,13 @@ export const CONDITIONS = {
 };
 export const PAIRINGS = { hard: ['medium', 'hard'], entrant: ['medium', 'entrant'] };
 
+/** Mirrors DEFAULT_RESOLUTION in src/resolution.ts (a test holds them equal). */
+export const DEFAULT_RESOLUTION = 'simultaneous-1';
+
 export const logFile = (date, condition, pairing, seed) => `runs/economy-measure-${date}-${condition}-medium-vs-${pairing}-seed${seed}.json`;
 
 /** Every match of the plan, seed-major, as the `npm run match` arguments that play it. */
-export function planMeasurement({ date, jevSchema = 'http://127.0.0.1:8851/', seeds = SEEDS, conditions = Object.keys(CONDITIONS), pairings = Object.keys(PAIRINGS), recall = null }) {
+export function planMeasurement({ date, jevSchema = 'http://127.0.0.1:8851/', seeds = SEEDS, conditions = Object.keys(CONDITIONS), pairings = Object.keys(PAIRINGS), recall = null, resolution = DEFAULT_RESOLUTION }) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date ?? '')) throw new Error('--date YYYY-MM-DD is required (it names the logs)');
   const jobs = [];
   for (const seed of seeds) {
@@ -79,7 +87,7 @@ export function planMeasurement({ date, jevSchema = 'http://127.0.0.1:8851/', se
           '--a', a.prompt, '--a-schemas', a.schemas, '--name-a', a.name,
           '--b', b.prompt, '--b-schemas', b.schemas, '--name-b', b.name,
           '--jev-schema', jevSchema, '--map', 'pvp-1', '--cadence', '2', '--seed', String(seed),
-          '--economy', c.economy, '--out', out, '--quiet',
+          '--economy', c.economy, '--resolution', resolution, '--out', out, '--quiet',
           ...(recall ? ['--recall', recall] : []),
         ];
         jobs.push({ seed, pairing, condition, out, args });
@@ -87,6 +95,22 @@ export function planMeasurement({ date, jevSchema = 'http://127.0.0.1:8851/', se
     }
   }
   return jobs;
+}
+
+/**
+ * Refuse to add matches under `resolution` to a plan whose existing logs were played under another
+ * (`readLog(out)` returns a parsed log, or null when there is none). A log without the field is
+ * sequential, the frozen sim's own order.
+ */
+export function checkResolution(jobs, resolution, readLog) {
+  for (const j of jobs) {
+    const log = readLog(j.out);
+    if (!log) continue;
+    const played = log.resolution ?? 'sequential';
+    if (played !== resolution) {
+      throw new Error(`${j.out} was played under resolution ${played}, not ${resolution}: pass --resolution ${played} to finish this run, or use a new --date`);
+    }
+  }
 }
 
 /** The two metrics runs §6.2 reads: everything paired against A, and B1 paired against B0. */
@@ -115,6 +139,7 @@ function parseArgs(argv) {
       case '--pairings': args.pairings = list(); break;
       case '--parallel': args.parallel = Number(next()); break;
       case '--recall': args.recall = next(); break;
+      case '--resolution': args.resolution = next(); break;
       case '--dry-run': args.dryRun = true; break;
       default: throw new Error(`unknown option ${a}`);
     }
@@ -134,6 +159,10 @@ function runOne(job) {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const jobs = planMeasurement(args);
+  checkResolution(jobs, args.resolution ?? DEFAULT_RESOLUTION, (out) => {
+    const file = path.join(ROOT, out);
+    return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : null;
+  });
   const todo = jobs.filter((j) => !existsSync(path.join(ROOT, j.out)));
   console.log(`economy measurement ${args.date}: ${jobs.length} matches planned, ${jobs.length - todo.length} already logged, ${todo.length} to run`);
   if (args.dryRun) {

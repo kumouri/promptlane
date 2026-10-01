@@ -54,10 +54,17 @@ export function attachAttribution(match: Match, listener: HitListener): void {
   const listeners: HitListener[] = [listener];
   listenersOf.set(match, listeners);
 
+  // Under the specimen's sequential order a hit to 0 hp marks the victim dead on the spot, so a
+  // living unit never has hp <= 0. Under `simultaneous-1` (src/resolution.ts) it stays alive until
+  // the end of the step and its hp can sink below 0: for such a unit, the hit that took hp from
+  // above 0 to 0 or below is the kill, and damage stops at 0. A sequential match never reaches that
+  // branch, so it reads exactly as before (a dead unit's hp, which a stab can still lower, included).
   const emit = (srcKind: DamageSourceKind, srcTeam: Team, srcBot: Bearbot | null, victim: Unit, before: { hp: number; alive: boolean }) => {
-    const dmg = before.hp - victim.hp;
+    const pendingDeath = victim.alive && victim.hp <= 0;
+    const dmg = before.hp - (pendingDeath ? 0 : victim.hp);
     if (!(dmg > 0)) return;
-    const hit: Hit = { srcKind, srcTeam, srcBot, victim, dmg, killed: before.alive && !victim.alive, pos: { x: victim.pos.x, y: victim.pos.y } };
+    const killed = before.alive && (!victim.alive || pendingDeath);
+    const hit: Hit = { srcKind, srcTeam, srcBot, victim, dmg, killed, pos: { x: victim.pos.x, y: victim.pos.y } };
     for (const l of listeners) l(hit);
   };
   const allUnits = (): Unit[] => [...match.bearbots, ...match.minions, ...match.towers, ...match.nexuses];

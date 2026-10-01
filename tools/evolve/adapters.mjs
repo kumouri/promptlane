@@ -82,6 +82,8 @@ export function makePlayMatch(campaign) {
     if (shape.economy !== undefined) args.push('--economy', shape.economy);
     if (shape.objective !== undefined) args.push('--objective', shape.objective);
     if (shape.recall !== undefined) args.push('--recall', shape.recall);
+    // A campaign from before the resolution was recorded was cached under the sequential order; keep it.
+    args.push('--resolution', shape.resolution ?? 'sequential');
     const r = await run(process.execPath, args, { timeoutMs: matchWallCapMs(shape) });
     if (r.code !== 0) throw new Error(`match failed (exit ${r.code ?? r.signal}): ${(r.stderr || r.stdout).trim().split('\n').pop()}`);
     return JSON.parse(await readFile(out, 'utf8'));

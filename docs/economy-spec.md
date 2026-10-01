@@ -1837,6 +1837,15 @@ with like and are not affected. Not done, and Ceryce's call:
 - swap sides on half the seeds (this breaks pairing with the slice);
 - or fix the minion asymmetry outside the frozen sim, which would be a new map variant.
 
+**Traced and fixed (2026-10-01):** [`runs/side-fairness-2026-10-01.md`](../runs/side-fairness-2026-10-01.md).
+- **The cause is all update order, for bearbots as well as minions.** The `pvp-1` geometry is
+  mirror-exact: spawning green first within each wave gives exactly 2 vs 48.
+- **The fix is a tick resolution, not a map variant.** `simultaneous-1` (`src/resolution.ts`) is
+  recorded in the log and on by default for new matches. With it, bots at base are 0 vs 0.
+- **Old logs replay unchanged.** A log without the field replays on the sequential order.
+- **The runner pins it.** `measure_economy.mjs` passes `--resolution`, and won't mix resolutions
+  within one `--date`.
+
 ### 13.4 Smoke on Jev
 
 [`runs/economy-p2-smoke-2026-09-30.md`](../runs/economy-p2-smoke-2026-09-30.md): 4 full matches,

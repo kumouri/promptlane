@@ -44,6 +44,12 @@ release), and
 the same verdict lines, 12 seed pairs per comparison on Jev; metrics and heatmaps
 `bandstand-2-2026-09-30-*` beside it, logs on the
 [`data-bandstand-2-2026-09-30`](https://github.com/kumouri/promptlane/releases/tag/data-bandstand-2-2026-09-30)
+release), and
+[side-fairness-2026-10-01.md](side-fairness-2026-10-01.md) (why `pvp-1` favoured violet: the frozen
+sim's update order, traced and fixed by the `simultaneous-1` tick resolution; bots-at-base
+symmetry, 489 old logs replayed byte-identically, 10 side-swapped Jev matches and a mirror probe;
+logs on the
+[`data-side-fairness-2026-10-01`](https://github.com/kumouri/promptlane/releases/tag/data-side-fairness-2026-10-01)
 release).
 The bulky captures those documents hash live under ignored `artifacts/<run>-evidence/` and
 `artifacts/<run>-reviewed/`.

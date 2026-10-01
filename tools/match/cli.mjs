@@ -59,6 +59,10 @@ options:
   --recall NAME       recall rule (src/recall.ts): recall-2 (a 4 s channel, then a teleport home;
                       damage in its first 3.5 s cancels it) or none (the specimen's 3x run home,
                       the default); recorded in the log, applied on --verify
+  --resolution NAME   tick resolution (src/resolution.ts): simultaneous-1 (the default: both
+                      sides' bearbots and minions act on the same start-of-step world) or
+                      sequential (the frozen sim's own order, which favours violet); recorded in
+                      the log unless sequential, applied on --verify
   --quiet             no progress lines`;
 
 function parseArgs(argv) {
@@ -88,6 +92,7 @@ function parseArgs(argv) {
       case '--economy': args.economy = next(); break;
       case '--objective': args.objective = next(); break;
       case '--recall': args.recall = next(); break;
+      case '--resolution': args.resolution = next(); break;
       case '--verify': args.verify = next(); break;
       case '--quiet': args.quiet = true; break;
       case '-h': case '--help': args.help = true; break;
@@ -155,6 +160,7 @@ async function main() {
   const economy = args.economy === undefined ? headless.DEFAULT_ECONOMY : headless.resolveEconomy(args.economy);
   const objective = args.objective === undefined ? headless.DEFAULT_OBJECTIVE : headless.resolveObjective(args.objective);
   const recall = args.recall === undefined ? headless.DEFAULT_RECALL : headless.resolveRecall(args.recall);
+  const resolution = args.resolution === undefined ? headless.DEFAULT_RESOLUTION : headless.resolveResolution(args.resolution);
   if (!(args.cadence >= 0.5)) throw new Error('--cadence must be >= 0.5 (the game asks every 0.5 s)');
   if (args.maxSimSec !== undefined && !(args.maxSimSec > 0)) throw new Error('--max-sim-sec must be a positive number');
 
@@ -207,7 +213,7 @@ async function main() {
   if (jevBackend && backend !== jevBackend) backend = { ...backend, jevSchema: jevBackend };
 
   if (!args.quiet) {
-    console.error(`match: ${sides.violet.name} (violet) vs ${sides.green.name} (green) seed=${args.seed} cadence=${args.cadence}s map=${map.name} economy=${economy?.name ?? 'none'} objective=${objective?.name ?? 'none'} recall=${recall?.name ?? 'none'} backend=${backendLabel(backend)}`);
+    console.error(`match: ${sides.violet.name} (violet) vs ${sides.green.name} (green) seed=${args.seed} cadence=${args.cadence}s map=${map.name} economy=${economy?.name ?? 'none'} objective=${objective?.name ?? 'none'} recall=${recall?.name ?? 'none'} resolution=${resolution} backend=${backendLabel(backend)}`);
   }
   const started = Date.now();
   const log = await headless.runMatch({
@@ -221,6 +227,7 @@ async function main() {
     buildFor: (i) => schemas[ROSTER_TEAMS[i]]?.[INSTRUMENTS[i % 3]]?.build,
     objective,
     recall,
+    resolution,
     maxSimSec: args.maxSimSec,
     backend,
     flush,
