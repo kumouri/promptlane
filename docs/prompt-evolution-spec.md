@@ -22,7 +22,7 @@
 > generations an epoch), Q8 (seed prompts: the Friday tiers, house and the three starters) and Q9
 > (single change, no crossover) were ruled as recommended. **Budget, 03:07 CT:** *"if epoch 1
 > doesn't take $15, you can go on to epoch 2 ... but don't use more than $25 total."* **The blackout
-> moved with the Jam:** no campaign activity from Thu 2026-10-15 17:00 CT through the end of the Jam
+> moved with the Jam:** no campaign activity from Fri 2026-10-16 00:00 CDT (midnight going into the Jam) through the end of the Jam
 > (Fri 2026-10-16). Both are now enforced in code (`budget.mjs`, §7).
 >
 > **Campaign 1 rulings, 2026-09-30 07:34–07:35 CT (Telegram pickers).** (1) **"Epoch 2 = what's
@@ -369,7 +369,7 @@ sides for the matrix. That is about 385 matches: ~17–19 h and ~$13–27.
 first epoch has a **$15 cap**. A second epoch may run only if the first spent less than $15.
 **Epoch 2's cap is whatever is left of the $25 after epoch 1** ("Epoch 2 = what's left of $25"):
 if epoch 1 spends $9, epoch 2 may spend up to $16. The whole campaign spends at most **$25**.
-**No campaign activity from Thu 2026-10-15 17:00 CT through the end of the Jam (Fri 2026-10-16).**
+**No campaign activity from Fri 2026-10-16 00:00 CDT (midnight going into the Jam) through the end of the Jam (Fri 2026-10-16).** Moved from Thu 10-15 17:00 CT by Ceryce, 2026-10-01 18:44 CT: *"Training cutoff is 20261016T00:00.00-5"*.
 
 **Enforced in code, `tools/evolve/budget.mjs`.** `step` wraps every paid dependency
 (`guardDeps`). Before each paid call, it checks the call's **reserve** against the caps. The reserve
@@ -409,7 +409,7 @@ throttle. Measure that before relying on it.
 **Must not slow the Jam.** By default the harness uses **no local GPU**: compile on OpenRouter,
 mutation on the `claude` CLI, Jev on Workers AI. So it doesn't compete with local `qwen3.5:9b`
 matches. It **does** share the Cloudflare account's Jev with the Jam: the practice panel, and the
-Jev house bot if it goes live. Don't run a campaign from Thu 2026-10-15 17:00 CT (entrant cutoff)
+Jev house bot if it goes live. Don't run a campaign from Fri 2026-10-16 00:00 CDT (midnight going into the Jam) (the entrant cutoff)
 through the end of the Jam; `budget.mjs` refuses to. Run it on its own `schema_server.py` port,
 never on the arena's 8797. The campaign default is `http://127.0.0.1:8813/`.
 
@@ -510,7 +510,7 @@ Q8; campaign 1 is below the table).
 | Q3 | Rubric: as fitness, as the mutation's diagnostic (proposal c), or not at all? | **diagnostic only** / fitness / none | **Diagnostic only**, with an archetype-adherence row and every rubric/win disagreement logged. As fitness, it invites Goodhart. | **RULED 01:50: diagnostic only.** The judge is not built. |
 | Q4 | Match shape that counts | **Jam shape (600 s, cadence 2)** / quick (180 s, cadence 4) | **Jam shape.** Quick and Jam shape ranked the same pair oppositely in the smoke. | **RULED 2026-09-30: Jam shape.** The default. |
 | Q5 | Seeds per comparison | epoch **4** / 8; promotion 8 / **16** / 32 | **4 screening, 16 promotion**, then revise from the first campaign's measured σ (§4 table). | **RULED 01:50: 4 screening, 16 promotion.** These are the defaults. |
-| Q6 | When and how much | spend cap; hours | **$15 cap for the first epoch**. Sequential matches until concurrency is measured. **Not Thu 17:00 CT through the Jam.** Its own schema-server port. | **RULED 01:50: $15 cap for epoch 1**, and at 03:07 epoch 2 only if epoch 1 spent under $15, **$25 total**. **07:34: epoch 2's cap is what's left of the $25** after epoch 1 ("Epoch 2 = what's left of $25"), not another $15. **No campaign from Thu 2026-10-15 17:00 CT through the end of the Jam** (moved with the Jam to Fri 2026-10-16). Enforced by `budget.mjs` (§7). |
+| Q6 | When and how much | spend cap; hours | **$15 cap for the first epoch**. Sequential matches until concurrency is measured. **Not from midnight going into the Jam through its end.** Its own schema-server port. | **RULED 01:50: $15 cap for epoch 1**, and at 03:07 epoch 2 only if epoch 1 spent under $15, **$25 total**. **07:34: epoch 2's cap is what's left of the $25** after epoch 1 ("Epoch 2 = what's left of $25"), not another $15. **No campaign from Fri 2026-10-16 00:00 CDT (midnight going into the Jam) through the end of the Jam** (moved with the Jam to Fri 2026-10-16). Enforced by `budget.mjs` (§7). |
 | Q7 | Epoch length X (her parameter) | 2 / **3** / 5 generations | **3**, about 9 h an epoch at the recommended size (§7). | **RULED 2026-09-30: 3.** The default. |
 | Q8 | Seed prompts | `drums.md` (the smoke's; suicidal) / **house prose + the three starters + the Friday tier prompts** | **The Friday tier prompts plus house and starters**, so evolution starts where the quick tiers ended. | **RULED 2026-09-30: the Friday tier prompts (house-easy, medium, house-hard), house and the three starters.** Campaign 1 narrows this (07:34–07:35): its only seed is `house-hard`, and medium is its opponent, not a seed. |
 | Q9 | Crossover (the "genetic algorithm" option) | **single change only for now** / rule-level crossover | **Single change first.** Each generation's effect stays attributable, which is the practice goal. Add crossover once single changes plateau. | **RULED 2026-09-30: single change, no crossover.** The only operator built. |
