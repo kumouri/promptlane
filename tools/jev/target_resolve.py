@@ -5,7 +5,8 @@ into a concrete target: an entity id string (for `attack`/`ability`) or an `{x,y
 (`tools/arena/pages/contract.mjs` §4). Deterministic, no model call: this is the piece of the
 pipeline that turns "which selector" (the translator's job) into "which specific entity, right now"
 (arithmetic over the current Observation, same job `bind_questions`/target logic would do in any of
-this repo's other rule-based pilots)."""
+this repo's other rule-based pilots). `bandstand` is the one selector that reads an optional
+Observation field (the objective's `bandstand` block); without it, it falls back to `push_lane`."""
 from __future__ import annotations
 
 import sys
@@ -33,6 +34,14 @@ def resolve_target(selector: str | None, obs: dict) -> object | None:
         return dict(HOME_POS[team])
     if selector == "push_lane":
         return dict(HOME_POS[enemy_team])
+    if selector == "bandstand":
+        # The river objective (docs/economy-spec.md §9.7): its stage while it is open or opens
+        # within the warning window; closed, done, or a match with no objective at all -> exactly
+        # push_lane, so a stale "go take the Bandstand" rule walks up the lane instead of parking.
+        stand = obs.get("bandstand")
+        if stand and stand.get("status") in ("upcoming", "open"):
+            return {"x": stand["pos"]["x"], "y": stand["pos"]["y"]}
+        return resolve_target("push_lane", obs)
 
     enemies = obs.get("visibleEnemies", [])
     bearbots = [e for e in enemies if e.get("kind") == "bearbot"]

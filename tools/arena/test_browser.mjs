@@ -5,8 +5,10 @@
  * Replay mode at a fixed speed must pace itself. `LivePacer` (docs/render-spec.md §8) is the
  * live-mode fix for the "freeze then teleport" bug: it must still burst (Infinity) while
  * genuinely behind, but meter the release once caught up instead of bursting every newly-
- * unlocked tick — this is the "logic, not drawing" part of render phase 1. `src/sim/` is bundled
- * unchanged, as ever.
+ * unlocked tick — this is the "logic, not drawing" part of render phase 1. A log played with the
+ * river objective (`src/objective.ts`) must carry it through `meta`, have it attached by
+ * `buildMatch`, and replay with every checkpoint equal; a log without one must be untouched.
+ * `src/sim/` is bundled unchanged, as ever.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -15,21 +17,43 @@ import path from 'node:path';
 import { ROOT, flush, loadHeadless } from '../match/load.mjs';
 import { eventsFromLog } from './live.mjs';
 
+/** `src/live.ts` plus `getObjective` from the same bundle, so the objective's per-match registry is the one `buildMatch` wrote to. */
 async function loadLive() {
-  const bundle = await build({ entryPoints: [path.join(ROOT, 'src', 'live.ts')], absWorkingDir: ROOT, bundle: true, write: false, format: 'esm', platform: 'node', target: 'node20', logLevel: 'silent' });
+  const bundle = await build({
+    stdin: { contents: "export * from './src/live.ts';\nexport { getObjective } from './src/objective.ts';\n", resolveDir: ROOT, loader: 'ts' },
+    absWorkingDir: ROOT,
+    bundle: true,
+    write: false,
+    format: 'esm',
+    platform: 'node',
+    target: 'node20',
+    logLevel: 'silent',
+  });
   return import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].contents).toString('base64')}`);
 }
 
 const headless = await loadHeadless();
 const live = await loadLive();
-const { LiveFeed, Ticker, DivergenceCheck, buildMatch, LivePacer } = live;
+const { LiveFeed, Ticker, DivergenceCheck, buildMatch, LivePacer, getObjective } = live;
 
 const sides = (a, b) => ({ violet: { name: a, promptFile: 'x', promptText: `${a}. Reply with JSON.` }, green: { name: b, promptFile: 'y', promptText: `${b}. Reply with JSON.` } });
 const tickOf = (m) => Math.round(m.clockSec / 0.05);
 const frame = () => new Promise((r) => setImmediate(r));
 
-async function mockLog(maxSimSec = 90, seed = 7) {
-  return headless.runMatch({ seed, sides: sides('ann', 'bo'), callModelFor: (i) => headless.mockCallModel(100 + i), cadenceSec: 2, maxSimSec, backend: { kind: 'mock' }, flush });
+async function mockLog(maxSimSec = 90, seed = 7, extra = {}) {
+  return headless.runMatch({ seed, sides: sides('ann', 'bo'), callModelFor: (i) => headless.mockCallModel(100 + i), cadenceSec: 2, maxSimSec, backend: { kind: 'mock' }, flush, ...extra });
+}
+
+/** Feed every event of `log` (as the arena streams it), build, and step to the end at full speed. */
+async function replayAll(log) {
+  const feed = new LiveFeed();
+  const check = new DivergenceCheck(feed, 100);
+  feed.onCheckpoint = (t, s) => check.onCheckpoint(t, s);
+  for (const e of eventsFromLog(log)) feed.apply({ event: e.event, data: e.data });
+  const built = buildMatch(feed);
+  const ticker = new Ticker(built.match, built.asks, { limit: () => feed.limitTick, speed: () => Infinity, finished: () => !!feed.end, onTick: () => { check.afterTick(built.match); return check.divergedAt === null; }, frame });
+  await ticker.done;
+  return { feed, check, match: built.match };
 }
 
 test('live: events arriving over time, the sim trails the last round and lands on the log, no divergence', async () => {
@@ -124,6 +148,43 @@ test('replay: a finished log at 16× paces itself by the clock and ends with the
   assert.equal(built.match.endReason, log.result.endReason);
   assert.ok(perFrame.slice(1, -1).every((n) => n <= 33), `at most 32 ticks per 100 ms frame at 16×: ${perFrame.slice(0, 8)}`);
   assert.ok(perFrame.length >= log.result.ticks / 32 - 1, 'took the frames it should');
+});
+
+test('objective: a river-1 log carries its ruleset through meta, the rebuilt match has it attached, and every checkpoint (objective included) matches', async () => {
+  const log = await mockLog(120, 7, { objective: 'river-1' });
+  assert.equal(log.objective.name, 'river-1');
+  assert.equal(log.result.objective.openings.length, 1, 'the first set opened at 90 s');
+  assert.ok(log.checkpoints.every((c) => Array.isArray(JSON.parse(c.state).o)), 'the log\'s checkpoints carry the objective');
+  assert.deepEqual(LiveFeed.fromLog(log).meta.objective, log.objective, 'fromLog passes it through like the map');
+  assert.deepEqual(eventsFromLog(log)[0].data.objective, log.objective, 'so does the arena\'s meta event');
+
+  const { feed, check, match } = await replayAll(log);
+  assert.deepEqual(feed.meta.objective, log.objective);
+  const objective = getObjective(match);
+  assert.ok(objective, 'buildMatch attached the objective');
+  assert.equal(objective.rules.name, 'river-1');
+  assert.equal(check.divergedAt, null);
+  assert.equal(check.compared, log.checkpoints.length, 'every checkpoint compared');
+  assert.equal(tickOf(match), log.result.ticks);
+  assert.deepEqual(objective.summary(), log.result.objective, 'the replayed Bandstand opened (and was or was not taken) exactly as recorded');
+});
+
+test('objective: a log without one is unchanged — no meta key, nothing attached, checkpoints without `o` still match', async () => {
+  const log = await mockLog(60);
+  assert.ok(!('objective' in log));
+  assert.ok(!('objective' in LiveFeed.fromLog(log).meta));
+  assert.ok(!('objective' in eventsFromLog(log)[0].data));
+  const { check, match } = await replayAll(log);
+  assert.equal(getObjective(match), undefined);
+  assert.equal(check.divergedAt, null);
+  assert.equal(check.compared, log.checkpoints.length);
+  assert.ok(!('o' in JSON.parse(log.checkpoints[0].state)));
+});
+
+test('objective: a river-1 log replayed WITHOUT its objective diverges at the first checkpoint (the check sees it)', async () => {
+  const log = await mockLog(30, 7, { objective: 'river-1' });
+  const { check } = await replayAll({ ...log, objective: undefined });
+  assert.equal(check.divergedAt, log.checkpoints[0].tick);
 });
 
 test('LivePacer: exactly one round behind is not yet "genuinely behind"; more than one round is real catch-up (Infinity)', () => {

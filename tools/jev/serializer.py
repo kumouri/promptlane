@@ -11,10 +11,10 @@ not invent past what they say. So: prose, not a raw JSON dump of the worksheet.
 
 THE NUMBERS DECISION -- the central risk this harness exists to test (memo, `docs/
 jev-decision-model-research.md`, quoting Simon Willison: Jev is "not great with numbers, dates").
-The seven rules are nothing but numeric/threshold comparisons (hp vs 75, cd vs 0, wave vs 1) and
-presence checks, so there is no way to omit numbers from the state -- the comparison itself is the
-thing under test. What this serializer controls is how much interpretation rides *alongside* the
-raw number:
+The seven rules are nothing but numeric/threshold comparisons (hp vs 75, cd vs 0, wave vs 1; with
+the Bandstand objective, also hp vs half of maxHp) and presence checks, so there is no way to omit
+numbers from the state -- the comparison itself is the thing under test. What this serializer
+controls is how much interpretation rides *alongside* the raw number:
 
     chosen:  spell out both the raw value and its threshold-relative meaning in the same clause,
              e.g. "cd is 0.0 seconds, meaning the ability is off cooldown and ready to use" --
@@ -92,23 +92,42 @@ def _hp_clause(hp: float) -> str:
     return f"Its own hp is {hp:g}, which is at or above the 75-hp recall threshold."
 
 
+def _stand_clause(ws: Worksheet) -> str:
+    """Only with the objective (`ws.stand` set): whether the Bandstand is open, and hp against half
+    of maxHp -- the Bandstand rule's line, stated next to the number like `_hp_clause` states the
+    recall line."""
+    if ws.stand != "open":
+        return f"The Bandstand is {ws.stand}, not open."
+    if ws.max_hp is None:
+        return "The Bandstand is open."
+    half = ws.max_hp / 2
+    relation = "above" if ws.hp > half else "at or below"
+    return (
+        f"The Bandstand is open. Its own hp of {ws.hp:g} is {relation} {half:g}, half of its {ws.max_hp:g} "
+        "maxHp, the Bandstand threshold."
+    )
+
+
 def state_paragraph(ws: Worksheet) -> str:
     """A short, dense, detailed paragraph describing one bearbot's decision-relevant state at one
     tick -- the subset of an `Observation` (`tools/arena/pages/contract.mjs`) that the checked-in
     run logs actually preserve. See `harness.py`'s module docstring for exactly what that is and
     is not (no position, no per-ability cooldown map, no minion/enemy roster -- only presence).
-    A live worksheet (`ws.foe_detail`) also carries the foe's kind and hp -- see `_foe_clause`."""
-    return " ".join(
-        [
-            f"This is a {ws.team}-team bearbot playing {ws.instrument}, "
-            f"{ws.clock_sec:.1f} sim-seconds into the match (tick {ws.tick}).",
-            _hp_clause(ws.hp),
-            _wave_clause(ws.wave).capitalize() + ".",
-            _tower_clause(ws.tower),
-            _foe_clause(ws),
-            _cd_clause(ws.cd),
-        ]
-    )
+    A live worksheet (`ws.foe_detail`) also carries the foe's kind and hp -- see `_foe_clause`.
+    A worksheet with the objective (`ws.stand` set) ends with `_stand_clause`; without it the
+    paragraph is exactly the pre-Bandstand one."""
+    parts = [
+        f"This is a {ws.team}-team bearbot playing {ws.instrument}, "
+        f"{ws.clock_sec:.1f} sim-seconds into the match (tick {ws.tick}).",
+        _hp_clause(ws.hp),
+        _wave_clause(ws.wave).capitalize() + ".",
+        _tower_clause(ws.tower),
+        _foe_clause(ws),
+        _cd_clause(ws.cd),
+    ]
+    if ws.stand is not None:
+        parts.append(_stand_clause(ws))
+    return " ".join(parts)
 
 
 def state_object(ws: Worksheet) -> dict:
@@ -133,4 +152,10 @@ def state_object(ws: Worksheet) -> dict:
     }
     if ws.foe_detail:
         obj.update({"foe_kind": ws.foe_kind, "foe_hp": ws.foe_hp, "foe_hp_ability_threshold": 100})
+    if ws.stand is not None:
+        obj.update({
+            "stand": ws.stand,
+            "max_hp": ws.max_hp,
+            "hp_bandstand_threshold": ws.max_hp / 2 if ws.max_hp is not None else None,
+        })
     return obj

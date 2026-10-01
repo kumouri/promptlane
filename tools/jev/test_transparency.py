@@ -166,6 +166,22 @@ class BuildReportGuardTests(unittest.TestCase):
         self.assertIn("| # | Branch | Condition | Then |", rendered)
 
 
+class BandstandRenderingTests(unittest.TestCase):
+    def test_move_bandstand_renders_as_move_to_the_bandstand(self):
+        schema = TranslatedSchema(
+            pilot_file="drums.md",
+            instrument="drums",
+            rules=[_rule("take_stand", "is the Bandstand open?", kind="move", selector="bandstand")],
+            default_kind="move", default_ability=None, default_target_selector="bandstand",
+            raw_model_output="{}",
+        )
+        rendered = X.render_report_markdown(X.build_report(schema, "drums.md"))
+        self.assertIn("| 1 | — | is the Bandstand open? | **move to the Bandstand**", rendered)  # quick view
+        self.assertIn("- **Then:** **move to the Bandstand**", rendered)  # rule detail
+        self.assertIn("root default)* | **move to the Bandstand**", rendered)
+        self.assertIn("up the lane instead", rendered)  # the push_lane fallback is visible to the entrant
+
+
 class UnknownPilotFileTests(unittest.TestCase):
     def test_build_report_raises_for_a_pilot_with_no_hand_labeled_segments(self):
         schema = TranslatedSchema(

@@ -102,6 +102,7 @@ export function resultLine(log, outFile) {
     `parse-errors ${log.sides.violet.name}=${pe('violet')} ${log.sides.green.name}=${pe('green')}`,
     `deaths violet=${s.violet.deaths} green=${s.green.deaths}`,
     `towers-lost violet=${s.violet.towersLost} green=${s.green.towersLost}`,
+    ...(r.objective ? [`bandstand violet=${r.objective.captures.violet} green=${r.objective.captures.green} openings=${r.objective.openings.length}`] : []),
     `backend=${backendLabel(log.backend)}`,
     // Only an economy match says anything here, so every older result line is unchanged.
     ...(r.economy ? [`economy=${r.economy.ruleset} items=${r.economy.bots.map((b) => b.items.length).join('/')} levels=${r.economy.bots.map((b) => b.level).join('/')}`] : []),

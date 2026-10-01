@@ -17,6 +17,7 @@ import { Match, TICK_DT, type RosterSlot } from '../../src/sim/match';
 import { PromptPilot } from '../../src/pilots/promptPilot';
 import { DEFAULT_MAP, SPECIMEN_MAP, applyMapVariant, resolveMap, type MapVariant } from '../../src/mapVariant';
 import { DEFAULT_ECONOMY, attachEconomy, resolveBuilds, resolveEconomy, type EconomyRuleset } from '../../src/economy';
+import { DEFAULT_OBJECTIVE, attachObjective, resolveObjective, type ObjectiveRules } from '../../src/objective';
 import type { CallModel } from '../../src/pilots/callModel';
 import type { TracingDecision, TracingPilot } from './jevPilot';
 import {
@@ -40,7 +41,9 @@ export { jevTeamTracingPilot } from './jevTeamPilot';
 export { jevSchemaTracingPilot } from './jevSchemaPilot';
 export { DEFAULT_MAP, MAP_VARIANTS, PVP_MAP, SPECIMEN_MAP, laneCoverage, resolveMap } from '../../src/mapVariant';
 export { DEFAULT_ECONOMY, ECONOMY_RULESETS, ECO_1, attachEconomy, getEconomy, resolveBuild, resolveEconomy } from '../../src/economy';
-/** For the economy's rule tests (`test_economy.mjs`), which build matches by hand. */
+export { DEFAULT_OBJECTIVE, OBJECTIVES, RIVER_1, attachObjective, getObjective, resolveObjective } from '../../src/objective';
+export { setRewardSink } from '../../src/ruleset/rewards';
+/** For the economy's and the objective's rule tests (`test_economy.mjs`, `test_objective.mjs`), which build matches by hand. */
 export { Match, TICK_DT, applyMapVariant, checkpointOf };
 
 const MATCH_DURATION_SEC = 600;
@@ -87,6 +90,12 @@ export interface RunOptions {
    * or `null` = the instrument's default build (`defaultBuilds` in the ruleset).
    */
   buildFor?: (botIndex: number) => readonly string[] | null | undefined;
+  /**
+   * River objective (`src/objective.ts`) — a name such as `'river-1'`, a ruleset object, or `'none'`.
+   * Default: `DEFAULT_OBJECTIVE` (none until the Sun 10-04 gate). Recorded in the log as `objective`;
+   * a match without one writes no `objective` field, so its log is exactly what it was before.
+   */
+  objective?: string | ObjectiveRules | null;
   /** Yields to the event loop so the sim's own promise chain settles between ticks. */
   flush?: () => Promise<void>;
   /** Progress callback, once per sim-minute. */
@@ -206,6 +215,7 @@ export async function runMatch(opts: RunOptions): Promise<MatchLog> {
   const builds = economyRules
     ? resolveBuilds(economyRules, JAM_ROSTER.map((s) => s.instrument), JAM_ROSTER.map((_, i) => opts.buildFor?.(i)))
     : null;
+  const objectiveRules = opts.objective === undefined ? DEFAULT_OBJECTIVE : resolveObjective(opts.objective);
   const stats: Record<Team, SideStats> = { violet: emptyStats(), green: emptyStats() };
   const totalMs: Record<Team, { value: number }> = { violet: { value: 0 }, green: { value: 0 } };
 
@@ -218,6 +228,7 @@ export async function runMatch(opts: RunOptions): Promise<MatchLog> {
     idBase: 0,
     ...(map.name === SPECIMEN_MAP.name ? {} : { map }),
     ...(economyRules && builds ? { economy: { ruleset: economyRules, builds } } : {}),
+    ...(objectiveRules ? { objective: objectiveRules } : {}),
     backend: opts.backend,
     sides: opts.sides,
     decisions: [],
@@ -253,6 +264,8 @@ export async function runMatch(opts: RunOptions): Promise<MatchLog> {
 
   match = new Match(opts.seed, roster);
   applyMapVariant(match, map);
+  // Map, then objective, then economy: the economy's steps run after the objective's update (§9.6).
+  const objective = objectiveRules ? attachObjective(match, objectiveRules, TICK_DT) : null;
   const economy = economyRules && builds ? attachEconomy(match, economyRules, builds, TICK_DT) : null;
   log.idBase = idNumber(match.nexuses[0].id);
   opts.onStart?.(log);
@@ -311,6 +324,7 @@ export async function runMatch(opts: RunOptions): Promise<MatchLog> {
   log.result.durationSec = Math.round(match.clockSec * 100) / 100;
   log.result.ticks = tickOf(match);
   if (economy) log.result.economy = economy.summary();
+  if (objective) log.result.objective = objective.summary();
   return log;
 }
 
@@ -366,6 +380,8 @@ export async function verifyReplay(
   }));
   match = new Match(log.seed, roster);
   applyMapVariant(match, resolveMap(log.map));
+  const objectiveRules = resolveObjective(log.objective);
+  if (objectiveRules) attachObjective(match, objectiveRules, TICK_DT);
   if (log.economy) attachEconomy(match, log.economy.ruleset, log.economy.builds, TICK_DT);
 
   const expected = new Map(log.checkpoints.map((c) => [c.tick, c.state]));

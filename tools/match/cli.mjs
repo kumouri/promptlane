@@ -53,6 +53,8 @@ options:
                       Sun 10-04 go/no-go). Respawn, gold, levels, items; each schema side buys the
                       \`build\` its prose compiled to, else its instrument's default. Recorded in the
                       log with every bot's shopping list, applied on --verify
+  --objective NAME    river objective (src/objective.ts): river-1 (the Bandstand) or none (the
+                      default until the 10-04 gate); recorded in the log, applied on --verify
   --quiet             no progress lines`;
 
 function parseArgs(argv) {
@@ -80,6 +82,7 @@ function parseArgs(argv) {
       case '--jev-schema': args.jevSchema = next(); break;
       case '--map': args.map = next(); break;
       case '--economy': args.economy = next(); break;
+      case '--objective': args.objective = next(); break;
       case '--verify': args.verify = next(); break;
       case '--quiet': args.quiet = true; break;
       case '-h': case '--help': args.help = true; break;
@@ -145,6 +148,7 @@ async function main() {
   if (!Number.isFinite(args.seed)) throw new Error('--seed must be a number');
   const map = args.map === undefined ? headless.DEFAULT_MAP : headless.resolveMap(args.map);
   const economy = args.economy === undefined ? headless.DEFAULT_ECONOMY : headless.resolveEconomy(args.economy);
+  const objective = args.objective === undefined ? headless.DEFAULT_OBJECTIVE : headless.resolveObjective(args.objective);
   if (!(args.cadence >= 0.5)) throw new Error('--cadence must be >= 0.5 (the game asks every 0.5 s)');
   if (args.maxSimSec !== undefined && !(args.maxSimSec > 0)) throw new Error('--max-sim-sec must be a positive number');
 
@@ -196,7 +200,7 @@ async function main() {
   if (jevBackend && backend !== jevBackend) backend = { ...backend, jevSchema: jevBackend };
 
   if (!args.quiet) {
-    console.error(`match: ${sides.violet.name} (violet) vs ${sides.green.name} (green) seed=${args.seed} cadence=${args.cadence}s map=${map.name} economy=${economy?.name ?? 'none'} backend=${backendLabel(backend)}`);
+    console.error(`match: ${sides.violet.name} (violet) vs ${sides.green.name} (green) seed=${args.seed} cadence=${args.cadence}s map=${map.name} economy=${economy?.name ?? 'none'} objective=${objective?.name ?? 'none'} backend=${backendLabel(backend)}`);
   }
   const started = Date.now();
   const log = await headless.runMatch({
@@ -208,6 +212,7 @@ async function main() {
     map,
     economy,
     buildFor: (i) => schemas[ROSTER_TEAMS[i]]?.[INSTRUMENTS[i % 3]]?.build,
+    objective,
     maxSimSec: args.maxSimSec,
     backend,
     flush,

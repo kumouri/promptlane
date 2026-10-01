@@ -3,7 +3,7 @@
  * match that starts while someone is watching, the synthesized stream of a finished log being
  * identical to the live one) and the jam-day bracket end to end over HTTP — create from the
  * ladder, pre-run a held round, hide it from a non-organizer, reveal, play the final live,
- * rule, re-run.
+ * rule, re-run. Also the startup check of `tournament.objective` (the river objective, like the map).
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -158,6 +158,24 @@ test('e2e: live stream of a match watched from the queue, identical to the synth
     assert.deepEqual(tail.events.map((e) => e.event), [after.events.at(-3).event, 'result', 'end']);
     assert.equal((await fetch(`${base}api/matches/nope/events`)).status, 404);
     assert.ok(existsSync(logFile));
+  } finally {
+    await arena.close();
+    f.cleanup();
+  }
+});
+
+test('startup: tournament.objective is checked like the map and handed to the queue; an unknown one refuses to start', async () => {
+  const bad = fixture({ tweak: (c) => { c.tournament.objective = 'river-9'; } });
+  try {
+    await assert.rejects(createArena({ config: bad.config, dataDir: bad.data, devUser: 'dev@example.com', log: quiet, sync: false }), /unknown objective "river-9"/);
+  } finally {
+    bad.cleanup();
+  }
+  const f = fixture({ tweak: (c) => { c.tournament.objective = 'river-1'; } });
+  const arena = await createArena({ config: f.config, dataDir: f.data, devUser: 'dev@example.com', log: quiet, sync: false });
+  try {
+    assert.equal(arena.queue.objective, 'river-1');
+    assert.equal(arena.ledger.state().tournament.objective, 'river-1', 'the tournament row records it');
   } finally {
     await arena.close();
     f.cleanup();

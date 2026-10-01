@@ -107,6 +107,40 @@ class AllyAndMinionSelectorTests(unittest.TestCase):
         self.assertIsNone(resolve_target("nearby_minion", obs))
 
 
+def with_stand(obs, status, pos=(300, 300)):
+    obs["bandstand"] = {
+        "site": "top-side", "pos": {"x": pos[0], "y": pos[1]}, "radius": 60, "status": status,
+        "opensInSec": None, "progress": 0, "contested": False, "alliesOn": 0, "selfOn": False,
+    }
+    return obs
+
+
+class BandstandSelectorTests(unittest.TestCase):
+    """`bandstand` (docs/economy-spec.md §9.7): the stage while upcoming/open, else exactly push_lane."""
+
+    def test_open_and_upcoming_resolve_to_the_stage_position(self):
+        for status in ("open", "upcoming"):
+            obs = with_stand(make_obs(team="violet"), status, pos=(700, 700))
+            self.assertEqual(resolve_target("bandstand", obs), {"x": 700, "y": 700}, status)
+
+    def test_closed_and_done_fall_back_to_exactly_push_lane(self):
+        for team in ("violet", "green"):
+            for status in ("closed", "done"):
+                obs = with_stand(make_obs(team=team), status)
+                self.assertEqual(resolve_target("bandstand", obs), resolve_target("push_lane", obs), (team, status))
+
+    def test_no_bandstand_block_falls_back_to_exactly_push_lane(self):
+        for team in ("violet", "green"):
+            obs = make_obs(team=team)
+            self.assertEqual(resolve_target("bandstand", obs), HOME_POS["green" if team == "violet" else "violet"])
+
+    def test_returns_a_copy_not_the_observations_own_dict(self):
+        obs = with_stand(make_obs(), "open")
+        target = resolve_target("bandstand", obs)
+        target["x"] = -1
+        self.assertEqual(obs["bandstand"]["pos"]["x"], 300)
+
+
 class InvalidSelectorTests(unittest.TestCase):
     def test_unknown_selector_raises(self):
         with self.assertRaises(ValueError):

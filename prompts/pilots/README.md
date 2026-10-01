@@ -19,11 +19,13 @@ It is not a champion voice; it is written for the ruled test backend (`qwen3.5:9
   compare fields against `self.team`, so team is a literal. The arena (`tools/arena/house.mjs`)
   loads `house-violet.md` when the house plays violet and `house-green.md` when it plays green;
   the two files differ only in those literals (`diff` them). Keep them in step when editing.
-- **A worksheet inside the reply.** The object starts with `hp`, `wave`, `tower`, `foe`, `cd`
-  before `kind`; `parseAction` only reads `kind`/`target`/`ability`, so the extra keys are legal
-  and they are what makes the model's comparisons work.
+- **A worksheet inside the reply.** The object starts with `hp`, `wave`, `tower`, `foe`, `cd`,
+  `stand` before `kind`; `parseAction` only reads `kind`/`target`/`ability`, so the extra keys are
+  legal and they are what makes the model's comparisons work. `stand` is `bandstand.status`, and
+  null in a match without the river objective (see "The Bandstand" below).
 - **Strategy:** ride your own minion wave, fight what it meets, press towers only with the wave,
-  recall under 75 hp, abilities only with the cooldown at 0.
+  recall under 75 hp, abilities only with the cooldown at 0; with the objective on, go to the
+  Bandstand while it is open and no enemy bearbot is in sight.
 - **Per-instrument lines** (`keytar only: …`) are the form the Jev translator recognises: compiled
   with `tools/jev/compile.py`, each instrument's schema gets only its own line
   ([`translator-guards-and-defaults-spec.md` §10](../../docs/translator-guards-and-defaults-spec.md)).
@@ -43,8 +45,25 @@ easy and hard are only played when asked for (`config.house.tier` or `--house-ti
 | tier | archetype | rules, in order |
 |---|---|---|
 | easy | defend, never risk a bearbot | recall under 100 hp → leave whenever an enemy tower is near → attack the nearest enemy → stay with a friendly minion → wait at home. No abilities. |
-| medium | ride the wave (above) | recall under 75 → leave a tower without a wave → ability → attack the foe → the tower → ride → home |
-| hard | towers and kills | recall under 90 → leave a tower without a wave → ability on a bearbot under 100 hp → attack that bearbot → the tower if 2+ friendly minions are in sight → the lowest-hp bearbot → the nearest minion → ride → home |
+| medium | ride the wave (above) | recall under 75 → *the Bandstand* → leave a tower without a wave → ability → attack the foe → the tower → ride → home |
+| hard | towers and kills | recall under 90 → *the Bandstand, three rules* → leave a tower without a wave → ability on a bearbot under 100 hp → attack that bearbot → the tower if 2+ friendly minions are in sight → the lowest-hp bearbot → the nearest minion → ride → home |
+
+**The Bandstand** (the river objective, [`docs/economy-spec.md` §9.7](../../docs/economy-spec.md)).
+Medium and hard go to `bandstand.pos` by rules placed right after the low-hp recall. Easy has no
+Bandstand rule: easy stays easy.
+
+| tier | worksheet keys added | Bandstand rules |
+|---|---|---|
+| easy | none | none |
+| medium | `stand` | `stand` is "open", `foe` is null or a minion, hp above 50 % of `self.maxHp` |
+| hard | `stand`, `standIn` (`opensInSec`), `standDist` (to `bandstand.pos`, whole number), `standBar` (`progress`, your side), `contested` | the medium rule with hard's bearbot-only `foe`; "open" and (`contested` or `standBar` below 0) with hp above 40 % of `self.maxHp`; "upcoming", `standIn` 10 or less and `standDist` under 400 |
+
+Every added key is null when the observation has no `bandstand` block (a match played without the
+objective), and every Bandstand rule starts by naming a `stand` status, so without the objective
+none can match and the tier plays as before. The code twin of medium's rule is `tools/jev/rules.py`
+(`q1b_bandstand_open`, rule number 8 so rules 1–7 keep their old numbers) and
+`tools/match/jevPilot.ts`; both send and ask it only when the observation has the block. The
+spec's `encore` key is not added: no tier's rule reads it.
 
 > **Hard is not yet harder than medium.** On Jev, the Jam's backend, each tier's prose was compiled and played as an entrant's is (`runs/house-tiers-2026-09-30.md`). There, hard and medium are level: 3-3-16 over 22 matches, with 25 towers taken each. Both beat easy 10-0. Hard never hits its own towers on Jev. But it loses more bearbots at enemy towers than medium does (28 to 15 in 32 matches each), because it recalls too late. The timeout tiebreak doesn't count bearbots. On the qwen side files below it was weaker than medium: medium went 1-0-2 against it, and 32 of its 87 tower attacks hit its own towers. Ceryce's ruling 2026-09-30: ship it labelled, and let the prompt-evolution campaign's hard lineage (`docs/prompt-evolution-spec.md`) start from it.
 

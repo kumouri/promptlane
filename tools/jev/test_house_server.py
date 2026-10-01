@@ -111,6 +111,59 @@ class DecideTests(unittest.TestCase):
         self.assertEqual(result["bucket"], "ride_wave")
 
 
+class RecordingClient(FakeClient):
+    """A perfect Jev that also keeps what it was asked, so a test can see the questions and state."""
+
+    def ask(self, state, questions):
+        self.state, self.question_ids = state, [q.id for q in questions]
+        return super().ask(state, questions)
+
+
+class BandstandTests(unittest.TestCase):
+    """house-violet.md's rule 2 on the live path: asked only when the worksheet carries `stand`."""
+
+    LIVE = dict(hp=120, wave=1, tower=None, foe=None, cd=2.0, instrument="keytar", team="violet", tick=1, clock_sec=0.05,
+                foe_detail=True, foe_kind=None, foe_hp=None)
+
+    def test_without_stand_the_six_questions_and_the_pre_bandstand_decision(self):
+        client = RecordingClient()
+        client.set_ground_truth(Worksheet(**self.LIVE))
+        result = JevHouseBackend(client, budget_usd=None).decide(body(hp=120, cd=2.0, foeKind=None, foeHp=None))
+        self.assertEqual(len(client.question_ids), 6)
+        self.assertNotIn("q1b_bandstand_open", result["answers"])
+        self.assertNotIn("Bandstand", client.state)
+        self.assertEqual((result["bucket"], result["rule"]), ("ride_wave", 6))
+
+    def test_open_stand_moves_to_the_bandstand_as_rule_8(self):
+        client = RecordingClient()
+        client.set_ground_truth(Worksheet(**self.LIVE, stand="open", max_hp=140))
+        result = JevHouseBackend(client, budget_usd=None).decide(body(hp=120, cd=2.0, foeKind=None, foeHp=None, stand="open", maxHp=140))
+        self.assertEqual(client.question_ids[:2], ["q1_low_hp_recall", "q1b_bandstand_open"])
+        self.assertIn("The Bandstand is open.", client.state)
+        self.assertEqual((result["bucket"], result["rule"]), ("bandstand", 8))
+
+    def test_a_visible_bearbot_keeps_it_off_the_stand(self):
+        client = RecordingClient()
+        live = dict(self.LIVE, foe="bb-5", foe_kind="bearbot", foe_hp=130)
+        client.set_ground_truth(Worksheet(**live, stand="open", max_hp=140))
+        result = JevHouseBackend(client, budget_usd=None).decide(
+            body(hp=120, cd=2.0, foe="bb-5", foeKind="bearbot", foeHp=130, stand="open", maxHp=140))
+        self.assertEqual(result["bucket"], "attack_foe")
+
+    def test_fallback_plays_the_bandstand_rule_too(self):
+        b = JevHouseBackend(FailingClient(fail_times=99), budget_usd=None)
+        with redirect_stderr(io.StringIO()):
+            result = b.decide(body(hp=120, cd=2.0, foeKind=None, foeHp=None, stand="open", maxHp=140))
+            closed = b.decide(body(hp=120, cd=2.0, foeKind=None, foeHp=None, stand="closed", maxHp=140))
+        self.assertEqual((result["bucket"], result["rule"], result["fallback"]), ("bandstand", 8, "rules-in-code"))
+        self.assertEqual(result["answers"]["q1b_bandstand_open"], 1.0)
+        self.assertEqual(closed["bucket"], "ride_wave")
+
+    def test_stand_without_max_hp_is_a_bad_worksheet(self):
+        with self.assertRaisesRegex(ValueError, "maxHp"):
+            JevHouseBackend(FakeClient(), budget_usd=None).decide(body(stand="open"))
+
+
 class FailingClient:
     model = "failing-jev"
 

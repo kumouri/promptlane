@@ -102,6 +102,133 @@ class RunPredictionGuardTests(unittest.TestCase):
         self.assertEqual(pred["guard_answers"], [{"guard_id": "can_win_fight", "answer": False}])
 
 
+def _obs(objective=True, **stand):
+    """An empty_lane_push observation (self at (300,500), violet), with a `bandstand` block at the
+    top-side site (300,300) -- 200 units away -- unless `objective` is False."""
+    from scenarios import SCENARIOS, build_observation
+
+    obs = build_observation(SCENARIOS[0], "violet", "drums")
+    if objective:
+        obs["self"]["encoreSec"] = 0
+        for a in obs["allies"]:
+            a["encoreSec"] = 0
+        block = {"site": "top-side", "pos": {"x": 300, "y": 300}, "radius": 60, "status": "open",
+                 "opensInSec": None, "progress": 0, "contested": False, "alliesOn": 0, "selfOn": False}
+        block.update(stand)
+        obs["bandstand"] = block
+    return obs
+
+
+STAKES = "Taking it gives your whole team Encore (+15 % attack damage, +10 % move speed for 45 s)"
+
+
+class DescribeObservationBandstandTests(unittest.TestCase):
+    """The river objective's lines in `describe_observation` (docs/economy-spec.md §9.7) -- the
+    prose Jev reads, live via schema_server.py."""
+
+    def test_no_objective_adds_exactly_one_line_at_the_end(self):
+        text = FH.describe_observation(_obs(objective=False))
+        self.assertTrue(text.endswith(" No minions nearby. There is no Bandstand in this match."), text)
+        self.assertEqual(text.count("Bandstand"), 1)
+        self.assertNotIn("Encore", text)
+
+    def test_every_original_scenario_gains_only_that_line(self):
+        from scenarios import all_scenarios, build_observation
+
+        for scenario in all_scenarios():
+            text = FH.describe_observation(build_observation(scenario, "violet", "keytar"))
+            self.assertTrue(text.endswith(". There is no Bandstand in this match."), scenario.name)
+            self.assertEqual(text.count("Bandstand"), 1, scenario.name)
+
+    def test_closed(self):
+        text = FH.describe_observation(_obs(status="closed", site="bottom-side", pos={"x": 700, "y": 700}, opensInSec=55))
+        self.assertIn("The Bandstand is closed; the next one opens at the bottom-side river in 55 s.", text)
+        self.assertNotIn("Taking it", text)
+        self.assertNotIn("no Bandstand", text)
+
+    def test_upcoming(self):
+        text = FH.describe_observation(_obs(status="upcoming", opensInSec=12))
+        self.assertIn("The Bandstand opens at the top-side river in 12 s, 200 units from you.", text)
+        self.assertNotIn("Taking it", text)
+
+    def test_done(self):
+        text = FH.describe_observation(_obs(status="done", site="bottom-side", pos={"x": 700, "y": 700}))
+        self.assertIn("The Bandstand is done for this match; it will not open again.", text)
+
+    def test_open_enemy_taking_it_with_nobody_of_ours_on_it(self):
+        text = FH.describe_observation(_obs(progress=-0.4))
+        self.assertIn(
+            "The Bandstand at the top-side river is open, 200 units from you. The enemy team is 40 % "
+            "of the way to taking it and none of your team is on it. " + STAKES + ".", text)
+
+    def test_open_ours_with_self_and_allies_on_it(self):
+        self.assertIn("Your team is 65 % of the way to taking it and you are on it.",
+                      FH.describe_observation(_obs(progress=0.65, alliesOn=1, selfOn=True)))
+        self.assertIn("Your team is 65 % of the way to taking it and 2 of your team are on it, you included.",
+                      FH.describe_observation(_obs(progress=0.65, alliesOn=2, selfOn=True)))
+        self.assertIn("and 2 of your team are on it.", FH.describe_observation(_obs(progress=0.65, alliesOn=2)))
+        self.assertIn("and 1 of your team is on it.", FH.describe_observation(_obs(progress=0.65, alliesOn=1)))
+
+    def test_open_with_no_progress(self):
+        self.assertIn("Nobody has made progress on it and none of your team is on it.",
+                      FH.describe_observation(_obs()))
+
+    def test_contested(self):
+        text = FH.describe_observation(_obs(progress=0.2, contested=True, alliesOn=1))
+        self.assertIn("Both teams are on it, so it is contested and nobody can take it until one side leaves.", text)
+        self.assertNotIn("contested", FH.describe_observation(_obs(progress=0.2, alliesOn=1)))
+
+    def test_stakes_mention_gold_only_when_the_economy_is_on(self):
+        self.assertIn(STAKES + ".", FH.describe_observation(_obs()))
+        self.assertNotIn("gold", FH.describe_observation(_obs()))
+        obs = _obs()
+        obs["self"]["gold"] = 120
+        self.assertIn(STAKES + " and 40 gold each.", FH.describe_observation(obs))
+
+    def test_stakes_numbers_come_from_river_1_json(self):
+        from scenarios import river_rules
+
+        r = river_rules()
+        self.assertIn(f"for {r['encore']['durationSec']} s", FH.describe_observation(_obs()))
+        self.assertIn(f"+{round(r['encore']['mods']['attackDamage'] * 100)} % attack damage", FH.describe_observation(_obs()))
+
+    def test_encore_lines(self):
+        obs = _obs(status="closed", opensInSec=70)
+        obs["self"]["encoreSec"] = 21.0
+        obs["allies"][0]["encoreSec"] = 20.3
+        obs["visibleEnemies"] = [
+            {"id": "bb-5", "kind": "bearbot", "pos": {"x": 400, "y": 400}, "hp": 100, "maxHp": 200, "encore": True},
+            {"id": "bb-6", "kind": "bearbot", "pos": {"x": 420, "y": 400}, "hp": 100, "maxHp": 200, "encore": False},
+        ]
+        text = FH.describe_observation(obs)
+        self.assertIn("You have Encore for 21 more seconds.", text)
+        self.assertIn(f"Ally {obs['allies'][0]['id']} has Encore for 21 more seconds.", text)
+        self.assertIn("Enemy bb-5 has Encore.", text)
+        self.assertNotIn("bb-6 has Encore", text)
+        self.assertEqual(text.count("Encore"), 3)  # closed: no stakes sentence
+
+    def test_encore_omitted_when_nobody_has_it_and_singular_second(self):
+        self.assertNotIn("has Encore", FH.describe_observation(_obs(status="done")))
+        self.assertNotIn("have Encore", FH.describe_observation(_obs(status="done")))
+        obs = _obs(status="done")
+        obs["self"]["encoreSec"] = 0.4
+        self.assertIn("You have Encore for 1 more second.", FH.describe_observation(obs))
+
+    def test_objective_scenarios_describe_and_resolve(self):
+        from scenarios import build_observation, objective_scenarios
+        from target_resolve import resolve_target
+
+        for scenario in objective_scenarios():
+            obs = build_observation(scenario, "violet", "violin")
+            text = FH.describe_observation(obs)
+            self.assertNotIn("There is no Bandstand", text, scenario.name)
+            target = resolve_target("bandstand", obs)
+            if obs["bandstand"]["status"] in ("open", "upcoming"):
+                self.assertEqual(target, obs["bandstand"]["pos"], scenario.name)
+            else:
+                self.assertEqual(target, resolve_target("push_lane", obs), scenario.name)
+
+
 class ParseArgsReferenceSchemasTests(unittest.TestCase):
     def test_reference_schemas_dir_defaults_to_none(self):
         args = FH.parse_args([])
@@ -142,7 +269,9 @@ def _economy_obs(**self_over):
 
 class DescribeObservationEconomyTests(unittest.TestCase):
     def test_an_observation_without_economy_fields_is_byte_identical_to_before(self):
-        self.assertEqual(FH.describe_observation(_PLAIN_OBS), _PLAIN_TEXT)
+        # Before the economy, plus the river objective's one closing sentence (§9.7): an observation
+        # without a `bandstand` block says so, so the with/without measurement (§9.8) stays clean.
+        self.assertEqual(FH.describe_observation(_PLAIN_OBS), _PLAIN_TEXT + " There is no Bandstand in this match.")
 
     def test_the_scenario_observations_are_unchanged_too(self):
         from scenarios import SCENARIOS, build_observation

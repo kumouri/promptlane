@@ -19,6 +19,14 @@
  * without an economy, gold here is a transparent PROXY, `GOLD` below: the value of what a team
  * destroyed. A log WITH an economy (`src/economy.ts`) is replayed with it attached: bots respawn and
  * can die more than once, gold is the real ledger, and `economy` carries the spec's §6.2 numbers.
+ *
+ * A log with the river objective (`src/objective.ts`, the Bandstand of docs/economy-spec.md §9) is
+ * replayed with it attached, so the checkpoints (which then carry the objective's state) still
+ * compare, and `objective` carries §9.8's numbers: openings, captures, the contested share, team
+ * fights at an open Bandstand, the capture split, Encore uptime. `bandstandRuleFires` counts the
+ * logged Jev decisions whose fired rule moves to the Bandstand, with or without an objective (in a
+ * match without one, that is Jev answering a question about something that isn't there).
+ * `bandstandVerdict` is §9.8's pre-registered table, P (no objective) against O (with it).
  */
 import type { Action, Instrument, Lane, Team, Vec2 } from '../../src/types';
 import { Match, TICK_DT, type RosterSlot } from '../../src/sim/match';
@@ -27,7 +35,8 @@ import { WORLD_SIZE, dist, otherTeam } from '../../src/sim/map';
 import { JAM_ROSTER, ReplayPilot, checkpointOf, decisionsByBot, idNumber, tickOf, type MatchLog } from '../../src/replay';
 import { applyMapVariant, resolveMap, type MapVariant } from '../../src/mapVariant';
 import { attachAttribution } from '../../src/attribution';
-import { GOLD_SOURCES, attachEconomy, type Economy, type GoldSource } from '../../src/economy';
+import { ECO_1_GOLD_SOURCES, GOLD_SOURCES, attachEconomy, type Economy, type GoldSource } from '../../src/economy';
+import { attachObjective, resolveObjective, type Objective } from '../../src/objective';
 
 export { LANE_PATHS } from '../../src/sim/map';
 export { towerPos } from '../../src/mapVariant';
@@ -65,6 +74,13 @@ export const SWING_WINDOW_SEC = 30;
 /** Heatmap cell size in world units (1000 / 25 = a 40 × 40 grid). */
 export const HEAT_CELL = 25;
 export const HEAT_N = Math.ceil(WORLD_SIZE / HEAT_CELL);
+/**
+ * A team fight "at the Bandstand" (§9.8) starts within this of the site that was OPEN at its start
+ * tick. = FIGHT_RADIUS: a fight centred that close has bots on the stage or one chord away from it.
+ */
+export const BANDSTAND_FIGHT_RADIUS = FIGHT_RADIUS;
+/** The move selector that resolves to the Bandstand (tools/jev/target_resolve.py; contract §"Move selector"). */
+export const BANDSTAND_SELECTOR = 'bandstand';
 
 /** Violet's base is at (100, 900): the river (x == y) splits the map, violet's half has y > x. */
 export function onOpponentSide(team: Team, p: Vec2): boolean {
@@ -180,6 +196,10 @@ export interface MatchMetrics {
   bots: BotMetrics[];
   /** The real economy's numbers (§6.2 of docs/economy-spec.md), when the log has an economy; else null. */
   economy: EconomyMetrics | null;
+  /** The Bandstand's numbers (docs/economy-spec.md §9.8), when the log has an objective; else null. */
+  objective: ObjectiveMetrics | null;
+  /** Jev decisions that came from a Bandstand rule; null when no side played compiled schemas. */
+  bandstandRuleFires: RuleFires | null;
   /** Alive bot-ticks per HEAT_CELL cell, row-major [y][x] flattened, per team. */
   heat: Record<Team, number[]>;
 }
@@ -206,6 +226,46 @@ export interface EconomyMetrics {
   goldDiffShareAt6: number | null;
   /** 1 if the team behind in gold at 5:00 won, 0 if it lost; null if level at 5:00, a draw, or the match ended earlier. */
   comeback: number | null;
+  /**
+   * Bandstand gold (the river objective's `bandstand-team` + `bandstand-local`, §9.5), per bot per
+   * minute. The §6.2 lines above exclude it, as §9.5 pre-registers; it is reported beside them.
+   */
+  bandstandGoldPerMinPerBot: number;
+}
+
+export interface ObjectiveMetrics {
+  name: string;
+  /** Where the stage can rise, for the heatmaps. */
+  sites: Array<{ id: string; pos: Vec2 }>;
+  radius: number;
+  openings: number;
+  /** Openings during which both teams had a bearbot on the stage at some tick. */
+  contestedOpenings: number;
+  /** contestedOpenings / openings; null without an opening. */
+  contestedShare: number | null;
+  captures: Record<Team, number> & { total: number };
+  /** Team fights that started within BANDSTAND_FIGHT_RADIUS of the site open at their start tick. */
+  teamFightsNear: number;
+  /** 1 if the team with fewer captures still took at least one, else 0 (no captures: 0). */
+  captureSplit: number;
+  /** 1/0: the team with more captures won; null on equal captures or a draw. */
+  moreCapturesWon: number | null;
+  /** Share of alive bot-time with the Encore, all six bots pooled; null if nobody was ever alive. */
+  encoreUptime: number | null;
+}
+
+/**
+ * How a logged Jev schema decision is identified: `jevSchemaPilot.ts` writes the schema server's
+ * `rule` (the fired rule's id; null when a cascade default answered) into the decision's `reply`,
+ * and the log's `sides[team].schemas` holds that side's compiled rules, each with its
+ * `action_target_selector`. A default is not a rule, so it never counts here.
+ */
+export interface RuleFires {
+  /** Decisions whose fired rule's selector is BANDSTAND_SELECTOR. */
+  total: number;
+  byTeam: Record<Team, number>;
+  /** Jev schema decisions in the log (real calls, not cached reuses), the denominator. */
+  decisions: number;
 }
 
 // --- measuring one log ---------------------------------------------------------------------------
@@ -255,6 +315,11 @@ export async function measureLog(log: MatchLog, flush: () => Promise<void> = def
   }));
   match = new Match(log.seed, roster);
   applyMapVariant(match, variant);
+  // Both layers wrap the instance's `tick` (map, then objective, then economy, as the runner
+  // attaches them). The loop below calls `p.tick` through the instance every tick, so it always
+  // reaches the outermost wrapper.
+  const objectiveRules = resolveObjective(log.objective);
+  const objective: Objective | null = objectiveRules ? attachObjective(match, objectiveRules, TICK_DT) : null;
   const economy: Economy | null = log.economy ? attachEconomy(match, log.economy.ruleset, log.economy.builds, TICK_DT) : null;
   const m = match;
   const botIndex = new Map<Bearbot, number>(m.bearbots.map((b, i) => [b, i]));
@@ -300,6 +365,9 @@ export async function measureLog(log: MatchLog, flush: () => Promise<void> = def
   const windowTicks = Math.round(ENGAGED_WINDOW_SEC / TICK_DT);
   const assistTicks = Math.round(ASSIST_WINDOW_SEC / TICK_DT);
   let eventCursor = 0;
+  /** Per tick: the Bandstand site that was open at the end of it, else null (objective logs only). */
+  const openSiteAt: Array<Vec2 | null> = [];
+  let encoreTicks = 0;
 
   const kindOfTarget = (action: Action, team: Team): 'pvp' | 'pve' | null => {
     if (action.kind !== 'attack' && action.kind !== 'ability') return null;
@@ -403,6 +471,14 @@ export async function measureLog(log: MatchLog, flush: () => Promise<void> = def
         fightTicks.push({ tick: t, at });
         break;
       }
+    }
+
+    // The Bandstand: which site is open (for fights at it) and who holds the Encore.
+    if (objective) {
+      openSiteAt[t] = objective.status === 'open' ? { x: objective.site.x, y: objective.site.y } : null;
+      m.bearbots.forEach((b, i) => {
+        if (b.alive && objective.hasEncore(i, t)) encoreTicks += 1;
+      });
     }
 
     if (economy) {
@@ -517,6 +593,7 @@ export async function measureLog(log: MatchLog, flush: () => Promise<void> = def
   }
   const totalDeaths = deaths.reduce((s, x) => s + x, 0);
   const economyMetrics = economy ? measureEconomy(economy, durationMin, m.winner, goldDiffBySec, goldTotalBySec) : null;
+  const objectiveMetrics = objective ? measureObjective(objective, fights, openSiteAt, encoreTicks, alive.reduce((s, x) => s + x, 0), m.winner) : null;
 
   return {
     ...(file ? { file } : {}),
@@ -568,6 +645,8 @@ export async function measureLog(log: MatchLog, flush: () => Promise<void> = def
     deathSites,
     bots,
     economy: economyMetrics,
+    objective: objectiveMetrics,
+    bandstandRuleFires: countBandstandRuleFires(log),
     heat,
   };
 }
@@ -583,7 +662,8 @@ function measureEconomy(economy: Economy, durationMin: number, winner: Team | nu
   const n = economy.bots.length;
   const perBotMin = (x: number) => (durationMin > 0 ? x / n / durationMin : 0);
   const bySource = Object.fromEntries(GOLD_SOURCES.map((k) => [k, economy.bots.reduce((s, e) => s + e.earned[k], 0)])) as Record<GoldSource, number>;
-  const total = GOLD_SOURCES.reduce((s, k) => s + bySource[k], 0);
+  // §6.2's lines are pre-registered for eco-1 alone: Bandstand gold is left out of them (§9.5).
+  const total = ECO_1_GOLD_SOURCES.reduce((s, k) => s + bySource[k], 0);
   const pvp = bySource.kill + bySource.assist + bySource.drop + bySource['first-blood'];
   const firstBuy = new Map<number, number>();
   const carried: number[] = [];
@@ -616,7 +696,97 @@ function measureEconomy(economy: Economy, durationMin: number, winner: Team | nu
     respawns,
     goldDiffShareAt6: at6 !== null && total6 ? Math.abs(at6) / total6 : null,
     comeback: behind5 && winner ? (winner === behind5 ? 1 : 0) : null,
+    bandstandGoldPerMinPerBot: perBotMin(bySource['bandstand-team'] + bySource['bandstand-local']),
   };
+}
+
+function measureObjective(
+  objective: Objective,
+  fights: TeamFight[],
+  openSiteAt: Array<Vec2 | null>,
+  encoreTicks: number,
+  aliveTicks: number,
+  winner: Team | null,
+): ObjectiveMetrics {
+  const s = objective.summary();
+  const openings = s.openings.length;
+  const contestedOpenings = s.openings.filter((o) => o.contested).length;
+  const teamFightsNear = fights.filter((f) => {
+    const site = openSiteAt[Math.round(f.startSec / TICK_DT)];
+    return site != null && dist(f.at, site) <= BANDSTAND_FIGHT_RADIUS;
+  }).length;
+  const { violet, green } = s.captures;
+  const more: Team | null = violet > green ? 'violet' : green > violet ? 'green' : null;
+  return {
+    name: s.name,
+    sites: objective.rules.sites.map((x) => ({ id: x.id, pos: { x: x.x, y: x.y } })),
+    radius: objective.rules.radius,
+    openings,
+    contestedOpenings,
+    contestedShare: ratio(contestedOpenings, openings),
+    captures: { violet, green, total: violet + green },
+    teamFightsNear,
+    captureSplit: Math.min(violet, green) >= 1 ? 1 : 0,
+    moreCapturesWon: more && winner ? (winner === more ? 1 : 0) : null,
+    encoreUptime: ratio(encoreTicks, aliveTicks),
+  };
+}
+
+type SchemaNode = {
+  type?: string;
+  id?: string;
+  action_target_selector?: string | null;
+  action?: { target_selector?: string | null };
+  then?: { nodes?: SchemaNode[] };
+  else?: { nodes?: SchemaNode[] };
+};
+
+/** Rule id → target selector over a compiled schema's whole tree (guards' branches included). */
+function selectorsById(schema: { rules?: SchemaNode[] } | undefined): Map<string, string | null> {
+  const out = new Map<string, string | null>();
+  const walk = (nodes: SchemaNode[] | undefined) => {
+    for (const n of nodes ?? []) {
+      if (n.type === 'guard') {
+        walk(n.then?.nodes);
+        walk(n.else?.nodes);
+      } else if (n.id) out.set(n.id, n.action_target_selector ?? n.action?.target_selector ?? null);
+    }
+  };
+  walk(schema?.rules);
+  return out;
+}
+
+/**
+ * Count the logged Jev schema decisions whose fired rule's selector is `bandstand` (see `RuleFires`).
+ * Null when neither side played compiled schemas (a chat-model or house-server log names no
+ * schema rule to look up).
+ */
+export function countBandstandRuleFires(log: MatchLog): RuleFires | null {
+  type SchemaSide = { schemas?: Partial<Record<Instrument, { rules?: SchemaNode[] }>> };
+  const lookup = TEAMS.map((team) => {
+    const schemas = (log.sides[team] as unknown as SchemaSide).schemas;
+    return schemas ? Object.fromEntries(Object.entries(schemas).map(([inst, s]) => [inst, selectorsById(s)])) : null;
+  });
+  if (lookup.every((x) => x === null)) return null;
+  const out: RuleFires = { total: 0, byTeam: { violet: 0, green: 0 }, decisions: 0 };
+  for (const d of log.decisions) {
+    const slot = JAM_ROSTER[d.bot];
+    const rules = slot && lookup[TEAMS.indexOf(slot.team)]?.[slot.instrument];
+    if (!rules || d.cached || !d.reply || !d.reply.startsWith('{')) continue;
+    let rule: unknown;
+    try {
+      rule = (JSON.parse(d.reply) as { rule?: unknown }).rule;
+    } catch {
+      continue;
+    }
+    if (rule === undefined) continue;
+    out.decisions += 1;
+    if (typeof rule === 'string' && rules.get(rule) === BANDSTAND_SELECTOR) {
+      out.total += 1;
+      out.byTeam[slot.team] += 1;
+    }
+  }
+  return out;
 }
 
 // --- aggregation ---------------------------------------------------------------------------------
@@ -723,6 +893,18 @@ export function matchValues(m: MatchMetrics): Record<string, number | null> {
     ecoCarriedAtDeath: m.economy?.carriedAtDeath ?? null,
     ecoGoldDiffShareAt6: m.economy?.goldDiffShareAt6 ?? null,
     ecoComeback: m.economy?.comeback ?? null,
+    // The Bandstand (docs/economy-spec.md §9.8); null on a log without an objective.
+    bandstandOpenings: m.objective?.openings ?? null,
+    bandstandCaptures: m.objective?.captures.total ?? null,
+    bandstandCapturesViolet: m.objective?.captures.violet ?? null,
+    bandstandCapturesGreen: m.objective?.captures.green ?? null,
+    bandstandContestedShare: m.objective?.contestedShare ?? null,
+    teamFightsNearBandstand: m.objective?.teamFightsNear ?? null,
+    bandstandCaptureSplit: m.objective?.captureSplit ?? null,
+    bandstandMoreCapturesWon: m.objective?.moreCapturesWon ?? null,
+    encoreUptime: m.objective?.encoreUptime ?? null,
+    // With or without an objective: without one, any fire is Jev answering about nothing (§9.8).
+    bandstandRuleFires: m.bandstandRuleFires?.total ?? null,
   };
 }
 
@@ -823,4 +1005,122 @@ export function aggregate(label: string, matches: MatchMetrics[]): ConditionAggr
     deathSites: matches.flatMap((m) => m.deathSites),
     teamFights: matches.reduce((s, m) => s + m.teamFights.length, 0),
   };
+}
+
+// --- the Bandstand's pre-registered verdict (docs/economy-spec.md §9.8) -------------------------
+
+/**
+ * §9.8's pass lines, the only copy in code; change them only with the spec. P = `pvp-1` with no
+ * objective (the baseline), O = `pvp-1` + `river-1`, same compiled schemas, seed-paired. Each keep
+ * line is the midpoint between v1 and `pvp-1` in the balance study (runs/balance-pvp-2026-09-30.md),
+ * so O keeps at least half of `pvp-1`'s gain.
+ */
+export const BANDSTAND_PREREG = {
+  /** O mean ≥ this (v1's level) AND the paired Δ CI wholly above 0. */
+  teamFightsPerMatch: 4.6,
+  /** O mean on the right side of the line AND the Δ CI not wholly on the wrong side of 0. */
+  keep: {
+    pvpDamagePerMin: { min: 161 }, // v1 143 → pvp-1 180
+    pvpDamageNeutral: { min: 0.415, share: true }, // 20.7 % → 62.3 %
+    underEnemyTower: { max: 0.137, share: true }, // 17.0 % → 10.4 %
+    deathsUnderEnemyTower: { max: 0.753, share: true }, // 95.8 % → 54.8 %
+    firstBloodSec: { max: 402 }, // 443 → 360
+  } as Record<string, { min?: number; max?: number; share?: boolean }>,
+  /** Objective in use, read on O alone. */
+  medianCaptures: 3,
+  /** Pooled over every O opening. */
+  contestedShare: 0.5,
+  teamFightsNearBandstand: 1,
+  /** Share of O matches. */
+  captureSplit: 0.5,
+  /** Reported beside the lines, never pass/fail (§9.8 "Reported, not pass lines"). */
+  reported: ['opponentSide', 'decided', 'towersDestroyed', 'engagedPve', 'swinginess'],
+};
+
+export interface VerdictLine {
+  section: 'target' | 'keep' | 'objective' | 'reported';
+  key: string;
+  /** The pass line in words; empty for a reported-only line. */
+  line: string;
+  /** P's mean (null where the line reads O alone). */
+  baseline: number | null;
+  /** O's value: the mean, or the median / pooled share the line names. */
+  value: number | null;
+  /** O − P, seed-paired (`paired`); null where the line reads O alone. */
+  diff: PairedDiff | null;
+  /** null for a reported-only line. */
+  pass: boolean | null;
+}
+
+export interface BandstandVerdict {
+  lines: VerdictLine[];
+  target: boolean;
+  keep: boolean;
+  objective: boolean;
+  pass: boolean;
+  /** What §9.8's "After the run" says happens next. */
+  next: string;
+}
+
+/** §9.8's table for P (`baseline`) against O (`other`). A line with no data FAILS: nothing measured is not a pass. */
+export function bandstandVerdict(baseline: MatchMetrics[], other: MatchMetrics[], resamples = 10000): BandstandVerdict {
+  const L = BANDSTAND_PREREG;
+  const diffs = paired(baseline, other, resamples);
+  const pRows = baseline.map(matchValues);
+  const oRows = other.map(matchValues);
+  const pMean = (k: string) => mean(pRows.map((r) => r[k]));
+  const oMean = (k: string) => mean(oRows.map((r) => r[k]));
+  const both = (k: string) => ({ key: k, baseline: pMean(k), value: oMean(k), diff: diffs[k] ?? null });
+  const lines: VerdictLine[] = [];
+
+  const tf = both('teamFightsPerMatch');
+  lines.push({
+    section: 'target',
+    ...tf,
+    line: `O mean ≥ ${L.teamFightsPerMatch} and Δ CI wholly above 0`,
+    pass: tf.value !== null && tf.value >= L.teamFightsPerMatch && tf.diff?.lo != null && tf.diff.lo > 0,
+  });
+
+  for (const [k, { min, max, share }] of Object.entries(L.keep)) {
+    const x = both(k);
+    const pass =
+      x.value !== null &&
+      (min !== undefined
+        ? x.value >= min && x.diff?.hi != null && !(x.diff.hi < 0)
+        : x.value <= max! && x.diff?.lo != null && !(x.diff.lo > 0));
+    const at = (v: number) => (share ? `${+(v * 100).toFixed(1)} %` : `${v}`);
+    lines.push({ section: 'keep', ...x, line: min !== undefined ? `O ≥ ${at(min)} and CI not wholly below 0` : `O ≤ ${at(max!)} and CI not wholly above 0`, pass });
+  }
+
+  const objectiveOnly = (key: string, value: number | null, line: string, pass: boolean) =>
+    lines.push({ section: 'objective', key, line, baseline: null, value, diff: null, pass });
+  const captures = median(other.flatMap((m) => (m.objective ? [m.objective.captures.total] : [])));
+  objectiveOnly('bandstandCaptures', captures, `median ≥ ${L.medianCaptures} per match`, captures !== null && captures >= L.medianCaptures);
+  const openings = other.reduce((s, m) => s + (m.objective?.openings ?? 0), 0);
+  const contested = ratio(other.reduce((s, m) => s + (m.objective?.contestedOpenings ?? 0), 0), openings);
+  objectiveOnly('bandstandContestedShare', contested, `≥ ${L.contestedShare * 100} % of openings, pooled`, contested !== null && contested >= L.contestedShare);
+  const near = oMean('teamFightsNearBandstand');
+  objectiveOnly('teamFightsNearBandstand', near, `mean ≥ ${L.teamFightsNearBandstand} per match`, near !== null && near >= L.teamFightsNearBandstand);
+  const split = oMean('bandstandCaptureSplit');
+  objectiveOnly('bandstandCaptureSplit', split, `≥ ${L.captureSplit * 100} % of matches`, split !== null && split >= L.captureSplit);
+
+  for (const k of L.reported) lines.push({ section: 'reported', ...both(k), line: '', pass: null });
+  lines.push({ section: 'reported', key: 'bandstandMoreCapturesWon', line: '', baseline: null, value: oMean('bandstandMoreCapturesWon'), diff: null, pass: null });
+  // Totals, not means: in P every fire is a Bandstand rule answered in a match without one.
+  const fires = (ms: MatchMetrics[]) => (ms.some((m) => m.bandstandRuleFires) ? ms.reduce((s, m) => s + (m.bandstandRuleFires?.total ?? 0), 0) : null);
+  lines.push({ section: 'reported', key: 'bandstandRuleFires', line: '', baseline: fires(baseline), value: fires(other), diff: null, pass: null });
+
+  const all = (section: VerdictLine['section']) => lines.filter((l) => l.section === section).every((l) => l.pass === true);
+  const target = all('target');
+  const keep = all('keep');
+  const objective = all('objective');
+  const pass = target && keep && objective;
+  const next = pass
+    ? 'Every line passes: it ships, provided the §7 gate is met.'
+    : !keep
+      ? 'A keep-line regresses: one tuning pass; if it still regresses, the objective is cut.'
+      : !target
+        ? 'The target fails but no keep-line regresses: one tuning pass (set 15 → 20 s, else radius 60 → 80, else Encore +15 → +20 %), re-run O only on the same seeds; if the target still fails, Ceryce rules (ship or cut, Q17).'
+        : 'The target and keep-lines pass but an objective-in-use line fails: §9.8 names no next step for this; Ceryce rules.';
+  return { lines, target, keep, objective, pass, next };
 }

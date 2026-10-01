@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""house-violet.md's seven-rule decision table, extracted into Jev `noul` questions.
+"""house-violet.md's decision table -- seven rules, plus the Bandstand rule -- extracted into Jev
+`noul` questions.
 
 Read `prompts/pilots/house-violet.md` in full before touching this file. It is READ ONLY here and
 everywhere in this harness -- the file is the arena's own house opponent, not an entrant artifact,
@@ -8,30 +9,44 @@ and this experiment never edits it (brief rule: "house-violet.md is READ, never 
 The prompt's rules, quoted verbatim from the file, and the question each becomes:
 
     1. hp less than 75 -> "kind":"recall"
-    2. tower is not null and wave is 0 -> go home: "kind":"move","target":{"x":100,"y":900}
-    3. keytar only: cd is 0 and foe is not null -> ability
+    2. stand is "open", foe is null or a minion, and hp is more than 50% of self.maxHp
+       -> go to the Bandstand: "kind":"move","target":{"x":<bandstand.pos.x>,"y":<bandstand.pos.y>}
+    3. tower is not null and wave is 0 -> go home: "kind":"move","target":{"x":100,"y":900}
+    4. keytar only: cd is 0 and foe is not null -> ability
        violin only: cd is 0 and foe is a bearbot with hp less than 100 -> ability
        drums only:  cd is 0 and foe is a bearbot with hp less than 100 -> ability
-    4. foe is not null -> "kind":"attack","target":foe
-    5. tower is not null -> "kind":"attack","target":tower
-    6. foe is null, tower is null and wave is 1 or more -> ride with a violet minion
-    7. otherwise -> wait for the next wave at home
+    5. foe is not null -> "kind":"attack","target":foe
+    6. tower is not null -> "kind":"attack","target":tower
+    7. foe is null, tower is null and wave is 1 or more -> ride with a violet minion
+    8. otherwise -> wait for the next wave at home
 
-becomes, one row per rule so a reader can check "rule 3 became this question" without
-reverse-engineering anything:
+becomes, one row per rule so a reader can check "rule 4 became this question" without
+reverse-engineering anything. The question ids and rule numbers here keep the numbering from
+before the Bandstand (2026-09-30), so every checked-in log, report and test that names them still
+means the same thing. The Bandstand rule, the file's rule 2, is numbered 8 in code. Everywhere
+below, "rule N" is the code's number (rule 3, the ability, is the file's rule 4):
 
-    rule 1  ->  q1_low_hp_recall
-    rule 2  ->  q2_tower_no_wave_go_home
-    rule 3  ->  q3_ability_ready              (instrument-gated; see the caveat below)
-    rule 4  ->  q4_foe_present_attack
-    rule 5  ->  q5_tower_present_attack
-    rule 6  ->  q6_wave_present_ride
-    rule 7  ->  (no question -- the unconditional "otherwise" once q1-q6 all answer "no";
-                 there is nothing left to decide, so nothing is asked)
+    file rule 1  ->  q1_low_hp_recall                  rule 1
+    file rule 2  ->  q1b_bandstand_open                rule 8 (only with the objective; see below)
+    file rule 3  ->  q2_tower_no_wave_go_home          rule 2
+    file rule 4  ->  q3_ability_ready                  rule 3 (instrument-gated; see the caveat below)
+    file rule 5  ->  q4_foe_present_attack             rule 4
+    file rule 6  ->  q5_tower_present_attack           rule 5
+    file rule 7  ->  q6_wave_present_ride              rule 6
+    file rule 8  ->  (no question -- the unconditional "otherwise" once every question answers
+                     "no"; there is nothing left to decide, so nothing is asked)   rule 7
+
+THE BANDSTAND (docs/economy-spec.md §9.7, river-1). `q1b_bandstand_open` is asked ONLY when the
+worksheet has the objective (`ws.stand` is not None -- `tools/match/jevPilot.ts::extractWorksheet`
+sends `stand` and `maxHp` only for a match played with one). A worksheet without it gets exactly
+the six questions, the ground truth and the decisions it got before the Bandstand existed; the
+offline harness's logs never have it. `first_match` asks it second, right after the recall, as the
+file does. Its action is a move to `bandstand.pos` (bucket `bandstand`).
 
 Each question is a Jev `noul` (calibrated yes/no, 0-1) -- see `client.py` for the wire shape this
-maps to and the TypeSafe docs it's drawn from. The harness asks all six in a single `systemone`
-call per snapshot (matching Jev's own design: one call, every question answered in parallel), then
+maps to and the TypeSafe docs it's drawn from. The harness asks all six (seven with the
+objective) in a single `systemone` call per snapshot (matching Jev's own design: one call, every
+question answered in parallel), then
 applies them in rule order in Python -- `first_match()` below -- exactly like the prompt's own
 "Take the FIRST rule that matches." Jev is asked to answer each *condition*; the priority cascade
 that turns those conditions into one action is this harness's code, not something Jev is asked to
@@ -67,21 +82,30 @@ Instrument = Literal["drums", "keytar", "violin"]
 # Action buckets a house-violet decision can land in. `go_home` covers both rule 2 and rule 7 --
 # they emit the identical action ({"kind":"move","target":{"x":100,"y":900}}) -- so there is no way
 # to tell them apart from the action alone, and no need to: both mean the same thing happened.
-ActionBucket = Literal["recall", "go_home", "ability", "attack_foe", "attack_tower", "ride_wave"]
+# `bandstand` (rule 8) is the move to `bandstand.pos`; only a worksheet with the objective reaches it.
+ActionBucket = Literal["recall", "go_home", "ability", "attack_foe", "attack_tower", "ride_wave", "bandstand"]
 
 HOME_TARGET = {"x": 100, "y": 900}
+
+# The Bandstand rule's number in code: after rule 7 (the fallback), so rules 1-7 keep the meaning
+# every log and report from before the Bandstand gives them. The file asks it second.
+BANDSTAND_RULE = 8
 
 
 @dataclass(frozen=True)
 class Worksheet:
-    """The five worksheet fields house-violet.md's model self-reports before it decides
-    (`"hp"`, `"wave"`, `"tower"`, `"foe"`, `"cd"`), plus the identity fields needed to build the
-    state paragraph and pick the right q3 wording. `tower`/`foe` are the id string or `None`, since
-    presence -- not identity -- is all rules but rule 3 ever test.
+    """The worksheet fields house-violet.md's model self-reports before it decides
+    (`"hp"`, `"wave"`, `"tower"`, `"foe"`, `"cd"`, `"stand"`), plus the identity fields needed to
+    build the state paragraph and pick the right q3 wording. `tower`/`foe` are the id string or
+    `None`, since presence -- not identity -- is all rules but rule 3 ever test.
 
     `foe_detail` says whether `foe_kind`/`foe_hp` are real: `True` on the live path (a live
-    `Observation` has them), `False` offline (the logs never did). Only rule 3's violin/drums
-    variant reads them -- see the module docstring's LIVE PATH note."""
+    `Observation` has them), `False` offline (the logs never did). Rule 3's violin/drums variant and
+    the Bandstand rule's "no enemy bearbot" read them -- see the module docstring's LIVE PATH note.
+
+    `stand` (`bandstand.status`) and `max_hp` (`self.maxHp`, for the Bandstand rule's 50 % line) are
+    `None` unless the match has the objective; `stand` being `None` is what keeps a worksheet without
+    it on exactly the pre-Bandstand questions."""
 
     hp: float
     wave: int
@@ -95,6 +119,8 @@ class Worksheet:
     foe_detail: bool = False
     foe_kind: str | None = None  # "bearbot" | "minion" | None (no foe)
     foe_hp: float | None = None
+    stand: str | None = None  # "closed" | "upcoming" | "open" | "done" | None (no objective)
+    max_hp: float | None = None
 
 
 # --- rule predicates --------------------------------------------------------------------------
@@ -133,6 +159,16 @@ def rule6_wave_present(ws: Worksheet) -> bool:
     return ws.foe is None and ws.tower is None and ws.wave >= 1
 
 
+def rule8_bandstand_open(ws: Worksheet) -> bool:
+    """The file's rule 2: stand is "open", foe is null or a minion (no enemy bearbot in sight), and
+    hp is more than 50 % of maxHp. False without the objective (`stand` None). A foe of unknown kind
+    (no `foe_detail`) counts as a bearbot, so the rule never fires on a guess."""
+    if ws.stand != "open" or ws.max_hp is None:
+        return False
+    no_bearbot = ws.foe is None or (ws.foe_detail and ws.foe_kind != "bearbot")
+    return no_bearbot and ws.hp > 0.5 * ws.max_hp
+
+
 @dataclass(frozen=True)
 class Question:
     """One rule's condition, as a Jev `noul` question. `instructions`/`criteria` are exactly the
@@ -146,11 +182,28 @@ class Question:
     ground_truth: "callable[[Worksheet], bool]"
 
 
-def question_set(instrument: Instrument, foe_detail: bool = False) -> list[Question]:
+BANDSTAND_QUESTION = Question(
+    id="q1b_bandstand_open",
+    rule_number=BANDSTAND_RULE,
+    instructions="Given it does not need to recall, is the Bandstand open, with no enemy bearbot in "
+    "sight, and this bearbot's hp above half of its own maxHp, meaning it should go to the "
+    "Bandstand and take it?",
+    criteria={
+        "true": "the Bandstand is open, no enemy bearbot is visible (no foe, or the foe is a minion), "
+        "and hp is above 50% of maxHp",
+        "false": "the Bandstand is not open, an enemy bearbot is visible, or hp is at or below 50% of maxHp",
+    },
+    ground_truth=rule8_bandstand_open,
+)
+
+
+def question_set(instrument: Instrument, foe_detail: bool = False, bandstand: bool = False) -> list[Question]:
     """The six questions for one decision, in rule order. `instrument` only changes q3's wording
     (to name the right ability). `foe_detail` (the live path) makes q3 ask violin/drums' real
     condition -- the foe is a bearbot under 100 hp; without it q3 asks the reduced condition and
-    says honestly what it can't check -- see the module docstring."""
+    says honestly what it can't check -- see the module docstring. `bandstand` (the match has the
+    objective) adds `q1b_bandstand_open` right after q1, as the file's rule 2; without it the six
+    questions are exactly the pre-Bandstand ones."""
     ability_name = {"keytar": "chord", "violin": "staccato", "drums": "kick"}[instrument]
     q3_criteria = {
         "true": "the ability is off cooldown (cd is 0) and a foe is present",
@@ -189,6 +242,7 @@ def question_set(instrument: Instrument, foe_detail: bool = False) -> list[Quest
             criteria={"true": "hp is below the recall threshold of 75", "false": "hp is 75 or above"},
             ground_truth=rule1_low_hp,
         ),
+        *([BANDSTAND_QUESTION] if bandstand else []),
         Question(
             id="q2_tower_no_wave_go_home",
             rule_number=2,
@@ -252,28 +306,34 @@ class BoundQuestion:
 
 
 def bind_questions(instrument: Instrument, ws: Worksheet) -> list[BoundQuestion]:
-    """`question_set(instrument, ws.foe_detail)`, each question evaluated against `ws` for its
-    ground truth."""
+    """`question_set(instrument, ws.foe_detail, bandstand=ws.stand is not None)`, each question
+    evaluated against `ws` for its ground truth."""
     return [
         BoundQuestion(q.id, q.rule_number, q.instructions, q.criteria, q.ground_truth(ws))
-        for q in question_set(instrument, ws.foe_detail)
+        for q in question_set(instrument, ws.foe_detail, bandstand=ws.stand is not None)
     ]
+
+
+# (question id, rule number) in the order the file asks them. The Bandstand question is second, as
+# the file's rule 2, but keeps rule number 8 (see BANDSTAND_RULE).
+RULE_ORDER: list[tuple[str, int]] = [
+    ("q1_low_hp_recall", 1),
+    ("q1b_bandstand_open", BANDSTAND_RULE),
+    ("q2_tower_no_wave_go_home", 2),
+    ("q3_ability_ready", 3),
+    ("q4_foe_present_attack", 4),
+    ("q5_tower_present_attack", 5),
+    ("q6_wave_present_ride", 6),
+]
 
 
 def first_match(answers: dict[str, bool]) -> int:
-    """Apply q1..q6 in rule order, first "yes" wins; falls through to rule 7 (the unconditional
-    default) if none are true. `answers` maps question id -> yes/no."""
-    order = [
-        "q1_low_hp_recall",
-        "q2_tower_no_wave_go_home",
-        "q3_ability_ready",
-        "q4_foe_present_attack",
-        "q5_tower_present_attack",
-        "q6_wave_present_ride",
-    ]
-    for qid in order:
+    """Apply the questions in the file's order, first "yes" wins; falls through to rule 7 (the
+    unconditional default) if none are true. `answers` maps question id -> yes/no; a question that
+    was not asked (q1b, without the objective) is absent and counts as "no"."""
+    for qid, rule in RULE_ORDER:
         if answers.get(qid):
-            return order.index(qid) + 1
+            return rule
     return 7
 
 
@@ -286,27 +346,34 @@ def bucket_for_rule(rule_number: int) -> ActionBucket:
         5: "attack_tower",
         6: "ride_wave",
         7: "go_home",
+        BANDSTAND_RULE: "bandstand",
     }[rule_number]
 
 
 def ground_truth_answers(ws: Worksheet) -> dict[str, bool]:
-    """The same six conditions, evaluated straight from the worksheet -- this is what "ground
-    truth" means throughout this harness: not a re-derivation of what *should* happen, but the
-    literal comparisons the ruled model's own self-reported fields make possible."""
-    return {
-        "q1_low_hp_recall": rule1_low_hp(ws),
+    """The same six conditions -- seven with the objective -- evaluated straight from the worksheet
+    -- this is what "ground truth" means throughout this harness: not a re-derivation of what
+    *should* happen, but the literal comparisons the ruled model's own self-reported fields make
+    possible. Without the objective the dict is exactly the pre-Bandstand six."""
+    answers = {"q1_low_hp_recall": rule1_low_hp(ws)}
+    if ws.stand is not None:
+        answers["q1b_bandstand_open"] = rule8_bandstand_open(ws)
+    answers.update({
         "q2_tower_no_wave_go_home": rule2_tower_no_wave(ws),
         "q3_ability_ready": rule3_ability_ready(ws),
         "q4_foe_present_attack": rule4_foe_present(ws),
         "q5_tower_present_attack": rule5_tower_present(ws),
         "q6_wave_present_ride": rule6_wave_present(ws),
-    }
+    })
+    return answers
 
 
 def bucket_for_action(kind: str, target: object, foe: str | None, tower: str | None) -> ActionBucket | None:
     """Classify a logged (real) action into the same six buckets, so Jev's prediction and the
     ruled model's real decision can be compared on equal terms. Returns `None` for an action shape
-    house-violet.md's rules never produce (e.g. `hold`) -- the harness excludes those snapshots."""
+    house-violet.md's rules never produce (e.g. `hold`) -- the harness excludes those snapshots.
+    The offline logs predate the Bandstand, so a non-home move is always `ride_wave` here; a log
+    that has a `bandstand` block would need the bandstand's position to tell the two apart."""
     if kind == "recall":
         return "recall"
     if kind == "ability":

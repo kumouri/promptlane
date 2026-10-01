@@ -192,6 +192,11 @@ test('matchKey covers the ruleset: map and economy change the key; a pre-ruleset
   const headless = await loadHeadless();
   assert.equal(DEFAULT_CAMPAIGN.shape.map, headless.DEFAULT_MAP.name, 'the campaign default follows DEFAULT_MAP');
   assert.equal(DEFAULT_CAMPAIGN.shape.economy, headless.DEFAULT_ECONOMY?.name ?? 'none');
+  // The river objective: hashed when the shape names it; an economy-era shape keeps its key.
+  const river = { ...pvp, objective: 'none' };
+  assert.notEqual(k(river), k(pvp));
+  assert.notEqual(k(river), k({ ...river, objective: 'river-1' }));
+  assert.equal(DEFAULT_CAMPAIGN.shape.objective, headless.DEFAULT_OBJECTIVE?.name ?? 'none');
 });
 
 test('sentences: split on sentence ends and blank lines', () => {

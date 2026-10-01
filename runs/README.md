@@ -34,6 +34,11 @@ beside it), and
 Jev: the house-tier logs plus 24 seed-paired matches on three maps; metrics, heatmaps
 `balance-pvp-2026-09-30-*` beside it, logs on the
 [`data-balance-pvp-2026-09-30`](https://github.com/kumouri/promptlane/releases/tag/data-balance-pvp-2026-09-30)
+release), and
+[bandstand-2026-09-30.md](bandstand-2026-09-30.md) (the river objective, `pvp-1` with and without
+the Bandstand, 24 seed pairs on Jev, the §9.8 pre-registered verdict; metrics and heatmaps
+`bandstand-2026-09-30-*` beside it, logs on the
+[`data-bandstand-2026-09-30`](https://github.com/kumouri/promptlane/releases/tag/data-bandstand-2026-09-30)
 release).
 The bulky captures those documents hash live under ignored `artifacts/<run>-evidence/` and
 `artifacts/<run>-reviewed/`.

@@ -76,6 +76,44 @@ class StateParagraphTests(unittest.TestCase):
         self.assertLess(len(text), 700)  # short and dense, not a wall of text
 
 
+class BandstandStateTests(unittest.TestCase):
+    """The Bandstand clause appears only with the objective (`stand` set); without it the paragraph
+    and the object are byte-for-byte the pre-Bandstand ones."""
+
+    PRE_BANDSTAND = (
+        "This is a violet-team bearbot playing keytar, 0.1 sim-seconds into the match (tick 1). Its own hp "
+        "is 200, which is at or above the 75-hp recall threshold. 1 allied minion are nearby in its wave "
+        "(wave count 1). No enemy tower or nexus is visible right now. No enemy bearbot or minion is "
+        "currently targeted as a foe. Its instrument ability's cooldown is 0.0 seconds, meaning the ability "
+        "is off cooldown and ready to use."
+    )
+
+    def test_no_objective_paragraph_is_the_pre_bandstand_text(self):
+        self.assertEqual(S.state_paragraph(ws()), self.PRE_BANDSTAND)
+        self.assertNotIn("Bandstand", S.state_paragraph(ws(foe_detail=True, foe="bb-3", foe_kind="bearbot", foe_hp=62)))
+
+    def test_no_objective_object_has_the_pre_bandstand_keys(self):
+        self.assertEqual(
+            list(S.state_object(ws())),
+            ["team", "instrument", "tick", "clock_sec", "hp", "hp_recall_threshold", "wave", "tower", "foe", "cd", "cd_ready_threshold"],
+        )
+
+    def test_open_states_hp_against_half_of_max(self):
+        above = S.state_paragraph(ws(hp=120, stand="open", max_hp=140))
+        self.assertTrue(above.startswith(self.PRE_BANDSTAND.replace("is 200,", "is 120,")))
+        self.assertTrue(above.endswith("The Bandstand is open. Its own hp of 120 is above 70, half of its 140 maxHp, the Bandstand threshold."))
+        below = S.state_paragraph(ws(hp=75, stand="open", max_hp=150))
+        self.assertIn("Its own hp of 75 is at or below 75, half of its 150 maxHp", below)
+
+    def test_not_open_says_so(self):
+        for status in ("closed", "upcoming", "done"):
+            self.assertTrue(S.state_paragraph(ws(stand=status, max_hp=140)).endswith(f"The Bandstand is {status}, not open."))
+
+    def test_object_carries_stand_and_its_threshold(self):
+        obj = S.state_object(ws(hp=120, stand="open", max_hp=140))
+        self.assertEqual((obj["stand"], obj["max_hp"], obj["hp_bandstand_threshold"]), ("open", 140, 70))
+
+
 class StateObjectTests(unittest.TestCase):
     def test_is_a_plain_dict_not_prose(self):
         obj = S.state_object(ws(hp=48, tower="tw-7", foe="bb-3", cd=1.5, wave=2))

@@ -4,6 +4,11 @@ before you die, because a bearbot that dies never comes back.
 Recall with discipline. When your hp is below 90 hp, recall home to heal. This comes before everything
 else.
 
+Play the Bandstand. When the Bandstand is open, no enemy bearbot is in sight and your hp is above half
+of your max hp, move to the Bandstand. If the Bandstand is open and it is contested or the enemy team
+is making progress on it, and your hp is above 40% of your max hp, move to the Bandstand. If the
+Bandstand opens within 10 seconds and it is less than 400 units from you, move to the Bandstand.
+
 Never stand at an enemy tower alone. If you can see an enemy tower and there is no allied minion
 near you, move back home.
 

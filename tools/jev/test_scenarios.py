@@ -49,5 +49,47 @@ class BuildObservationTests(unittest.TestCase):
             self.assertIn("kind", e)
 
 
+STAND_KEYS = {"site", "pos", "radius", "status", "opensInSec", "progress", "contested", "alliesOn", "selfOn"}
+
+
+class ObjectiveScenarioTests(unittest.TestCase):
+    """Matches with the river objective carry the `bandstand` block and Encore fields (contract:
+    docs/economy-spec.md §9.7); the original twelve stay exactly as they were."""
+
+    def test_original_scenarios_are_untouched(self):
+        self.assertEqual(len(S.all_scenarios()), 12)
+        for scenario in S.all_scenarios():
+            self.assertIsNone(scenario.bandstand, scenario.name)
+
+    def test_objective_scenarios_carry_the_block_and_encore_fields(self):
+        sites = {s["id"]: {"x": s["x"], "y": s["y"]} for s in S.river_rules()["sites"]}
+        for scenario in S.objective_scenarios():
+            for team in ("violet", "green"):
+                obs = S.build_observation(scenario, team, "keytar")
+                self.assertEqual(set(obs), REQUIRED_KEYS | {"bandstand"}, scenario.name)
+                self.assertEqual(set(obs["self"]), SELF_KEYS | {"encoreSec"}, scenario.name)
+                stand = obs["bandstand"]
+                self.assertEqual(set(stand), STAND_KEYS, scenario.name)
+                self.assertEqual(stand["pos"], sites[stand["site"]], scenario.name)
+                self.assertEqual(stand["radius"], S.river_rules()["radius"])
+                self.assertIn(stand["status"], ("closed", "upcoming", "open", "done"))
+                self.assertEqual(stand["opensInSec"] is None, stand["status"] in ("open", "done"), scenario.name)
+                for a in obs["allies"]:
+                    self.assertIn("encoreSec", a)
+                for e in obs["visibleEnemies"]:
+                    self.assertEqual("encore" in e, e["kind"] == "bearbot")
+
+    def test_encore_values_land_on_the_named_entities(self):
+        scenario = next(s for s in S.objective_scenarios() if s.name == "encore_weak_enemy_visible")
+        obs = S.build_observation(scenario, "violet", "drums")
+        self.assertEqual(obs["self"]["encoreSec"], 21.0)
+        self.assertEqual({a["id"]: a["encoreSec"] for a in obs["allies"]}, {"ally-encore": 21.0})
+        self.assertEqual({e["id"]: e["encore"] for e in obs["visibleEnemies"]}, {"enemy-weak": False, "enemy-encore": True})
+
+    def test_objective_scenario_names_are_unique_across_both_sets(self):
+        names = [s.name for s in S.all_scenarios() + S.objective_scenarios()]
+        self.assertEqual(len(names), len(set(names)))
+
+
 if __name__ == "__main__":
     unittest.main()

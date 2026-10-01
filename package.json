@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "match": "node tools/match/cli.mjs",
     "metrics": "node tools/match/metrics.mjs",
-    "test:match": "node --test tools/match/test_metrics.mjs tools/match/test_economy.mjs",
+    "test:match": "node --test tools/match/test_metrics.mjs tools/match/test_economy.mjs tools/match/test_objective.mjs",
     "compile": "python tools/jev/compile.py",
     "model-server": "python tools/model_server.py",
     "test:tools": "python -m unittest discover -s tools -p \"test_*.py\"",

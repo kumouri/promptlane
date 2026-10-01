@@ -49,11 +49,12 @@ export const MUTATION_FOCI = [
 export const DEFAULT_CAMPAIGN = {
   version: STORE_VERSION,
   seed: 1,
-  // The ruleset is part of the shape: every match plays it explicitly (`--map`, `--economy`) and the
-  // cache key hashes it, so a later change to the runner's defaults can't leak into a campaign or
-  // reuse a match played under other rules. `map` mirrors DEFAULT_MAP (src/mapVariant.ts; a test
-  // holds them equal); `economy` is none until the Sun 10-04 gate (src/economy.ts DEFAULT_ECONOMY).
-  shape: { cadenceSec: 2, maxSimSec: 600, map: 'pvp-1', economy: 'none' },
+  // The ruleset is part of the shape: every match plays it explicitly (`--map`, `--economy`,
+  // `--objective`) and the cache key hashes it, so a later change to the runner's defaults can't leak
+  // into a campaign or reuse a match played under other rules. `map` mirrors DEFAULT_MAP
+  // (src/mapVariant.ts; a test holds them equal); `economy` and `objective` are none until the Sun
+  // 10-04 gate (src/economy.ts DEFAULT_ECONOMY, src/objective.ts DEFAULT_OBJECTIVE).
+  shape: { cadenceSec: 2, maxSimSec: 600, map: 'pvp-1', economy: 'none', objective: 'none' },
   evaluation: { seedsPerEpoch: 4 },
   population: { parents: 2, childrenPerParent: 2 },
   // hall of fame capped at the last 3 champions: ruled 2026-09-30 01:50 CT (spec §10 Q2)
@@ -128,14 +129,16 @@ export const SIM_VERSION = 'specimen-v1';
 /**
  * The cache key of one match. A campaign whose shape names its ruleset (every campaign created
  * since the economy) hashes the sim, map and economy too, so a match played under one ruleset is
- * never reused under another. A campaign created before that has no ruleset in its shape and keeps
- * the key it always had, so its cache stays valid; its matches still play the runner's defaults.
+ * never reused under another; one whose shape also names the river objective (every campaign
+ * created since the Bandstand) hashes that as well. A campaign created before either keeps the key
+ * it always had, so its cache stays valid; its matches still play the runner's defaults.
  */
 export function matchKey({ violet, green, seed, shape }) {
   const parts = [violet, green, seed, shape.cadenceSec, shape.maxSimSec];
   if (shape.map !== undefined || shape.economy !== undefined) {
     parts.push(`sim=${SIM_VERSION}`, `map=${shape.map ?? 'default'}`, `economy=${shape.economy ?? 'default'}`);
   }
+  if (shape.objective !== undefined) parts.push(`objective=${shape.objective}`);
   return sha256(parts.join('|')).slice(0, 16);
 }
 

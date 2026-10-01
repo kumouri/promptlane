@@ -6,6 +6,7 @@
     "backend": "jev-schema",
     "_comment_map": "pinned so a change to the runner's DEFAULT_MAP never silently moves the ladder; pvp-1 is today's default (src/mapVariant.ts)",
     "map": "pvp-1",
+    "_comment_objective": "the river objective every match plays (docs/economy-spec.md §9): river-1 = the Bandstand, none = off. Unset = the runner's DEFAULT_OBJECTIVE (src/objective.ts), which is none until the Sun 10-04 gate; add \"objective\": \"river-1\" (or \"none\") here to pin the ladder either way",
     "cadenceSec": 2,
     "maxSimSec": 600,
     "quick": { "maxSimSec": 180, "cadenceSec": 4, "seed": 7 },

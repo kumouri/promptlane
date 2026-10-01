@@ -7,6 +7,7 @@ import { mockCallModel, httpCallModel } from './pilots/callModel';
 import { RenderFx, render } from './render';
 import { CHECKPOINT_EVERY_TICKS, isMatchLog, tickOf, type MatchLog } from './replay';
 import { DivergenceCheck, LiveFeed, LivePacer, Ticker, buildMatch, openLive } from './live';
+import { getObjective } from './objective';
 
 import drumsPrompt from '../prompts/pilots/drums.md?raw';
 import keytarPrompt from '../prompts/pilots/keytar.md?raw';
@@ -46,6 +47,7 @@ app.innerHTML = `
       <span class="violet-team" id="score-violet">VIOLET 0</span>
       &nbsp;—&nbsp;
       <span class="green-team" id="score-green">0 GREEN</span>
+      <span id="score-bandstand" hidden></span>
     </div>
     <div class="actions">
       <span class="live-badge" id="live-badge" hidden></span>
@@ -72,6 +74,7 @@ const ctx = canvas.getContext('2d')!;
 const clockEl = document.querySelector<HTMLDivElement>('#clock')!;
 const scoreVioletEl = document.querySelector<HTMLSpanElement>('#score-violet')!;
 const scoreGreenEl = document.querySelector<HTMLSpanElement>('#score-green')!;
+const scoreBandstandEl = document.querySelector<HTMLSpanElement>('#score-bandstand')!;
 const startBtn = document.querySelector<HTMLButtonElement>('#start-btn')!;
 const rosterEl = document.querySelector<HTMLDivElement>('#roster')!;
 const promptViewEl = document.querySelector<HTMLDivElement>('#prompt-view')!;
@@ -362,6 +365,24 @@ function clockText(sec: number): string {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
+/**
+ * "Bandstand 2–1" (violet's captures–green's, in team colours) beside the tower score, only when the match has a river objective
+ * (src/objective.ts); hidden otherwise. Only touches the DOM when a capture changes the count.
+ */
+let bandstandScoreKey = '';
+function refreshBandstandScore(): void {
+  const objective = match ? getObjective(match) : undefined;
+  const captures = { violet: 0, green: 0 };
+  for (const o of objective?.openings ?? []) if (o.team) captures[o.team] += 1;
+  const key = objective ? `${captures.violet}-${captures.green}` : '';
+  if (key === bandstandScoreKey) return;
+  bandstandScoreKey = key;
+  scoreBandstandEl.hidden = !objective;
+  scoreBandstandEl.innerHTML = objective
+    ? `&nbsp;·&nbsp;Bandstand <span class="violet-team">${captures.violet}</span>–<span class="green-team">${captures.green}</span>`
+    : '';
+}
+
 /** Top bar for the driver modes; called every frame (cheap: a few text nodes). */
 function refreshHud(): void {
   if (!view) return;
@@ -375,6 +396,7 @@ function refreshHud(): void {
   const t = tickOf(match);
   scoreVioletEl.textContent = `${sideLabel('violet')} ${match.towersDestroyedBy('green')}`;
   scoreGreenEl.textContent = `${match.towersDestroyedBy('violet')} ${sideLabel('green')}`;
+  refreshBandstandScore();
   if (check?.divergedAt !== null && check?.divergedAt !== undefined) {
     clockEl.textContent = `REPLAY DIVERGED @${(check.divergedAt * (feed.meta?.tickDt ?? 0.05)).toFixed(1)}s`;
   } else if (match.ended) {
@@ -401,6 +423,7 @@ function onMatchTick(): void {
   clockEl.textContent = clockText(match.clockSec);
   scoreVioletEl.textContent = `${sideLabel('violet')} ${match.towersDestroyedBy('green')}`;
   scoreGreenEl.textContent = `${match.towersDestroyedBy('violet')} ${sideLabel('green')}`;
+  refreshBandstandScore();
   if (match.ended) {
     const who = match.winner ? sideLabel(match.winner) : 'NOBODY';
     clockEl.textContent = `${who} WINS (${match.endReason})`;

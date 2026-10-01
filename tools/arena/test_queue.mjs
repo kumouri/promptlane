@@ -8,11 +8,12 @@ import { loadHeadless } from '../match/load.mjs';
 import { Ledger } from './ledger.mjs';
 import { PromptStore } from './prompts.mjs';
 import { Queue, finalFromLog, wallCapMs } from './queue.mjs';
+import { metaOf } from './live.mjs';
 
 const quiet = { info() {}, warn() {}, error() {} };
 const headless = await loadHeadless();
 
-function setup(hooks = {}, { backends, house: houseOverrides } = {}) {
+function setup(hooks = {}, { backends, house: houseOverrides, objective = null } = {}) {
   const dir = mkdtempSync(path.join(tmpdir(), 'arena-queue-'));
   const ledger = new Ledger(path.join(dir, 'ledger.jsonl')).load();
   const promptStore = new PromptStore(path.join(dir, 'prompts'));
@@ -28,6 +29,7 @@ function setup(hooks = {}, { backends, house: houseOverrides } = {}) {
     dataDir: dir,
     promptStore,
     house,
+    objective,
     log: quiet,
     hooks,
   });
@@ -75,6 +77,7 @@ test('a verified match writes the log and a finished row; the scratch file is go
     assert.equal(log.sides.violet.name, 'zed (scratch)');
     assert.equal(log.sides.violet.promptText, 'Zed. Reply with one JSON action.');
     assert.equal(log.backend.arenaBackend, 'mock');
+    assert.ok(!('objective' in log), 'no tournament.objective (and DEFAULT_OBJECTIVE none): the log has no objective');
     assert.ok(!existsSync(path.join(dir, 'scratch', `${id}.md`)), 'scratch text is not kept past the match');
     const v = await headless.verifyReplay(log);
     assert.ok(v.ok, 'the written log re-verifies from disk');
@@ -258,6 +261,27 @@ test('Jev house bot never stops playing: with its server unreachable, the house 
     assert.ok(fallbackLines.length >= houseDecisions.length, 'each fallback is logged loudly');
   } finally {
     console.error = origError;
+    await queue.stop();
+    cleanup();
+  }
+});
+
+test('tournament.objective: every match plays the Bandstand, the log records the ruleset, the meta event carries it, and the verify gate passes', async () => {
+  const { dir, ledger, queue, job, cleanup } = setup({}, { objective: 'river-1' });
+  try {
+    queue.start();
+    const id = queue.enqueue(job({ maxSimSec: 100 }));
+    await queue.waitForIdle(30000);
+    const j = ledger.state().jobs.get(id);
+    assert.equal(j.status, 'finished', JSON.stringify(j.reason));
+    assert.ok(j.verify.checkpointsCompared >= 15);
+    const log = JSON.parse(readFileSync(path.join(dir, 'logs', `${id}.json`), 'utf8'));
+    assert.deepEqual(log.objective, headless.RIVER_1, 'the whole ruleset, not just its name');
+    assert.equal(log.result.objective.openings.length, 1, 'the first set opened at 90 s');
+    assert.ok(log.checkpoints.every((c) => Array.isArray(JSON.parse(c.state).o)), 'checkpoints carry the objective');
+    assert.deepEqual(metaOf(log).objective, log.objective, 'the live meta event carries it like the map');
+    assert.ok(!('objective' in metaOf({ ...log, objective: undefined })), 'a log without one: no key');
+  } finally {
     await queue.stop();
     cleanup();
   }
