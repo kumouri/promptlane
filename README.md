@@ -201,7 +201,11 @@ jam-day bracket: entrants paste a prompt and run a quick test against the house 
 prompts in `jamobair-entrants` are placed automatically on three seeds, an Elo ladder is folded
 from an append-only ledger with every match re-verified before it counts, every match can be
 watched live (`/play/?live=<id>`), and the organizer seeds a single-elimination bracket from the
-ladder, pre-runs the early rounds, and plays the semis and final live. The ladder plays both sides
+ladder, pre-runs the early rounds, and plays the semis and final live. `/teams` lists every team
+with its members, status and standing. On `/team` a team can create itself, take its learner in
+by join code, and submit its `pilot.md` from the browser. The arena runs the entrants validator,
+then commits the file into `jamobair-entrants`, so the repo stays the one record (runbook §1d).
+The ladder plays both sides
 on Jev, as the Jam does: entrant prose is compiled once by `tools/jev/compile.py`, and the house
 plays its tier's compiled schemas (spec §9). Start it, expose it behind
 Cloudflare Access, and operate it — including the jam-day sequence — per

@@ -79,5 +79,16 @@
     "_comment_ipHeader": "behind the Cloudflare Tunnel every request comes from 127.0.0.1 -- set to \"cf-connecting-ip\" there so the per-IP limits are per visitor",
     "practiceBackend": "jev-schema"
   },
+  "submissions": {
+    "_comment": "web teams and submissions (/team, docs/arena-runbook.md section 1d): an accepted submission is committed to the entrants repo above with the gh login the sync already uses. cutoff = midnight Central at the end of Thu 15 Oct (ruling 2026-09-30 05:40 CT); nothing is created, joined or submitted at or after it. The rate limits are per Access email",
+    "enabled": true,
+    "cutoff": "2026-10-16T05:00:00Z",
+    "maxPromptBytes": 32768,
+    "perUserPerMinute": 2,
+    "perUserPerDay": 30,
+    "globalPerDay": 300,
+    "joinsPerMinute": 5,
+    "joinsPerDay": 20
+  },
   "organizerEmail": "CHANGE-ME@inrhythm.com"
 }

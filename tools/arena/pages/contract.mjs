@@ -43,12 +43,14 @@ export function contractPage({ user }) {
 served here so reading it needs only your InRhythm login, not access to a private GitHub repo.</p>
 
 <h2>1 · What you submit</h2>
-<p>One file: <code>entrants/&lt;your-handle&gt;/pilot.md</code>, where <code>&lt;your-handle&gt;</code> is your
-GitHub login (letters, digits, <code>. _ -</code>, up to 39 characters — pattern
-<code>${esc(HANDLE_RE.source)}</code>). It drives all three bearbots on your side at once: the same prompt text,
-handed to drums (top), keytar (mid) and violin (bottom).</p>
-<p>Entry rules (enforced by the entrants repo's validator and, for quick tests here, by this arena — the same
-rules, ported verbatim):</p>
+<p>One file per team: <code>entrants/&lt;team&gt;/pilot.md</code>, where <code>&lt;team&gt;</code> is your handles
+joined by <code>+</code>, lead first: <code>entrants/alice+bob/pilot.md</code>, or <code>entrants/&lt;your-handle&gt;/pilot.md</code>
+for a lead entering solo. Each handle is letters, digits, <code>. _ -</code>, up to 39 characters (pattern
+<code>${esc(HANDLE_RE.source)}</code>). Submit it on <a href="/team">Your team</a> or by pull request to jamobair-entrants.
+It drives all three bearbots on your side at once: the same prompt text, handed to drums (top), keytar (mid)
+and violin (bottom).</p>
+<p>Entry rules (enforced by the entrants repo's validator, which this arena runs itself on a web submission;
+quick tests here use a port held to it by tests):</p>
 <ul>
   <li>Non-empty.</li>
   <li>No code fences — no <code>\`\`\`</code> or <code>~~~</code> anywhere in the file.</li>

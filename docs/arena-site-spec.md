@@ -315,7 +315,14 @@ logged, and never persisted anywhere but that one log. This keeps one truth, kee
 visible, and still gives reason 4 at paste speed. The cost is a small one: to get *on the ladder*
 you have to merge, and the page says so in one line next to the paste box.
 
-Merged-prompt identity is `{handle, sha256(text)}`. The ledger stores the hash on every match row;
+**2026-10-01: the arena now also writes the repo.** Teams can submit their `pilot.md` on the web.
+The arena runs the entrants validator itself, then commits to `main` for them. The repo stays the
+only store, the CI gate still runs on the push, and "merged by the cutoff plays" is unchanged. The
+decision, the credential and the conflict rule are in
+[`arena-runbook.md` §1d](arena-runbook.md#1d-teams-and-web-submissions-teams-team).
+
+Merged-prompt identity is `{handle, sha256(text)}`, where the handle is the entry's folder name
+(`alice+bob` for a team). The ledger stores the hash on every match row;
 the leaderboard shows the record of the *current* hash and the all-time record separately, so a
 revised prompt is visibly a revision.
 
@@ -453,6 +460,7 @@ wall time, so it is a button, not the default. Ladder (Elo) draws are simply dra
 | `tools/arena/config.example.json` | *built (A)* | tournament (backend, cadence, quick shape, seeds, quota), backends, entrants source, house files, organizer email. Access AUD/team are environment variables |
 | `tools/arena/test_*.mjs` | *built (A, B)* | `node --test`: Elo + placements, ledger folds, validator port, JWT refusal, verify gate + wall cap, house pair, headless end-to-end on the mock. B: `test_bracket` (seeding, byes, tie order, fold), `test_live` (stream units; SSE e2e; bracket e2e with held/reveal/rule/re-run), `test_browser` (`src/live.ts` bundled and driven in Node against a real log). `testkit.mjs` holds the shared fixtures |
 | `tools/arena/compile.mjs`, `pages/compile.mjs`, `test_compile.mjs` | *built (2026-09-25, rulings 20–21)* | The `/compile` panel: runs `tools/jev/compile.py` server-side, per-IP/day limits, and the optional Jev practice match (`Queue.practicePilotFor` → `tools/match/jevSchemaPilot.ts` → `tools/jev/schema_server.py`). Design and measurements: [`entrant-compile-preview.md`](entrant-compile-preview.md) |
+| `tools/arena/teams.mjs`, `entrants_writer.mjs`, `validator.mjs`, `entrants_validator/`, `pages/teams.mjs`, `test_teams.mjs` | *built (2026-10-01)* | Teams: `/teams`, `/teams/<folder>`, `/team` (create, join, submit). An accepted submission is committed into jamobair-entrants (Git Data API via `gh api`, fast-forward only, refused on a stale base). The entrants validator is vendored and run as itself, with drift refused. See `arena-runbook.md` §1d |
 | `.github/workflows/ci.yml` | **reused, additive (A: done)** | `npm run test:arena` after the match smoke |
 | `jamobair-entrants` `tools/validate_entry.py` | **reused unchanged** | remains the CI gate for merged prompts |
 | `cloudflared` config | ops, not in repo | ingress `elysium.<zone>` → `http://127.0.0.1:8790`, nothing else; `arena.<zone>` is a Cloudflare redirect rule (Q16) |

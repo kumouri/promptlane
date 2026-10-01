@@ -8,6 +8,11 @@
  * `bracket` (a jam-day tournament, seeds pinned), `bracket-reveal` (a pre-run round is shown),
  * `ruling` (the organizer decides a slot). The bracket page is `bracketView()`, a fold.
  *
+ * Teams (docs/arena-runbook.md §1d): `team` (created on the web, or by the organizer), `team-member`
+ * (a learner joined), `team-submit` (the arena committed the team's pilot.md to the entrants repo),
+ * `team-disband` (organizer); `prompt-gone` (the sync no longer sees an entry's folder -- a team
+ * renamed by a join, or a folder deleted) takes that entry off the ladder until it reappears.
+ *
  * A match played on Jev (a `jev-schema-http` backend, docs/arena-site-spec.md §9) carries `jev` on
  * its terminal row -- `{calls, unanswered, tokensIn, costUsd, doors, compile}` -- which lands on the
  * job and is summed per Central day per backend into `jevSpend` (the daily ceiling, `jevSpentToday`).
@@ -92,6 +97,12 @@ export function fold(rows) {
     brackets: new Map(),
     /** "YYYY-MM-DD|backendId" (Central day of the terminal row) → Jev USD spent by matches */
     jevSpend: new Map(),
+    /** handles (entry folders) the sync stopped seeing; off the ladder until they come back */
+    gone: new Set(),
+    /** teamId → {teamId, members: [{email, handle, role}], joinCode, createdAt, by, submits: [], lastSubmit} */
+    teams: new Map(),
+    /** email → teamId */
+    teamOf: new Map(),
   };
   const spend = (r) => {
     if (!r.jev?.costUsd) return;
@@ -119,7 +130,41 @@ export function fold(rows) {
       case 'prompt-seen':
         s.prompts.set(r.handle, { hash: r.hash, commit: r.commit, blobSha: r.blobSha, seenAt: r.ts });
         s.seenHashes.add(`${r.handle}:${r.hash}`);
+        s.gone.delete(r.handle);
         break;
+      case 'prompt-gone':
+        s.prompts.delete(r.handle);
+        for (const k of s.seenHashes) if (k.startsWith(`${r.handle}:`)) s.seenHashes.delete(k);
+        s.gone.add(r.handle);
+        break;
+      case 'team': {
+        const members = r.members.map((m) => ({ ...m }));
+        s.teams.set(r.teamId, { teamId: r.teamId, members, joinCode: r.joinCode, createdAt: r.ts, by: r.by, submits: [], lastSubmit: null });
+        for (const m of members) s.teamOf.set(m.email, r.teamId);
+        break;
+      }
+      case 'team-member': {
+        const t = s.teams.get(r.teamId);
+        if (!t) break;
+        t.members.push({ email: r.email, handle: r.handle, role: r.role });
+        s.teamOf.set(r.email, r.teamId);
+        break;
+      }
+      case 'team-submit': {
+        const t = s.teams.get(r.teamId);
+        if (!t) break;
+        const sub = { folder: r.folder, previousFolder: r.previousFolder ?? null, hash: r.hash, blobSha: r.blobSha, commit: r.commit, by: r.by, ts: r.ts, kind: r.kind ?? 'submit' };
+        t.submits.push(sub);
+        t.lastSubmit = sub;
+        break;
+      }
+      case 'team-disband': {
+        const t = s.teams.get(r.teamId);
+        if (!t) break;
+        for (const m of t.members) if (s.teamOf.get(m.email) === r.teamId) s.teamOf.delete(m.email);
+        s.teams.delete(r.teamId);
+        break;
+      }
       case 'queued': {
         const { ts, type, ...job } = r;
         s.jobs.set(r.id, { ...job, createdAt: ts, status: 'queued', attempt: 0 });
@@ -254,7 +299,7 @@ function bump(rec, score) {
 /**
  * The ladder: one row per handle with a merged prompt, ranked by Elo. Only `ranked` finished
  * matches that were not voided count; scratch and quick tests never do; the house bot is a fixed
- * 1000 and does not appear.
+ * 1000 and does not appear, and neither does an entry whose folder is gone (`prompt-gone`).
  */
 export function standings(state) {
   const houseHandle = state.house?.handle ?? 'house';
@@ -311,7 +356,7 @@ export function standings(state) {
       r.lastMatchId = m.id;
     }
   }
-  const out = [...rows.values()].map((r) => ({
+  const out = [...rows.values()].filter((r) => !state.gone.has(r.handle)).map((r) => ({
     ...r,
     elo: Math.round(r.elo),
     eloExact: r.elo,
