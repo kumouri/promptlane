@@ -198,7 +198,14 @@ export function diagnosticsFor(store, parentId, generation) {
       if (!schema) continue;
       const fired = row?.rules?.[inst] ?? {};
       lines.push(`${inst}: the prose compiled to these rules (first match wins)${row ? ', with how often each fired' : ''}:`);
-      for (const r of schema.rules) lines.push(`  - ${r.id}: if ${r.condition} -> ${r.action_kind}${r.action_ability ? ` ${r.action_ability}` : ''}${row ? ` (fired ${fired[r.id] ?? 0}x)` : ''}`);
+      for (const r of schema.rules) {
+        if (r.type === 'guard') {
+          // a guard always routes to one of its branches; only its top-level question is listed here
+          lines.push(`  - ${r.id}: guard -- if ${r.condition} -> its yes-rules, else its no-rules`);
+          continue;
+        }
+        lines.push(`  - ${r.id}: if ${r.condition} -> ${r.action_kind}${r.action_ability ? ` ${r.action_ability}` : ''}${row ? ` (fired ${fired[r.id] ?? 0}x)` : ''}`);
+      }
       lines.push(`  - otherwise -> ${schema.default_action?.kind ?? 'hold'}${row ? ` (fired ${fired.default ?? 0}x)` : ''}`);
     }
   }
