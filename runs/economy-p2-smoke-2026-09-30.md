@@ -82,8 +82,9 @@ Raw numbers: [`economy-p2-smoke-2026-09-30-metrics.json`](economy-p2-smoke-2026-
 
 The 4 logs aren't in git, by ruling. They are on the
 [`data-economy-p2-smoke-2026-09-30`](https://github.com/kumouri/promptlane/releases/tag/data-economy-p2-smoke-2026-09-30)
-prerelease as `economy-p2-smoke-match-logs-2026-09-30.zip`; the sha256 is in the release notes.
-Unzip at the repo root, then:
+prerelease as `economy-p2-smoke-match-logs-2026-09-30.zip` (376 KB, sha256
+`ba0e37eb7a9434269ca4c7ab8ca61d6b6c73f7ebb9101f23de5ac205b08235be`). Inside are the 4 logs and a
+`SHA256SUMS`. Unzip at the repo root, then:
 
 ```sh
 npm run match -- --verify runs/economy-p2-smoke-2026-09-30-medium-eco-vs-hard-eco-seed7.json
