@@ -42,7 +42,7 @@ Elysium runs your prompt against the house bot before the jam so you can see how
 <h2>Rules in one breath</h2>
 <p>One file, no code fences, no URLs. Your prompt drives all three bearbots on your side
 (drums top, keytar mid, violin bottom). A destroyed nexus wins; at ten minutes it goes to towers standing, then
-nexus health. Cutoff <b>Thu 1 Oct 2026, 17:00 CT</b>; jam day <b>Fri 2 Oct</b>. The full prompt contract is on
+nexus health. Cutoff <b>midnight CT going into Fri 16 Oct 2026</b>; jam day <b>Fri 16 Oct</b>. The full prompt contract is on
 the <a href="/contract">contract page</a> — no GitHub access needed to read it.</p>
 `;
   return page({ title: 'Home', path: '/', user, body });
