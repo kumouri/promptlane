@@ -183,6 +183,10 @@ test('the log records the resolution; replay applies it; a sequential log is wri
   const kills = eco.result.economy.bots.reduce((n, b) => n + b.kills, 0);
   const deaths = eco.result.economy.bots.reduce((n, b) => n + b.deaths, 0);
   assert.ok(kills <= deaths, `${kills} kills credited for ${deaths} deaths`);
+  // every layer at once: the channelled recall and the river objective wrap `tick`, around this one
+  const all = await mock({ economy: 'eco-2', objective: 'river-2', recall: 'recall-2', maxSimSec: 240 });
+  assert.equal(all.resolution, 'simultaneous-1');
+  assert.ok((await h.verifyReplay(all, flush)).ok);
 });
 
 test('attach rules: a fresh match only, before any other layer; names are checked', () => {
