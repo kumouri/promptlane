@@ -4,13 +4,22 @@
   "instrument": "drums",
   "rules": [
    {
-    "id": "recall_low_hp",
-    "condition": "is this bot's hp below 90?",
-    "criteria_true": "hp is critically low (below 90)",
-    "criteria_false": "hp is sufficient (90 or above)",
-    "action_kind": "recall",
+    "id": "recall_low_hp_threat",
+    "condition": "is this bot's hp below 90 and is an enemy minion, tower, or bearbot in sight?",
+    "criteria_true": "hp < 90 and threat present",
+    "criteria_false": "hp >= 90 or no threat",
+    "action_kind": "move",
     "action_ability": null,
     "action_target_selector": "home"
+   },
+   {
+    "id": "recall_low_hp_safe",
+    "condition": "is this bot's hp below 90 and no enemy is in sight?",
+    "criteria_true": "hp < 90 and safe",
+    "criteria_false": "hp >= 90 or threat present",
+    "action_kind": "recall",
+    "action_ability": null,
+    "action_target_selector": "none"
    },
    {
     "id": "bandstand_open_take_it",
@@ -40,20 +49,29 @@
     "action_target_selector": "bandstand"
    },
    {
-    "id": "buy_item",
-    "condition": "can this bot afford the next item on its shopping list and are no enemy bearbots in sight?",
-    "criteria_true": "item is affordable and lane is clear of enemies",
-    "criteria_false": "item is unaffordable or an enemy bearbot is visible",
-    "action_kind": "recall",
+    "id": "shop_home_threat",
+    "condition": "can afford next item and no enemy bearbot in sight and enemy minion/tower in sight?",
+    "criteria_true": "Ready to shop, threat present",
+    "criteria_false": "Cannot afford or unsafe",
+    "action_kind": "move",
     "action_ability": null,
     "action_target_selector": "home"
    },
    {
-    "id": "spend_gold_safety",
-    "condition": "does this bot carry at least 300 gold and is there an enemy bearbot in sight with more hp than this bot?",
-    "criteria_true": "gold is high (>=300) and a stronger enemy is visible",
-    "criteria_false": "gold is low or the visible enemy is weaker/equal",
+    "id": "shop_home_safe",
+    "condition": "can afford next item and no enemy in sight?",
+    "criteria_true": "Ready to shop, safe",
+    "criteria_false": "Cannot afford or threat present",
     "action_kind": "recall",
+    "action_ability": null,
+    "action_target_selector": "none"
+   },
+   {
+    "id": "spend_gold_low_hp_enemy",
+    "condition": "carry >= 300 gold and enemy bearbot in sight has more hp than this bot?",
+    "criteria_true": "Rich but weak vs enemy",
+    "criteria_false": "Poor or strong enough",
+    "action_kind": "move",
     "action_ability": null,
     "action_target_selector": "home"
    },
@@ -140,10 +158,19 @@
   "instrument": "keytar",
   "rules": [
    {
-    "id": "recall_low_hp",
-    "condition": "is this bot's hp below 90?",
-    "criteria_true": "hp is below 90",
-    "criteria_false": "hp is 90 or above",
+    "id": "recall_hp_low_threat",
+    "condition": "is this bot's hp below 90 and is an enemy minion, enemy tower, or enemy bearbot in sight?",
+    "criteria_true": "hp < 90 and threat present",
+    "criteria_false": "hp >= 90 or no threat present",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "recall_hp_low_safe",
+    "condition": "is this bot's hp below 90 and are no enemies in sight?",
+    "criteria_true": "hp < 90 and safe",
+    "criteria_false": "hp >= 90 or enemy present",
     "action_kind": "recall",
     "action_ability": null,
     "action_target_selector": "none"
@@ -176,20 +203,29 @@
     "action_target_selector": "bandstand"
    },
    {
-    "id": "buy_item_if_safe",
-    "condition": "can this bot afford the next item on its shopping list and is no enemy bearbot in sight?",
-    "criteria_true": "affordable item exists and no enemy bearbot visible",
-    "criteria_false": "cannot afford item or enemy bearbot visible",
-    "action_kind": "recall",
+    "id": "buy_home_threat",
+    "condition": "can afford next item and no enemy bearbot in sight and enemy minion/tower in sight?",
+    "criteria_true": "Afford, safe from bears, threat present",
+    "criteria_false": "Cannot afford or unsafe or no threat",
+    "action_kind": "move",
     "action_ability": null,
     "action_target_selector": "home"
    },
    {
-    "id": "spend_gold_if_weak",
-    "condition": "does this bot carry at least 300 gold and is there an enemy bearbot in sight with more hp than this bot?",
-    "criteria_true": "carries >= 300 gold and visible enemy has higher hp",
-    "criteria_false": "carries < 300 gold or no visible enemy or visible enemy has lower/equal hp",
+    "id": "buy_home_safe",
+    "condition": "can afford next item and no enemies in sight?",
+    "criteria_true": "Afford and safe",
+    "criteria_false": "Cannot afford or unsafe",
     "action_kind": "recall",
+    "action_ability": null,
+    "action_target_selector": "none"
+   },
+   {
+    "id": "spend_gold_hp_low",
+    "condition": "carry >= 300 gold and enemy bearbot in sight has more hp than this bot?",
+    "criteria_true": "Rich and vulnerable to bear",
+    "criteria_false": "Poor or safe from bears",
+    "action_kind": "move",
     "action_ability": null,
     "action_target_selector": "home"
    },
@@ -276,10 +312,19 @@
   "instrument": "violin",
   "rules": [
    {
-    "id": "recall_low_hp",
-    "condition": "is this bot's hp below 90?",
-    "criteria_true": "hp is below 90",
-    "criteria_false": "hp is 90 or above",
+    "id": "recall_low_hp_threat",
+    "condition": "is this bot's hp below 90 and is an enemy minion, enemy tower, or enemy bearbot in sight?",
+    "criteria_true": "hp < 90 and threat present",
+    "criteria_false": "hp >= 90 or no threat",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "recall_low_hp_safe",
+    "condition": "is this bot's hp below 90 and no enemy is in sight?",
+    "criteria_true": "hp < 90 and safe",
+    "criteria_false": "hp >= 90 or threat present",
     "action_kind": "recall",
     "action_ability": null,
     "action_target_selector": "home"
@@ -312,20 +357,29 @@
     "action_target_selector": "bandstand"
    },
    {
-    "id": "buy_item_if_safe",
-    "condition": "can this bot afford the next item on its shopping list AND is no enemy bearbot in sight?",
-    "criteria_true": "affordable and safe (no enemies)",
-    "criteria_false": "cannot afford or enemies present",
+    "id": "shop_home_threat",
+    "condition": "can afford next item and no enemy bearbot in sight and enemy minion or tower in sight?",
+    "criteria_true": "Afford, safe from bears, threat present",
+    "criteria_false": "Cannot afford or unsafe or no threat",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "shop_home_safe",
+    "condition": "can afford next item and no enemy in sight?",
+    "criteria_true": "Afford and safe",
+    "criteria_false": "Cannot afford or unsafe",
     "action_kind": "recall",
     "action_ability": null,
     "action_target_selector": "home"
    },
    {
-    "id": "spend_gold_if_weak",
-    "condition": "does this bot carry at least 300 gold AND is there an enemy bearbot in sight with more hp than this bot?",
-    "criteria_true": "has >=300 gold and faces a stronger enemy",
-    "criteria_false": "gold <300 or no stronger enemy present",
-    "action_kind": "recall",
+    "id": "spend_gold_low_hp_enemy",
+    "condition": "carry >= 300 gold and enemy bearbot in sight has more hp than this bot?",
+    "criteria_true": "Rich, low HP relative to enemy",
+    "criteria_false": "Poor or HP advantage",
+    "action_kind": "move",
     "action_ability": null,
     "action_target_selector": "home"
    },

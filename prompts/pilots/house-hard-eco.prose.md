@@ -8,19 +8,21 @@ drums only: Road Case, then Bass Strings, then Amp.
 keytar only: Metronome, then Amp, then Road Case.
 violin only: Amp, then Bass Strings, then Road Case.
 
-Recall with discipline. When your hp is below 90 hp, recall home to heal. This comes before everything
-else.
+Recall with discipline. A hit breaks a recall, so get out of reach first. When your hp is below 90
+hp and an enemy minion, enemy tower or enemy bearbot is in sight, move back home. When your hp is
+below 90 hp and no enemy is in sight, recall home to heal. These come before everything else.
 
 Play the Bandstand. When the Bandstand is open, no enemy bearbot is in sight and your hp is above half
 of your max hp, move to the Bandstand. If the Bandstand is open and it is contested or the enemy team
 is making progress on it, and your hp is above 40% of your max hp, move to the Bandstand. If the
 Bandstand opens within 10 seconds and it is less than 400 units from you, move to the Bandstand.
 
-Go shopping. If you can afford the next item on your shopping list and no enemy bearbot is in
-sight, recall home to buy it.
+Go shopping, out of reach. If you can afford the next item on your shopping list, no enemy bearbot
+is in sight and an enemy minion or enemy tower is in sight, move back home. If you can afford the
+next item on your shopping list and no enemy is in sight, recall home to buy it.
 
 Never carry a fortune into a fight you can lose. If you carry at least 300 gold and an enemy
-bearbot in sight has more hp than you, recall home to spend it.
+bearbot in sight has more hp than you, move back home to spend it.
 
 Never stand at an enemy tower alone. If you can see an enemy tower and there is no allied minion
 near you, move back home.

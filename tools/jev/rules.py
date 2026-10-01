@@ -6,7 +6,11 @@ Read `prompts/pilots/house-violet.md` in full before touching this file. It is R
 everywhere in this harness -- the file is the arena's own house opponent, not an entrant artifact,
 and this experiment never edits it (brief rule: "house-violet.md is READ, never edited").
 
-The prompt's rules, quoted verbatim from the file, and the question each becomes:
+The prompt's rules, quoted verbatim from the file as it stood until 2026-10-01, and the question each
+becomes. On 2026-10-01 (`runs/bandstand-3-2026-10-01.md`) the file's rule 1 was split in two for
+`recall-2`: "hp less than 75 and an enemy is in sight -> go home", then "hp less than 75 and no enemy
+is in sight -> recall". This harness keeps the single rule below, because its ground truth is the
+logged decisions of matches played under it; the shadow bot it feeds is not played anywhere live.
 
     1. hp less than 75 -> "kind":"recall"
     2. stand is "open", foe is null or a minion, and hp is more than 50% of self.maxHp

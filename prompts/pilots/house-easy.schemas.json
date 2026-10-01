@@ -4,10 +4,19 @@
   "instrument": "drums",
   "rules": [
    {
-    "id": "low_hp_recall",
-    "condition": "is this bot's hp below 100?",
-    "criteria_true": "hp is below 100",
-    "criteria_false": "hp is 100 or above",
+    "id": "retreat_hp_low_threat",
+    "condition": "is this bot's hp below 100 AND (an enemy minion OR an enemy tower OR an enemy bearbot is in sight)?",
+    "criteria_true": "hp low and threat visible",
+    "criteria_false": "hp high or no threat visible",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "retreat_hp_low_no_threat",
+    "condition": "is this bot's hp below 100 AND no enemy is in sight?",
+    "criteria_true": "hp low and safe",
+    "criteria_false": "hp high or threat present",
     "action_kind": "recall",
     "action_ability": null,
     "action_target_selector": "home"
@@ -61,10 +70,19 @@
   "instrument": "keytar",
   "rules": [
    {
-    "id": "hp_low_recall",
-    "condition": "is this bot's hp below 100?",
-    "criteria_true": "hp is below 100",
-    "criteria_false": "hp is 100 or higher",
+    "id": "retreat_hp_low_threat",
+    "condition": "is this bot's hp below 100 and is an enemy minion, enemy tower, or enemy bearbot in sight?",
+    "criteria_true": "hp < 100 with any enemy visible",
+    "criteria_false": "hp >= 100 or no enemies visible",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "retreat_hp_low_no_threat",
+    "condition": "is this bot's hp below 100 and no enemy is in sight?",
+    "criteria_true": "hp < 100 with no enemies visible",
+    "criteria_false": "hp >= 100 or enemies visible",
     "action_kind": "recall",
     "action_ability": null,
     "action_target_selector": "home"
@@ -118,10 +136,19 @@
   "instrument": "violin",
   "rules": [
    {
-    "id": "low_hp_recall",
-    "condition": "is this bot's hp below 100?",
-    "criteria_true": "hp is below 100",
-    "criteria_false": "hp is 100 or above",
+    "id": "retreat_hp_low_threat",
+    "condition": "is this bot's hp below 100 AND (an enemy minion OR an enemy tower OR an enemy bearbot is in sight)?",
+    "criteria_true": "hp is low and a threat is visible",
+    "criteria_false": "hp is not low or no threat is visible",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "recall_hp_low_safe",
+    "condition": "is this bot's hp below 100 AND no enemy is in sight?",
+    "criteria_true": "hp is low and safe from enemies",
+    "criteria_false": "hp is not low or an enemy is visible",
     "action_kind": "recall",
     "action_ability": null,
     "action_target_selector": "home"

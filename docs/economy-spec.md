@@ -1484,8 +1484,9 @@ and bottom lanes swap).
   - Its Encore and gold numbers come from `river-1.json`, which `river-2` shares (a test pins that).
 - *House tiers.* Unchanged. Hard's "contest it" rule says: if the stand is contested, or the bar leans
   to the enemy, and hp is over 40 %, go to the Bandstand. That expresses the new mechanics as it is,
-  because under `river-2` going there is how the bigger group forms. Their *recall* rules are another
-  matter (below).
+  because under `river-2` going there is how the bigger group forms. Their *recall* rules were
+  another matter (below): on 2026-10-01 every tier's recall became "an enemy in sight → move home",
+  then "no enemy in sight → recall" (`prompts/pilots/README.md`, "Recall: out of reach first").
 - *Replay.* A log records `recall` and the `river-2` ruleset whole. Checkpoints gain the open tick
   (`o`, `river-2` only) and every bot's channel start (`r`). Logs without them replay as before: the
   first run's 48 `river-1` logs and the committed v1, `pvp-1` and economy logs all still verify.
@@ -1498,10 +1499,11 @@ and bottom lanes swap).
     the plan is unchanged.
   - The metric tool's shopping-recall count (§13.2) reads a `recall-2` channel as the recall, so it
     works under either rule.
-  - Its tiers' recall rules need rewriting, not just re-measuring. A recall now costs 4 s standing
+  - Its tiers' recall rules needed rewriting, not just re-measuring. A recall now costs 4 s standing
     where the bot is, and a hit cancels it. So "recall below X hp" in a lane or a fight gets
     interrupted by the minions and kills the bot (the measurement below shows exactly that).
-  - The channel rewards walking out of reach first (`move home`), then recalling.
+  - The channel rewards walking out of reach first (`move home`), then recalling. The eco tiers'
+    low-hp and shopping recalls now do that (2026-10-01, with the plain tiers').
 
 **Measurement.** [`runs/bandstand-2-2026-09-30.md`](../runs/bandstand-2-2026-09-30.md): 12 seed pairs
 on Jev, §9.8's lines unchanged, $1.39.
@@ -1761,6 +1763,9 @@ minute earlier and changes nothing else.
     Bandstand rule.
   - hard has the same rule. It adds "carrying ≥ 300 with a stronger enemy bearbot in sight → recall
     to spend it", and it attacks the enemy worth the most gold instead of the lowest-hp one.
+  - Since 2026-10-01 every recall in these tiers first leaves reach for `recall-2` (§9.10): the
+    low-hp and shopping recalls each became "an enemy in sight → move home", then "no enemy in
+    sight → recall", and hard's 300-gold rule walks home instead. The pilots README has the rules.
   - Every tier declares its shopping list in prose, and it compiles to `build`.
 - **Compiled on the entrants' translator** (`compile.py --backend ollama`, qwen3.5:9b) into
   `house-<tier>-eco.schemas.json`, which is what Jev plays. Medium was sampled four times, and the

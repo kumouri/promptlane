@@ -4,10 +4,19 @@
   "instrument": "drums",
   "rules": [
    {
-    "id": "low_hp_retreat",
-    "condition": "is this bot's hp below 75 of its max?",
-    "criteria_true": "bot is critically low on health",
-    "criteria_false": "bot has sufficient health",
+    "id": "low_hp_enemy_present",
+    "condition": "is this bot's hp below 75% of its max AND is an enemy bearbot, minion, or tower in sight?",
+    "criteria_true": "hp < 75% and enemies visible",
+    "criteria_false": "hp >= 75% or no enemies visible",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "low_hp_no_enemy",
+    "condition": "is this bot's hp below 75% of its max AND are there NO enemies in sight?",
+    "criteria_true": "hp < 75% and no enemies visible",
+    "criteria_false": "hp >= 75% or enemies visible",
     "action_kind": "recall",
     "action_ability": null,
     "action_target_selector": "none"
@@ -90,10 +99,19 @@
   "instrument": "keytar",
   "rules": [
    {
-    "id": "low_hp_retreat",
-    "condition": "is this bot's hp below 75% of its max?",
-    "criteria_true": "bot is low on health",
-    "criteria_false": "bot has sufficient health",
+    "id": "low_hp_enemy_sight",
+    "condition": "is this bot's hp below 75% of its max AND is an enemy bearbot, minion, or tower in sight?",
+    "criteria_true": "hp < 75% and enemy visible",
+    "criteria_false": "hp >= 75% or no enemy visible",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "low_hp_no_enemy",
+    "condition": "is this bot's hp below 75% of its max AND are there NO enemies in sight?",
+    "criteria_true": "hp < 75% and no enemy visible",
+    "criteria_false": "hp >= 75% or enemy visible",
     "action_kind": "recall",
     "action_ability": null,
     "action_target_selector": "none"
@@ -176,10 +194,19 @@
   "instrument": "violin",
   "rules": [
    {
-    "id": "low_hp_retreat",
-    "condition": "is this bot's hp below 75% of its max?",
-    "criteria_true": "bot is critically low on health",
-    "criteria_false": "bot has sufficient health",
+    "id": "low_hp_enemy_sight",
+    "condition": "is this bot's hp below 75% of its max AND is an enemy bearbot, minion, or tower in sight?",
+    "criteria_true": "hp < 75% and enemy present",
+    "criteria_false": "hp >= 75% or no enemy present",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "low_hp_no_enemy",
+    "condition": "is this bot's hp below 75% of its max AND is NO enemy in sight?",
+    "criteria_true": "hp < 75% and no enemy present",
+    "criteria_false": "hp >= 75% or enemy present",
     "action_kind": "recall",
     "action_ability": null,
     "action_target_selector": "none"

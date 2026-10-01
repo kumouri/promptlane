@@ -141,10 +141,12 @@ test('economy: the eco medium worksheet declares gold, next and home before the 
   assert.match(violet, /"next": self\.nextItem\.cost, or null when self\.nextItem is null/);
   assert.match(violet, /"home": self\.atShop/);
   assert.match(violet, /The object starts with "hp","gold","next","home","wave","tower","foe","cd","stand"\./);
-  assert.match(violet, /\n3\. next is not null, gold is next or more, and foe is null -> go home to shop: "kind":"recall"/);
+  // recall-2: step out of an enemy tower's reach before the shopping recall's channel
+  assert.match(violet, /\n4\. you can afford your next item \(gold is next or more\), no enemy bearbot or minion is in sight and an enemy tower is in sight -> get out of reach before you shop: "kind":"move","target":\{"x":100,"y":900\}/);
+  assert.match(violet, /\n5\. you can afford your next item \(gold is next or more\) and no enemy is in sight -> go home to shop: "kind":"recall"/);
   // the plain medium's Bandstand rule (PR #53), word for word, in the same place
   const plain = houseTextForSide(bundleHouse(HOUSE_TIERS.medium, root), 'violet');
-  const standRule = (s) => s.replaceAll('\r\n', '\n').split('\n').find((l) => l.startsWith('2. stand is "open"'));
+  const standRule = (s) => s.replaceAll('\r\n', '\n').split('\n').find((l) => l.startsWith('3. stand is "open"'));
   assert.ok(standRule(plain));
   assert.equal(standRule(violet), standRule(plain));
 });
@@ -157,7 +159,8 @@ test('economy: the eco tiers play exactly the plain tiers\' Bandstand rules, rig
     for (const inst of ['drums', 'keytar', 'violin']) {
       const stand = (s) => s[inst].rules.filter((r) => r.action_target_selector === 'bandstand');
       assert.deepEqual(stand(eco), stand(plain), `${tier} ${inst}`);
-      assert.deepEqual(eco[inst].rules.slice(1, 1 + stand(plain).length), stand(plain), `${tier} ${inst}: right after the recall`);
+      // rules 1-2 are the low-hp pair (out of reach, then recall)
+      assert.deepEqual(eco[inst].rules.slice(2, 2 + stand(plain).length), stand(plain), `${tier} ${inst}: right after the recall`);
     }
   }
 });
@@ -175,10 +178,14 @@ test('economy: each eco tier has checked-in compiled schemas that buy deliberate
       // every tier declares a shopping list in its prose, and it compiled
       assert.ok(Array.isArray(s.build) && s.build.length === 3, `${label}: a declared three-item build`);
       const recalls = s.rules.filter((r) => r.action_kind === 'recall');
-      // easy shops only when it is home anyway (low-hp recall, respawn); medium and hard also recall to shop
-      assert.equal(recalls.length, { easy: 1, medium: 2, hard: 3 }[tier], `${label}: recall rules`);
-      const afterStand = 1 + s.rules.filter((r) => r.action_target_selector === 'bandstand').length;
-      if (tier !== 'easy') assert.equal(s.rules[afterStand].action_kind, 'recall', `${label}: the shopping recall sits right after the low-hp recall and the Bandstand rules`);
+      // easy shops only when it is home anyway (low-hp recall, respawn); medium and hard also recall to shop.
+      // Hard's "carrying 300 with a stronger enemy in sight" leaves on foot: an enemy in sight would break a recall-2 channel.
+      assert.equal(recalls.length, { easy: 1, medium: 2, hard: 2 }[tier], `${label}: recall rules`);
+      const afterStand = 2 + s.rules.filter((r) => r.action_target_selector === 'bandstand').length;
+      if (tier !== 'easy') {
+        assert.equal(s.rules[afterStand].action_target_selector, 'home', `${label}: the shopping trip first leaves reach, right after the low-hp pair and the Bandstand rules`);
+        assert.equal(s.rules[afterStand + 1].action_kind, 'recall', `${label}: then the shopping recall`);
+      }
     }
     if (tier === 'hard') {
       for (const s of Object.values(schemas)) assert.ok(s.rules.some((r) => r.action_target_selector === 'highest_bounty_enemy'), `hard ${s.instrument} hunts the carrier`);
@@ -238,21 +245,64 @@ test('Bandstand: easy has no rule; medium has one and hard three, right after th
     const easy = sideText(HOUSE_TIERS.easy[side]);
     assert.doesNotMatch(easy, /bandstand|stand/i, 'easy stays easy');
     const medium = ruleLines(sideText(HOUSE_TIERS.medium[side]));
-    assert.match(medium[0], /^1\. hp less than 75 -> "kind":"recall"$/);
-    assert.equal(medium[1], `2. stand is "open", foe is null or a minion, and hp is more than 50% of self.maxHp -> go to the Bandstand: ${MOVE_TO_STAND}`);
+    // rules 1-2: the low-hp pair (out of reach, then recall; the recall-2 tests below)
+    assert.match(medium[0], /^1\. hp less than 75 and an enemy bearbot, minion or tower is in sight -> get out of reach before you recall: /);
+    assert.match(medium[1], /^2\. hp less than 75 and no enemy is in sight -> "kind":"recall"$/);
+    assert.equal(medium[2], `3. stand is "open", foe is null or a minion, and hp is more than 50% of self.maxHp -> go to the Bandstand: ${MOVE_TO_STAND}`);
     assert.equal(medium.filter((l) => l.includes('bandstand.pos')).length, 1);
-    assert.match(medium.at(-1), /^8\. otherwise wait for the next wave at home/);
+    assert.match(medium.at(-1), /^9\. otherwise wait for the next wave at home/);
     const hard = ruleLines(sideText(HOUSE_TIERS.hard[side]));
-    assert.match(hard[0], /^1\. hp less than 90 -> "kind":"recall"$/);
-    assert.deepEqual(hard.slice(1, 4), [
-      `2. stand is "open", foe is null and hp is more than 50% of self.maxHp -> go to the Bandstand: ${MOVE_TO_STAND}`,
-      `3. stand is "open", contested is true or standBar is less than 0, and hp is more than 40% of self.maxHp -> go to the Bandstand: ${MOVE_TO_STAND}`,
-      `4. stand is "upcoming", standIn is 10 or less and standDist is less than 400 -> go to the Bandstand: ${MOVE_TO_STAND}`,
+    assert.match(hard[0], /^1\. hp less than 90, and tower, foe or creep is not null -> get out of reach before you recall: /);
+    assert.match(hard[1], /^2\. hp less than 90 -> "kind":"recall"$/);
+    assert.deepEqual(hard.slice(2, 5), [
+      `3. stand is "open", foe is null and hp is more than 50% of self.maxHp -> go to the Bandstand: ${MOVE_TO_STAND}`,
+      `4. stand is "open", contested is true or standBar is less than 0, and hp is more than 40% of self.maxHp -> go to the Bandstand: ${MOVE_TO_STAND}`,
+      `5. stand is "upcoming", standIn is 10 or less and standDist is less than 400 -> go to the Bandstand: ${MOVE_TO_STAND}`,
     ]);
     assert.equal(hard.filter((l) => l.includes('bandstand.pos')).length, 3);
-    assert.match(hard.at(-1), /^12\. otherwise wait for the next wave at home/);
+    assert.match(hard.at(-1), /^13\. otherwise wait for the next wave at home/);
     // Every Bandstand rule names a stand status, so a match without the objective (stand null) never matches one.
     for (const l of [...medium, ...hard].filter((r) => r.includes('bandstand.pos'))) assert.match(l, /^\d+\. stand is "(open|upcoming)"/);
+  }
+});
+
+// recall-2 (docs/economy-spec.md §9.10) is a 4 s channel any hit breaks, so no tier recalls into reach:
+// every recall rule sits right after a move home that fires on the same trigger while an enemy is in sight.
+const schemaFiles = () => [...Object.values(HOUSE_TIER_SCHEMAS), ...Object.values(HOUSE_TIER_ECO_SCHEMAS)];
+const isMoveHome = (r) => r.action_kind === 'move' && r.action_target_selector === 'home';
+
+test('recall-2: every tier\'s compiled cascade steps out of reach before each recall', () => {
+  for (const file of schemaFiles()) {
+    const { schemas } = loadHouseSchemas(file, ROOT);
+    for (const [inst, s] of Object.entries(schemas)) {
+      const label = `${file} ${inst}`;
+      assert.ok(isMoveHome(s.rules[0]), `${label}: rule 1 leaves on low hp`);
+      assert.equal(s.rules[1].action_kind, 'recall', `${label}: rule 2 recalls on low hp`);
+      s.rules.forEach((r, i) => {
+        if (r.action_kind !== 'recall') return;
+        assert.ok(i > 0 && isMoveHome(s.rules[i - 1]), `${label}: recall rule ${i + 1} follows a move home`);
+        assert.match(r.condition, /\bno\b/i, `${label}: recall rule ${i + 1} asks that no enemy is in sight`);
+      });
+    }
+  }
+});
+
+test('recall-2: the side files leave reach before each recall, and no example recalls with an enemy in sight', () => {
+  for (const pair of [...Object.values(HOUSE_TIERS), HOUSE_TIERS_ECO.medium]) {
+    for (const side of ['violet', 'green']) {
+      const lines = ruleLines(sideText(pair[side]));
+      const home = side === 'violet' ? '{"x":100,"y":900}' : '{"x":900,"y":100}';
+      lines.forEach((l, i) => {
+        if (!l.endsWith('"kind":"recall"')) return;
+        assert.ok(i > 0 && lines[i - 1].includes(`get out of reach before you`) && lines[i - 1].endsWith(`"kind":"move","target":${home}`), `${pair[side]}: ${l}`);
+        assert.match(l, /no enemy is in sight -> |^\d+\. hp less than \d+ -> /, `${pair[side]}: ${l}`);
+      });
+      // every example reply that recalls has nothing hostile in its worksheet
+      for (const ex of sideText(pair[side]).split('\n').filter((x) => x.startsWith('{"hp"'))) {
+        const ws = JSON.parse(ex);
+        if (ws.kind === 'recall') for (const k of ['tower', 'foe', 'creep']) assert.ok(ws[k] == null, `${pair[side]}: ${ex}`);
+      }
+    }
   }
 });
 
