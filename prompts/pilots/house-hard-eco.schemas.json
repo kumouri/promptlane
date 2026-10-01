@@ -13,6 +13,33 @@
     "action_target_selector": "home"
    },
    {
+    "id": "bandstand_open_take_it",
+    "condition": "is the Bandstand open AND is no enemy bearbot visible AND is this bot's hp above half of its max hp?",
+    "criteria_true": "Bandstand open, no enemy bearbot in sight, hp above half of max",
+    "criteria_false": "Bandstand not open OR an enemy bearbot is in sight OR hp at or below half of max",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "bandstand"
+   },
+   {
+    "id": "bandstand_contest_it",
+    "condition": "is the Bandstand open AND is it either contested or is the enemy team making progress on it, AND is this bot's hp above 40% of its max hp?",
+    "criteria_true": "Bandstand open and (contested or the enemy is making progress on it) and hp above 40% of max",
+    "criteria_false": "Bandstand not open OR (not contested and the enemy is making no progress on it) OR hp at or below 40% of max",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "bandstand"
+   },
+   {
+    "id": "bandstand_opening_soon_nearby",
+    "condition": "does the Bandstand open within 10 seconds AND is it less than 400 units from this bot?",
+    "criteria_true": "Bandstand opens within 10 s and is under 400 units away",
+    "criteria_false": "Bandstand not opening within 10 s OR 400 units or more away",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "bandstand"
+   },
+   {
     "id": "buy_item",
     "condition": "can this bot afford the next item on its shopping list and are no enemy bearbots in sight?",
     "criteria_true": "item is affordable and lane is clear of enemies",
@@ -122,6 +149,33 @@
     "action_target_selector": "none"
    },
    {
+    "id": "bandstand_open_take_it",
+    "condition": "is the Bandstand open AND is no enemy bearbot visible AND is this bot's hp above half of its max hp?",
+    "criteria_true": "Bandstand open, no enemy bearbot in sight, hp above half of max",
+    "criteria_false": "Bandstand not open OR an enemy bearbot is in sight OR hp at or below half of max",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "bandstand"
+   },
+   {
+    "id": "bandstand_contest_it",
+    "condition": "is the Bandstand open AND is it either contested or is the enemy team making progress on it, AND is this bot's hp above 40% of its max hp?",
+    "criteria_true": "Bandstand open and (contested or the enemy is making progress on it) and hp above 40% of max",
+    "criteria_false": "Bandstand not open OR (not contested and the enemy is making no progress on it) OR hp at or below 40% of max",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "bandstand"
+   },
+   {
+    "id": "bandstand_opening_soon_nearby",
+    "condition": "does the Bandstand open within 10 seconds AND is it less than 400 units from this bot?",
+    "criteria_true": "Bandstand opens within 10 s and is under 400 units away",
+    "criteria_false": "Bandstand not opening within 10 s OR 400 units or more away",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "bandstand"
+   },
+   {
     "id": "buy_item_if_safe",
     "condition": "can this bot afford the next item on its shopping list and is no enemy bearbot in sight?",
     "criteria_true": "affordable item exists and no enemy bearbot visible",
@@ -229,6 +283,33 @@
     "action_kind": "recall",
     "action_ability": null,
     "action_target_selector": "home"
+   },
+   {
+    "id": "bandstand_open_take_it",
+    "condition": "is the Bandstand open AND is no enemy bearbot visible AND is this bot's hp above half of its max hp?",
+    "criteria_true": "Bandstand open, no enemy bearbot in sight, hp above half of max",
+    "criteria_false": "Bandstand not open OR an enemy bearbot is in sight OR hp at or below half of max",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "bandstand"
+   },
+   {
+    "id": "bandstand_contest_it",
+    "condition": "is the Bandstand open AND is it either contested or is the enemy team making progress on it, AND is this bot's hp above 40% of its max hp?",
+    "criteria_true": "Bandstand open and (contested or the enemy is making progress on it) and hp above 40% of max",
+    "criteria_false": "Bandstand not open OR (not contested and the enemy is making no progress on it) OR hp at or below 40% of max",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "bandstand"
+   },
+   {
+    "id": "bandstand_opening_soon_nearby",
+    "condition": "does the Bandstand open within 10 seconds AND is it less than 400 units from this bot?",
+    "criteria_true": "Bandstand opens within 10 s and is under 400 units away",
+    "criteria_false": "Bandstand not opening within 10 s OR 400 units or more away",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "bandstand"
    },
    {
     "id": "buy_item_if_safe",

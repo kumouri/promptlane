@@ -31,6 +31,7 @@ smoke before the §6 measurement, not the measurement.
 | Pairing | house **medium-eco** (violet, `house-eco-violet.md` + `house-medium-eco.schemas.json`) vs house **hard-eco** (green, `house-hard-eco.prose.md` + `house-hard-eco.schemas.json`): spec §6.1 condition B1's first pairing |
 | Ruleset | `--economy eco-2`, map `pvp-1`, cadence 2, Jam roster, full length |
 | Seeds | 7, 11, 42, 101 (the slice's first four) |
+| Code | before the Bandstand (#53) merged; the PR is rebased onto it, and all 4 logs still replay-verify there. The checked-in eco schemas have since gained the Bandstand's house rules (`prompts/pilots/README.md`). Without the objective they should almost never fire (the metrics count any that do, `bandstandRuleFires`), but Jev is asked one (medium) or three (hard) more questions per decision |
 | Jev | a private `tools/jev/schema_server.py --port 8861 --budget-usd 0.60`, TypeSafe with the Workers AI fallback (the default) |
 | Command | `npm run match -- --a house --b house:hard --a-schemas prompts/pilots/house-medium-eco.schemas.json --b-schemas prompts/pilots/house-hard-eco.schemas.json --name-a medium-eco --name-b hard-eco --jev-schema http://127.0.0.1:8861/ --map pvp-1 --cadence 2 --seed <N> --economy eco-2 --out runs/economy-p2-smoke-2026-09-30-medium-eco-vs-hard-eco-seed<N>.json` (with `--economy`, `house` and `house:hard` resolve to the economy-aware files) |
 

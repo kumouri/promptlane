@@ -132,9 +132,10 @@ gives each tier. With no economy nothing changes, so the placement bar above doe
 | medium | `house-eco-violet.md` / `house-eco-green.md` | each instrument's default | can afford the next item and no foe in sight → recall to shop |
 | hard | `house-hard-eco.prose.md` (both sides) | drums Road Case → Bass Strings → Amp; keytar and violin their defaults | the medium rule; carrying ≥ 300 gold with a stronger enemy bearbot in sight → recall to spend it; attack the enemy bearbot **worth the most gold** (`highest_bounty_enemy`) instead of the lowest-hp one |
 
-- **Medium keeps its worksheet.** It adds three keys before the original five: `"gold": self.gold`,
-  `"next": self.nextItem.cost` (null when the list is done) and `"home": self.atShop`. The green
-  file is the violet file with the team literals swapped (`test_house.mjs` checks it).
+- **Medium keeps its worksheet.** It adds three keys after `hp`: `"gold": self.gold`,
+  `"next": self.nextItem.cost` (null when the list is done) and `"home": self.atShop`; the rest,
+  `stand` included, are the plain medium's. The green file is the violet file with the team
+  literals swapped (`test_house.mjs` checks it).
 - **Easy and hard are prose,** one file for both sides, because they have no team literals. They
   have no qwen worksheet render: the Jam plays the compiled schemas on Jev.
 - **`house-<tier>-eco.schemas.json`** are the checked-in compiles, made with `compile.py --backend
@@ -144,6 +145,13 @@ gives each tier. With no economy nothing changes, so the placement bar above doe
   `next` or `foe`), and keeps the prose's root default `home`. Two of the other three samples asked
   about worksheet names or fell back to `push_lane`. Easy and hard took their first sample.
   Transparency reports: `runs/house-eco-compile-{easy,medium,hard}-2026-09-30.md`.
+- **The Bandstand rules are the plain tiers' own.** The eco tiers were compiled before the Bandstand
+  merged (PR #53). Its rules were then added the way #53 added them to the plain tiers: the same
+  worksheet key and sentences in the prose, and the plain schemas' identical rule objects spliced in
+  right after each instrument's low-hp recall, with every other rule unchanged. So medium-eco and
+  hard-eco differ from medium and hard only by the economy (`test_house.mjs` checks it). The
+  transparency reports above predate the splice. Without the objective the Bandstand rules can't
+  match, so the order is low-hp recall → (Bandstand) → shopping recall → the rest.
 - **The worksheet keys reach only the worksheet prompt and its compile.** The Jev worksheet house
   bot (`tools/jev/rules.py`, `house_server.py`, `jevPilot.ts`, shadow only) still mirrors the plain
   medium cascade; see `docs/economy-spec.md` §13.2.

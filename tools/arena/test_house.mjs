@@ -140,8 +140,26 @@ test('economy: the eco medium worksheet declares gold, next and home before the 
   assert.match(violet, /"gold": self\.gold/);
   assert.match(violet, /"next": self\.nextItem\.cost, or null when self\.nextItem is null/);
   assert.match(violet, /"home": self\.atShop/);
-  assert.match(violet, /The object starts with "hp","gold","next","home","wave","tower","foe","cd"\./);
-  assert.match(violet, /next is not null, gold is next or more, and foe is null -> go home to shop: "kind":"recall"/);
+  assert.match(violet, /The object starts with "hp","gold","next","home","wave","tower","foe","cd","stand"\./);
+  assert.match(violet, /\n3\. next is not null, gold is next or more, and foe is null -> go home to shop: "kind":"recall"/);
+  // the plain medium's Bandstand rule (PR #53), word for word, in the same place
+  const plain = houseTextForSide(bundleHouse(HOUSE_TIERS.medium, root), 'violet');
+  const standRule = (s) => s.replaceAll('\r\n', '\n').split('\n').find((l) => l.startsWith('2. stand is "open"'));
+  assert.ok(standRule(plain));
+  assert.equal(standRule(violet), standRule(plain));
+});
+
+test('economy: the eco tiers play exactly the plain tiers\' Bandstand rules, right after the low-hp recall', () => {
+  const root = path.resolve(import.meta.dirname, '..', '..');
+  for (const tier of ['easy', 'medium', 'hard']) {
+    const plain = loadHouseSchemas(HOUSE_TIER_SCHEMAS[tier], root).schemas;
+    const eco = loadHouseSchemas(HOUSE_TIER_ECO_SCHEMAS[tier], root).schemas;
+    for (const inst of ['drums', 'keytar', 'violin']) {
+      const stand = (s) => s[inst].rules.filter((r) => r.action_target_selector === 'bandstand');
+      assert.deepEqual(stand(eco), stand(plain), `${tier} ${inst}`);
+      assert.deepEqual(eco[inst].rules.slice(1, 1 + stand(plain).length), stand(plain), `${tier} ${inst}: right after the recall`);
+    }
+  }
 });
 
 test('economy: each eco tier has checked-in compiled schemas that buy deliberately', () => {
@@ -159,7 +177,8 @@ test('economy: each eco tier has checked-in compiled schemas that buy deliberate
       const recalls = s.rules.filter((r) => r.action_kind === 'recall');
       // easy shops only when it is home anyway (low-hp recall, respawn); medium and hard also recall to shop
       assert.equal(recalls.length, { easy: 1, medium: 2, hard: 3 }[tier], `${label}: recall rules`);
-      if (tier !== 'easy') assert.equal(s.rules[1].action_kind, 'recall', `${label}: the shopping recall sits right after the low-hp recall`);
+      const afterStand = 1 + s.rules.filter((r) => r.action_target_selector === 'bandstand').length;
+      if (tier !== 'easy') assert.equal(s.rules[afterStand].action_kind, 'recall', `${label}: the shopping recall sits right after the low-hp recall and the Bandstand rules`);
     }
     if (tier === 'hard') {
       for (const s of Object.values(schemas)) assert.ok(s.rules.some((r) => r.action_target_selector === 'highest_bounty_enemy'), `hard ${s.instrument} hunts the carrier`);

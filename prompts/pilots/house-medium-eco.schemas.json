@@ -13,6 +13,15 @@
     "action_target_selector": "none"
    },
    {
+    "id": "bandstand_open_take_it",
+    "condition": "is the Bandstand open AND is no enemy bearbot visible AND is this bot's hp above half of its max hp?",
+    "criteria_true": "Bandstand open, no enemy bearbot in sight, hp above half of max",
+    "criteria_false": "Bandstand not open OR an enemy bearbot is in sight OR hp at or below half of max",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "bandstand"
+   },
+   {
     "id": "shop_ready",
     "condition": "is the next item affordable (gold >= cost) and no enemy bearbot present?",
     "criteria_true": "gold >= next and foe is null",
@@ -104,6 +113,15 @@
     "action_target_selector": "none"
    },
    {
+    "id": "bandstand_open_take_it",
+    "condition": "is the Bandstand open AND is no enemy bearbot visible AND is this bot's hp above half of its max hp?",
+    "criteria_true": "Bandstand open, no enemy bearbot in sight, hp above half of max",
+    "criteria_false": "Bandstand not open OR an enemy bearbot is in sight OR hp at or below half of max",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "bandstand"
+   },
+   {
     "id": "shop_ready",
     "condition": "is the next item affordable and no enemy bearbot present?",
     "criteria_true": "gold >= cost of next item and foe is null",
@@ -193,6 +211,15 @@
     "action_kind": "recall",
     "action_ability": null,
     "action_target_selector": "none"
+   },
+   {
+    "id": "bandstand_open_take_it",
+    "condition": "is the Bandstand open AND is no enemy bearbot visible AND is this bot's hp above half of its max hp?",
+    "criteria_true": "Bandstand open, no enemy bearbot in sight, hp above half of max",
+    "criteria_false": "Bandstand not open OR an enemy bearbot is in sight OR hp at or below half of max",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "bandstand"
    },
    {
     "id": "shop_ready_home",

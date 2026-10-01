@@ -1581,7 +1581,8 @@ minute earlier and changes nothing else.
   table and the files are in `prompts/pilots/README.md`.
   - easy declares Road Case → Metronome → Amp, and never goes home only to shop.
   - medium keeps its worksheet. It adds keys `gold`, `next` and `home`, and the rule "next item
-    affordable and no foe in sight → recall to shop" right after the low-hp recall.
+    affordable and no foe in sight → recall to shop" right after the low-hp recall and the
+    Bandstand rule.
   - hard has the same rule. It adds "carrying ≥ 300 with a stronger enemy bearbot in sight → recall
     to spend it", and it attacks the enemy worth the most gold instead of the lowest-hp one.
   - Every tier declares its shopping list in prose, and it compiles to `build`.
@@ -1589,6 +1590,11 @@ minute earlier and changes nothing else.
   `house-<tier>-eco.schemas.json`, which is what Jev plays. Medium was sampled four times, and the
   sample whose questions all name things Jev's description states was kept. The selection rule is in
   the pilots README.
+- **The Bandstand's house rules (§12) are carried over unchanged.** The eco tiers were compiled
+  before #53 merged. Its rules were then added the way #53 added them to the plain tiers: the
+  identical rule objects spliced in after each instrument's low-hp recall, plus the matching
+  worksheet key and prose. So B1's tiers differ from B0's only by the economy. Without the
+  objective those rules can't match.
 - **Not built: the worksheet keys in the shadow Jev worksheet bot.** `tools/jev/rules.py`,
   `team_rules.py`, `serializer*.py`, `house_server.py` and `jevPilot.ts`'s `extractWorksheet` still
   mirror the plain medium cascade. That bot is shadow-only. The Jam and §6 play compiled schemas on
@@ -1682,8 +1688,10 @@ npm run metrics -- --group B0 runs/economy-measure-2026-10-03-B0-*.json --group 
   --md runs/economy-measure-2026-10-03-b1-vs-b0.md
 ```
 
-- **Expected cost: about $7** (72 matches with today's prompts at the slice's $0.069, and 24 B1
-  matches at the smoke's $0.085). The server's `--budget-usd 9.50` stops it under Ceryce's $10.
+- **Expected cost: about $8** ($7.5–8.5). That is 72 matches with today's prompts at about $0.078
+  each: the Bandstand run's medium-vs-hard rate, with the tiers' dormant Bandstand rules. The 24 B1
+  matches cost about $0.09–0.095: the smoke's $0.085, plus those same rules, which the eco tiers now
+  carry. The server's `--budget-usd 9.50` stops the run under Ceryce's $10.
 - **Wall time:** about 2.5 h at `--parallel 2`, as the slice ran, or about 4.5 h one at a time.
   Either way it outlives a 10-minute tool call, so run it detached (a Margo job, or `nohup`).
 - `--dry-run` prints every match command without running anything.
