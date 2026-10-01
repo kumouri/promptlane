@@ -468,6 +468,86 @@ test('old logs replay unchanged: a committed pre-economy match log still verifie
   assert.equal((await h.verifyReplay(plainLog, flush)).ok, true);
 });
 
+test('metrics: a shopping recall is a recall started above half hp that buys on the way home', async () => {
+  // Gold arrives fast (10/s) so a bot is rich long before its recall. Violet drums walks out of the
+  // shop radius and recalls at 50 s with 500 gold: a shopping recall. Green drums walks out and
+  // recalls at 5 s with 50 gold: above half hp, but it buys nothing on the way, so it is not one;
+  // it then buys at base later without recalling, which is not one either.
+  const ruleset = { ...h.ECO_2, name: 'eco-test-shop', gold: { ...h.ECO_2.gold, passivePerSec: 10 } };
+  const scripted = (out, recallAt) => {
+    let recalled = false;
+    return {
+      decide: async (obs) => {
+        let action = { kind: 'hold' };
+        if (obs.clockSec < recallAt) action = { kind: 'move', target: out };
+        else if (!recalled) {
+          recalled = true;
+          action = { kind: 'recall' };
+        }
+        return { reply: JSON.stringify(action), action };
+      },
+    };
+  };
+  const pilots = { 0: scripted({ x: 100, y: 700 }, 50), 3: scripted({ x: 700, y: 100 }, 5) };
+  const log = await h.runMatch({
+    seed: 7,
+    sides: SIDES,
+    callModelFor: () => async () => '{"kind":"hold"}',
+    decisionPilotFor: (i) => pilots[i] ?? { decide: async () => ({ reply: '{"kind":"hold"}', action: { kind: 'hold' } }) },
+    cadenceSec: 0.5,
+    economy: ruleset,
+    maxSimSec: 90,
+    backend: { kind: 'mock' },
+    flush,
+  });
+  const mm = await metrics.measureLog(log, flush);
+  assert.equal(mm.replayOk, true);
+  assert.deepEqual(mm.economy.recallsAboveHalfHp, { violet: 1, green: 1 });
+  assert.deepEqual(mm.economy.shoppingRecalls, { violet: 1, green: 0 });
+  assert.ok(log.result.economy.bots[3].items.length > 0, 'green bought later, at base, without a recall');
+  const vals = metrics.matchValues(mm);
+  assert.equal(vals.ecoShoppingRecallsViolet, 1);
+  assert.equal(vals.ecoShoppingRecallsGreen, 0);
+});
+
+test('eco-2 is eco-1 with only the gold retuned (spec §13.1); both stay selectable by name', () => {
+  assert.equal(h.resolveEconomy('eco-2'), h.ECO_2);
+  assert.equal(h.resolveEconomy('eco-1'), h.ECO_1);
+  const { name: n1, gold: g1, ...rest1 } = h.ECO_1;
+  const { name: n2, gold: g2, ...rest2 } = h.ECO_2;
+  assert.deepEqual([n1, n2], ['eco-1', 'eco-2']);
+  assert.deepEqual(rest2, rest1, 'respawn, credit, xp, shop, items and default builds unchanged');
+  assert.deepEqual(g2.death, g1.death);
+  assert.deepEqual(g2.pools, g1.pools);
+  assert.deepEqual(
+    { passivePerSec: g2.passivePerSec, minionLastHit: g2.minionLastHit, kill: g2.kill, assistPool: g2.assistPool, firstBlood: g2.firstBlood, towerTeam: g2.towerTeam, towerLocalPool: g2.towerLocalPool },
+    { passivePerSec: 0.75, minionLastHit: 25, kill: 400, assistPool: 200, firstBlood: 150, towerTeam: 125, towerLocalPool: 150 },
+  );
+});
+
+test('respawn-1 (§6 condition R): a kill respawns the victim after 9 s and pays nothing; pilots see only who is respawning', async () => {
+  const s = await midKill({ ruleset: h.RESPAWN_ONLY }, 0);
+  const ev = s.eco.events.find((e) => e.kind === 'death');
+  assert.equal(ev.respawnAtTick - ev.tick, 9 / h.TICK_DT, 'level 1 for good: 9 s');
+  assert.equal(ev.killer, 0, 'kill credit still resolves');
+  while (s.tick() < ev.respawnAtTick) await s.step(1);
+  await s.step(1);
+  assert.equal(s.bots[3].alive, true);
+  assert.ok(s.eco.bots.every((b) => Object.values(b.earned).every((x) => x === 0) && b.xp === 0 && b.level === 1 && b.items.length === 0), 'no gold, no XP, no items');
+  const obs = s.seen[4];
+  assert.deepEqual(Object.keys(obs).filter((k) => !['self', 'allies', 'visibleEnemies', 'nearbyMinions', 'clockSec', 'nearbyTowers'].includes(k)), ['respawning']);
+  assert.equal('gold' in obs.self, false);
+  assert.equal('shop' in obs, false);
+  assert.equal(h.resolveEconomy('respawn-1'), h.RESPAWN_ONLY);
+});
+
+test('an eco-2 match pays passive in whole coins at 0.75/s and replay-verifies', async () => {
+  const log = await mock({ economy: 'eco-2', maxSimSec: 120 });
+  assert.equal(log.economy.ruleset.name, 'eco-2');
+  assert.ok(log.result.economy.bots.every((b) => b.earned.passive === 90), '120 s × 0.75');
+  assert.equal((await h.verifyReplay(log, flush)).ok, true);
+});
+
 test('metrics: an eco-1 log is measured with respawns and the real ledger; a plain log keeps the proxy', async () => {
   const mm = await metrics.measureLog(ecoLog, flush);
   assert.equal(mm.replayOk, true);

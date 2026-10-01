@@ -231,6 +231,14 @@ export interface EconomyMetrics {
    * minute. The §6.2 lines above exclude it, as §9.5 pre-registers; it is reported beside them.
    */
   bandstandGoldPerMinPerBot: number;
+  /**
+   * Shopping recalls per team (§6.2): a recall STARTED at more than half hp that buys something
+   * before it ends (the shop is 150 around base, so the purchase lands on the way in). A recall
+   * at half hp or less is a retreat and is never counted, whatever it then buys.
+   */
+  shoppingRecalls: Record<Team, number>;
+  /** Recalls started at more than half hp, per team, bought something or not: the denominator for shopping recalls. */
+  recallsAboveHalfHp: Record<Team, number>;
 }
 
 export interface ObjectiveMetrics {
@@ -368,6 +376,12 @@ export async function measureLog(log: MatchLog, flush: () => Promise<void> = def
   /** Per tick: the Bandstand site that was open at the end of it, else null (objective logs only). */
   const openSiteAt: Array<Vec2 | null> = [];
   let encoreTicks = 0;
+  // Shopping recalls (economy only): which bots are on a recall that started above half hp.
+  const wasRecalling = new Array<boolean>(n).fill(false);
+  const shopRecall = new Array<boolean>(n).fill(false);
+  const shoppingRecalls: Record<Team, number> = { violet: 0, green: 0 };
+  const recallsAboveHalfHp: Record<Team, number> = { violet: 0, green: 0 };
+  let ecoEventCursor = 0;
 
   const kindOfTarget = (action: Action, team: Team): 'pvp' | 'pve' | null => {
     if (action.kind !== 'attack' && action.kind !== 'ability') return null;
@@ -489,6 +503,21 @@ export async function measureLog(log: MatchLog, flush: () => Promise<void> = def
         gold[m.bearbots[i].team] += earned;
         goldBot[i] = earned;
       });
+      // This tick's purchases first (a recall can buy and arrive in the same tick), then recall starts and ends.
+      for (; ecoEventCursor < economy.events.length; ecoEventCursor++) {
+        const ev = economy.events[ecoEventCursor];
+        if (ev.kind === 'buy' && shopRecall[ev.bot]) {
+          shoppingRecalls[m.bearbots[ev.bot].team] += 1;
+          shopRecall[ev.bot] = false;
+        }
+      }
+      m.bearbots.forEach((b, i) => {
+        if (b.alive && b.recalling && !wasRecalling[i]) {
+          shopRecall[i] = b.hp > 0.5 * b.maxHp;
+          if (shopRecall[i]) recallsAboveHalfHp[b.team] += 1;
+        } else if (!b.alive || !b.recalling) shopRecall[i] = false;
+        wasRecalling[i] = b.alive && b.recalling;
+      });
     }
     if (t % Math.round(1 / TICK_DT) === 0) {
       goldDiffBySec.push(gold.violet - gold.green);
@@ -592,7 +621,9 @@ export async function measureLog(log: MatchLog, flush: () => Promise<void> = def
     deathsByKiller[d.killerKind] += 1;
   }
   const totalDeaths = deaths.reduce((s, x) => s + x, 0);
-  const economyMetrics = economy ? measureEconomy(economy, durationMin, m.winner, goldDiffBySec, goldTotalBySec) : null;
+  const economyMetrics = economy
+    ? { ...measureEconomy(economy, durationMin, m.winner, goldDiffBySec, goldTotalBySec), shoppingRecalls, recallsAboveHalfHp }
+    : null;
   const objectiveMetrics = objective ? measureObjective(objective, fights, openSiteAt, encoreTicks, alive.reduce((s, x) => s + x, 0), m.winner) : null;
 
   return {
@@ -658,7 +689,13 @@ const median = (xs: number[]): number | null => {
   return v.length % 2 ? v[mid] : (v[mid - 1] + v[mid]) / 2;
 };
 
-function measureEconomy(economy: Economy, durationMin: number, winner: Team | null, diffBySec: number[], totalBySec: number[]): EconomyMetrics {
+function measureEconomy(
+  economy: Economy,
+  durationMin: number,
+  winner: Team | null,
+  diffBySec: number[],
+  totalBySec: number[],
+): Omit<EconomyMetrics, 'shoppingRecalls' | 'recallsAboveHalfHp'> {
   const n = economy.bots.length;
   const perBotMin = (x: number) => (durationMin > 0 ? x / n / durationMin : 0);
   const bySource = Object.fromEntries(GOLD_SOURCES.map((k) => [k, economy.bots.reduce((s, e) => s + e.earned[k], 0)])) as Record<GoldSource, number>;
@@ -893,6 +930,9 @@ export function matchValues(m: MatchMetrics): Record<string, number | null> {
     ecoCarriedAtDeath: m.economy?.carriedAtDeath ?? null,
     ecoGoldDiffShareAt6: m.economy?.goldDiffShareAt6 ?? null,
     ecoComeback: m.economy?.comeback ?? null,
+    // Per side, because §6.2's line is per tier ("> 0 for medium and hard") and a pairing fixes each tier's side.
+    ecoShoppingRecallsViolet: m.economy?.shoppingRecalls.violet ?? null,
+    ecoShoppingRecallsGreen: m.economy?.shoppingRecalls.green ?? null,
     // The Bandstand (docs/economy-spec.md §9.8); null on a log without an objective.
     bandstandOpenings: m.objective?.openings ?? null,
     bandstandCaptures: m.objective?.captures.total ?? null,

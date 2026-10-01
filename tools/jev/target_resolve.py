@@ -76,6 +76,14 @@ def resolve_target(selector: str | None, obs: dict) -> object | None:
             return None
         weakest_ally = min(allies, key=lambda a: a["hp"] / a["maxHp"])
         return min(enemies, key=lambda e: _dist(weakest_ally["pos"], e["pos"]))["id"]
+    if selector == "highest_bounty_enemy":
+        # docs/economy-spec.md §4.3: the visible enemy bearbot with the largest `bounty` (the economy
+        # layer's field). Ties go to the nearer one. No bounty-bearing bearbot (none visible, or a match
+        # without an economy) falls back to `nearest_enemy`, as the other enemy selectors fall back.
+        pool = [e for e in bearbots if isinstance(e.get("bounty"), (int, float))]
+        if pool:
+            return max(pool, key=lambda e: (e["bounty"], -_dist(self_["pos"], e["pos"])))["id"]
+        return resolve_target("nearest_enemy", obs)
     if selector == "nearby_minion":
         minions = [m for m in obs.get("nearbyMinions", []) if m.get("team") == team]
         if not minions:

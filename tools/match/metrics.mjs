@@ -229,6 +229,17 @@ export const MATCH_ROWS = [
   ['bot-time with the Encore', 'encoreUptime', pct, true],
   // Any log played on compiled schemas, with or without the objective.
   ['Jev decisions from a Bandstand rule / match', 'bandstandRuleFires', (x) => num(x, 2), true],
+  // docs/economy-spec.md §6.2, from the real ledger; only logs with an economy have these. Means
+  // over matches (the spec's lines are medians: read those from --json).
+  ['economy: gold / min / bot', 'ecoGoldPerMinPerBot', (x) => num(x, 1), true],
+  ['economy: PvP share of earned gold', 'ecoPvpShareOfEarned', pct, true],
+  ['economy: items per bot at the end', 'ecoItemsPerBot', (x) => num(x, 2), true],
+  ['economy: first item at, s (median per match)', 'ecoFirstItemSec', (x) => num(x, 0), true],
+  ['economy: carried gold at death (median per match)', 'ecoCarriedAtDeath', (x) => num(x, 0), true],
+  ['economy: \\|gold diff\\| ÷ team gold @6 min', 'ecoGoldDiffShareAt6', (x) => num(x, 3), true],
+  ['economy: comeback (behind at 5:00 wins)', 'ecoComeback', pct, true],
+  ['economy: shopping recalls / match, violet', 'ecoShoppingRecallsViolet', (x) => num(x, 2), true],
+  ['economy: shopping recalls / match, green', 'ecoShoppingRecallsGreen', (x) => num(x, 2), true],
 ];
 
 export const BOT_COLS = [

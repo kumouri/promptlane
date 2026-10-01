@@ -31,7 +31,8 @@ const USAGE = `usage: npm run match -- --a <pilot.md> --b <pilot.md> [options]
        npm run match -- --verify <log.json>
 
 --a / --b also take \`house\` or \`house:easy|medium|hard\`: that house pair's file for the side
-(house = medium, the placement bar; tools/arena/house.mjs).
+(house = medium, the placement bar; tools/arena/house.mjs). With --economy, the tier's
+economy-aware file (prompts/pilots/README.md); its compile is house-<tier>-eco.schemas.json.
 
 options:
   --seed N            match seed (default 7)
@@ -49,8 +50,8 @@ options:
   --jev-schema URL    tools/jev/schema_server.py endpoint for the schema sides (the Jam backend)
   --map NAME          map variant (src/mapVariant.ts): pvp-1 (the default, DEFAULT_MAP there),
                       v1 (the specimen map) or pvp-1r; recorded in the log, applied on --verify
-  --economy NAME      economy ruleset (src/economy.ts): eco-1, or none (the default until the
-                      Sun 10-04 go/no-go). Respawn, gold, levels, items; each schema side buys the
+  --economy NAME      economy ruleset (src/economy.ts): eco-2 (the tuned one), eco-1 (P1's
+                      starting values), or none (the default until the Sun 10-04 go/no-go). Respawn, gold, levels, items; each schema side buys the
                       \`build\` its prose compiled to, else its instrument's default. Recorded in the
                       log with every bot's shopping list, applied on --verify
   --objective NAME    river objective (src/objective.ts): river-1 (the Bandstand) or none (the
@@ -152,12 +153,13 @@ async function main() {
   if (!(args.cadence >= 0.5)) throw new Error('--cadence must be >= 0.5 (the game asks every 0.5 s)');
   if (args.maxSimSec !== undefined && !(args.maxSimSec > 0)) throw new Error('--max-sim-sec must be a positive number');
 
-  // `house` / `house:<tier>` plays that house pair's file for the side it lands on.
+  // `house` / `house:<tier>` plays that house pair's file for the side it lands on (under an
+  // economy, the tier's economy-aware file).
   const side = async (spec, team, name) => {
-    const house = houseSpecFile(spec, team);
+    const house = houseSpecFile(spec, team, economy);
     const file = house ?? spec;
     const tier = spec.split(':')[1] ?? DEFAULT_HOUSE_TIER;
-    return { name: name ?? (house ? `house-${tier}` : nameFromPath(file)), promptFile: file, promptText: await readFile(file, 'utf8') };
+    return { name: name ?? (house ? `house-${tier}${economy ? '-eco' : ''}` : nameFromPath(file)), promptFile: file, promptText: await readFile(file, 'utf8') };
   };
   const sides = { violet: await side(args.a, 'violet', args.nameA), green: await side(args.b, 'green', args.nameB) };
   const outFile = args.out ?? path.join('runs', `${sides.violet.name}-vs-${sides.green.name}-seed${args.seed}.json`);

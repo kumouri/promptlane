@@ -1,0 +1,302 @@
+{
+ "drums": {
+  "pilot_file": "prompts/pilots/house-eco-violet.md",
+  "instrument": "drums",
+  "rules": [
+   {
+    "id": "low_hp_retreat",
+    "condition": "is this bot's hp below 75?",
+    "criteria_true": "hp < 75",
+    "criteria_false": "hp >= 75",
+    "action_kind": "recall",
+    "action_ability": null,
+    "action_target_selector": "none"
+   },
+   {
+    "id": "bandstand_open_take_it",
+    "condition": "is the Bandstand open AND is no enemy bearbot visible AND is this bot's hp above half of its max hp?",
+    "criteria_true": "Bandstand open, no enemy bearbot in sight, hp above half of max",
+    "criteria_false": "Bandstand not open OR an enemy bearbot is in sight OR hp at or below half of max",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "bandstand"
+   },
+   {
+    "id": "shop_ready",
+    "condition": "is the next item affordable (gold >= cost) and no enemy bearbot present?",
+    "criteria_true": "gold >= next and foe is null",
+    "criteria_false": "gold < next or foe is not null",
+    "action_kind": "recall",
+    "action_ability": null,
+    "action_target_selector": "none"
+   },
+   {
+    "id": "tower_no_wave",
+    "condition": "is an enemy tower visible and there are no allied minions?",
+    "criteria_true": "tower is not null and wave is 0",
+    "criteria_false": "tower is null or wave > 0",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "drums_kick_soft",
+    "condition": "are drums ready (cd=0) and a soft target available?",
+    "criteria_true": "cd is 0 and foe is a bearbot with hp < 100",
+    "criteria_false": "cd > 0 or foe is not a low-hp bearbot",
+    "action_kind": "ability",
+    "action_ability": "kick",
+    "action_target_selector": "lowest_hp_enemy"
+   },
+   {
+    "id": "attack_foe",
+    "condition": "is there an enemy bearbot to attack?",
+    "criteria_true": "foe is not null",
+    "criteria_false": "foe is null",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "lowest_hp_enemy"
+   },
+   {
+    "id": "attack_tower",
+    "condition": "is an enemy tower visible?",
+    "criteria_true": "tower is not null",
+    "criteria_false": "tower is null",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_tower"
+   },
+   {
+    "id": "ride_wave",
+    "condition": "are there allied minions to ride with?",
+    "criteria_true": "wave is 1 or more",
+    "criteria_false": "wave is 0",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "nearby_minion"
+   },
+   {
+    "id": "wait_home",
+    "condition": "none",
+    "criteria_true": "default fallback",
+    "criteria_false": "default fallback",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   }
+  ],
+  "default_action": {
+   "kind": "move",
+   "ability": null,
+   "target_selector": "home"
+  },
+  "validation_notes": [
+   "instrument scope: 4 clause(s) your prose marks for another instrument were left out of the drums schema (each is compiled only for the instrument it names): \"keytar only: Metronome, then Amp, then Road Case.\"; \"violin only: Amp, then Bass Strings, then Road Case.\"; \"4. keytar only: cd is 0 and foe is not null -> \"kind\":\"ability\",\"ability\":\"chord…\"; \"violin only: cd is 0 and foe is a bearbot with hp less than 100 -> \"kind\":\"abili…\""
+  ],
+  "build": [
+   "road-case",
+   "bass-strings",
+   "metronome"
+  ]
+ },
+ "keytar": {
+  "pilot_file": "prompts/pilots/house-eco-violet.md",
+  "instrument": "keytar",
+  "rules": [
+   {
+    "id": "low_hp_retreat",
+    "condition": "is this bot's hp below 75% of its max?",
+    "criteria_true": "bot is critically low on health",
+    "criteria_false": "bot has sufficient health",
+    "action_kind": "recall",
+    "action_ability": null,
+    "action_target_selector": "none"
+   },
+   {
+    "id": "bandstand_open_take_it",
+    "condition": "is the Bandstand open AND is no enemy bearbot visible AND is this bot's hp above half of its max hp?",
+    "criteria_true": "Bandstand open, no enemy bearbot in sight, hp above half of max",
+    "criteria_false": "Bandstand not open OR an enemy bearbot is in sight OR hp at or below half of max",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "bandstand"
+   },
+   {
+    "id": "shop_ready",
+    "condition": "is the next item affordable and no enemy bearbot present?",
+    "criteria_true": "gold >= cost of next item and foe is null",
+    "criteria_false": "cannot afford or has a target",
+    "action_kind": "recall",
+    "action_ability": null,
+    "action_target_selector": "none"
+   },
+   {
+    "id": "tower_threat",
+    "condition": "is an enemy tower visible and no minion wave present?",
+    "criteria_true": "tower exists and wave count is 0",
+    "criteria_false": "no immediate tower threat or wave present",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "ability_ready",
+    "condition": "is the chord ability cooldown finished and an enemy bearbot exists?",
+    "criteria_true": "cd is 0 and foe is not null",
+    "criteria_false": "ability on cooldown or no target",
+    "action_kind": "ability",
+    "action_ability": "chord",
+    "action_target_selector": "lowest_hp_enemy"
+   },
+   {
+    "id": "attack_target",
+    "condition": "is an enemy bearbot present?",
+    "criteria_true": "foe is not null",
+    "criteria_false": "no enemy bearbot present",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "lowest_hp_enemy"
+   },
+   {
+    "id": "tower_attack",
+    "condition": "is an enemy tower visible?",
+    "criteria_true": "tower is not null",
+    "criteria_false": "no enemy tower visible",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_tower"
+   },
+   {
+    "id": "ride_wave",
+    "condition": "are there allied minions in the wave?",
+    "criteria_true": "wave count is 1 or more",
+    "criteria_false": "no allied minions present",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "nearby_minion"
+   },
+   {
+    "id": "wait_home",
+    "condition": "is the bot at home and no immediate action required?",
+    "criteria_true": "bot is waiting for next wave",
+    "criteria_false": "other conditions apply",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   }
+  ],
+  "default_action": {
+   "kind": "move",
+   "ability": null,
+   "target_selector": "home"
+  },
+  "validation_notes": [
+   "instrument scope: 4 clause(s) your prose marks for another instrument were left out of the keytar schema (each is compiled only for the instrument it names): \"drums only: Road Case, then Bass Strings, then Metronome.\"; \"violin only: Amp, then Bass Strings, then Road Case.\"; \"violin only: cd is 0 and foe is a bearbot with hp less than 100 -> \"kind\":\"abili…\"; \"drums only: cd is 0 and foe is a bearbot with hp less than 100 -> \"kind\":\"abilit…\""
+  ],
+  "build": [
+   "metronome",
+   "amp",
+   "road-case"
+  ]
+ },
+ "violin": {
+  "pilot_file": "prompts/pilots/house-eco-violet.md",
+  "instrument": "violin",
+  "rules": [
+   {
+    "id": "low_hp_retreat",
+    "condition": "is this bot's hp below 75?",
+    "criteria_true": "hp < 75",
+    "criteria_false": "hp >= 75",
+    "action_kind": "recall",
+    "action_ability": null,
+    "action_target_selector": "none"
+   },
+   {
+    "id": "bandstand_open_take_it",
+    "condition": "is the Bandstand open AND is no enemy bearbot visible AND is this bot's hp above half of its max hp?",
+    "criteria_true": "Bandstand open, no enemy bearbot in sight, hp above half of max",
+    "criteria_false": "Bandstand not open OR an enemy bearbot is in sight OR hp at or below half of max",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "bandstand"
+   },
+   {
+    "id": "shop_ready_home",
+    "condition": "is the next item affordable and no enemy bearbot present?",
+    "criteria_true": "gold >= next cost AND foe is null",
+    "criteria_false": "gold < next cost OR foe is not null",
+    "action_kind": "recall",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "tower_no_wave_retreat",
+    "condition": "is an enemy tower present and no allied minions nearby?",
+    "criteria_true": "tower is not null AND wave is 0",
+    "criteria_false": "tower is null OR wave > 0",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "violin_staccato_opener",
+    "condition": "is the violin ability ready and a low-hp enemy bearbot present?",
+    "criteria_true": "cd is 0 AND foe is a bearbot with hp < 100",
+    "criteria_false": "cd > 0 OR foe is not a bearbot or foe hp >= 100",
+    "action_kind": "ability",
+    "action_ability": "staccato",
+    "action_target_selector": "lowest_hp_enemy"
+   },
+   {
+    "id": "attack_lowest_hp",
+    "condition": "is there an enemy bearbot present?",
+    "criteria_true": "foe is not null",
+    "criteria_false": "foe is null",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "lowest_hp_enemy"
+   },
+   {
+    "id": "attack_tower",
+    "condition": "is an enemy tower present?",
+    "criteria_true": "tower is not null",
+    "criteria_false": "tower is null",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_tower"
+   },
+   {
+    "id": "ride_wave",
+    "condition": "are allied minions present to ride with?",
+    "criteria_true": "wave is 1 or more",
+    "criteria_false": "wave is 0",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "nearby_minion"
+   },
+   {
+    "id": "wait_home",
+    "condition": "none",
+    "criteria_true": "all other conditions failed",
+    "criteria_false": "some condition matched",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   }
+  ],
+  "default_action": {
+   "kind": "move",
+   "ability": null,
+   "target_selector": "home"
+  },
+  "validation_notes": [
+   "instrument scope: 4 clause(s) your prose marks for another instrument were left out of the violin schema (each is compiled only for the instrument it names): \"drums only: Road Case, then Bass Strings, then Metronome.\"; \"keytar only: Metronome, then Amp, then Road Case.\"; \"4. keytar only: cd is 0 and foe is not null -> \"kind\":\"ability\",\"ability\":\"chord…\"; \"drums only: cd is 0 and foe is a bearbot with hp less than 100 -> \"kind\":\"abilit…\""
+  ],
+  "build": [
+   "amp",
+   "bass-strings",
+   "road-case"
+  ]
+ }
+}

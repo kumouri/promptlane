@@ -128,9 +128,11 @@ that side decide on its compiled rule cascade instead of a chat model; see `tool
 tower covers; `src/mapVariant.ts`, measured in
 [`runs/balance-pvp-2026-09-30.md`](runs/balance-pvp-2026-09-30.md)); `--map v1` plays the specimen
 map. The log records its map and `--verify` replays on it; logs without one are specimen-map logs.
-**Economy.** `--economy eco-1` plays the Jam economy: respawn, gold, levels, four items and a shop
-at base (`src/economy.ts`, every number in `src/economy/eco-1.json`; the design is
-`docs/economy-spec.md`). It is off by default until the Sun 10-04 go/no-go. A schema side buys the
+**Economy.** `--economy eco-2` plays the Jam economy: respawn, gold, levels, four items and a shop
+at base (`src/economy.ts`, every number in `src/economy/eco-2.json`; the design is
+`docs/economy-spec.md`). `eco-1` is P1's starting values, kept so older runs reproduce. It is off
+by default until the Sun 10-04 go/no-go. Under an economy, `house:<tier>` plays that tier's
+economy-aware version (`prompts/pilots/README.md`). A schema side buys the
 shopping list its prose compiled to (`build`), else its instrument's default. The log records the
 whole ruleset and every bot's list, and `--verify` replays with it; logs without one have no economy.
 **River objective.** `--objective river-1` plays the Bandstand: a neutral stage that alternates

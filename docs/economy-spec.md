@@ -6,7 +6,9 @@
 Q11–Q13 are still open. **P1 (§7) is built**, off by default until the Sun 10-04 gate; §11 records
 how it was built and the choices the spec left open. **The river objective (O1 and O2) is built**,
 also off by default until its own go/no-go at the same gate; §12 records how, and its §9.8
-measurement. P2 onward is not built.
+measurement. **The income tuning pass and P2's house side are built** (§13): the ruleset is now
+`eco-2`, the house tiers shop on purpose, and §6's measurement is one command (§13.5). The
+entrant-facing part of P2 (README, template, compile preview) waits for the gate.
 **Written:** 2026-09-30, after Ceryce chose "minimal economy before the jam" (19:57 CT). §9, the
 neutral river objective, was added the same evening after she backed the idea (20:34 CT).
 **Jam:** Fri 2026-10-16. Entry cutoff is midnight Central on Thu 10-15. Sign-ups close Tue 10-06.
@@ -30,7 +32,7 @@ adds numbers, it is cut.
 |---|---|---|
 | 1 | **Respawn becomes part of the ruleset.** Timer is `6 s + 3 s × level`. *Ruled, Q1.* | Today a death is permanent (§1). That makes any risk to carried gold pointless and rewards hiding. |
 | 2 | **Dota's two-pool shape, every knob a constant.** Unspent gold sits in an at-risk pool and a safe pool; which sources feed the safe pool, how much of the at-risk pool a death costs, and how much of that loss the killers get are all in `eco-1.json`. **The default:** safe pool empty, half of unspent gold lost on death, **all of it to the bots that killed you**. *Ruled, Q2.* | The default is Ceryce's recollection of Dota, which neither game actually ships (§2). For her principle it beats both: hold-vs-spend, risk-while-carrying and hunt-the-carrier from one rule. Modelling it the Dota way means it can be tuned toward Dota or League by editing numbers (§3.3). |
-| 3 | **Kill gold 200, an assist pool of 100, first blood +100.** Minion last hit 15. Passive 0.5 gold/s. | One kill is worth about 13 last hits. Passive is a floor so even a weak bot gets one item. Most income has to be earned, and about a third of it should come from PvP. |
+| 3 | **Kill gold 200, an assist pool of 100, first blood +100.** Minion last hit 15. Passive 0.5 gold/s. *(eco-1's starting values. The income tuning pass doubled PvP gold and raised the rest: `eco-2`, §13.1.)* | One kill is worth about 13 last hits. Passive is a floor so even a weak bot gets one item. Most income has to be earned, and about a third of it should come from PvP. |
 | 4 | **Tower gold is part team-wide, part split among the bots standing near it.** | This is the PvE that pulls bots together: objectives pay the bots that show up, so the other team has to show up too. |
 | 5 | **Five levels from shared-proximity XP.** Each level gives +8 % max hp and +8 % attack damage. No level-up choice. | XP for being near a fight or a push, not for last hits, pays for grouping. A level-up choice would add a decision the translator can't express well. |
 | 6 | **Four items in three slots, each with a real cost** (Amp, Road Case, Bass Strings, Metronome). No Tip Jar. *Ruled, Q4; names still placeholders (Q13).* | A bot can't own everything, and every item gives something up. Bass Strings heals only from damage dealt to enemy bearbots. |
@@ -247,6 +249,10 @@ would reward sitting under a tower, which is PvE.
 
 That's about **850–1250 in total**, with **about 30–40 % from PvP**. Three item slots cost 1000–1050,
 so a typical bot finishes 2 items and a strong one finishes 3.
+
+*Checked by the economy slice: eco-1 paid 59 gold/min/bot. Every source was short because bots
+took far fewer last hits, towers and kills than this estimate assumed, not because each one paid
+too little. The band is kept and the prices are raised: `eco-2`, §13.1.*
 
 ### 3.3 Carried gold and death
 
@@ -679,6 +685,9 @@ fallback, cadence 2 s and the Jam roster.
 The river objective is measured separately, on the map-only game, by §9.8.
 
 ### 6.1 Conditions (all on the balance study's shipped map)
+
+*As built (§13.5): "eco-1" below is played as `eco-2`, the tuned ruleset, and R as `respawn-1`.
+`tools/match/measure_economy.mjs` runs the whole table.*
 
 | Id | Ruleset | Prompts | Answers |
 |---|---|---|---|
@@ -1406,7 +1415,7 @@ what is a default:
 - **Translator.** `build` on the schema (validated, wire format v2), an items block in the prompt
   generated from `eco-1.json`, and a "Shopping list:" line in the transparency view. The
   `highest_bounty_enemy` selector, the house worksheet keys and tiers, and the entrant README and
-  template are P2 and are not built.
+  template are P2. The first three are built (§13.2); the entrant-facing part waits for the gate.
 - **Metrics.** A log with an economy is measured with the economy attached: bots can die more than
   once, gold is the real ledger, and `economy` carries the §6.2 numbers (gold per minute by source,
   PvP share of earned gold, items, first item time, carried gold at death, gold-diff share at 6:00,
@@ -1422,7 +1431,8 @@ what is a default:
   [`runs/economy-slice-2026-09-30.md`](../runs/economy-slice-2026-09-30.md). eco-1 raises the
   PvP share of bot damage and engaged-PvP time a little and doesn't add dives. With today's prompts,
   income is 59 gold/min/bot against the 85–125 band, short in every earned source. Deaths are too
-  rare to judge the death economy.
+  rare to judge the death economy. The tuning pass that answers it is §13.1, and the slice's
+  all-timeout, all-violet result is explained in §13.3.
 
 ## 12. The Bandstand as built
 
@@ -1484,3 +1494,205 @@ decide, and what the build decided:
   (20.8 %) failed because hard-vs-hard turned every match into one stage contested to the end.
   The tuning pass is not run (it would pass the $5 ceiling, and §9.8's levers don't address a
   stalemate); Ceryce rules at the gate. Spend $3.96.
+
+---
+
+## 13. Income tuning pass and P2 as built
+
+PR "economy P2 + the income tuning pass" (2026-09-30), on `develop` after #51 and #52. It is built so
+§6's measurement can run before the Sun 10-04 gate. Nothing entrant-facing changed: not the entrants
+repo, the template or the README. `DEFAULT_ECONOMY` is still none.
+
+### 13.1 The income tuning pass: `eco-2`
+
+**Why.** The slice measured eco-1 at **59 gold/min/bot** (0 of 12 matches in the 85–125 band). It
+was short in every earned source: minion 10.5, towers 10.9, PvP 9.0 a minute. The prices were not
+the problem. The slice's own ledgers show the bots did far less than §3.2 assumed:
+
+| per match, 12 eco-1 slice matches | median (range) | what §3.2's estimate assumed |
+|---|---|---|
+| minion last hits, all six bots | 43 (34–50) | 60–120 (10–20 per bot) |
+| towers destroyed | 2 (mean 1.58; 1–2) | about 3–5 |
+| bearbot deaths | 1 (mean 1.17; 0–3) | about 5–8 |
+
+So constants alone can't reach §3.2's mix. They can still bring a plausible match into the band,
+and that is what this pass does. The design and the band are unchanged (§6.2 allows one constants
+pass).
+
+**Method.** Each slice match was replayed with its own ruleset, and every bot's ledger was read by
+source at 5:00, 6:00 and 10:00. A source's gold is (events × price), so a new price rescales that
+source exactly *for those events*. The death drop is half of carried gold, so it was scaled with the
+bot's other income. This holds behaviour fixed and asks what these 12 matches would have paid. It
+can't see the feedback, where richer bots buy earlier and then fight differently. The Jev smoke
+(§13.4) checks that.
+
+**Candidates.** All keep the design, the items and the death knobs.
+
+| | passive /s | last hit | kill / assist pool / first blood | tower team / local pool | median gold/min/bot (range) | in band | PvP share of earned | \|gold diff\| ÷ gold @6:00, median (max) |
+|---|---|---|---|---|---|---|---|---|
+| eco-1 | 0.5 | 15 | 200 / 100 / 100 | 100 / 120 | 59.2 (45.5–76.8) | 0 / 12 | 28.3 % | 0.245 (0.510) |
+| everything ×1.5 | 0.75 | 25 | 300 / 150 / 150 | 150 / 180 | 90.6 (69.7–117.3) | 7 / 12 | 27.0 % | 0.241 (0.502) |
+| earned-heavy | 0.6 | 30 | 300 / 150 / 150 | 175 / 200 | 86.6 (65.1–115.3) | 6 / 12 | 23.8 % | 0.294 (0.526) |
+| PvE-heavy | 0.75 | 30 | 325 / 175 / 150 | 150 / 180 | 95.5 (72.5–124.1) | 9 / 12 | 26.2 % | 0.235 (0.501) |
+| **eco-2 (chosen)** | **0.75** | **25** | **400 / 200 / 150** | **125 / 150** | **90.8 (67.9–121.6)** | **8 / 12** | **32.5 %** | **0.210 (0.536)** |
+
+eco-2 by source, per bot per minute: passive 45.0, minion 17.6, kill 7.8, assist 3.9, drop 3.2,
+first blood 1.7, tower team 9.9, tower local 3.8.
+
+**Why these numbers.**
+- **Passive 0.5 → 0.75/s.** It is the only lever that lifts every bot equally. It is also the only
+  one that *narrows* the gold gap, because both teams are paid it. It stays about half of income, as
+  under eco-1 (51 % → 50 %). It goes no higher because passive is a floor (§3.2), and "most income
+  is earned" has to come true as play improves.
+- **PvP doubled: kill 400, assist pool 200, first blood 150.** PvP had the widest gap to §3.2, and it
+  is what Ceryce's principle asks the economy to pay for. Doubling it moves the PvP share from 28 %
+  toward §6.2's 35 %. It also brings the bounty (kill + assist pool + half the carried gold) to
+  600 or more. That is worth more than an item, which makes hunting the carrier a real decision.
+  Raising PvP did not widen the 6:00 gold gap on these matches; it fell.
+- **Last hit 15 → 25.** This is the steady earned income. A kill stays worth about 16 last hits
+  (eco-1: 13).
+- **Towers +25 % only (125 + 150).** A tower pays one team, so it widens the gap. It is also PvE,
+  which is not what the economy is for. The earned-heavy and PvE-heavy rows show what leaning on
+  towers does: more income, a lower PvP share, a wider gap.
+
+**After, on Jev** (§13.4, B1 shape, 4 matches): median **99.6** gold/min/bot (83.1–113.0), 3 of 4 in
+band. Deaths rose to 3 a match, so PvP carried more than the replay predicted (57 % of earned
+gold). Last hits paid about what they did under eco-1, because bots that walk home to shop spend
+less time in lane.
+
+**Names.** `src/economy/eco-2.json` is eco-1 with only the gold block's seven prices changed. A
+test pins that. `eco-1` stays registered, so `--economy eco-1` still reproduces the slice. Old logs
+carry their whole ruleset and replay unchanged. The translator's items reader points at `eco-2.json`.
+Items are identical in both, so its prompt is right for either.
+
+**The likely next knob.** If §6 confirms the smoke's first-item time (5:08 against ≤ 4:30), the
+pass §6.2 allows has `gold.start`, which is 0 today. Something like 100 moves the first item about a
+minute earlier and changes nothing else.
+
+### 13.2 P2 as built
+
+- **`highest_bounty_enemy`** (§4.2–§4.3) is in the translator's vocabulary and
+  `tools/jev/target_resolve.py`. It targets the visible enemy bearbot with the largest `bounty`. Ties
+  go to the nearer one. With no bounty-bearing bearbot in sight it falls back to `nearest_enemy`,
+  which covers both "no bearbot visible" and "no economy". There is no new action kind.
+- **Economy-aware house tiers** (§4.4). They are picked automatically whenever a match has an
+  economy (`tools/arena/house.mjs` `HOUSE_TIERS_ECO`; the CLI's `house:<tier>`; the arena's
+  `tournament.economy`). With no economy nothing changes, so the placement bar doesn't move. The
+  table and the files are in `prompts/pilots/README.md`.
+  - easy declares Road Case → Metronome → Amp, and never goes home only to shop.
+  - medium keeps its worksheet. It adds keys `gold`, `next` and `home`, and the rule "next item
+    affordable and no foe in sight → recall to shop" right after the low-hp recall and the
+    Bandstand rule.
+  - hard has the same rule. It adds "carrying ≥ 300 with a stronger enemy bearbot in sight → recall
+    to spend it", and it attacks the enemy worth the most gold instead of the lowest-hp one.
+  - Every tier declares its shopping list in prose, and it compiles to `build`.
+- **Compiled on the entrants' translator** (`compile.py --backend ollama`, qwen3.5:9b) into
+  `house-<tier>-eco.schemas.json`, which is what Jev plays. Medium was sampled four times, and the
+  sample whose questions all name things Jev's description states was kept. The selection rule is in
+  the pilots README.
+- **The Bandstand's house rules (§12) are carried over unchanged.** The eco tiers were compiled
+  before #53 merged. Its rules were then added the way #53 added them to the plain tiers: the
+  identical rule objects spliced in after each instrument's low-hp recall, plus the matching
+  worksheet key and prose. So B1's tiers differ from B0's only by the economy. Without the
+  objective those rules can't match.
+- **Not built: the worksheet keys in the shadow Jev worksheet bot.** `tools/jev/rules.py`,
+  `team_rules.py`, `serializer*.py`, `house_server.py` and `jevPilot.ts`'s `extractWorksheet` still
+  mirror the plain medium cascade. That bot is shadow-only. The Jam and §6 play compiled schemas on
+  `schema_server.py`, which get the economy through `describe_observation` (P1) and need no worksheet
+  code. It is listed for whoever makes the worksheet bot live.
+- **`respawn-1`**, condition R. It has respawn and nothing else: every gold and XP source is 0, and
+  `observe: false` keeps the gold, level and shop fields out of the observation. Pilots see only who
+  is respawning.
+- **Metrics.** Shopping recalls (§6.2) are counted per side. A shopping recall is a recall started
+  above half hp that buys on the way in. The §6.2 economy lines are now rows of `npm run metrics`'
+  table (means; the spec's medians are in `--json`). Caveat: a tier whose low-hp recall fires above
+  half hp is counted when that recall happens to buy. Medium's 75 %-of-max retreat does, which is
+  why the slice already shows medium at 2.0 a match.
+- **The sample entrants** for §6's second pairing are `prompts/pilots/sample-entrant.prose.md`
+  (economy-blind) and `sample-entrant-eco.prose.md` (the same plus §4.5's sentences), both compiled.
+  §6.1 asks for "two sample entrant prose files" in B1; this build reads that as one entrant in two
+  versions, so that B1 − B0 is the same entrant learning the economy.
+- **A finding for the entrant README (P2b).** §4.5's own example, "Buy the Amp first, then Bass
+  Strings, then a Road Case", compiled into `build` *and* into three rules of the form "can it
+  afford the Road Case? → go home". For two of three instruments those rules sat above the low-hp
+  recall (`runs/sample-entrant-eco-compile-buy-phrasing-2026-09-30.md`). Such a rule keeps firing
+  after the item is owned. "Our shopping lists, in order: …" compiled to `build` only, every time it
+  was tried (the house tiers and the eco sample entrant). The README's worked example should use the
+  list form, or the translator needs a guard; this PR does neither.
+
+### 13.3 Why every slice match timed out, and why violet won every tiebreak
+
+The slice had 24 timeouts in 24 matches, and all 10 decided matches went to violet (house medium).
+Briefly investigated, without touching the win condition:
+
+**Timeouts are the house prompts, against the frozen sim's structure hp. The economy plays no part.**
+- In all 24 slice matches each team destroyed at most one tower, and no bearbot ever damaged a
+  nexus. Bots dealt about 180 structure damage a minute, both teams together.
+- To end a match, a team has to deal about 4,000 down one lane: two 900-hp towers and a 2,200-hp
+  nexus. Each team dealt about 900 a match, roughly 4.5× short.
+- Minion waves alone take nothing. In 600 s with every bearbot holding at base, no tower fell on
+  `pvp-1` or `v1`, on 8 seeds each.
+- So a match ends only when bots press structures. The house tiers are built not to: they leave an
+  enemy tower when their wave isn't there, and they recall early (medium at 75 % of max hp, hard
+  below 90).
+- eco-1 didn't move structure damage: −5.8/min [−32, +19]. The P2 smoke's four matches timed out
+  too.
+
+**Violet's tiebreaks are the map, on the frozen sim. The tiers play no part.**
+- With every bearbot holding at base (no pilots in the lanes), violet's minions spent 48 one-second
+  samples under green towers per match on `pvp-1`, against green's 2. That held on all 8 seeds.
+  Violet minions lived 8 % longer (5,478 vs 5,062 minion-seconds).
+- On `v1` the same run is exactly even, 741 vs 741.
+- Part of the cause is update order. The frozen sim spawns and updates violet's minions first, so in
+  a mirror minion fight violet swings first. Re-ordering green's minions first every tick cut the
+  edge to 36 vs 18, but did not flip it. The rest of the asymmetry is elsewhere in the frozen sim and
+  was not traced.
+- On `v1`, the outer towers (at 0.42 of the lane) cover the point where the waves meet, and that
+  washes the edge out. `pvp-1` pulled them back to 0.30, which left it.
+- The house tiers attack towers only with their wave. Violet's surplus minions give violet's bots the
+  cover green's never get. Violet took the first tower in 23 of 24 slice matches, and the timeout
+  tiebreak counts towers alive.
+- The house-tier study's all-violet result (`runs/house-tiers-2026-09-30.md`) was on `v1`, where the
+  bot-free run is even. This doesn't explain that one.
+
+**What it means for §6.** A pairing keeps each tier on one side. So winner-based reads ("decided",
+comeback, any "medium beats hard") are side effects. The paired economy and PvP metrics compare like
+with like and are not affected. Not done, and Ceryce's call:
+- swap sides on half the seeds (this breaks pairing with the slice);
+- or fix the minion asymmetry outside the frozen sim, which would be a new map variant.
+
+### 13.4 Smoke on Jev
+
+[`runs/economy-p2-smoke-2026-09-30.md`](../runs/economy-p2-smoke-2026-09-30.md): 4 full matches,
+medium-eco vs hard-eco, eco-2, $0.34, 0 errors, every log replay-verifies.
+- Income median 99.6 gold/min/bot, 3 of 4 matches in band.
+- Shopping recalls 4.00 (medium) and 4.25 (hard) a match, against 2.0 and 0.17 in the slice.
+- All 24 bots bought their declared list in order. Median items at the end: 2.
+- First item still 5:08.
+
+### 13.5 Running §6
+
+**The plan.** 4 conditions × 2 pairings × the slice's 12 seeds = 96 matches.
+`tools/match/measure_economy.mjs` plays them on one Jev server:
+- seed by seed;
+- side names held at `medium` / `hard` / `entrant` so `metrics` pairs across conditions;
+- an existing log is skipped, so re-running the same command resumes.
+
+```sh
+python tools/jev/schema_server.py --port 8851 --budget-usd 9.50
+node tools/match/measure_economy.mjs --jev-schema http://127.0.0.1:8851/ --date 2026-10-03 --parallel 2
+npm run metrics -- --group A runs/economy-measure-2026-10-03-A-*.json --group R runs/economy-measure-2026-10-03-R-*.json \
+  --group B0 runs/economy-measure-2026-10-03-B0-*.json --group B1 runs/economy-measure-2026-10-03-B1-*.json \
+  --json runs/economy-measure-2026-10-03-metrics.json --md runs/economy-measure-2026-10-03-metrics.md
+npm run metrics -- --group B0 runs/economy-measure-2026-10-03-B0-*.json --group B1 runs/economy-measure-2026-10-03-B1-*.json \
+  --md runs/economy-measure-2026-10-03-b1-vs-b0.md
+```
+
+- **Expected cost: about $8** ($7.5–8.5). That is 72 matches with today's prompts at about $0.078
+  each: the Bandstand run's medium-vs-hard rate, with the tiers' dormant Bandstand rules. The 24 B1
+  matches cost about $0.09–0.095: the smoke's $0.085, plus those same rules, which the eco tiers now
+  carry. The server's `--budget-usd 9.50` stops the run under Ceryce's $10.
+- **Wall time:** about 2.5 h at `--parallel 2`, as the slice ran, or about 4.5 h one at a time.
+  Either way it outlives a 10-minute tool call, so run it detached (a Margo job, or `nohup`).
+- `--dry-run` prints every match command without running anything.
+- The logs are gitignored and go on a `data-economy-measure-<date>` release, as the slice's did.

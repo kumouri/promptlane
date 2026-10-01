@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import {
-  DEFAULT_HOUSE_FILES, DEFAULT_HOUSE_TIER, HOUSE_TIERS, HOUSE_TIER_SCHEMAS, bundleHouse, candidateFiles, candidateLabel, houseCandidates,
+  DEFAULT_HOUSE_FILES, DEFAULT_HOUSE_TIER, HOUSE_TIERS, HOUSE_TIERS_ECO, HOUSE_TIER_ECO_SCHEMAS, HOUSE_TIER_SCHEMAS, bundleHouse, candidateFiles, candidateLabel, houseCandidates,
   houseSchemasFile, houseSpecFile, houseTextForSide, loadHouseSchemas, pickHouse,
 } from './house.mjs';
 import { DEFAULT_CONFIG, loadConfig } from './server.mjs';
@@ -84,30 +84,108 @@ test('tiers: the match CLI shorthand gives each side its own file', () => {
   assert.throws(() => houseSpecFile('house:', 'violet'), /house tier must be one of/);
 });
 
+/** A checked-in {violet, green} pair bundles from disk, and its green side is its violet side with the team literals swapped. */
+function assertMirroredPair(pair, root, label) {
+  const bundle = bundleHouse(pair, root);
+  const violet = houseTextForSide(bundle, 'violet');
+  const green = houseTextForSide(bundle, 'green');
+  assert.ok(violet.startsWith('You are a VIOLET bearbot'), label);
+  assert.ok(green.startsWith('You are a GREEN bearbot'), label);
+  // Swap the team literals and the two base corners in the green file; it must read as violet
+  // (example tower ids name an enemy tower, so they differ per side too -- compared as tw-N;
+  // line endings follow the checkout's core.autocrlf, so they are not compared either).
+  const towerIds = (s) => s.replaceAll('\r\n', '\n').replaceAll(/"tw-\d+"/g, '"tw-N"');
+  const swapped = green
+    .replace('GREEN bearbot', 'VIOLET bearbot')
+    .replaceAll('"green"', '{OWN}')
+    .replaceAll('"violet"', '"green"')
+    .replaceAll('{OWN}', '"violet"')
+    .replaceAll('a green minion', 'a violet minion')
+    .replaceAll('{"x":900,"y":100}', '{HOME}')
+    .replaceAll('{"x":100,"y":900}', '{"x":900,"y":100}')
+    .replaceAll('{HOME}', '{"x":100,"y":900}');
+  assert.equal(towerIds(swapped), towerIds(violet), `${label}: green is violet with the team literals swapped`);
+}
+
 test('tiers: every checked-in pair exists, bundles, and its sides differ only in team literals', () => {
   const root = path.resolve(import.meta.dirname, '..', '..');
   for (const [tier, pair] of Object.entries(HOUSE_TIERS)) {
     assert.deepEqual(pickHouse(houseCandidates({ tier }), root), pair, tier);
-    const bundle = bundleHouse(pair, root);
-    const violet = houseTextForSide(bundle, 'violet');
-    const green = houseTextForSide(bundle, 'green');
-    assert.ok(violet.startsWith('You are a VIOLET bearbot'), tier);
-    assert.ok(green.startsWith('You are a GREEN bearbot'), tier);
-    // Swap the team literals and the two base corners in the green file; it must read as violet
-    // (example tower ids name an enemy tower, so they differ per side too -- compared as tw-N;
-    // line endings follow the checkout's core.autocrlf, so they are not compared either).
-    const towerIds = (s) => s.replaceAll('\r\n', '\n').replaceAll(/"tw-\d+"/g, '"tw-N"');
-    const swapped = green
-      .replace('GREEN bearbot', 'VIOLET bearbot')
-      .replaceAll('"green"', '{OWN}')
-      .replaceAll('"violet"', '"green"')
-      .replaceAll('{OWN}', '"violet"')
-      .replaceAll('a green minion', 'a violet minion')
-      .replaceAll('{"x":900,"y":100}', '{HOME}')
-      .replaceAll('{"x":100,"y":900}', '{"x":900,"y":100}')
-      .replaceAll('{HOME}', '{"x":100,"y":900}');
-    assert.equal(towerIds(swapped), towerIds(violet), `${tier}: green is violet with the team literals swapped`);
+    assertMirroredPair(pair, root, tier);
   }
+});
+
+test('economy: a tier (or the default) plays its economy-aware version; no economy changes nothing', () => {
+  const root = path.resolve(import.meta.dirname, '..', '..');
+  for (const tier of Object.keys(HOUSE_TIERS)) {
+    assert.deepEqual(houseCandidates({ tier }), [HOUSE_TIERS[tier]], `${tier} without an economy`);
+    assert.deepEqual(houseCandidates({ tier }, 'eco-2'), [HOUSE_TIERS_ECO[tier]], `${tier} with an economy`);
+    assert.deepEqual(pickHouse(houseCandidates({ tier }, 'eco-2'), root), HOUSE_TIERS_ECO[tier], `${tier} eco files exist`);
+  }
+  assert.equal(houseCandidates({}), DEFAULT_HOUSE_FILES);
+  assert.deepEqual(houseCandidates({}, 'eco-2'), [HOUSE_TIERS_ECO.medium, ...DEFAULT_HOUSE_FILES]);
+  assert.deepEqual(houseCandidates({ files: ['prompts/pilots/drums.md'] }, 'eco-2'), ['prompts/pilots/drums.md'], 'an explicit list is taken as written');
+  // the match CLI's shorthand
+  assert.equal(houseSpecFile('house', 'violet'), PAIR.violet);
+  assert.equal(houseSpecFile('house', 'green', 'eco-2'), 'prompts/pilots/house-eco-green.md');
+  assert.equal(houseSpecFile('house:hard', 'violet', 'eco-2'), 'prompts/pilots/house-hard-eco.prose.md');
+  assert.equal(houseSpecFile('house:hard', 'green', 'eco-2'), 'prompts/pilots/house-hard-eco.prose.md', 'prose has no team literals: one file for both sides');
+  assert.equal(houseSpecFile('house:easy', 'green', null), 'prompts/pilots/house-easy-green.md');
+  assertMirroredPair(HOUSE_TIERS_ECO.medium, root, 'medium eco');
+});
+
+test('economy: the eco medium worksheet declares gold, next and home before the original five keys', () => {
+  const root = path.resolve(import.meta.dirname, '..', '..');
+  const violet = houseTextForSide(bundleHouse(HOUSE_TIERS_ECO.medium, root), 'violet');
+  assert.match(violet, /"gold": self\.gold/);
+  assert.match(violet, /"next": self\.nextItem\.cost, or null when self\.nextItem is null/);
+  assert.match(violet, /"home": self\.atShop/);
+  assert.match(violet, /The object starts with "hp","gold","next","home","wave","tower","foe","cd","stand"\./);
+  assert.match(violet, /\n3\. next is not null, gold is next or more, and foe is null -> go home to shop: "kind":"recall"/);
+  // the plain medium's Bandstand rule (PR #53), word for word, in the same place
+  const plain = houseTextForSide(bundleHouse(HOUSE_TIERS.medium, root), 'violet');
+  const standRule = (s) => s.replaceAll('\r\n', '\n').split('\n').find((l) => l.startsWith('2. stand is "open"'));
+  assert.ok(standRule(plain));
+  assert.equal(standRule(violet), standRule(plain));
+});
+
+test('economy: the eco tiers play exactly the plain tiers\' Bandstand rules, right after the low-hp recall', () => {
+  const root = path.resolve(import.meta.dirname, '..', '..');
+  for (const tier of ['easy', 'medium', 'hard']) {
+    const plain = loadHouseSchemas(HOUSE_TIER_SCHEMAS[tier], root).schemas;
+    const eco = loadHouseSchemas(HOUSE_TIER_ECO_SCHEMAS[tier], root).schemas;
+    for (const inst of ['drums', 'keytar', 'violin']) {
+      const stand = (s) => s[inst].rules.filter((r) => r.action_target_selector === 'bandstand');
+      assert.deepEqual(stand(eco), stand(plain), `${tier} ${inst}`);
+      assert.deepEqual(eco[inst].rules.slice(1, 1 + stand(plain).length), stand(plain), `${tier} ${inst}: right after the recall`);
+    }
+  }
+});
+
+test('economy: each eco tier has checked-in compiled schemas that buy deliberately', () => {
+  const root = path.resolve(import.meta.dirname, '..', '..');
+  for (const tier of Object.keys(HOUSE_TIERS_ECO)) {
+    const file = houseSchemasFile({}, HOUSE_TIERS_ECO[tier]);
+    assert.equal(file, HOUSE_TIER_ECO_SCHEMAS[tier], tier);
+    assert.equal(houseSchemasFile({ tier }, HOUSE_TIERS_ECO[tier]), HOUSE_TIER_ECO_SCHEMAS[tier]);
+    const { schemas } = loadHouseSchemas(file, root);
+    for (const [inst, s] of Object.entries(schemas)) {
+      const label = `${tier} ${inst}`;
+      assert.equal(s.instrument, inst, label);
+      // every tier declares a shopping list in its prose, and it compiled
+      assert.ok(Array.isArray(s.build) && s.build.length === 3, `${label}: a declared three-item build`);
+      const recalls = s.rules.filter((r) => r.action_kind === 'recall');
+      // easy shops only when it is home anyway (low-hp recall, respawn); medium and hard also recall to shop
+      assert.equal(recalls.length, { easy: 1, medium: 2, hard: 3 }[tier], `${label}: recall rules`);
+      const afterStand = 1 + s.rules.filter((r) => r.action_target_selector === 'bandstand').length;
+      if (tier !== 'easy') assert.equal(s.rules[afterStand].action_kind, 'recall', `${label}: the shopping recall sits right after the low-hp recall and the Bandstand rules`);
+    }
+    if (tier === 'hard') {
+      for (const s of Object.values(schemas)) assert.ok(s.rules.some((r) => r.action_target_selector === 'highest_bounty_enemy'), `hard ${s.instrument} hunts the carrier`);
+    }
+  }
+  // the non-economy tiers are untouched: still no build, still their own files
+  for (const tier of Object.keys(HOUSE_TIERS)) assert.equal(houseSchemasFile({ tier }, HOUSE_TIERS[tier]), HOUSE_TIER_SCHEMAS[tier]);
 });
 
 test('Jev: each tier has checked-in compiled schemas, found from the tier, the picked pair, or house.schemas', () => {

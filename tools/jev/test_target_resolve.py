@@ -83,6 +83,38 @@ class EnemySelectorTests(unittest.TestCase):
         self.assertIsNone(resolve_target("nearest_tower", obs))
 
 
+class HighestBountySelectorTests(unittest.TestCase):
+    """docs/economy-spec.md §4.3: the enemy bearbot worth the most, else `nearest_enemy`."""
+
+    def _bounty(self, id_, x, y, bounty, kind="bearbot"):
+        e = entity(id_, x, y, kind=kind)
+        e["bounty"] = bounty
+        return e
+
+    def test_picks_the_largest_bounty_not_the_nearest(self):
+        obs = make_obs(enemies=[self._bounty("near-cheap", 10, 0, 600), self._bounty("far-rich", 500, 0, 850)])
+        self.assertEqual(resolve_target("highest_bounty_enemy", obs), "far-rich")
+
+    def test_ties_go_to_the_nearer_bearbot(self):
+        obs = make_obs(enemies=[self._bounty("far", 500, 0, 600), self._bounty("near", 50, 0, 600)])
+        self.assertEqual(resolve_target("highest_bounty_enemy", obs), "near")
+
+    def test_minions_and_towers_are_never_the_target_while_a_bearbot_is_visible(self):
+        obs = make_obs(enemies=[entity("mn", 1, 0, kind="minion"), self._bounty("bb", 300, 0, 600)])
+        self.assertEqual(resolve_target("highest_bounty_enemy", obs), "bb")
+
+    def test_without_a_bounty_it_falls_back_to_nearest_enemy(self):
+        # no economy: bearbots carry no bounty field
+        obs = make_obs(enemies=[entity("far-bb", 400, 0), entity("near-mn", 20, 0, kind="minion")])
+        self.assertEqual(resolve_target("highest_bounty_enemy", obs), "near-mn")
+        self.assertIsNone(resolve_target("highest_bounty_enemy", make_obs()))
+
+    def test_it_is_in_the_translator_vocabulary(self):
+        from translator import TARGET_SELECTORS
+
+        self.assertIn("highest_bounty_enemy", TARGET_SELECTORS)
+
+
 class AllyAndMinionSelectorTests(unittest.TestCase):
     def test_threatened_ally_enemy_targets_the_enemy_nearest_the_weakest_ally(self):
         obs = make_obs(

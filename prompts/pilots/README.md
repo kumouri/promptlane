@@ -118,3 +118,49 @@ Evidence (a small-N sanity check, not a rating):
 
 Hard needs a real margin over medium before it is called "hard". The follow-ups are in the
 evidence file.
+
+## Economy-aware tiers: `house-eco-*` / `house-<tier>-eco.*`
+
+Under an economy (`--economy eco-2`, the arena's `tournament.economy`) each tier plays an
+economy-aware version instead, picked by `tools/arena/house.mjs` (`HOUSE_TIERS_ECO`). They are the
+same three strategies plus the decisions [`docs/economy-spec.md`](../../docs/economy-spec.md) §4.4
+gives each tier. With no economy nothing changes, so the placement bar above doesn't move.
+
+| tier | files | shopping list (declared in the prose) | economy rules, after the low-hp recall |
+|---|---|---|---|
+| easy | `house-easy-eco.prose.md` (both sides) | Road Case → Metronome → Amp | none: it buys only when retreating or waiting takes it home |
+| medium | `house-eco-violet.md` / `house-eco-green.md` | each instrument's default | can afford the next item and no foe in sight → recall to shop |
+| hard | `house-hard-eco.prose.md` (both sides) | drums Road Case → Bass Strings → Amp; keytar and violin their defaults | the medium rule; carrying ≥ 300 gold with a stronger enemy bearbot in sight → recall to spend it; attack the enemy bearbot **worth the most gold** (`highest_bounty_enemy`) instead of the lowest-hp one |
+
+- **Medium keeps its worksheet.** It adds three keys after `hp`: `"gold": self.gold`,
+  `"next": self.nextItem.cost` (null when the list is done) and `"home": self.atShop`; the rest,
+  `stand` included, are the plain medium's. The green file is the violet file with the team
+  literals swapped (`test_house.mjs` checks it).
+- **Easy and hard are prose,** one file for both sides, because they have no team literals. They
+  have no qwen worksheet render: the Jam plays the compiled schemas on Jev.
+- **`house-<tier>-eco.schemas.json`** are the checked-in compiles, made with `compile.py --backend
+  ollama` exactly as for the plain tiers. Translation is sampled, so medium was compiled four times
+  and the cleanest sample was kept. The kept sample has the shopping recall as rule 2 for every
+  instrument, phrases every question in terms Jev's description gives (not worksheet names such as
+  `next` or `foe`), and keeps the prose's root default `home`. Two of the other three samples asked
+  about worksheet names or fell back to `push_lane`. Easy and hard took their first sample.
+  Transparency reports: `runs/house-eco-compile-{easy,medium,hard}-2026-09-30.md`.
+- **The Bandstand rules are the plain tiers' own.** The eco tiers were compiled before the Bandstand
+  merged (PR #53). Its rules were then added the way #53 added them to the plain tiers: the same
+  worksheet key and sentences in the prose, and the plain schemas' identical rule objects spliced in
+  right after each instrument's low-hp recall, with every other rule unchanged. So medium-eco and
+  hard-eco differ from medium and hard only by the economy (`test_house.mjs` checks it). The
+  transparency reports above predate the splice. Without the objective the Bandstand rules can't
+  match, so the order is low-hp recall → (Bandstand) → shopping recall → the rest.
+- **The worksheet keys reach only the worksheet prompt and its compile.** The Jev worksheet house
+  bot (`tools/jev/rules.py`, `house_server.py`, `jevPilot.ts`, shadow only) still mirrors the plain
+  medium cascade; see `docs/economy-spec.md` §13.2.
+
+## Sample entrants for the economy measurement: `sample-entrant*.prose.md`
+
+Two entrant-shaped prose files for §6's "house medium vs a sample entrant" pairing, compiled the
+same way (`sample-entrant*.schemas.json`, reports in `runs/sample-entrant*-compile-2026-09-30.md`).
+`sample-entrant.prose.md` knows nothing about the economy (conditions A, R, B0).
+`sample-entrant-eco.prose.md` is the same entrant plus the §4.5 sentences: a shopping list per
+instrument, go home to shop, don't fight while carrying more than 300, hunt the enemy worth the
+most, push while one of theirs is dead (condition B1).

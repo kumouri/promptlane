@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The economy's item facts, read from `src/economy/eco-1.json` -- the single source of truth the TS
+"""The economy's item facts, read from `src/economy/eco-2.json` -- the single source of truth the TS
 economy layer reads too (`docs/economy-spec.md` §3.7) -- plus the one validator the translator, the
 transparency view and `describe_observation` share: `normalize_build`.
 
@@ -19,7 +19,10 @@ import re
 from functools import lru_cache
 from pathlib import Path
 
-ECONOMY_PATH = Path(__file__).resolve().parents[2] / "src" / "economy" / "eco-1.json"
+# The tuned ruleset. Its items, slots and default builds are eco-1's exactly (only gold changed,
+# `docs/economy-spec.md` §13.1; `test_economy_rules` checks it), so the translator's items block is
+# right for a match on either.
+ECONOMY_PATH = Path(__file__).resolve().parents[2] / "src" / "economy" / "eco-2.json"
 
 # Every validation note this module writes starts with this, so renderers can file them apart from
 # the priority-guard and instrument-scope notes.
@@ -32,7 +35,7 @@ def load_economy() -> dict:
 
 
 def items() -> dict[str, dict]:
-    """Item key -> {"name", "cost", "gives", "givesUp", "mods"}, in eco-1.json order."""
+    """Item key -> {"name", "cost", "gives", "givesUp", "mods"}, in the ruleset file's order."""
     return load_economy()["items"]
 
 

@@ -1,0 +1,410 @@
+{
+ "drums": {
+  "pilot_file": "prompts/pilots/house-hard-eco.prose.md",
+  "instrument": "drums",
+  "rules": [
+   {
+    "id": "recall_low_hp",
+    "condition": "is this bot's hp below 90?",
+    "criteria_true": "hp is critically low (below 90)",
+    "criteria_false": "hp is sufficient (90 or above)",
+    "action_kind": "recall",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "bandstand_open_take_it",
+    "condition": "is the Bandstand open AND is no enemy bearbot visible AND is this bot's hp above half of its max hp?",
+    "criteria_true": "Bandstand open, no enemy bearbot in sight, hp above half of max",
+    "criteria_false": "Bandstand not open OR an enemy bearbot is in sight OR hp at or below half of max",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "bandstand"
+   },
+   {
+    "id": "bandstand_contest_it",
+    "condition": "is the Bandstand open AND is it either contested or is the enemy team making progress on it, AND is this bot's hp above 40% of its max hp?",
+    "criteria_true": "Bandstand open and (contested or the enemy is making progress on it) and hp above 40% of max",
+    "criteria_false": "Bandstand not open OR (not contested and the enemy is making no progress on it) OR hp at or below 40% of max",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "bandstand"
+   },
+   {
+    "id": "bandstand_opening_soon_nearby",
+    "condition": "does the Bandstand open within 10 seconds AND is it less than 400 units from this bot?",
+    "criteria_true": "Bandstand opens within 10 s and is under 400 units away",
+    "criteria_false": "Bandstand not opening within 10 s OR 400 units or more away",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "bandstand"
+   },
+   {
+    "id": "buy_item",
+    "condition": "can this bot afford the next item on its shopping list and are no enemy bearbots in sight?",
+    "criteria_true": "item is affordable and lane is clear of enemies",
+    "criteria_false": "item is unaffordable or an enemy bearbot is visible",
+    "action_kind": "recall",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "spend_gold_safety",
+    "condition": "does this bot carry at least 300 gold and is there an enemy bearbot in sight with more hp than this bot?",
+    "criteria_true": "gold is high (>=300) and a stronger enemy is visible",
+    "criteria_false": "gold is low or the visible enemy is weaker/equal",
+    "action_kind": "recall",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "retreat_from_tower",
+    "condition": "can this bot see an enemy tower and are there no allied minions nearby?",
+    "criteria_true": "enemy tower is visible and lane is empty of allies",
+    "criteria_false": "enemy tower is not visible or allies are present",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "finish_kill_ability",
+    "condition": "is this bot's primary ability ready and is there an enemy bearbot in sight with less than 100 hp?",
+    "criteria_true": "ability is charged and a dying enemy exists",
+    "criteria_false": "ability is on cooldown or no dying enemy exists",
+    "action_kind": "ability",
+    "action_ability": "kick",
+    "action_target_selector": "lowest_hp_enemy"
+   },
+   {
+    "id": "attack_dying_enemy",
+    "condition": "is there an enemy bearbot in sight with less than 100 hp?",
+    "criteria_true": "a dying enemy is visible",
+    "criteria_false": "no dying enemy is visible",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "lowest_hp_enemy"
+   },
+   {
+    "id": "attack_tower",
+    "condition": "can this bot see an enemy tower and are at least two allied minions nearby?",
+    "criteria_true": "tower is visible and wave support is sufficient (>=2 minions)",
+    "criteria_false": "tower not visible or insufficient minion support",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_tower"
+   },
+   {
+    "id": "hunt_carrier",
+    "condition": "is there an enemy bearbot in sight?",
+    "criteria_true": "an enemy bearbot is visible",
+    "criteria_false": "no enemy bearbot is visible",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "highest_bounty_enemy"
+   },
+   {
+    "id": "attack_minion",
+    "condition": "is there an enemy minion in sight?",
+    "criteria_true": "an enemy minion is visible",
+    "criteria_false": "no enemy minion is visible",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_enemy"
+   },
+   {
+    "id": "push_wave",
+    "condition": "is there an allied minion nearby?",
+    "criteria_true": "an allied minion is present to ride with",
+    "criteria_false": "no allied minion is immediately nearby",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "nearby_minion"
+   }
+  ],
+  "default_action": {
+   "kind": "move",
+   "ability": null,
+   "target_selector": "home"
+  },
+  "validation_notes": [
+   "instrument scope: 2 clause(s) your prose marks for another instrument were left out of the drums schema (each is compiled only for the instrument it names): \"keytar only: Metronome, then Amp, then Road Case.\"; \"violin only: Amp, then Bass Strings, then Road Case.\""
+  ],
+  "build": [
+   "road-case",
+   "bass-strings",
+   "amp"
+  ]
+ },
+ "keytar": {
+  "pilot_file": "prompts/pilots/house-hard-eco.prose.md",
+  "instrument": "keytar",
+  "rules": [
+   {
+    "id": "recall_low_hp",
+    "condition": "is this bot's hp below 90?",
+    "criteria_true": "hp is below 90",
+    "criteria_false": "hp is 90 or above",
+    "action_kind": "recall",
+    "action_ability": null,
+    "action_target_selector": "none"
+   },
+   {
+    "id": "bandstand_open_take_it",
+    "condition": "is the Bandstand open AND is no enemy bearbot visible AND is this bot's hp above half of its max hp?",
+    "criteria_true": "Bandstand open, no enemy bearbot in sight, hp above half of max",
+    "criteria_false": "Bandstand not open OR an enemy bearbot is in sight OR hp at or below half of max",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "bandstand"
+   },
+   {
+    "id": "bandstand_contest_it",
+    "condition": "is the Bandstand open AND is it either contested or is the enemy team making progress on it, AND is this bot's hp above 40% of its max hp?",
+    "criteria_true": "Bandstand open and (contested or the enemy is making progress on it) and hp above 40% of max",
+    "criteria_false": "Bandstand not open OR (not contested and the enemy is making no progress on it) OR hp at or below 40% of max",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "bandstand"
+   },
+   {
+    "id": "bandstand_opening_soon_nearby",
+    "condition": "does the Bandstand open within 10 seconds AND is it less than 400 units from this bot?",
+    "criteria_true": "Bandstand opens within 10 s and is under 400 units away",
+    "criteria_false": "Bandstand not opening within 10 s OR 400 units or more away",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "bandstand"
+   },
+   {
+    "id": "buy_item_if_safe",
+    "condition": "can this bot afford the next item on its shopping list and is no enemy bearbot in sight?",
+    "criteria_true": "affordable item exists and no enemy bearbot visible",
+    "criteria_false": "cannot afford item or enemy bearbot visible",
+    "action_kind": "recall",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "spend_gold_if_weak",
+    "condition": "does this bot carry at least 300 gold and is there an enemy bearbot in sight with more hp than this bot?",
+    "criteria_true": "carries >= 300 gold and visible enemy has higher hp",
+    "criteria_false": "carries < 300 gold or no visible enemy or visible enemy has lower/equal hp",
+    "action_kind": "recall",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "retreat_from_tower",
+    "condition": "can this bot see an enemy tower and is there no allied minion near it?",
+    "criteria_true": "enemy tower visible and no nearby allied minion",
+    "criteria_false": "no enemy tower visible or at least one allied minion nearby",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "finish_kill_ability",
+    "condition": "is this bot's primary ability ready and is there an enemy bearbot in sight with less than 100 hp?",
+    "criteria_true": "ability ready and visible enemy has < 100 hp",
+    "criteria_false": "ability not ready or no visible enemy with < 100 hp",
+    "action_kind": "ability",
+    "action_ability": "chord",
+    "action_target_selector": "lowest_hp_enemy"
+   },
+   {
+    "id": "finish_kill_attack",
+    "condition": "is there an enemy bearbot in sight with less than 100 hp?",
+    "criteria_true": "visible enemy has < 100 hp",
+    "criteria_false": "no visible enemy or visible enemy has >= 100 hp",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "lowest_hp_enemy"
+   },
+   {
+    "id": "attack_tower",
+    "condition": "can this bot see an enemy tower and are at least two allied minions near it?",
+    "criteria_true": "enemy tower visible and >= 2 allied minions nearby",
+    "criteria_false": "no enemy tower visible or < 2 allied minions nearby",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_tower"
+   },
+   {
+    "id": "hunt_carrier",
+    "condition": "is there an enemy bearbot in sight?",
+    "criteria_true": "at least one enemy bearbot visible",
+    "criteria_false": "no enemy bearbot visible",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "highest_bounty_enemy"
+   },
+   {
+    "id": "attack_minion",
+    "condition": "is there an enemy minion in sight?",
+    "criteria_true": "at least one enemy minion visible",
+    "criteria_false": "no enemy minion visible",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_enemy"
+   },
+   {
+    "id": "push_with_wave",
+    "condition": "is there an allied minion near this bot?",
+    "criteria_true": "at least one allied minion nearby",
+    "criteria_false": "no allied minion nearby",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "nearby_minion"
+   }
+  ],
+  "default_action": {
+   "kind": "move",
+   "ability": null,
+   "target_selector": "home"
+  },
+  "validation_notes": [
+   "instrument scope: 2 clause(s) your prose marks for another instrument were left out of the keytar schema (each is compiled only for the instrument it names): \"drums only: Road Case, then Bass Strings, then Amp.\"; \"violin only: Amp, then Bass Strings, then Road Case.\""
+  ],
+  "build": [
+   "metronome",
+   "amp",
+   "road-case"
+  ]
+ },
+ "violin": {
+  "pilot_file": "prompts/pilots/house-hard-eco.prose.md",
+  "instrument": "violin",
+  "rules": [
+   {
+    "id": "recall_low_hp",
+    "condition": "is this bot's hp below 90?",
+    "criteria_true": "hp is below 90",
+    "criteria_false": "hp is 90 or above",
+    "action_kind": "recall",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "bandstand_open_take_it",
+    "condition": "is the Bandstand open AND is no enemy bearbot visible AND is this bot's hp above half of its max hp?",
+    "criteria_true": "Bandstand open, no enemy bearbot in sight, hp above half of max",
+    "criteria_false": "Bandstand not open OR an enemy bearbot is in sight OR hp at or below half of max",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "bandstand"
+   },
+   {
+    "id": "bandstand_contest_it",
+    "condition": "is the Bandstand open AND is it either contested or is the enemy team making progress on it, AND is this bot's hp above 40% of its max hp?",
+    "criteria_true": "Bandstand open and (contested or the enemy is making progress on it) and hp above 40% of max",
+    "criteria_false": "Bandstand not open OR (not contested and the enemy is making no progress on it) OR hp at or below 40% of max",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "bandstand"
+   },
+   {
+    "id": "bandstand_opening_soon_nearby",
+    "condition": "does the Bandstand open within 10 seconds AND is it less than 400 units from this bot?",
+    "criteria_true": "Bandstand opens within 10 s and is under 400 units away",
+    "criteria_false": "Bandstand not opening within 10 s OR 400 units or more away",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "bandstand"
+   },
+   {
+    "id": "buy_item_if_safe",
+    "condition": "can this bot afford the next item on its shopping list AND is no enemy bearbot in sight?",
+    "criteria_true": "affordable and safe (no enemies)",
+    "criteria_false": "cannot afford or enemies present",
+    "action_kind": "recall",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "spend_gold_if_weak",
+    "condition": "does this bot carry at least 300 gold AND is there an enemy bearbot in sight with more hp than this bot?",
+    "criteria_true": "has >=300 gold and faces a stronger enemy",
+    "criteria_false": "gold <300 or no stronger enemy present",
+    "action_kind": "recall",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "retreat_from_tower",
+    "condition": "is an enemy tower visible AND is there no allied minion near this bot?",
+    "criteria_true": "tower seen, alone (no minions)",
+    "criteria_false": "no tower or has minions nearby",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "finish_kill_ability",
+    "condition": "is this bot's primary ability ready AND is there an enemy bearbot in sight with less than 100 hp?",
+    "criteria_true": "ability ready and low-hp enemy present",
+    "criteria_false": "ability not ready or no low-hp enemy",
+    "action_kind": "ability",
+    "action_ability": "staccato",
+    "action_target_selector": "lowest_hp_enemy"
+   },
+   {
+    "id": "finish_kill_attack",
+    "condition": "is there an enemy bearbot in sight with less than 100 hp?",
+    "criteria_true": "low-hp enemy present",
+    "criteria_false": "no low-hp enemy",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "lowest_hp_enemy"
+   },
+   {
+    "id": "attack_tower",
+    "condition": "is an enemy tower visible AND are at least two allied minions near this bot?",
+    "criteria_true": "tower seen with 2+ minions",
+    "criteria_false": "no tower or fewer than 2 minions",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_tower"
+   },
+   {
+    "id": "hunt_carrier",
+    "condition": "is there an enemy bearbot in sight?",
+    "criteria_true": "enemy bearbot present",
+    "criteria_false": "no enemy bearbot",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "highest_bounty_enemy"
+   },
+   {
+    "id": "attack_minion_or_enemy",
+    "condition": "is an enemy minion in sight?",
+    "criteria_true": "enemy minion present",
+    "criteria_false": "no enemy minion",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_enemy"
+   },
+   {
+    "id": "push_with_wave",
+    "condition": "is an allied minion near this bot?",
+    "criteria_true": "allied minion present",
+    "criteria_false": "no allied minion",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "nearby_minion"
+   }
+  ],
+  "default_action": {
+   "kind": "move",
+   "ability": null,
+   "target_selector": "home"
+  },
+  "validation_notes": [
+   "instrument scope: 2 clause(s) your prose marks for another instrument were left out of the violin schema (each is compiled only for the instrument it names): \"drums only: Road Case, then Bass Strings, then Amp.\"; \"keytar only: Metronome, then Amp, then Road Case.\""
+  ],
+  "build": [
+   "amp",
+   "bass-strings",
+   "road-case"
+  ]
+ }
+}
