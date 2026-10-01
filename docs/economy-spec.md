@@ -1554,6 +1554,9 @@ unchanged, $2.04.
 - **The pilot path does not.** The nearest-allied-minion target (`tools/jev/target_resolve.py`)
   breaks a three-lane tie at the fountain on float noise. Green bots are sent up the top lane (135 of
   136), and violet's mostly down mid. Capture splits and side reads wait on that fix.
+  *(Fixed 2026-10-01 as the targeting rule `own-lane-1`: from its own fountain, "the nearest
+  allied minion" is the start of the bot's own lane, and near-ties break side-symmetrically.
+  `tools/match/test_targeting.mjs` drives it from both fountains of a real mirror match.)*
 
 ---
 

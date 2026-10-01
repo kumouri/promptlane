@@ -133,6 +133,12 @@ on the same start-of-step world (`--resolution simultaneous-1`, `src/resolution.
 own order lets violet act first, which tilted `pvp-1` toward violet
 ([`runs/side-fairness-2026-10-01.md`](runs/side-fairness-2026-10-01.md)). `--resolution sequential`
 plays the old order. The log records the resolution, and a log without one replays sequentially.
+**Targeting.** A schema side's targets resolve under `own-lane-1` (`--targeting`,
+`tools/jev/target_resolve.py`). From its own fountain, "the nearest allied minion" sends a bot to the
+start of its own lane, and a near-tie between targets breaks the same way for both sides. Before, the
+fountain's three-way tie went to float noise and sent green's bots up the top lane
+([`runs/bandstand-4-2026-10-01.md`](runs/bandstand-4-2026-10-01.md)). `--targeting first-min` plays the
+old rule. The log records the rule; a log without one played `first-min`.
 **Economy.** `--economy eco-2` plays the Jam economy: respawn, gold, levels, four items and a shop
 at base (`src/economy.ts`, every number in `src/economy/eco-2.json`; the design is
 `docs/economy-spec.md`). `eco-1` is P1's starting values, kept so older runs reproduce. It is off

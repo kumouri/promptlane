@@ -54,8 +54,9 @@ export const DEFAULT_CAMPAIGN = {
   // into a campaign or reuse a match played under other rules. `map` mirrors DEFAULT_MAP
   // (src/mapVariant.ts; a test holds them equal); `economy` and `objective` are none until the Sun
   // 10-04 gate (src/economy.ts DEFAULT_ECONOMY, src/objective.ts DEFAULT_OBJECTIVE); `resolution`
-  // mirrors DEFAULT_RESOLUTION (src/resolution.ts).
-  shape: { cadenceSec: 2, maxSimSec: 600, map: 'pvp-1', economy: 'none', objective: 'none', resolution: 'simultaneous-1' },
+  // mirrors DEFAULT_RESOLUTION (src/resolution.ts) and `targeting` DEFAULT_TARGETING
+  // (tools/match/jevSchemaPilot.ts).
+  shape: { cadenceSec: 2, maxSimSec: 600, map: 'pvp-1', economy: 'none', objective: 'none', resolution: 'simultaneous-1', targeting: 'own-lane-1' },
   evaluation: { seedsPerEpoch: 4 },
   population: { parents: 2, childrenPerParent: 2 },
   // hall of fame capped at the last 3 champions: ruled 2026-09-30 01:50 CT (spec §10 Q2)
@@ -137,7 +138,9 @@ export const SIM_VERSION = 'specimen-v1';
  * resolution. A shape that names its resolution (every campaign created since
  * `src/resolution.ts`) hashes it; one that doesn't was cached under the frozen sim's sequential
  * order and keeps playing it (`makePlayMatch` passes `--resolution sequential`), so a cached match
- * and a fresh one under the same key are always played the same way.
+ * and a fresh one under the same key are always played the same way. The targeting rule
+ * (`shape.targeting`, tools/jev/target_resolve.py) works the same way: hashed when named, and a
+ * shape that doesn't name one keeps playing `first-min` (`--targeting first-min`).
  */
 export function matchKey({ violet, green, seed, shape }) {
   const parts = [violet, green, seed, shape.cadenceSec, shape.maxSimSec];
@@ -147,6 +150,7 @@ export function matchKey({ violet, green, seed, shape }) {
   if (shape.objective !== undefined) parts.push(`objective=${shape.objective}`);
   if (shape.recall !== undefined) parts.push(`recall=${shape.recall}`);
   if (shape.resolution !== undefined) parts.push(`resolution=${shape.resolution}`);
+  if (shape.targeting !== undefined) parts.push(`targeting=${shape.targeting}`);
   return sha256(parts.join('|')).slice(0, 16);
 }
 

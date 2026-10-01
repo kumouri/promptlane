@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import { CONDITIONS, DEFAULT_RESOLUTION, PAIRINGS, SEEDS, checkResolution, metricsCommands, planMeasurement } from './measure_economy.mjs';
+import { CONDITIONS, DEFAULT_RESOLUTION, DEFAULT_TARGETING, PAIRINGS, SEEDS, checkResolution, checkTargeting, metricsCommands, planMeasurement } from './measure_economy.mjs';
 import { loadHeadless } from './load.mjs';
 
 const ROOT = path.resolve(import.meta.dirname, '..', '..');
@@ -73,4 +73,18 @@ test('every match names its tick resolution, and a run never mixes two', async (
   assert.throws(() => checkResolution(jobs, 'simultaneous-1', readLog), /played under resolution sequential, not simultaneous-1: pass --resolution sequential/);
   assert.doesNotThrow(() => checkResolution(old, 'sequential', readLog));
   assert.doesNotThrow(() => checkResolution(jobs, 'simultaneous-1', (out) => (out === jobs[0].out ? { resolution: 'simultaneous-1' } : null)));
+});
+
+test('every match names its targeting rule, and a run never mixes two', async () => {
+  const headless = await loadHeadless();
+  assert.equal(DEFAULT_TARGETING, headless.DEFAULT_TARGETING, 'the plan default follows jevSchemaPilot.ts');
+  const jobs = planMeasurement({ date: '2026-10-03', seeds: [7] });
+  assert.ok(jobs.every((j) => arg(j, '--targeting') === 'own-lane-1'));
+  const old = planMeasurement({ date: '2026-10-03', seeds: [7], targeting: 'first-min' });
+  assert.ok(old.every((j) => arg(j, '--targeting') === 'first-min'));
+  // the first job's log exists and was written before the field (first-min)
+  const readLog = (out) => (out === jobs[0].out ? { schema: 'promptlane-match-log-1', resolution: 'simultaneous-1' } : null);
+  assert.throws(() => checkTargeting(jobs, 'own-lane-1', readLog), /played under targeting first-min, not own-lane-1: pass --targeting first-min/);
+  assert.doesNotThrow(() => checkTargeting(old, 'first-min', readLog));
+  assert.doesNotThrow(() => checkTargeting(jobs, 'own-lane-1', (out) => (out === jobs[0].out ? { targeting: 'own-lane-1' } : null)));
 });

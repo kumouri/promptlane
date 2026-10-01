@@ -84,6 +84,8 @@ export function makePlayMatch(campaign) {
     if (shape.recall !== undefined) args.push('--recall', shape.recall);
     // A campaign from before the resolution was recorded was cached under the sequential order; keep it.
     args.push('--resolution', shape.resolution ?? 'sequential');
+    // Likewise a campaign from before the targeting rule was recorded was cached under first-min.
+    args.push('--targeting', shape.targeting ?? 'first-min');
     const r = await run(process.execPath, args, { timeoutMs: matchWallCapMs(shape) });
     if (r.code !== 0) throw new Error(`match failed (exit ${r.code ?? r.signal}): ${(r.stderr || r.stdout).trim().split('\n').pop()}`);
     return JSON.parse(await readFile(out, 'utf8'));

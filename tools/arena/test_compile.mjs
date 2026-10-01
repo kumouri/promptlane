@@ -154,11 +154,12 @@ async function schemaServer() {
     let body = '';
     req.on('data', (c) => (body += c));
     req.on('end', () => {
-      const { schema, observation } = JSON.parse(body);
+      const { schema, observation, targeting } = JSON.parse(body);
       seen.push(schema.instrument);
       assert.equal(schema.instrument, observation.self.instrument, 'each bearbot plays its own instrument’s schema');
+      assert.equal(targeting, 'own-lane-1', 'a practice match names the default targeting rule');
       res.writeHead(200, { 'content-type': 'application/json' });
-      res.end(JSON.stringify({ action: { kind: 'move', target: { x: 900, y: 100 } }, rule: null, answers: { low_hp: 0.1, enemy_close: 0.2 }, ms: 1 }));
+      res.end(JSON.stringify({ action: { kind: 'move', target: { x: 900, y: 100 } }, rule: null, answers: { low_hp: 0.1, enemy_close: 0.2 }, ms: 1, targeting }));
     });
   });
   await new Promise((r) => srv.listen(0, '127.0.0.1', r));
