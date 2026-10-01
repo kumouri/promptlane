@@ -40,10 +40,11 @@ schemas (`docs/translator-guards-and-defaults-spec.md` §10). Two deterministic 
 `scope_to_instrument` sets aside lines explicitly marked for another instrument before the model
 sees the prose, and `enforce_instrument_scope` removes any rule that still fires another
 instrument's ability or asks about its cooldown (a no-op in the sim, pre-empting everything below).
-SHOPPING LIST. The prompt also carries an items block generated from `src/economy/eco-1.json`
+SHOPPING LIST. The prompt also carries an items block generated from `src/economy/eco-2.json`
 (`economy_rules.item_lines`); a prose that names items or a shopping order becomes `schema.build`,
 validated by `economy_rules.normalize_build` (unknown/duplicate items dropped, over-long lists cut to
-the slot count, each with a `build:` note). No new target selectors were added for it.
+the slot count, each with a `build:` note). Economy P2 added one target selector,
+`highest_bounty_enemy` (`docs/economy-spec.md` §4.2): "go after the enemy worth the most gold".
 The instrument-scope prompt itself is deliberately unchanged: telling the model the prose is shared was measured
 (spec §10.4): each wording tried either made it write MORE foreign-ability rules or added compile failures.
 """
@@ -79,6 +80,7 @@ TARGET_SELECTORS = {
     "nearby_minion": "the nearest allied minion in the wave (for riding/positioning with it)",
     "bandstand": "move to the Bandstand, the river objective, while it is open or about to open; "
     "otherwise the same as push_lane",
+    "highest_bounty_enemy": "the visible enemy bearbot worth the most gold if killed (the highest bounty: a carrier of unspent gold)",
 }
 
 
@@ -150,7 +152,7 @@ class TranslatedSchema:
     representation that sees the whole tree, so anything that saves or sends a schema must walk
     `root` (as `compile.py`'s schema_to_dict does), never `rules`.
 
-    `build` is the entrant's shopping list: ordered `eco-1.json` item keys, at most `shop.slots`,
+    `build` is the entrant's shopping list: ordered ruleset-file (`eco-2.json`) item keys, at most `shop.slots`,
     already validated by `economy_rules.normalize_build`. `None` means "the prose names no items" --
     the economy layer then uses the instrument's default build (`docs/economy-spec.md` §4.3)."""
 

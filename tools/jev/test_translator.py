@@ -422,11 +422,19 @@ class BuildTests(unittest.TestCase):
         self.assertIn('If the prose names items or a shopping order, emit "build" in that order; otherwise omit it.', prompt)
         self.assertLess(prompt.index("ITEMS a bearbot"), prompt.index("PROSE PILOT:"))
 
-    def test_no_economy_target_selector(self):
-        # eco-1 P1 adds no selector (highest_bounty_enemy is P2, §11); the 11th is the river
-        # objective's `bandstand` (§9.7, BandstandSelectorTests below).
-        self.assertEqual(len(T.TARGET_SELECTORS), 11)
-        self.assertNotIn("highest_bounty_enemy", T.TARGET_SELECTORS)
+    def test_p2_adds_exactly_the_bounty_selector(self):
+        # docs/economy-spec.md §4.2: the economy adds ONE selector and no action kind; the other new
+        # one is the river objective's `bandstand` (§9.7, BandstandSelectorTests below).
+        self.assertEqual(len(T.TARGET_SELECTORS), 12)
+        self.assertIn("highest_bounty_enemy", T.TARGET_SELECTORS)
+        prompt = T._translation_prompt("some prose", "keytar", "chord", "arpeggio")
+        self.assertIn('"highest_bounty_enemy" -- ', prompt)
+
+    def test_a_schema_using_the_bounty_selector_parses(self):
+        raw = json.loads(json.dumps(VALID_SCHEMA))
+        raw["rules"][0]["action"] = {"kind": "attack", "ability": None, "target_selector": "highest_bounty_enemy"}
+        schema = T.parse_schema(raw, "p.md", "keytar", "raw")
+        self.assertEqual(schema.rules[0].action_target_selector, "highest_bounty_enemy")
 
     def test_render_markdown_files_build_notes_apart_from_priority_fixes(self):
         raw = dict(VALID_SCHEMA, build=["amp", "Tip Jar"])
