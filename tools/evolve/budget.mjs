@@ -3,7 +3,7 @@
  * Ceryce's rulings: a $15 cap on the first epoch (Q6, 2026-09-30 01:50 CT); "if epoch 1 doesn't take
  * $15, you can go on to epoch 2 ... but don't use more than $25 total" (03:07 CT); epoch 2's cap is
  * what's left of the $25 after epoch 1, not another flat $15 ("Epoch 2 = what's left of $25",
- * 07:34 CT); no campaign activity from Thu 2026-10-15 17:00 CT through the end of the Jam
+ * 07:34 CT); no campaign activity from Fri 2026-10-16 00:00 CDT (midnight going into the Jam; moved 2026-10-01 18:44 CT) through the end of the Jam
  * (Fri 2026-10-16; the Jam moved).
  *
  * `guardDeps` wraps the real (or fake) dependencies `runGeneration` takes. Every paid call goes
@@ -42,7 +42,7 @@ export const DEFAULT_BUDGET = {
   maxEpochs: 2,
   reserveUsd: { mutate: 0.1, compile: 0.02, match: 0.15 },
   blackouts: [
-    { start: '2026-10-15T17:00:00-05:00', end: '2026-10-17T00:00:00-05:00', why: 'entrant cutoff through the end of the Jam (Fri 2026-10-16)' },
+    { start: '2026-10-16T00:00:00-05:00', end: '2026-10-17T00:00:00-05:00', why: 'midnight going into the Jam through its end (Fri 2026-10-16; Ceryce 2026-10-01 18:44 CT)' },
   ],
 };
 

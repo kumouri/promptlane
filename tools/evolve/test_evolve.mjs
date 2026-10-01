@@ -663,9 +663,9 @@ test('budget: nothing paid runs in the blackout, or starts where it could run in
     const { campaign } = initCampaign(store, { name: 't', overrides: SMALL, seedPrompts: [{ file: 'seed.md', text: SEED_PROSE }] });
     const wallMs = 1350 * 1000; // the Jam-shape match wall cap
     const check = (iso) => assertMayContinue(store, campaign, { now: new Date(iso), kind: 'match', wallMs });
-    assert.doesNotThrow(() => check('2026-10-15T16:00:00-05:00'));
-    assert.throws(() => check('2026-10-15T16:50:00-05:00'), /could still be running when the blackout starts/);
-    assert.throws(() => check('2026-10-15T17:00:00-05:00'), /blackout/);
+    assert.doesNotThrow(() => check('2026-10-15T23:00:00-05:00'));
+    assert.throws(() => check('2026-10-15T23:50:00-05:00'), /could still be running when the blackout starts/);
+    assert.throws(() => check('2026-10-16T00:00:00-05:00'), /blackout/);
     assert.throws(() => check('2026-10-16T23:59:00-05:00'), /blackout/);
     assert.doesNotThrow(() => check('2026-10-17T00:00:00-05:00'));
 
@@ -716,6 +716,6 @@ test('defaults carry the budget rulings: $15 for epoch 1, $25 in all, two epochs
   assert.equal(b.firstEpochCapUsd, 15);
   assert.equal(b.totalCapUsd, 25);
   assert.equal(b.maxEpochs, 2);
-  assert.equal(Date.parse(b.blackouts[0].start), Date.parse('2026-10-15T22:00:00Z'));
+  assert.equal(Date.parse(b.blackouts[0].start), Date.parse('2026-10-16T05:00:00Z'));
   assert.doesNotMatch(DEFAULT_CAMPAIGN.jevSchemaEndpoint, /:8797\//);
 });
