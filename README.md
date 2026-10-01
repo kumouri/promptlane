@@ -128,6 +128,11 @@ that side decide on its compiled rule cascade instead of a chat model; see `tool
 tower covers; `src/mapVariant.ts`, measured in
 [`runs/balance-pvp-2026-09-30.md`](runs/balance-pvp-2026-09-30.md)); `--map v1` plays the specimen
 map. The log records its map and `--verify` replays on it; logs without one are specimen-map logs.
+**Resolution.** New matches resolve each tick simultaneously: both sides' bearbots and minions act
+on the same start-of-step world (`--resolution simultaneous-1`, `src/resolution.ts`). The frozen sim's
+own order lets violet act first, which tilted `pvp-1` toward violet
+([`runs/side-fairness-2026-10-01.md`](runs/side-fairness-2026-10-01.md)). `--resolution sequential`
+plays the old order. The log records the resolution, and a log without one replays sequentially.
 **Economy.** `--economy eco-2` plays the Jam economy: respawn, gold, levels, four items and a shop
 at base (`src/economy.ts`, every number in `src/economy/eco-2.json`; the design is
 `docs/economy-spec.md`). `eco-1` is P1's starting values, kept so older runs reproduce. It is off
