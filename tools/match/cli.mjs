@@ -50,8 +50,8 @@ options:
   --jev-schema URL    tools/jev/schema_server.py endpoint for the schema sides (the Jam backend)
   --map NAME          map variant (src/mapVariant.ts): pvp-1 (the default, DEFAULT_MAP there),
                       v1 (the specimen map) or pvp-1r; recorded in the log, applied on --verify
-  --economy NAME      economy ruleset (src/economy.ts): eco-2 (the tuned one), eco-1 (P1's
-                      starting values), or none (the default until the Sun 10-04 go/no-go). Respawn, gold, levels, items; each schema side buys the
+  --economy NAME      economy ruleset (src/economy.ts): eco-2 (the tuned one), eco-3 (§13.6's
+                      pass on it), eco-1 (P1's starting values), respawn-1, or none (the default until the Sun 10-04 go/no-go). Respawn, gold, levels, items; each schema side buys the
                       \`build\` its prose compiled to, else its instrument's default. Recorded in the
                       log with every bot's shopping list, applied on --verify
   --objective NAME    river objective (src/objective.ts): river-1 (the Bandstand) or none (the

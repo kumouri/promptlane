@@ -28,6 +28,10 @@
  * §9.10) instead of the specimen's 3x run. Without it the plan is exactly the one above. Use a new
  * `--date` for such a run, so its logs never mix with a run on the specimen recall.
  *
+ * `--economy eco-3` plays the conditions that pay gold (B0, B1) on another preset; A and R are
+ * unchanged. It is how §13.6's tuning pass re-runs B1 alone (`--conditions B1 --economy eco-3`). Use
+ * a new `--date` for it too: a date whose existing logs carry another economy refuses to resume.
+ *
  * Every match plays the tick resolution `--resolution` names (src/resolution.ts; default
  * simultaneous-1, the runner's DEFAULT_RESOLUTION). A date whose existing logs were played under
  * another one (every log written before the option existed is `sequential`) refuses to resume
@@ -61,8 +65,8 @@ const SIDE_FILES = {
 export const CONDITIONS = {
   A: { economy: 'none', prompts: 'plain' },
   R: { economy: 'respawn-1', prompts: 'plain' },
-  B0: { economy: 'eco-2', prompts: 'plain' },
-  B1: { economy: 'eco-2', prompts: 'eco' },
+  B0: { economy: 'eco-2', prompts: 'plain', priced: true },
+  B1: { economy: 'eco-2', prompts: 'eco', priced: true },
 };
 export const PAIRINGS = { hard: ['medium', 'hard'], entrant: ['medium', 'entrant'] };
 
@@ -72,7 +76,7 @@ export const DEFAULT_RESOLUTION = 'simultaneous-1';
 export const logFile = (date, condition, pairing, seed) => `runs/economy-measure-${date}-${condition}-medium-vs-${pairing}-seed${seed}.json`;
 
 /** Every match of the plan, seed-major, as the `npm run match` arguments that play it. */
-export function planMeasurement({ date, jevSchema = 'http://127.0.0.1:8851/', seeds = SEEDS, conditions = Object.keys(CONDITIONS), pairings = Object.keys(PAIRINGS), recall = null, resolution = DEFAULT_RESOLUTION }) {
+export function planMeasurement({ date, jevSchema = 'http://127.0.0.1:8851/', seeds = SEEDS, conditions = Object.keys(CONDITIONS), pairings = Object.keys(PAIRINGS), recall = null, resolution = DEFAULT_RESOLUTION, economy = null }) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date ?? '')) throw new Error('--date YYYY-MM-DD is required (it names the logs)');
   const jobs = [];
   for (const seed of seeds) {
@@ -83,14 +87,15 @@ export function planMeasurement({ date, jevSchema = 'http://127.0.0.1:8851/', se
         if (!c) throw new Error(`unknown condition ${condition} (known: ${Object.keys(CONDITIONS).join(', ')})`);
         const [a, b] = PAIRINGS[pairing].map((side) => ({ name: side, ...SIDE_FILES[c.prompts][side] }));
         const out = logFile(date, condition, pairing, seed);
+        const ruleset = c.priced && economy ? economy : c.economy;
         const args = [
           '--a', a.prompt, '--a-schemas', a.schemas, '--name-a', a.name,
           '--b', b.prompt, '--b-schemas', b.schemas, '--name-b', b.name,
           '--jev-schema', jevSchema, '--map', 'pvp-1', '--cadence', '2', '--seed', String(seed),
-          '--economy', c.economy, '--resolution', resolution, '--out', out, '--quiet',
+          '--economy', ruleset, '--resolution', resolution, '--out', out, '--quiet',
           ...(recall ? ['--recall', recall] : []),
         ];
-        jobs.push({ seed, pairing, condition, out, args });
+        jobs.push({ seed, pairing, condition, economy: ruleset, out, args });
       }
     }
   }
@@ -113,13 +118,23 @@ export function checkResolution(jobs, resolution, readLog) {
   }
 }
 
+/** Likewise for the economy: refuse to add matches to a plan whose existing logs played another ruleset. */
+export function checkEconomy(jobs, readLog) {
+  for (const j of jobs) {
+    const log = readLog(j.out);
+    if (!log) continue;
+    const played = log.economy?.ruleset?.name ?? 'none';
+    if (played !== j.economy) throw new Error(`${j.out} was played under economy ${played}, not ${j.economy}: use a new --date`);
+  }
+}
+
 /** The two metrics runs §6.2 reads: everything paired against A, and B1 paired against B0. */
-export function metricsCommands(date) {
+export function metricsCommands(date, conditions = Object.keys(CONDITIONS)) {
   const g = (c) => `--group ${c} runs/economy-measure-${date}-${c}-*.json`;
-  return [
-    `npm run metrics -- ${['A', 'R', 'B0', 'B1'].map(g).join(' ')} --json runs/economy-measure-${date}-metrics.json --md runs/economy-measure-${date}-metrics.md`,
-    `npm run metrics -- ${['B0', 'B1'].map(g).join(' ')} --md runs/economy-measure-${date}-b1-vs-b0.md`,
-  ];
+  const ran = Object.keys(CONDITIONS).filter((c) => conditions.includes(c));
+  const cmds = [`npm run metrics -- ${ran.map(g).join(' ')} --json runs/economy-measure-${date}-metrics.json --md runs/economy-measure-${date}-metrics.md`];
+  if (ran.length > 2 && ran.includes('B0') && ran.includes('B1')) cmds.push(`npm run metrics -- ${['B0', 'B1'].map(g).join(' ')} --md runs/economy-measure-${date}-b1-vs-b0.md`);
+  return cmds;
 }
 
 function parseArgs(argv) {
@@ -140,6 +155,7 @@ function parseArgs(argv) {
       case '--parallel': args.parallel = Number(next()); break;
       case '--recall': args.recall = next(); break;
       case '--resolution': args.resolution = next(); break;
+      case '--economy': args.economy = next(); break;
       case '--dry-run': args.dryRun = true; break;
       default: throw new Error(`unknown option ${a}`);
     }
@@ -159,10 +175,12 @@ function runOne(job) {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const jobs = planMeasurement(args);
-  checkResolution(jobs, args.resolution ?? DEFAULT_RESOLUTION, (out) => {
+  const readLog = (out) => {
     const file = path.join(ROOT, out);
     return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : null;
-  });
+  };
+  checkResolution(jobs, args.resolution ?? DEFAULT_RESOLUTION, readLog);
+  checkEconomy(jobs, readLog);
   const todo = jobs.filter((j) => !existsSync(path.join(ROOT, j.out)));
   console.log(`economy measurement ${args.date}: ${jobs.length} matches planned, ${jobs.length - todo.length} already logged, ${todo.length} to run`);
   if (args.dryRun) {
@@ -188,7 +206,7 @@ async function main() {
     }
   }
   console.log('\nthen measure:');
-  for (const c of metricsCommands(args.date)) console.log(`  ${c}`);
+  for (const c of metricsCommands(args.date, args.conditions)) console.log(`  ${c}`);
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
