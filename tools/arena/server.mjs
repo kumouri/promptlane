@@ -192,7 +192,8 @@ export async function createArena({
   // one prompt per side) or a single file (house.md, then drums.md) — or `house.tier`'s pair
   // (easy / medium / hard; unset = medium via the default list). See house.mjs.
   const houseHandle = config.house?.handle ?? 'house';
-  const houseCandidate = pickHouse(houseCandidates(config.house), ROOT);
+  // Under an economy, a tier (or the default) is its economy-aware version (house.mjs HOUSE_TIERS_ECO).
+  const houseCandidate = pickHouse(houseCandidates(config.house, tournament.economy ?? null), ROOT);
   if (!houseCandidate) throw new Error('no house prompt found (config.house.files / config.house.tier)');
   const houseFile = candidateLabel(houseCandidate);
   const houseText = bundleHouse(houseCandidate, ROOT);

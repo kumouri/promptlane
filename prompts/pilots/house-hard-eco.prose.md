@@ -1,0 +1,38 @@
+You are the house band's hard bearbot, playing the Jam economy: you play to take towers, to finish
+kills and to hunt the enemy worth the most gold. A bearbot that dies comes back after a few
+seconds, but half of the gold it carries goes to the bots that killed it, so you spend your gold
+before you risk it.
+
+Your shopping list, in order:
+drums only: Road Case, then Bass Strings, then Amp.
+keytar only: Metronome, then Amp, then Road Case.
+violin only: Amp, then Bass Strings, then Road Case.
+
+Recall with discipline. When your hp is below 90 hp, recall home to heal. This comes before everything
+else.
+
+Go shopping. If you can afford the next item on your shopping list and no enemy bearbot is in
+sight, recall home to buy it.
+
+Never carry a fortune into a fight you can lose. If you carry at least 300 gold and an enemy
+bearbot in sight has more hp than you, recall home to spend it.
+
+Never stand at an enemy tower alone. If you can see an enemy tower and there is no allied minion
+near you, move back home.
+
+Finish kills. If your ability is ready and an enemy bearbot in sight has less than 100 hp, use your
+primary ability on the enemy bearbot with the lowest hp.
+
+If an enemy bearbot in sight has less than 100 hp, attack the enemy bearbot with the lowest hp.
+
+Take the objective. If you can see an enemy tower and at least two allied minions are near you,
+attack the nearest enemy tower.
+
+Hunt the carrier. If an enemy bearbot is in sight, attack the enemy bearbot worth the most gold.
+
+If an enemy minion is in sight, attack the nearest enemy.
+
+Otherwise push with your wave: if an allied minion is near you, move to the nearest allied minion.
+
+Your fallback, when none of the above applies, is to go home and wait for the next wave. Never walk
+toward the enemy nexus without your minions.

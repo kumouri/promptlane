@@ -21,6 +21,14 @@
  * tier's COMPILED schemas, `prompts/pilots/house-<tier>.schemas.json` -- the cascades the tiers were
  * measured with on Jev (`runs/house-tiers-2026-09-30.md`), checked in and fixed, so the placement bar
  * is not re-sampled on every restart. `config.house.schemas` names another file instead.
+ *
+ * Under an economy (`tournament.economy`, `npm run match --economy`) each tier plays its
+ * ECONOMY-AWARE version instead (docs/economy-spec.md §4.4, §12.2): the same strategy plus a declared
+ * shopping list and, for medium and hard, a recall-to-shop rule (hard also spends before a losing
+ * fight and hunts the enemy worth the most gold). Medium stays a worksheet pair
+ * (`house-eco-{violet,green}.md`, worksheet keys `gold`/`next`/`home` added); easy and hard are prose
+ * (`house-<tier>-eco.prose.md`), one file for both sides. Their compiles are
+ * `house-<tier>-eco.schemas.json`. With no economy, nothing here changes.
  */
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
@@ -30,8 +38,15 @@ const pair = (stem) => ({ violet: `prompts/pilots/${stem}-violet.md`, green: `pr
 
 export const HOUSE_TIERS = { easy: pair('house-easy'), medium: pair('house'), hard: pair('house-hard') };
 export const DEFAULT_HOUSE_TIER = 'medium';
+/** The economy-aware tiers: a {violet, green} pair or one prose file for both sides. */
+export const HOUSE_TIERS_ECO = {
+  easy: 'prompts/pilots/house-easy-eco.prose.md',
+  medium: pair('house-eco'),
+  hard: 'prompts/pilots/house-hard-eco.prose.md',
+};
 /** Each tier's prose compiled for Jev ({drums, keytar, violin}; `npm run match --a-schemas` shape). */
 export const HOUSE_TIER_SCHEMAS = Object.fromEntries(Object.keys(HOUSE_TIERS).map((t) => [t, `prompts/pilots/house-${t}.schemas.json`]));
+export const HOUSE_TIER_ECO_SCHEMAS = Object.fromEntries(Object.keys(HOUSE_TIERS_ECO).map((t) => [t, `prompts/pilots/house-${t}-eco.schemas.json`]));
 const INSTRUMENTS = ['drums', 'keytar', 'violin'];
 
 export const DEFAULT_HOUSE_FILES = [HOUSE_TIERS[DEFAULT_HOUSE_TIER], 'prompts/pilots/house.md', 'prompts/pilots/drums.md'];
@@ -42,25 +57,37 @@ export function tierPair(tier) {
   return HOUSE_TIERS[tier];
 }
 
+/** A tier's candidate: its pair, or under an economy (any non-null `economy`) its economy-aware candidate. */
+export function tierCandidate(tier, economy = null) {
+  const plain = tierPair(tier);
+  return economy == null ? plain : HOUSE_TIERS_ECO[tier];
+}
+
 /**
  * The match CLI's shorthand: `house` or `house:<tier>` → that tier's file for `side` (so the house
- * plays its own side's literals wherever it is placed); any other string is not a house spec → null.
+ * plays its own side's literals wherever it is placed; under an economy, the tier's economy-aware
+ * file); any other string is not a house spec → null.
  */
-export function houseSpecFile(spec, side) {
+export function houseSpecFile(spec, side, economy = null) {
   const m = /^house(?::(.*))?$/.exec(spec);
-  return m ? tierPair(m[1] ?? DEFAULT_HOUSE_TIER)[side] : null;
+  if (!m) return null;
+  const candidate = tierCandidate(m[1] ?? DEFAULT_HOUSE_TIER, economy);
+  return typeof candidate === 'string' ? candidate : candidate[side];
 }
 
 /**
  * `config.house` → its candidate list. `tier` names exactly one pair (no silent fallback: a missing
  * tier file fails startup); `files` is the explicit list; neither is the default list. Both is an error.
+ * Under an economy (`tournament.economy` non-null) a tier, or the default, is its economy-aware
+ * candidate; an explicit `files` list is taken as written.
  */
-export function houseCandidates(house = {}) {
+export function houseCandidates(house = {}, economy = null) {
   const tier = house?.tier ?? null;
   const files = house?.files ?? null;
   if (tier !== null && files !== null) throw new Error('config.house: set tier or files, not both');
-  if (tier !== null) return [tierPair(tier)];
-  return files ?? DEFAULT_HOUSE_FILES;
+  if (tier !== null) return [tierCandidate(tier, economy)];
+  if (files) return files;
+  return economy == null ? DEFAULT_HOUSE_FILES : [tierCandidate(DEFAULT_HOUSE_TIER, economy), ...DEFAULT_HOUSE_FILES];
 }
 
 const SIDES = ['violet', 'green'];
@@ -91,15 +118,19 @@ export function bundleHouse(candidate, root, read = (f) => readFileSync(f, 'utf8
 }
 
 /**
- * The schema file the house plays on Jev: `house.schemas` if set, else the tier whose pair is the
- * picked candidate (so a `files` list whose first pair is medium's still finds medium's schemas),
- * else null -- a single-file house (`house.md`, `drums.md`) has no checked-in compile.
+ * The schema file the house plays on Jev: `house.schemas` if set, else the tier (plain or
+ * economy-aware) whose candidate is the picked one (so a `files` list whose first pair is medium's
+ * still finds medium's schemas), else null -- a single-file house (`house.md`, `drums.md`) has no
+ * checked-in compile.
  */
 export function houseSchemasFile(house = {}, candidate = null) {
   if (house?.schemas) return house.schemas;
-  if (!candidate || typeof candidate === 'string') return null;
-  const tier = Object.keys(HOUSE_TIERS).find((t) => HOUSE_TIERS[t].violet === candidate.violet && HOUSE_TIERS[t].green === candidate.green);
-  return tier ? HOUSE_TIER_SCHEMAS[tier] : null;
+  if (!candidate) return null;
+  const same = (c) => (typeof c === 'string' || typeof candidate === 'string' ? c === candidate : c.violet === candidate.violet && c.green === candidate.green);
+  const tier = Object.keys(HOUSE_TIERS).find((t) => same(HOUSE_TIERS[t]));
+  if (tier) return HOUSE_TIER_SCHEMAS[tier];
+  const ecoTier = Object.keys(HOUSE_TIERS_ECO).find((t) => same(HOUSE_TIERS_ECO[t]));
+  return ecoTier ? HOUSE_TIER_ECO_SCHEMAS[ecoTier] : null;
 }
 
 /** `{schemas: {drums, keytar, violin}, hash}` from a schema file; throws unless all three are there. */
