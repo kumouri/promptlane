@@ -110,12 +110,12 @@ class ScopeToInstrumentTests(unittest.TestCase):
     def test_house_violet_sets_aside_the_other_two_lines(self):
         scoped = T.scope_to_instrument(HOUSE_VIOLET, "drums")
         self.assertEqual(len(scoped.set_aside), 2)
-        self.assertTrue(scoped.set_aside[0].lstrip().startswith("3. keytar only:"))
+        self.assertTrue(scoped.set_aside[0].lstrip().startswith("4. keytar only:"))
         self.assertTrue(scoped.set_aside[1].lstrip().startswith("violin only:"))
         self.assertIn("drums only: cd is 0", scoped.text)
-        # nothing else moves: rule 2 and rule 4 are still there, in order
-        self.assertLess(scoped.text.index("2. tower is not null"), scoped.text.index("drums only:"))
-        self.assertLess(scoped.text.index("drums only:"), scoped.text.index("4. foe is not null"))
+        # nothing else moves: rule 3 and rule 5 are still there, in order (rule 2 is the Bandstand)
+        self.assertLess(scoped.text.index("3. tower is not null"), scoped.text.index("drums only:"))
+        self.assertLess(scoped.text.index("drums only:"), scoped.text.index("5. foe is not null"))
 
     def test_marker_forms(self):
         prose = "\n".join([

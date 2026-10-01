@@ -19,10 +19,28 @@ the hp-quarter recall threshold, melee vs. ranged distance, ability cooldown, a 
 isolated enemy, a threatened ally, a lowest-hp ("softest") target among several. No distance/range
 field is precomputed into the Observation -- only raw `pos: {x,y}`, same as the real contract -- so
 neither the ground-truth model nor the translated schema gets help the real game wouldn't give it.
+
+`OBJECTIVE_SCENARIOS` (`objective_scenarios()`) are matches played with the river objective
+(`docs/economy-spec.md` §9.7): the same shape plus the `bandstand` block and the Encore fields
+`src/objective.ts` adds. They are separate from `all_scenarios()`, which stays the original twelve.
 """
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
+from pathlib import Path
+
+RIVER_RULES_PATH = Path(__file__).resolve().parents[2] / "src" / "objective" / "river-1.json"
+_river_rules: dict | None = None
+
+
+def river_rules() -> dict:
+    """`src/objective/river-1.json` (the Bandstand's sites, timings, Encore and rewards), read once.
+    It is the single source of those numbers; Python never restates them."""
+    global _river_rules
+    if _river_rules is None:
+        _river_rules = json.loads(RIVER_RULES_PATH.read_text(encoding="utf-8"))
+    return _river_rules
 
 # Ability names per instrument, in (primary, ultimate) order -- drums.md/keytar.md/violin.md's own
 # vocabulary (verbatim from each file).
@@ -59,6 +77,12 @@ class Scenario:
     enemies: list = field(default_factory=list)  # bearbot/minion/tower/nexus, all go in visibleEnemies
     minions: list = field(default_factory=list)  # nearbyMinions -- team-flagged, both sides possible
     clock_sec: float = 90.0
+    # The river objective (docs/economy-spec.md §9.7). None = a match without it: the Observation
+    # then has no `bandstand` block and no Encore fields, exactly as today. Otherwise the block's
+    # `status`/`site`/`opensInSec`/`progress`/`contested`/`alliesOn`/`selfOn`; `pos` and `radius`
+    # are filled in from river-1.json by site.
+    bandstand: dict | None = None
+    encore: dict = field(default_factory=dict)  # Encore seconds left by entity id ("self" for this bot)
 
 
 def E(id, pos, hp_frac, kind="bearbot", max_hp=200.0):
@@ -150,6 +174,60 @@ SCENARIOS: list[Scenario] = [
 ]
 
 
+def _stand(status, site="top-side", opens_in=None, progress=0.0, contested=False, allies_on=0, self_on=False):
+    return {"status": status, "site": site, "opensInSec": opens_in, "progress": progress,
+            "contested": contested, "alliesOn": allies_on, "selfOn": self_on}
+
+
+# Matches played WITH the river objective (`bandstand` block + Encore fields). Kept out of
+# `SCENARIOS`/`all_scenarios()` on purpose: those drive the recorded fidelity, backend-parity and
+# guard-calibration runs, whose scenario counts must not move. Each sits on one of the Bandstand
+# prose sentences in docs/economy-spec.md §9.7's entrant table.
+OBJECTIVE_SCENARIOS: list[Scenario] = [
+    Scenario(
+        name="bandstand_open_enemy_taking",
+        description="The Bandstand is open and the enemy team is 40 % of the way to taking it; none of our team on it, no enemy in sight. Tests 'if the enemy is taking the Bandstand, go stop them'.",
+        self_hp_frac=0.85, primary_ready=True, ultimate_ready=True, clock_sec=100.0,
+        bandstand=_stand("open", progress=-0.4),
+    ),
+    Scenario(
+        name="bandstand_open_contested_ally_on",
+        description="The Bandstand is open and contested: an ally is on the stage with an enemy bearbot. Tests 'if it is contested and a teammate is on it, join the fight'.",
+        self_hp_frac=0.80, primary_ready=True, ultimate_ready=True, clock_sec=104.0,
+        allies=[E("ally-on-stage", {"x": 310, "y": 320}, 0.7)],
+        enemies=[E("enemy-on-stage", {"x": 290, "y": 285}, 0.6)],
+        bandstand=_stand("open", progress=0.2, contested=True, allies_on=1),
+    ),
+    Scenario(
+        name="bandstand_upcoming_near",
+        description="The Bandstand opens in 8 s at the near site; nothing visible. Tests 'when the Bandstand opens, go take it' one step early.",
+        self_hp_frac=0.90, primary_ready=True, ultimate_ready=True, clock_sec=82.0,
+        bandstand=_stand("upcoming", opens_in=8),
+    ),
+    Scenario(
+        name="bandstand_closed_low_hp",
+        description="The Bandstand is closed (next at the far site in 55 s) and this bot is below half health. Tests 'leave the Bandstand alone unless I'm above half health' and the push_lane fallback.",
+        self_hp_frac=0.40, primary_ready=True, ultimate_ready=True, clock_sec=200.0,
+        bandstand=_stand("closed", site="bottom-side", opens_in=55),
+    ),
+    Scenario(
+        name="encore_weak_enemy_visible",
+        description="Our team just took the Bandstand (it is closed until the next set): self and an ally have Encore; a weak enemy bearbot and one with Encore are visible. Tests 'while we have Encore, go after their weakest bot'.",
+        self_hp_frac=0.75, primary_ready=True, ultimate_ready=True, clock_sec=130.0,
+        allies=[E("ally-encore", {"x": 330, "y": 470}, 0.8)],
+        enemies=[E("enemy-weak", {"x": 420, "y": 470}, 0.2), E("enemy-encore", {"x": 520, "y": 420}, 0.9)],
+        bandstand=_stand("closed", site="bottom-side", opens_in=74),
+        encore={"self": 21.0, "ally-encore": 21.0, "enemy-encore": 12.5},
+    ),
+    Scenario(
+        name="bandstand_done",
+        description="Late match: the Bandstand will not open again. Tests that Bandstand rules stay quiet and the selector falls back to push_lane.",
+        self_hp_frac=0.90, primary_ready=True, ultimate_ready=True, clock_sec=560.0,
+        bandstand=_stand("done", site="bottom-side"),
+    ),
+]
+
+
 def _entity_dict(spec: EntitySpec, max_hp: float | None = None) -> dict:
     mh = max_hp if max_hp is not None else spec.max_hp
     return {"id": spec.id, "pos": spec.pos, "hp": round(spec.hp_frac * mh, 1), "maxHp": mh}
@@ -176,7 +254,7 @@ def build_observation(scenario: Scenario, team: str, instrument: str) -> dict:
         # minions named "minion-enemy-*" belong to the enemy team, "minion-ally-*" to our team
         d["team"] = enemy_team if m.id.startswith("minion-enemy") else team
         nearby_minions.append(d)
-    return {
+    obs = {
         "clockSec": scenario.clock_sec,
         "self": {
             "id": f"{team}-{instrument}",
@@ -194,7 +272,34 @@ def build_observation(scenario: Scenario, team: str, instrument: str) -> dict:
         "nearbyMinions": nearby_minions,
         "nearbyTowers": [],
     }
+    if scenario.bandstand is not None:
+        _add_objective(obs, scenario)
+    return obs
+
+
+def _add_objective(obs: dict, scenario: Scenario) -> None:
+    """The fields `src/objective.ts`'s `observe` adds (contract: `encoreSec` on self and every ally,
+    `encore` on enemy bearbots only, and the `bandstand` block)."""
+    enc = scenario.encore
+    obs["self"]["encoreSec"] = enc.get("self", 0)
+    for a in obs["allies"]:
+        a["encoreSec"] = enc.get(a["id"], 0)
+    for e in obs["visibleEnemies"]:
+        if e["kind"] == "bearbot":
+            e["encore"] = enc.get(e["id"], 0) > 0
+    rules = river_rules()
+    site = next(s for s in rules["sites"] if s["id"] == scenario.bandstand["site"])
+    obs["bandstand"] = {
+        "site": site["id"],
+        "pos": {"x": site["x"], "y": site["y"]},
+        "radius": rules["radius"],
+        **{k: v for k, v in scenario.bandstand.items() if k != "site"},
+    }
 
 
 def all_scenarios() -> list[Scenario]:
     return list(SCENARIOS)
+
+
+def objective_scenarios() -> list[Scenario]:
+    return list(OBJECTIVE_SCENARIOS)

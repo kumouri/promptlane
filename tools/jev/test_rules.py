@@ -160,5 +160,82 @@ class LiveRule3Tests(unittest.TestCase):
         self.assertEqual(R.bucket_for_rule(R.first_match(answers)), "attack_foe")
 
 
+SIX = [
+    "q1_low_hp_recall",
+    "q2_tower_no_wave_go_home",
+    "q3_ability_ready",
+    "q4_foe_present_attack",
+    "q5_tower_present_attack",
+    "q6_wave_present_ride",
+]
+
+
+class BandstandRuleTests(unittest.TestCase):
+    """house-violet.md's rule 2 (medium's Bandstand rule): stand "open", no enemy bearbot in sight,
+    hp above 50 % of maxHp -> move to the Bandstand. Asked only with the objective."""
+
+    def stand(self, **overrides):
+        base = dict(foe_detail=True, stand="open", max_hp=140, hp=120, wave=1)
+        base.update(overrides)
+        return ws(**base)
+
+    def decide(self, w):
+        return R.bucket_for_rule(R.first_match(R.ground_truth_answers(w)))
+
+    def test_no_objective_asks_and_answers_exactly_the_six(self):
+        for w in (ws(), ws(foe_detail=True, foe="bb-1", foe_kind="bearbot", foe_hp=50, max_hp=None)):
+            self.assertEqual([q.id for q in R.bind_questions("violin", w)], SIX)
+            self.assertEqual(list(R.ground_truth_answers(w)), SIX)
+        self.assertEqual([q.id for q in R.question_set("drums", True)], SIX)
+
+    def test_no_objective_decisions_are_unchanged(self):
+        # stand None: the predicate is false whatever else is true, and q1b is never in the answers.
+        self.assertFalse(R.rule8_bandstand_open(ws(foe_detail=True, hp=200, max_hp=140)))
+        self.assertEqual(self.decide(ws(hp=200, wave=1)), "ride_wave")
+        self.assertEqual(R.first_match(R.ground_truth_answers(ws(hp=200, wave=0, tower="tw-1"))), 2)
+
+    def test_objective_adds_the_question_second_numbered_8(self):
+        bound = R.bind_questions("keytar", self.stand())
+        self.assertEqual([q.id for q in bound], [SIX[0], "q1b_bandstand_open", *SIX[1:]])
+        q1b = bound[1]
+        self.assertEqual(q1b.rule_number, R.BANDSTAND_RULE)
+        self.assertEqual(R.BANDSTAND_RULE, 8)
+        self.assertIn("Bandstand", q1b.instructions)
+        self.assertTrue(q1b.ground_truth_value)
+
+    def test_fires_when_open_no_bearbot_and_above_half(self):
+        self.assertTrue(R.rule8_bandstand_open(self.stand()))
+        self.assertTrue(R.rule8_bandstand_open(self.stand(foe="mn-3", foe_kind="minion", foe_hp=40)))
+        self.assertEqual(self.decide(self.stand()), "bandstand")
+        self.assertEqual(R.first_match(R.ground_truth_answers(self.stand())), 8)
+
+    def test_condition_1_needs_the_stand_open(self):
+        for status in ("closed", "upcoming", "done"):
+            self.assertFalse(R.rule8_bandstand_open(self.stand(stand=status)), status)
+            self.assertEqual(self.decide(self.stand(stand=status)), "ride_wave", status)
+
+    def test_condition_2_no_enemy_bearbot_in_sight(self):
+        bearbot = self.stand(foe="bb-5", foe_kind="bearbot", foe_hp=130, cd=2.0)
+        self.assertFalse(R.rule8_bandstand_open(bearbot))
+        self.assertEqual(self.decide(bearbot), "attack_foe")
+        # A foe of unknown kind (no foe_detail) is not assumed to be a minion.
+        self.assertFalse(R.rule8_bandstand_open(self.stand(foe_detail=False, foe="mn-3")))
+
+    def test_condition_3_hp_above_half_of_max(self):
+        self.assertFalse(R.rule8_bandstand_open(self.stand(hp=75, max_hp=150)))  # exactly half: not above
+        self.assertTrue(R.rule8_bandstand_open(self.stand(hp=76, max_hp=150)))
+        self.assertFalse(R.rule8_bandstand_open(self.stand(hp=100, max_hp=220)))
+        self.assertFalse(R.rule8_bandstand_open(self.stand(max_hp=None)))
+
+    def test_recall_still_comes_first_and_the_stand_beats_the_tower_rule(self):
+        self.assertEqual(self.decide(self.stand(hp=74, max_hp=100)), "recall")
+        self.assertEqual(self.decide(self.stand(tower="tw-9", wave=0)), "bandstand")
+
+    def test_bucket_for_rule_8(self):
+        self.assertEqual(R.bucket_for_rule(8), "bandstand")
+        self.assertEqual(R.first_match({"q1_low_hp_recall": True, "q1b_bandstand_open": True}), 1)
+        self.assertEqual(R.first_match({"q1b_bandstand_open": True, "q2_tower_no_wave_go_home": True}), 8)
+
+
 if __name__ == "__main__":
     unittest.main()

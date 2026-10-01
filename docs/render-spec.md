@@ -310,7 +310,10 @@ but worth not architecting against).
   *Economy matches are the exception, because there the stat is real:* a match whose log has an
   economy (`src/economy.ts`) draws each bearbot's level, unspent gold and item initials under it
   (`L3 340g RA`), and a respawn countdown over a dead bearbot's husk. A match without one draws
-  exactly what it did before.
+  exactly what it did before. *Likewise the river objective:* a match whose log has one
+  (`src/objective.ts`) draws the Bandstand's stage on the river, its capture bar as a ring in the
+  leading team's colour, a countdown while it is closed or upcoming, a contested rim, a gold glow on
+  bearbots with the Encore, and a `Bandstand 2–1` capture count in the top bar.
 - **Clock** — already exists (`clockText`, MM:SS countdown), keep it.
 - **Legibility pass for arbitrary viewports.** The current `.topbar`/`.score` CSS was sized for
   someone sitting at a laptop keyboard, but every spectator now watches on their own device — a

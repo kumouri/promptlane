@@ -13,17 +13,22 @@ Jev has no `prompt` field). This server's contract is different by design:
                         "budget_usd", "jev_backend", "token_source", "token_expires_in_sec",
                         "token_renewals", "jev_fallback_*" (typesafe only)}
     POST /         body: {"hp", "wave", "tower", "foe", "cd", "instrument", "team", "tick",
-                           "clockSec", "foeKind"?, "foeHp"?} -- exactly `rules.Worksheet`'s fields,
-                           camelCase on the wire (the caller is TypeScript), snake_case once parsed
-                           into a Worksheet. `foeKind`/`foeHp` present -> `foe_detail=True`.
+                           "clockSec", "foeKind"?, "foeHp"?, "stand"?, "maxHp"?} -- exactly
+                           `rules.Worksheet`'s fields, camelCase on the wire (the caller is
+                           TypeScript), snake_case once parsed into a Worksheet. `foeKind`/`foeHp`
+                           present -> `foe_detail=True`. `stand`/`maxHp` come together, only from a
+                           match with the Bandstand objective, and add the Bandstand question.
                    -> 200 {"bucket": "recall"|"go_home"|"ability"|"attack_foe"|"attack_tower"|
-                            "ride_wave", "rule": 1-7, "answers": {qid: 0.0-1.0}, "ms": float,
-                            "fallback"?: "rules-in-code", "error"?: "..."}
+                            "ride_wave"|"bandstand", "rule": 1-8, "answers": {qid: 0.0-1.0},
+                            "ms": float, "fallback"?: "rules-in-code", "error"?: "..."}
                    -> 400 {"error": "..."} only for a malformed worksheet.
+
+`rule` uses `rules.py`'s numbering: 1-7 mean what they meant before the Bandstand, and 8 is the
+Bandstand rule (house-violet.md's rule 2), which only a worksheet with `stand` can reach.
 
 THE HOUSE BOT NEVER STOPS PLAYING. If Jev can't answer -- a transport error, a 401 that survived
 the client's one retry on a renewed token, or the `--budget-usd` cap -- this server decides with
-house-violet.md's seven rules evaluated in code (`rules.ground_truth_answers`, exact rule 3) and
+house-violet.md's rules evaluated in code (`rules.ground_truth_answers`, exact rule 3) and
 returns 200 with `"fallback": "rules-in-code"`. Every fallback is logged to stderr with `!!!` and
 counted in `/health`, and the first successful Jev call afterwards logs `RECOVERED`.
 
@@ -121,6 +126,8 @@ class JevHouseBackend:
             foe_detail=foe_detail,
             foe_kind=body.get("foeKind") if foe_detail else None,
             foe_hp=float(body["foeHp"]) if foe_detail and body.get("foeHp") is not None else None,
+            stand=body.get("stand"),  # absent without the objective -> None -> the six questions
+            max_hp=float(body["maxHp"]) if body.get("maxHp") is not None else None,
         )
 
     def decide(self, body: dict) -> dict:
@@ -129,6 +136,8 @@ class JevHouseBackend:
         missing = [f for f in REQUIRED_FIELDS if f not in body]
         if missing:
             raise ValueError(f"missing field(s): {', '.join(missing)}")
+        if body.get("stand") is not None and body.get("maxHp") is None:
+            raise ValueError("stand needs maxHp (the Bandstand rule's 50 % line)")
         ws = self._worksheet(body, foe_detail="foeKind" in body and not self.approx_q3)
         exact_ws = self._worksheet(body, foe_detail="foeKind" in body)
         started = time.monotonic()
@@ -159,7 +168,7 @@ class JevHouseBackend:
         return {"bucket": bucket, "rule": rule, "answers": answers, "ms": round(ms, 1)}
 
     def _fallback(self, ws: Worksheet, err: Exception, started: float) -> dict:
-        """house-violet.md's seven rules evaluated in code on the exact worksheet -- what a perfect
+        """house-violet.md's rules evaluated in code on the exact worksheet -- what a perfect
         Jev would have answered. Loud on purpose: every fallback is a stderr `!!!` line."""
         answers = ground_truth_answers(ws)
         rule = first_match(answers)

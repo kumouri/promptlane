@@ -13,6 +13,15 @@
     "action_target_selector": "none"
    },
    {
+    "id": "bandstand_open_take_it",
+    "condition": "is the Bandstand open AND is no enemy bearbot visible AND is this bot's hp above half of its max hp?",
+    "criteria_true": "Bandstand open, no enemy bearbot in sight, hp above half of max",
+    "criteria_false": "Bandstand not open OR an enemy bearbot is in sight OR hp at or below half of max",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "bandstand"
+   },
+   {
     "id": "tower_threat_home",
     "condition": "is there a visible enemy tower and are there no allied minions nearby?",
     "criteria_true": "tower exists and wave count is zero",
@@ -90,6 +99,15 @@
     "action_target_selector": "none"
    },
    {
+    "id": "bandstand_open_take_it",
+    "condition": "is the Bandstand open AND is no enemy bearbot visible AND is this bot's hp above half of its max hp?",
+    "criteria_true": "Bandstand open, no enemy bearbot in sight, hp above half of max",
+    "criteria_false": "Bandstand not open OR an enemy bearbot is in sight OR hp at or below half of max",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "bandstand"
+   },
+   {
     "id": "tower_threat_home",
     "condition": "is there an enemy tower and no minion wave?",
     "criteria_true": "tower present and wave empty",
@@ -165,6 +183,15 @@
     "action_kind": "recall",
     "action_ability": null,
     "action_target_selector": "none"
+   },
+   {
+    "id": "bandstand_open_take_it",
+    "condition": "is the Bandstand open AND is no enemy bearbot visible AND is this bot's hp above half of its max hp?",
+    "criteria_true": "Bandstand open, no enemy bearbot in sight, hp above half of max",
+    "criteria_false": "Bandstand not open OR an enemy bearbot is in sight OR hp at or below half of max",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "bandstand"
    },
    {
     "id": "tower_threat_home",

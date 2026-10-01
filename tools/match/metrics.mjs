@@ -11,6 +11,11 @@
  *                    group after the first, seed-paired differences against the first (95 % CI)
  *   --heatmaps PFX   one PNG per condition, `PFX-<label>.png`: violet's positions left, green's
  *                    right, log-scaled, with lanes, the river and the condition's tower coverage
+ *                    (and the Bandstand's two sites, gold rings, when its logs have the objective)
+ *   --prereg bandstand   after the tables, docs/economy-spec.md §9.8's pre-registered verdict for
+ *                    each group after the first (P = the first group, O = each later one): every
+ *                    line's value, its seed-paired CI where it has one, PASS/FAIL, and what §9.8
+ *                    says happens next (`bandstandVerdict` in metrics.ts holds the thresholds)
  * A log whose replay does not reproduce it is still measured but flagged (`replayOk: false`).
  */
 import { readFile, writeFile } from 'node:fs/promises';
@@ -19,7 +24,12 @@ import { deflateSync } from 'node:zlib';
 import { flush, loadHeadless, loadMetrics } from './load.mjs';
 
 const USAGE = `usage: node tools/match/metrics.mjs --group LABEL <log.json>... [--group LABEL <log.json>...]
-                                  [--json FILE] [--md FILE] [--heatmaps PREFIX] [--quiet]`;
+                                  [--json FILE] [--md FILE] [--heatmaps PREFIX] [--prereg bandstand] [--quiet]
+  --prereg bandstand   append docs/economy-spec.md §9.8's verdict table: the first group is P (no
+                       objective), every later group is read as O against it`;
+
+/** Pre-registered verdict tables `--prereg` knows (each one's thresholds live in metrics.ts). */
+export const PREREGS = ['bandstand'];
 
 export function parseArgs(argv) {
   const args = { groups: [], quiet: false };
@@ -33,7 +43,10 @@ export function parseArgs(argv) {
     else if (a === '--json') args.json = next();
     else if (a === '--md') args.md = next();
     else if (a === '--heatmaps') args.heatmaps = next();
-    else if (a === '--quiet') args.quiet = true;
+    else if (a === '--prereg') {
+      args.prereg = next();
+      if (!PREREGS.includes(args.prereg)) throw new Error(`--prereg: unknown table "${args.prereg}" (known: ${PREREGS.join(', ')})`);
+    } else if (a === '--quiet') args.quiet = true;
     else if (a === '-h' || a === '--help') args.help = true;
     else if (a.startsWith('--')) throw new Error(`unknown option ${a}`);
     else {
@@ -84,12 +97,15 @@ export function encodePng(width, height, rgb) {
 }
 
 const TEAM_RGB = { violet: [0x8e, 0x00, 0xff], green: [0x00, 0xff, 0x0f] };
+/** The Bandstand's sites: gold, so they read apart from both teams and the white tower rings. */
+const SITE_RGB = [255, 200, 0];
 
 /**
  * Two panels (violet, green) of `px` pixels per world unit × 1000; heat is log-scaled per panel.
- * Overlay: lane paths grey, river band dark grey, tower coverage circles white, death sites red.
+ * Overlay: lane paths grey, river band dark grey, tower coverage circles white, death sites red,
+ * Bandstand sites (`sites`: `{pos, radius}`, objective logs only) gold rings with a centre dot.
  */
-export function renderHeatmap({ heat, heatN, towers, lanePaths, deathSites = [] }, px = 0.34) {
+export function renderHeatmap({ heat, heatN, towers, lanePaths, deathSites = [], sites = [] }, px = 0.34) {
   const W = Math.round(1000 * px);
   const gap = 6;
   const width = W * 2 + gap;
@@ -134,6 +150,14 @@ export function renderHeatmap({ heat, heatN, towers, lanePaths, deathSites = [] 
       for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) set(ox + t.pos.x * px + dx, t.pos.y * px + dy, TEAM_RGB[t.team]);
       for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) if (Math.abs(dx) === 2 || Math.abs(dy) === 2) set(ox + t.pos.x * px + dx, t.pos.y * px + dy, [255, 255, 255]);
     }
+    for (const s of sites) {
+      const steps = Math.ceil(2 * Math.PI * s.radius * px * 1.5);
+      for (let k = 0; k < steps; k++) {
+        const ang = (2 * Math.PI * k) / steps;
+        set(ox + (s.pos.x + Math.cos(ang) * s.radius) * px, (s.pos.y + Math.sin(ang) * s.radius) * px, SITE_RGB, 0.85);
+      }
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) set(ox + s.pos.x * px + dx, s.pos.y * px + dy, SITE_RGB);
+    }
     for (const d of deathSites.filter((s) => s.team === team)) {
       for (let k = -2; k <= 2; k++) {
         set(ox + d.pos.x * px + k, d.pos.y * px + k, [255, 40, 40]);
@@ -150,7 +174,11 @@ const pct = (x) => (x === null || x === undefined ? '–' : `${(100 * x).toFixed
 const num = (x, d = 1) => (x === null || x === undefined ? '–' : x.toFixed(d));
 const signed = (x, d = 1, asPct = false) => (x === null || x === undefined ? '–' : `${x >= 0 ? '+' : ''}${asPct ? (100 * x).toFixed(1) + 'pp' : x.toFixed(d)}`);
 
-/** Rows of the condition table: [label, key, formatter]. */
+/**
+ * Rows of the condition table: [label, key, formatter, hideWhenEmpty]. A row with the 4th flag is
+ * left out when no condition has a value for it, so a table of logs without the Bandstand reads
+ * exactly as before it existed.
+ */
 export const MATCH_ROWS = [
   ['matches (replay ok)', null, null],
   ['duration, min', 'durationMin', (x) => num(x, 2)],
@@ -189,6 +217,18 @@ export const MATCH_ROWS = [
   ['first blood at, s', 'firstBloodSec', (x) => num(x, 0)],
   ['first tower happened', 'firstTowerRate', pct],
   ['towers destroyed / match', 'towersDestroyed', (x) => num(x, 2)],
+  // The Bandstand (docs/economy-spec.md §9.8): only logs with the objective have these.
+  ['Bandstand openings / match', 'bandstandOpenings', (x) => num(x, 2), true],
+  ['Bandstand captures / match', 'bandstandCaptures', (x) => num(x, 2), true],
+  ['…taken by violet', 'bandstandCapturesViolet', (x) => num(x, 2), true],
+  ['…taken by green', 'bandstandCapturesGreen', (x) => num(x, 2), true],
+  ['openings contested (both teams on the stage), mean of matches', 'bandstandContestedShare', pct, true],
+  ['team fights starting at an open Bandstand / match', 'teamFightsNearBandstand', (x) => num(x, 2), true],
+  ['capture split: the fewer-captures team took ≥ 1', 'bandstandCaptureSplit', pct, true],
+  ['the team with more captures won', 'bandstandMoreCapturesWon', pct, true],
+  ['bot-time with the Encore', 'encoreUptime', pct, true],
+  // Any log played on compiled schemas, with or without the objective.
+  ['Jev decisions from a Bandstand rule / match', 'bandstandRuleFires', (x) => num(x, 2), true],
 ];
 
 export const BOT_COLS = [
@@ -224,11 +264,43 @@ export function pairedMarkdown(baselineLabel, pairedByLabel) {
   return out.join('\n') + '\n';
 }
 
+/** Verdict-table labels where the line reads something other than the condition table's mean. */
+const VERDICT_LABELS = {
+  bandstandCaptures: ['Bandstand captures / match, median', (x) => num(x, 1)],
+  bandstandContestedShare: ['openings contested (both teams on the stage), pooled over openings', pct],
+  bandstandRuleFires: ['Jev decisions from a Bandstand rule, total (in P: answered about nothing)', (x) => num(x, 0)],
+};
+const SECTION = { target: 'target', keep: 'keep', objective: 'in use', reported: 'reported' };
+
+/** `metrics.bandstandVerdict(P, O)` as a markdown table, one row per §9.8 line. */
+export function verdictMarkdown(baselineLabel, label, verdict) {
+  const rows = Object.fromEntries(MATCH_ROWS.filter((r) => r[1]).map(([l, k, f]) => [k, [l, f]]));
+  const pairs = verdict.lines.find((l) => l.diff)?.diff?.n ?? 0;
+  const out = [
+    '',
+    `**Bandstand verdict (docs/economy-spec.md §9.8): O = ${label}, P = ${baselineLabel}** (Δ = O − P, seed-paired, 95 % bootstrap CI over ${pairs} pairs)`,
+    '',
+    '| line | metric | P | O | Δ [95 % CI] | pass line | result |',
+    '|---|---|---:|---:|---|---|---|',
+  ];
+  for (const l of verdict.lines) {
+    const [rowLabel, fmt] = VERDICT_LABELS[l.key] ?? rows[l.key] ?? [l.key, (x) => num(x, 2)];
+    const d = (x) => (fmt === pct ? signed(x, 1, true) : signed(x, 2));
+    const ci = l.diff && l.diff.n ? `${d(l.diff.meanDiff)} [${d(l.diff.lo)}, ${d(l.diff.hi)}]` : '–';
+    const result = l.pass === null ? 'reported' : l.pass ? 'PASS' : '**FAIL**';
+    out.push(`| ${SECTION[l.section]} | ${rowLabel} | ${fmt(l.baseline)} | ${fmt(l.value)} | ${ci} | ${l.line || '–'} | ${result} |`);
+  }
+  const part = (ok) => (ok ? 'pass' : 'FAIL');
+  out.push('', `**${verdict.pass ? 'PASS' : 'FAIL'}** (target ${part(verdict.target)}, keep-lines ${part(verdict.keep)}, objective in use ${part(verdict.objective)}). ${verdict.next}`);
+  return out.join('\n') + '\n';
+}
+
 export function markdown(aggs) {
   const out = [];
   out.push(`| metric | ${aggs.map((a) => a.label).join(' | ')} |`, `|---|${aggs.map(() => '---:').join('|')}|`);
-  for (const [label, key, fmt] of MATCH_ROWS) {
+  for (const [label, key, fmt, hideWhenEmpty] of MATCH_ROWS) {
     if (!key) out.push(`| ${label} | ${aggs.map((a) => `${a.matches} (${a.replayOk})`).join(' | ')} |`);
+    else if (hideWhenEmpty && aggs.every((a) => a.match[key] == null)) continue;
     else out.push(`| ${label} | ${aggs.map((a) => fmt(a.match[key])).join(' | ')} |`);
   }
   for (const a of aggs) {
@@ -261,7 +333,9 @@ async function main() {
       if (!args.quiet) {
         console.error(
           `${g.label} ${file}: map=${mm.map} replay=${mm.replayOk ? 'ok' : 'DIVERGED'} winner=${mm.winner ?? 'draw'} deaths=${mm.deaths} ` +
-            `pvp-share=${pct(mm.pvpShareOfBotDamage)} fights=${mm.teamFights.length}`,
+            `pvp-share=${pct(mm.pvpShareOfBotDamage)} fights=${mm.teamFights.length}` +
+            (mm.objective ? ` bandstand=${mm.objective.captures.violet}/${mm.objective.captures.green} of ${mm.objective.openings} fights-at-stand=${mm.objective.teamFightsNear}` : '') +
+            (mm.bandstandRuleFires ? ` bandstand-rule-fires=${mm.bandstandRuleFires.total}/${mm.bandstandRuleFires.decisions}` : ''),
         );
       }
       ms.push(mm);
@@ -271,13 +345,23 @@ async function main() {
   const aggs = perGroup.map((g) => g.aggregate);
   const pairedByLabel = {};
   for (const g of perGroup.slice(1)) pairedByLabel[g.label] = metrics.paired(perGroup[0].matches, g.matches);
+  const preregByLabel = {};
+  if (args.prereg === 'bandstand') {
+    if (perGroup.length < 2) throw new Error('--prereg bandstand needs two groups: P (no objective) first, then O');
+    for (const g of perGroup.slice(1)) preregByLabel[g.label] = metrics.bandstandVerdict(perGroup[0].matches, g.matches);
+  }
   if (args.json) {
     await writeFile(args.json, JSON.stringify({ definitions: {
       PROXIMITY_RADIUS: metrics.PROXIMITY_RADIUS, FIGHT_RADIUS: metrics.FIGHT_RADIUS, ENGAGED_WINDOW_SEC: metrics.ENGAGED_WINDOW_SEC,
       FIGHT_MERGE_GAP_SEC: metrics.FIGHT_MERGE_GAP_SEC, SWING_WINDOW_SEC: metrics.SWING_WINDOW_SEC, ASSIST_WINDOW_SEC: metrics.ASSIST_WINDOW_SEC, GOLD: metrics.GOLD, HEAT_CELL: metrics.HEAT_CELL,
-    }, groups: perGroup.map((g) => ({ label: g.label, aggregate: g.aggregate, matches: g.matches.map(({ heat, ...rest }) => rest) })), pairedVs: perGroup[0].label, paired: pairedByLabel }) + '\n');
+      BANDSTAND_FIGHT_RADIUS: metrics.BANDSTAND_FIGHT_RADIUS, ...(args.prereg === 'bandstand' ? { BANDSTAND_PREREG: metrics.BANDSTAND_PREREG } : {}),
+    }, groups: perGroup.map((g) => ({ label: g.label, aggregate: g.aggregate, matches: g.matches.map(({ heat, ...rest }) => rest) })), pairedVs: perGroup[0].label, paired: pairedByLabel,
+    ...(args.prereg ? { prereg: { table: args.prereg, verdicts: preregByLabel } } : {}) }) + '\n');
   }
-  const md = markdown(aggs) + (perGroup.length > 1 ? pairedMarkdown(perGroup[0].label, pairedByLabel) : '');
+  const md =
+    markdown(aggs) +
+    (perGroup.length > 1 ? pairedMarkdown(perGroup[0].label, pairedByLabel) : '') +
+    Object.entries(preregByLabel).map(([label, v]) => verdictMarkdown(perGroup[0].label, label, v)).join('');
   if (args.md) await writeFile(args.md, md);
   if (args.heatmaps) {
     const { LANE_PATHS } = metrics;
@@ -286,7 +370,9 @@ async function main() {
       const towers = [];
       for (const lane of ['top', 'mid', 'bottom']) for (const team of ['violet', 'green']) for (const tier of [1, 2]) towers.push({ team, range: variant.towerRange, pos: metrics.towerPos(variant, lane, team, tier) });
       const deathSites = g.matches.flatMap((m) => m.deathSites.map((d) => ({ ...d, team: d.bot < 3 ? 'violet' : 'green' })));
-      const png = renderHeatmap({ heat: g.aggregate.heat, heatN: metrics.HEAT_N, towers, lanePaths: Object.values(LANE_PATHS), deathSites });
+      const objective = g.matches.find((m) => m.objective)?.objective;
+      const sites = objective ? objective.sites.map((s) => ({ pos: s.pos, radius: objective.radius })) : [];
+      const png = renderHeatmap({ heat: g.aggregate.heat, heatN: metrics.HEAT_N, towers, lanePaths: Object.values(LANE_PATHS), deathSites, sites });
       const file = `${args.heatmaps}-${g.label}.png`;
       await writeFile(file, png);
       if (!args.quiet) console.error(`heatmap ${file} (${png.length} bytes)`);

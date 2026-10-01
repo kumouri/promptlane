@@ -57,6 +57,13 @@ every number lives in one constants file (`src/economy/eco-1.json`), and a match
 ruleset it was played under. Its design and Ceryce's rulings are `docs/economy-spec.md`. If it
 proves out, it belongs in the next game prompt after the Jam, since the prompt is the source.
 
+The river objective, the Bandstand, is a third layer of the same kind: `src/objective.ts` reads
+bearbot positions after each tick and adds its own observation fields, `src/objective/river-1.json`
+holds its numbers, and a log records it. Its Encore buff and the economy's levels and items reach
+the bots' stats through one shared derivation (`src/ruleset/stats.ts`), and its gold and XP reach
+the economy through one hook (`src/ruleset/rewards.ts`), so neither layer imports the other. Design,
+rulings and measurement: `docs/economy-spec.md` §9.
+
 ## "One prompt" — what it means here
 
 - The **game** is built from one prompt (`prompts/initial_prompt.md`) handed to a coding agent. The

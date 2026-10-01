@@ -13,26 +13,38 @@
  * `tools/jev/house_server.py`'s HTTP contract (worksheet in, `{bucket, rule, answers, ms}` out).
  * Two things live only on the TypeScript side, because only it has the live `Observation`:
  *
- *   1. `extractWorksheet` -- turns an `Observation` into house-violet.md's five worksheet fields
- *      (hp, wave, tower, foe, cd), replicating exactly what the prompt asks the ruled model to
- *      self-report (see prompts/pilots/house-violet.md's "Your reply ... ALWAYS starts with five
- *      worksheet keys"). `tools/jev/rules.py` never had to do this -- the offline harness replayed
- *      logs that already carried these fields, pre-extracted by the ruled model itself.
+ *   1. `extractWorksheet` -- turns an `Observation` into house-violet.md's worksheet fields
+ *      (hp, wave, tower, foe, cd, and stand), replicating exactly what the prompt asks the ruled
+ *      model to self-report (see prompts/pilots/house-violet.md's "Your reply ... ALWAYS starts
+ *      with six worksheet keys"). `tools/jev/rules.py` never had to do this -- the offline harness
+ *      replayed logs that already carried these fields, pre-extracted by the ruled model itself.
  *   2. `bucketToAction` -- turns the server's action bucket back into a real `Action` with a real
  *      target (an entity id, or a position for `move`), since the offline harness only ever
  *      compared bucket labels, never assembled a playable action.
  *
+ * The Bandstand (docs/economy-spec.md §9.7): only a match played with the objective has a
+ * `bandstand` block (`ObjectiveObservation`, `src/objective.ts`). For such an observation the
+ * worksheet also carries `stand` and `maxHp`, and the server asks house-violet.md's rule 2 (stand
+ * open, no enemy bearbot in sight, hp above 50 % of maxHp -> move to `bandstand.pos`; rule 8 in
+ * `rules.py`'s numbering). Without the block neither key is sent, so the POST body, the reply and
+ * every decision are exactly what they were before the Bandstand.
+ *
  * No hold path (changed 2026-09-25, runs/jev-jam-readiness-2026-09-25.md): the house bot must never
  * silently stop playing. If Jev fails, `house_server.py` already answers with a rules-in-code
  * decision (`fallback: 'rules-in-code'`); if the server itself is unreachable (endpoint down,
- * timeout, non-2xx), this file's `catch` decides with `decideByRules` -- the same seven rules in
+ * timeout, non-2xx), this file's `catch` decides with `decideByRules` -- the same rules in
  * TypeScript -- and logs `!!! FALLBACK` to stderr. That reply starts `[jev-fallback:` so
  * `tools/match/headless.ts` still counts it as a call error.
  */
 import type { Action, Instrument, Observation, Team, Vec2 } from '../../src/types';
+import type { BandstandStatus, ObjectiveObservation } from '../../src/objective';
 import { BASE } from '../../src/sim/map';
 
-export type ActionBucket = 'recall' | 'go_home' | 'ability' | 'attack_foe' | 'attack_tower' | 'ride_wave';
+export type ActionBucket = 'recall' | 'go_home' | 'ability' | 'attack_foe' | 'attack_tower' | 'ride_wave' | 'bandstand';
+
+/** The Bandstand rule's number: after rule 7 (the fallback), so 1-7 keep their pre-Bandstand
+ * meaning in every trace -- `tools/jev/rules.py::BANDSTAND_RULE`. It is evaluated second. */
+export const BANDSTAND_RULE = 8;
 
 const ABILITY_NAME: Record<Instrument, string> = { keytar: 'chord', violin: 'staccato', drums: 'kick' };
 
@@ -51,6 +63,10 @@ export interface Worksheet {
   team: Team;
   tick: number;
   clockSec: number;
+  /** `bandstand.status` and `self.maxHp` (the Bandstand rule's 50 % line) -- present only when the
+   * match has the objective; absent, not null, otherwise, so the POST body is unchanged. */
+  stand?: BandstandStatus;
+  maxHp?: number;
 }
 
 export interface JevDecideResponse {
@@ -63,31 +79,41 @@ export interface JevDecideResponse {
   error?: string;
 }
 
-/** house-violet.md's seven rules evaluated in code on the exact worksheet -- the TypeScript twin of
+/** house-violet.md's rules evaluated in code on the exact worksheet -- the TypeScript twin of
  * `tools/jev/rules.py::ground_truth_answers` + `first_match`, used only when the jev-house server
- * itself can't be reached (`house_server.py` has its own fallback for when Jev can't be). */
+ * itself can't be reached (`house_server.py` has its own fallback for when Jev can't be). The
+ * Bandstand rule is second, as in the file, and can only match when the worksheet has `stand`. */
 export function decideByRules(ws: Worksheet): { bucket: ActionBucket; rule: number } {
   const rule3 =
     ws.cd === 0 &&
     ws.foe !== null &&
     (ws.instrument === 'keytar' || (ws.foeKind === 'bearbot' && ws.foeHp !== null && ws.foeHp < 100));
-  const rules: Array<[boolean, ActionBucket]> = [
-    [ws.hp < 75, 'recall'],
-    [ws.tower !== null && ws.wave === 0, 'go_home'],
-    [rule3, 'ability'],
-    [ws.foe !== null, 'attack_foe'],
-    [ws.tower !== null, 'attack_tower'],
-    [ws.foe === null && ws.tower === null && ws.wave >= 1, 'ride_wave'],
+  const bandstand = ws.stand === 'open' && ws.maxHp !== undefined && ws.foeKind !== 'bearbot' && ws.hp > 0.5 * ws.maxHp;
+  const rules: Array<[boolean, ActionBucket, number]> = [
+    [ws.hp < 75, 'recall', 1],
+    [bandstand, 'bandstand', BANDSTAND_RULE],
+    [ws.tower !== null && ws.wave === 0, 'go_home', 2],
+    [rule3, 'ability', 3],
+    [ws.foe !== null, 'attack_foe', 4],
+    [ws.tower !== null, 'attack_tower', 5],
+    [ws.foe === null && ws.tower === null && ws.wave >= 1, 'ride_wave', 6],
   ];
-  const i = rules.findIndex(([matches]) => matches);
-  return i === -1 ? { bucket: 'go_home', rule: 7 } : { bucket: rules[i][1], rule: i + 1 };
+  const hit = rules.find(([matches]) => matches);
+  return hit ? { bucket: hit[1], rule: hit[2] } : { bucket: 'go_home', rule: 7 };
 }
 
 function distance(a: Vec2, b: Vec2): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
-/** house-violet.md's/house-green.md's own worksheet-extraction rules, read straight off `Observation`. */
+/** A match's `bandstand` block, or null for a match played without the objective (read defensively:
+ * a plain `Observation` has no such key). */
+function bandstandOf(obs: Observation): ObjectiveObservation['bandstand'] | null {
+  return (obs as Partial<ObjectiveObservation>).bandstand ?? null;
+}
+
+/** house-violet.md's/house-green.md's own worksheet-extraction rules, read straight off `Observation`.
+ * `stand`/`maxHp` are added only when the observation has a `bandstand` block. */
 export function extractWorksheet(obs: Observation, tick: number): Worksheet {
   const wave = obs.nearbyMinions.filter((m) => m.team === obs.self.team).length;
   const towerEntry = obs.visibleEnemies.find((e) => e.kind === 'tower' || e.kind === 'nexus');
@@ -102,6 +128,7 @@ export function extractWorksheet(obs: Observation, tick: number): Worksheet {
     }
   }
   const abilityKey = ABILITY_NAME[obs.self.instrument];
+  const stand = bandstandOf(obs);
   return {
     hp: obs.self.hp,
     wave,
@@ -114,7 +141,13 @@ export function extractWorksheet(obs: Observation, tick: number): Worksheet {
     team: obs.self.team,
     tick,
     clockSec: obs.clockSec,
+    ...(stand ? { stand: stand.status, maxHp: obs.self.maxHp } : {}),
   };
+}
+
+/** The worksheet keys a trace reply carries beyond the original ones -- none without the objective. */
+function standFields(ws: Worksheet): { stand?: BandstandStatus; maxHp?: number } {
+  return ws.stand !== undefined ? { stand: ws.stand, maxHp: ws.maxHp } : {};
 }
 
 /** The bucket + the worksheet/observation that produced it, turned into a playable `Action`. */
@@ -138,6 +171,11 @@ export function bucketToAction(bucket: ActionBucket, ws: Worksheet, obs: Observa
         ? [...allies].sort((a, b) => distance(obs.self.pos, a.pos) - distance(obs.self.pos, b.pos))[0]
         : null;
       return { kind: 'move', target: nearest ? nearest.pos : BASE[ws.team] };
+    }
+    case 'bandstand': {
+      // Only a worksheet with `stand` can reach this bucket; without a bandstand, rule 7's move home.
+      const stand = bandstandOf(obs);
+      return { kind: 'move', target: stand ? { x: stand.pos.x, y: stand.pos.y } : BASE[ws.team] };
     }
   }
 }
@@ -207,7 +245,7 @@ export function jevTracingPilot(config: JevPilotConfig, currentTick: () => numbe
         // that might itself be wrong.
         return {
           action,
-          reply: JSON.stringify({ hp: ws.hp, wave: ws.wave, tower: ws.tower, foe: ws.foe, foeKind: ws.foeKind, foeHp: ws.foeHp, cd: ws.cd, instrument: ws.instrument, bucket: data.bucket, rule: data.rule, answers: data.answers, ms: data.ms, ...(data.fallback ? { fallback: data.fallback } : {}) }),
+          reply: JSON.stringify({ hp: ws.hp, wave: ws.wave, tower: ws.tower, foe: ws.foe, foeKind: ws.foeKind, foeHp: ws.foeHp, cd: ws.cd, ...standFields(ws), instrument: ws.instrument, bucket: data.bucket, rule: data.rule, answers: data.answers, ms: data.ms, ...(data.fallback ? { fallback: data.fallback } : {}) }),
         };
       } catch (err) {
         // The server itself is down or timed out: never stop playing -- decide by the rules in code,
@@ -217,7 +255,7 @@ export function jevTracingPilot(config: JevPilotConfig, currentTick: () => numbe
         console.error(`[jev-house] !!! FALLBACK (server unreachable: ${message}) -> rules-in-code rule=${rule} bucket=${bucket}`);
         return {
           action: bucketToAction(bucket, ws, obs),
-          reply: `[jev-fallback: ${message}] ` + JSON.stringify({ hp: ws.hp, wave: ws.wave, tower: ws.tower, foe: ws.foe, foeKind: ws.foeKind, foeHp: ws.foeHp, cd: ws.cd, instrument: ws.instrument, bucket, rule, fallback: 'rules-in-code' }),
+          reply: `[jev-fallback: ${message}] ` + JSON.stringify({ hp: ws.hp, wave: ws.wave, tower: ws.tower, foe: ws.foe, foeKind: ws.foeKind, foeHp: ws.foeHp, cd: ws.cd, ...standFields(ws), instrument: ws.instrument, bucket, rule, fallback: 'rules-in-code' }),
         };
       }
     },

@@ -30,6 +30,9 @@ translator's job is to pick *which selector* best matches the prose's intent ("d
 `densest_cluster_enemy`, "softest target" -> `lowest_hp_enemy`), not to invent new ones. This is a
 real, named simplification, not a hidden one: it is the one place prose nuance is flattened into a
 fixed enum before Jev ever sees the schema, and it is called out as such in the fidelity writeup.
+`bandstand` (the river objective, `docs/economy-spec.md` §9.7) is a position selector like `home`/
+`push_lane`; in a match with no objective, or while the stage is closed or done, it resolves exactly
+as `push_lane` does, so a schema that uses it stays valid everywhere.
 
 INSTRUMENT SCOPE. One prompt drives all three of a team's bearbots and is translated once per
 instrument, so prose scoped to one instrument ("keytar only: ...") must not reach the other two
@@ -74,6 +77,8 @@ TARGET_SELECTORS = {
     "nearest_tower": "the nearest visible enemy tower or nexus",
     "threatened_ally_enemy": "the enemy nearest to this bearbot's own lowest-hp ally",
     "nearby_minion": "the nearest allied minion in the wave (for riding/positioning with it)",
+    "bandstand": "move to the Bandstand, the river objective, while it is open or about to open; "
+    "otherwise the same as push_lane",
 }
 
 
@@ -932,7 +937,12 @@ def render_markdown(schema: TranslatedSchema) -> str:
     return "\n".join(lines) + "\n"
 
 
+BANDSTAND_MOVE_TEXT = "**move to the Bandstand** (up the lane instead while it is neither open nor about to open)"
+
+
 def _describe_action(kind: str, ability: str | None, selector: str | None) -> str:
+    if kind == "move" and selector == "bandstand":
+        return BANDSTAND_MOVE_TEXT
     if kind == "ability":
         base = f"use **{ability}**"
     elif kind == "recall":

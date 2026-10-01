@@ -1,0 +1,12 @@
+{
+  "name": "river-1",
+  "sites": [
+    { "id": "top-side", "x": 300, "y": 300 },
+    { "id": "bottom-side", "x": 700, "y": 700 }
+  ],
+  "radius": 60,
+  "schedule": { "firstOpenSec": 90, "afterCaptureSec": 75, "warnSec": 20, "lastOpenSec": 540 },
+  "capture": { "setSec": 15, "rateByCount": [0, 1, 1.5, 2], "drainSec": 15 },
+  "encore": { "durationSec": 45, "mods": { "attackDamage": 0.15, "moveSpeed": 0.1 }, "lostOnDeath": true },
+  "economy": { "goldTeam": 40, "goldLocalPool": 60, "xpCapturer": 40 }
+}

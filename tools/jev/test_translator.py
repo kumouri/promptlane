@@ -422,8 +422,10 @@ class BuildTests(unittest.TestCase):
         self.assertIn('If the prose names items or a shopping order, emit "build" in that order; otherwise omit it.', prompt)
         self.assertLess(prompt.index("ITEMS a bearbot"), prompt.index("PROSE PILOT:"))
 
-    def test_no_new_target_selector(self):
-        self.assertEqual(len(T.TARGET_SELECTORS), 10)
+    def test_no_economy_target_selector(self):
+        # eco-1 P1 adds no selector (highest_bounty_enemy is P2, §11); the 11th is the river
+        # objective's `bandstand` (§9.7, BandstandSelectorTests below).
+        self.assertEqual(len(T.TARGET_SELECTORS), 11)
         self.assertNotIn("highest_bounty_enemy", T.TARGET_SELECTORS)
 
     def test_render_markdown_files_build_notes_apart_from_priority_fixes(self):
@@ -431,6 +433,94 @@ class BuildTests(unittest.TestCase):
         text = T.render_markdown(T.parse_schema(raw, "pilot.md", "keytar", "raw"))
         self.assertIn("Shopping list -- what was changed", text)
         self.assertNotIn("Automatic priority fixes", text)
+
+
+def _move(selector):
+    return {"kind": "move", "ability": None, "target_selector": selector}
+
+
+def _rule_spec(rid, condition, action):
+    return {"id": rid, "condition": condition, "criteria": {"true": "yes", "false": "no"}, "action": action}
+
+
+# The five entrant sentences docs/economy-spec.md §9.7 says must compile, each as the schema shape
+# the translator is expected to emit for it (offline fixtures: no model call). Each entry is
+# (prose, rules, default_action, rule id Jev answers yes to, the action that should then run).
+BANDSTAND_PROSE_FIXTURES = [
+    (
+        "When the Bandstand opens, go take it.",
+        [_rule_spec("bandstand_open", "is the Bandstand open?", _move("bandstand"))],
+        _move("push_lane"), "bandstand_open", ("move", "bandstand"),
+    ),
+    (
+        "If the enemy is taking the Bandstand, go stop them.",
+        [_rule_spec("enemy_taking_bandstand", "is the enemy team making progress on the Bandstand?", _move("bandstand"))],
+        _move("push_lane"), "enemy_taking_bandstand", ("move", "bandstand"),
+    ),
+    (
+        "If the Bandstand is contested and a teammate is on it, join the fight.",
+        [_rule_spec("join_contest", "is the Bandstand contested and an ally on it?", _move("bandstand"))],
+        _move("push_lane"), "join_contest", ("move", "bandstand"),
+    ),
+    (
+        "While we have Encore, go after their weakest bot.",
+        [_rule_spec("encore_hunt", "does your team have Encore and is an enemy bearbot visible?",
+                    {"kind": "attack", "ability": None, "target_selector": "lowest_hp_enemy"})],
+        _move("push_lane"), "encore_hunt", ("attack", "lowest_hp_enemy"),
+    ),
+    (
+        "Leave the Bandstand alone unless I'm above half health.",
+        [
+            _rule_spec("hp_below_half", "is this bot's hp below half of its max?", _move("push_lane")),
+            _rule_spec("bandstand_open", "is the Bandstand open?", _move("bandstand")),
+        ],
+        _move("push_lane"), "hp_below_half", ("move", "push_lane"),
+    ),
+]
+
+
+class BandstandSelectorTests(unittest.TestCase):
+    """The river objective's move selector (docs/economy-spec.md §9.7): one more value of the
+    existing target_selector, no new schema field."""
+
+    def test_selector_is_in_the_vocabulary_and_listed_in_the_prompt(self):
+        self.assertIn("bandstand", T.TARGET_SELECTORS)
+        prompt = T._translation_prompt("Push the lane.", "drums", "kick", "fill")
+        self.assertIn('"bandstand" -- ' + T.TARGET_SELECTORS["bandstand"], prompt)
+        self.assertIn("'bandstand'", prompt)  # in the action shape's "one of [...]" list
+        self.assertIn("push_lane", T.TARGET_SELECTORS["bandstand"])  # the fallback is named
+
+    def test_validation_accepts_it_like_home_and_push_lane(self):
+        # home/push_lane are not restricted by action kind, so neither is bandstand.
+        for kind in ("move", "attack", "ability"):
+            self.assertEqual(T._validate_action({"kind": kind, "target_selector": "bandstand"}, "t")[2], "bandstand")
+        raw = {"rules": [_rule_spec("go", "is the Bandstand open?", _move("bandstand"))], "default_action": _move("bandstand")}
+        schema = T.parse_schema(raw, "pilot.md", "drums", "raw")
+        self.assertEqual(schema.rules[0].action_target_selector, "bandstand")
+        self.assertEqual(schema.default_target_selector, "bandstand")
+
+    def test_the_entrant_sentences_compile_to_the_expected_shapes(self):
+        for prose, rules, default, fires, (kind, selector) in BANDSTAND_PROSE_FIXTURES:
+            with self.subTest(prose=prose):
+                schema = T.parse_schema({"rules": rules, "default_action": default}, "pilot.md", "drums", "raw")
+                answers = {r.id: r.id == fires for r in schema.rules}
+                action = T.evaluate_schema(schema, answers)
+                self.assertEqual((action.kind, action.target_selector), (kind, selector))
+
+    def test_leave_it_alone_rule_sits_before_the_bandstand_rule(self):
+        prose, rules, default, _fires, _expect = BANDSTAND_PROSE_FIXTURES[-1]
+        schema = T.parse_schema({"rules": rules, "default_action": default}, "pilot.md", "drums", "raw")
+        ids = [r.id for r in schema.rules]
+        self.assertLess(ids.index("hp_below_half"), ids.index("bandstand_open"), prose)
+        # above half health, the Bandstand rule is reached
+        action = T.evaluate_schema(schema, {"hp_below_half": False, "bandstand_open": True})
+        self.assertEqual(action.target_selector, "bandstand")
+
+    def test_render_says_move_to_the_bandstand(self):
+        raw = {"rules": [_rule_spec("go", "is the Bandstand open?", _move("bandstand"))], "default_action": _move("push_lane")}
+        md = T.render_markdown(T.parse_schema(raw, "pilot.md", "drums", "raw"))
+        self.assertIn("move to the Bandstand", md)
+        self.assertNotIn("targeting: move to the Bandstand", md)
 
 
 if __name__ == "__main__":

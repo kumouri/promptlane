@@ -64,6 +64,7 @@ The entrants poller shells out to `gh api` for `kumouri/jamobair-entrants` (`mai
 | `tournament.backend` | which `backends` entry ranked matches and tests use — **the per-tournament model setting**; it is recorded in every match log (`backend.model`) and every `finished` ledger row. `jev-schema` (a `kind: "jev-schema-http"` entry) = both sides on Jev, §1c; `qwen9b` = the old text-model ladder |
 | `tournament.map` | the map variant every match plays (`pvp-1`); checked at startup. Unset = the runner's `DEFAULT_MAP` |
 | `tournament.economy` | the economy ruleset every match plays: `null`/unset (none) or a name such as `"eco-1"` (`src/economy.ts`, `docs/economy-spec.md`): respawn, gold, levels and items. Off until Ceryce's Sun 10-04 go/no-go; checked at startup. A side buys the shopping list (`build`) its compiled schema carries, else its instrument's default. Each log records the ruleset, so changing it never alters a match already played |
+| `tournament.objective` | the river objective every match plays (`river-1` = the Bandstand, `none` = off; docs/economy-spec.md §9); checked at startup and recorded in every log. Unset = the runner's `DEFAULT_OBJECTIVE`, which is none until the Sun 10-04 gate |
 | `tournament.cadenceSec` / `maxSimSec` | ranked matches: cadence 2, full 600 s |
 | `tournament.quick` | quick tests: 3 sim-min at cadence 4 (ruling Q10) |
 | `tournament.placementSeeds` | `[7, 11, 42]` (Q14); sides alternate violet/green/violet (Q15) |
@@ -508,8 +509,9 @@ Access; a held pre-run match answers 403 to anyone but the organizer.
 **Shadow by default.** `house.backend` is `null` in every shipped config, so the house bot plays
 `house-violet.md`/`house-green.md` on `tournament.backend` like everyone else, and none of this
 section applies. Going live is Ceryce's call; when she makes it, this is the whole procedure. The
-Jev house bot plays the same seven rules — Jev answers each rule's condition, code applies them in
-order (`tools/jev/rules.py`, rule 3 exact on the live path). Background and numbers:
+Jev house bot plays the same rules — Jev answers each rule's condition, code applies them in
+order (`tools/jev/rules.py`, rule 3 exact on the live path; the Bandstand rule only in a match
+played with the river objective). Background and numbers:
 [`runs/jev-house-bot-2026-09-23.md`](../runs/jev-house-bot-2026-09-23.md),
 [`runs/jev-jam-readiness-2026-09-25.md`](../runs/jev-jam-readiness-2026-09-25.md).
 
@@ -604,7 +606,7 @@ Jev back.
 The server's stderr prints `[jev-token] renewed …` on each renewal.
 
 **4. The fallback — the house bot never stops playing.** If Jev can't answer (network, a 401 that
-survived the renewal, the budget), the server decides with the same seven rules evaluated in code
+survived the renewal, the budget), the server decides with the same rules evaluated in code
 and prints `[jev-house] !!! FALLBACK #n: … -> rules-in-code rule=… bucket=…`; the first Jev
 success afterwards prints `RECOVERED`. If the server itself is down, the arena's pilot does the
 same in TypeScript and logs `[jev-house] !!! FALLBACK (server unreachable …)`. Either way the

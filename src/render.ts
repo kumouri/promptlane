@@ -3,6 +3,7 @@ import { getEconomy, type Economy } from './economy';
 import { INSTRUMENTS } from './sim/entities';
 import { LANE_PATHS, LANES, WORLD_SIZE, inRiver } from './sim/map';
 import type { Lane, Team, Vec2 } from './types';
+import { getObjective, type Objective } from './objective';
 import {
   ELEVATION_RATIO,
   HEIGHT_BY_KIND,
@@ -25,6 +26,11 @@ const HIT_FLASH_MS = 160;
 const DEATH_FADE_MS = 360;
 const CAST_PULSE_MS = 420;
 const CAST_STREAK_MS = 260;
+
+/** The Bandstand's spotlight colour (docs/economy-spec.md §9.6 "Viewer"): the stage rim and the Encore glow. */
+const ENCORE_GOLD = 'rgba(255,214,102,0.95)';
+/** World units of visual height the stage label floats at, so it clears the bearbots standing on the disc. */
+const STAGE_LABEL_HEIGHT = HEIGHT_BY_KIND.bearbot * 2.5;
 
 /** §5: units within this many world units of each other count as one cluster for the team-fight count badge. */
 const CLUSTER_DIST = 70;
@@ -189,10 +195,15 @@ export function render(ctx: CanvasRenderingContext2D, match: Match, selectedBotI
   // same world-space code as before phase 2, just under the iso projection's linear part as a
   // canvas transform instead of a uniform translate+scale — see iso.ts's file doc comment for why
   // that reproduces `project(_, 0, fit)` for every point on every path without re-deriving them.
+  // The river objective, only when the match has one (src/objective.ts): the stage sits on the
+  // ground under every unit, its label floats above them.
+  const objective = getObjective(match);
+
   ctx.setTransform(...groundMatrixOf(fit));
   drawRiver(ctx);
   drawLanes(ctx);
   drawJungleDots(ctx);
+  if (objective) drawStage(ctx, objective, t);
   ctx.setTransform(1, 0, 0, 1, 0, 0);
 
   const drawables: Drawable[] = [];
@@ -200,7 +211,9 @@ export function render(ctx: CanvasRenderingContext2D, match: Match, selectedBotI
   for (const tw of match.towers) drawables.push(towerDrawable(tw, fx, t));
   for (const m of match.minions) drawables.push(minionDrawable(m, fx, t));
   const economy = getEconomy(match) ?? null;
-  match.bearbots.forEach((b, i) => drawables.push(bearbotDrawable(b, b.id === selectedBotId, fx, t, match.clockSec, economy ? { economy, index: i } : null)));
+  match.bearbots.forEach((b, i) =>
+    drawables.push(bearbotDrawable(b, b.id === selectedBotId, fx, t, match.clockSec, economy ? { economy, index: i } : null, objective?.hasEncore(i) ?? false)),
+  );
   drawables.sort((a, b) => compareDepth(a, b));
 
   for (const d of drawables) {
@@ -209,6 +222,7 @@ export function render(ctx: CanvasRenderingContext2D, match: Match, selectedBotI
   }
 
   drawTeamFightBadges(ctx, match, fit);
+  if (objective) drawStageLabel(ctx, objective, fit);
 
   ctx.restore();
   fx.prune();
@@ -637,7 +651,22 @@ function drawInstrumentMarker(ctx: CanvasRenderingContext2D, instrument: 'drums'
   ctx.restore();
 }
 
-function bearbotDrawable(b: Match['bearbots'][number], selected: boolean, fx: RenderFx, t: number, clockSec: number, eco: { economy: Economy; index: number } | null): Drawable {
+/** The Encore (docs/economy-spec.md §9.4): a soft gold glow under the chassis, pulsing slowly — the stage's spotlight carried off it. */
+function drawEncoreGlow(ctx: CanvasRenderingContext2D, pos: Vec2, r: number, t: number, px: number): void {
+  const pulse = 0.5 + 0.5 * Math.sin(t / 380);
+  ctx.save();
+  ctx.globalAlpha = 0.55 + 0.35 * pulse;
+  ctx.strokeStyle = ENCORE_GOLD;
+  ctx.shadowColor = ENCORE_GOLD;
+  ctx.shadowBlur = (10 + 8 * pulse) * Math.max(1, px);
+  ctx.lineWidth = Math.max(2, 4 * px);
+  ctx.beginPath();
+  ctx.arc(pos.x, pos.y, r + 4 * px, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function bearbotDrawable(b: Match['bearbots'][number], selected: boolean, fx: RenderFx, t: number, clockSec: number, eco: { economy: Economy; index: number } | null, encore: boolean): Drawable {
   const color = teamColor(b.team);
   const jitter = stableOffset(b.id, JITTER_MAGNITUDE);
   const renderPos = { x: b.pos.x + jitter.x, y: b.pos.y + jitter.y };
@@ -680,6 +709,7 @@ function bearbotDrawable(b: Match['bearbots'][number], selected: boolean, fx: Re
         }
       }
 
+      if (encore) drawEncoreGlow(ctx, screenPos, radiusPx, t, fit.kx);
       drawBearChassis(ctx, screenPos, radiusPx, color, 1);
       drawInstrumentMarker(ctx, b.instrument, screenPos, radiusPx);
 
@@ -768,4 +798,106 @@ function drawTeamFightBadges(ctx: CanvasRenderingContext2D, match: Match, fit: I
     const pos = project(cluster.centroid, badgeHeight, fit);
     drawClusterBadge(ctx, pos, cluster.byTeam, fit.kx);
   }
+}
+
+// --- the Bandstand (docs/economy-spec.md §9.6 "Viewer") ---------------------------------------
+
+/**
+ * The stage at the open or next site, drawn in world space under the ground matrix so it lies flat
+ * on the river like the lanes do. Closed: a faint dashed gold rim. Upcoming: the rim brightens and
+ * pulses. Open: a lit disc, and the capture bar as a ring in the leading team's colour, filling
+ * clockwise from the disc's screen-top edge; contested (both teams on it): the rim alternates
+ * violet and green. Nothing once the last set is done.
+ */
+function drawStage(ctx: CanvasRenderingContext2D, objective: Objective, t: number): void {
+  const v = objective.view('violet', null);
+  if (v.status === 'done') return;
+  const { x, y } = v.pos;
+  const r = v.radius;
+  const open = v.status === 'open';
+  const upcoming = v.status === 'upcoming';
+  const pulse = 0.5 + 0.5 * Math.sin(t / 300);
+  const rim = () => {
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.stroke();
+  };
+  ctx.save();
+  ctx.fillStyle = open ? 'rgba(255,214,102,0.16)' : upcoming ? `rgba(255,214,102,${0.05 + 0.07 * pulse})` : 'rgba(255,214,102,0.04)';
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.lineWidth = 3;
+  if (v.contested) {
+    ctx.setLineDash([12, 12]);
+    ctx.strokeStyle = VIOLET;
+    rim();
+    ctx.lineDashOffset = 12;
+    ctx.strokeStyle = GREEN;
+    rim();
+  } else {
+    ctx.globalAlpha = open ? 0.9 : upcoming ? 0.45 + 0.45 * pulse : 0.3;
+    if (!open) ctx.setLineDash([8, 8]);
+    ctx.strokeStyle = ENCORE_GOLD;
+    rim();
+  }
+
+  if (open) {
+    // the bar: a dim track, then the leader's share of it (progress is violet's side: + violet, − green)
+    const START = (-3 * Math.PI) / 4; // world direction (−1, −1): the disc's screen-top edge under the iso camera
+    ctx.globalAlpha = 1;
+    ctx.setLineDash([]);
+    ctx.lineWidth = 9;
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.beginPath();
+    ctx.arc(x, y, r + 9, 0, Math.PI * 2);
+    ctx.stroke();
+    if (v.progress !== 0) {
+      ctx.strokeStyle = teamColor(v.progress > 0 ? 'violet' : 'green');
+      ctx.beginPath();
+      ctx.arc(x, y, r + 9, START, START + Math.abs(objective.bar) * Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+/** The stage's label, floating above it in screen space: the countdown while closed or upcoming, the leader's share or "contested" while open. */
+function drawStageLabel(ctx: CanvasRenderingContext2D, objective: Objective, fit: IsoFit): void {
+  const v = objective.view('violet', null);
+  if (v.status === 'done') return;
+  let text: string;
+  let color: string;
+  if (v.status !== 'open') {
+    text = `BANDSTAND IN ${v.opensInSec ?? 0}s`;
+    color = v.status === 'upcoming' ? ENCORE_GOLD : '#888';
+  } else if (v.contested) {
+    text = 'BANDSTAND CONTESTED';
+    color = '#fff';
+  } else if (v.progress !== 0) {
+    text = `BANDSTAND ${Math.round(Math.abs(objective.bar) * 100)}%`;
+    color = teamColor(v.progress > 0 ? 'violet' : 'green');
+  } else {
+    text = 'BANDSTAND OPEN';
+    color = ENCORE_GOLD;
+  }
+  const pos = project(v.pos, STAGE_LABEL_HEIGHT, fit);
+  const fontSize = Math.max(10, 12 * fit.kx);
+  ctx.save();
+  ctx.font = `bold ${fontSize}px 'Courier New', monospace`;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+  const padX = Math.max(5, 6 * fit.kx);
+  const padY = Math.max(3, 4 * fit.kx);
+  const w = ctx.measureText(text).width + padX * 2;
+  const h = fontSize + padY * 2;
+  ctx.fillStyle = 'rgba(0,0,0,0.78)';
+  ctx.fillRect(pos.x - w / 2, pos.y - h / 2, w, h);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = Math.max(1, 1.5 * fit.kx);
+  ctx.strokeRect(pos.x - w / 2, pos.y - h / 2, w, h);
+  ctx.fillStyle = color;
+  ctx.fillText(text, pos.x, pos.y);
+  ctx.restore();
 }

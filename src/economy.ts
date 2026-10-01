@@ -8,9 +8,14 @@
  * How it works without editing the sim:
  * - damage attribution (kill credit, last hits, lifesteal) comes from `src/attribution.ts`;
  * - the match's own `tick` is wrapped: the sim ticks, then this layer resolves that tick (§3.8);
- * - stats from levels and items are written into each bearbot's own mutable fields between ticks;
+ * - stats from levels and items are written into each bearbot's own mutable fields between ticks,
+ *   through the derivation every ruleset layer shares (`src/ruleset/stats.ts`), so the river
+ *   objective's Encore and this layer's levels and items multiply instead of overwriting each other;
  * - respawn sets a dead bearbot back to life between ticks; the sim polls it again on its next tick;
- * - each pilot's `decide` is wrapped so its observation carries the economy fields (§4.1).
+ * - each pilot's `decide` is wrapped so its observation carries the economy fields (§4.1);
+ * - it registers the match's reward sink (`src/ruleset/rewards.ts`), which is how the river objective
+ *   pays Bandstand gold and XP (§9.5): with no economy attached there is no sink, and a capture pays
+ *   the Encore only.
  *
  * Every number is in the ruleset (`src/economy/eco-1.json`); nothing here is a tuning constant. The
  * layer uses no RNG and resolves everything in roster order, so a match is a function of its seed and
@@ -19,14 +24,20 @@
 import type { Instrument, Observation, Team } from './types';
 import type { Match } from './sim/match';
 import type { Bearbot, Unit } from './sim/entities';
-import { INSTRUMENTS } from './sim/entities';
 import { BASE, LANE_PATHS, dist, pointAlongPath } from './sim/map';
 import { attachAttribution } from './attribution';
+import { deriveStats, setStatMultiplier } from './ruleset/stats';
+import { setRewardSink, type RewardSink } from './ruleset/rewards';
 import ECO_1_JSON from './economy/eco-1.json';
 
-/** Ledger keys, one per income source. `pools.safeSources` names the ones paid into the safe pool. */
-export const GOLD_SOURCES = ['passive', 'minion', 'kill', 'assist', 'drop', 'first-blood', 'tower-team', 'tower-local'] as const;
+/**
+ * Ledger keys, one per income source. `pools.safeSources` names the ones paid into the safe pool.
+ * The two `bandstand-*` keys are paid only by the river objective (§9.5), through `rewards` below.
+ */
+export const GOLD_SOURCES = ['passive', 'minion', 'kill', 'assist', 'drop', 'first-blood', 'tower-team', 'tower-local', 'bandstand-team', 'bandstand-local'] as const;
 export type GoldSource = (typeof GOLD_SOURCES)[number];
+/** The sources §6.2's pre-registered gold lines read: everything but the Bandstand's (§9.5). */
+export const ECO_1_GOLD_SOURCES: readonly GoldSource[] = GOLD_SOURCES.filter((k) => !k.startsWith('bandstand-'));
 
 export interface ItemDef {
   name: string;
@@ -291,6 +302,16 @@ export class Economy {
     if (amount > 0) this.bots[i].xp += amount;
   }
 
+  /**
+   * What the river objective pays through (`src/ruleset/rewards.ts`): Bandstand gold into the pools
+   * by the same `pools.safeSources` rule as every other source, and XP like any other XP. Registered
+   * on the match by `attachEconomy`.
+   */
+  readonly rewards: RewardSink = {
+    gold: (i, amount, source, tick) => this.pay(i, source, tick, amount),
+    xp: (i, amount) => this.addXp(i, amount),
+  };
+
   // --- the tick (§3.8) -----------------------------------------------------------------------------
 
   /** Attribution listener: remember this tick's PvP hits, last hits and minion deaths. */
@@ -489,7 +510,8 @@ export class Economy {
     return this.bots[i].items.reduce((s, k) => s + (this.ruleset.items[k].mods[key] ?? 0), 0);
   }
 
-  private multiplier(i: number, key: 'maxHp' | 'attackDamage' | 'moveSpeed' | 'attackCooldownSec'): number {
+  /** This layer's stat multiplier, registered with the shared derivation (`src/ruleset/stats.ts`). */
+  multiplier(i: number, key: 'maxHp' | 'attackDamage' | 'moveSpeed' | 'attackCooldownSec'): number {
     let m = 1;
     if (key === 'maxHp' || key === 'attackDamage') m *= 1 + this.ruleset.xp.perLevel[key] * (this.bots[i].level - 1);
     for (const k of this.bots[i].items) m *= 1 + (this.ruleset.items[k].mods[key] ?? 0);
@@ -497,22 +519,13 @@ export class Economy {
   }
 
   /**
-   * `stat = instrumentBase × (1 + levelBonus) × Π(1 + itemModifier)` (§3.5), written into the bot's
-   * own fields. A level-1 bot with no items gets its base values back exactly. Current hp moves by
+   * `stat = instrumentBase × (1 + levelBonus) × Π(1 + itemModifier)` (§3.5), times any other layer's
+   * multiplier (the river objective's Encore), written into the bot's own fields by the shared
+   * derivation. A level-1 bot with no items gets its base values back exactly. Current hp moves by
    * as much as max hp does, and never below 1 for a living bot.
    */
   private deriveStats(i: number): void {
-    const b = this.match.bearbots[i];
-    const base = INSTRUMENTS[b.instrument];
-    const maxHp = base.maxHp * this.multiplier(i, 'maxHp');
-    if (maxHp !== b.maxHp) {
-      const hp = b.hp + (maxHp - b.maxHp);
-      b.maxHp = maxHp;
-      b.hp = Math.min(maxHp, b.alive ? Math.max(1, hp) : hp);
-    }
-    b.attackDamage = base.attackDamage * this.multiplier(i, 'attackDamage');
-    b.moveSpeed = base.moveSpeed * this.multiplier(i, 'moveSpeed');
-    b.attackCooldownSec = base.attackCooldownSec * this.multiplier(i, 'attackCooldownSec');
+    deriveStats(this.match, i);
   }
 
   // --- what pilots see (§4.1) ------------------------------------------------------------------------
@@ -583,13 +596,18 @@ export class Economy {
 }
 
 /**
- * Attach `ruleset` to a match that has not ticked yet (after `applyMapVariant`). `builds` is the
- * per-roster-index shopping list a log records; missing entries use the instrument default.
+ * Attach `ruleset` to a match that has not ticked yet (after `applyMapVariant`, and after the river
+ * objective when there is one: the layer attached last wraps `tick` outermost and runs last, so the
+ * objective's update lands between the sim and this layer's steps, as §3.8 and §9.6 order them).
+ * `builds` is the per-roster-index shopping list a log records; missing entries use the instrument
+ * default.
  */
 export function attachEconomy(match: Match, ruleset: EconomyRuleset, builds: string[][], tickDt: number): Economy {
   if (economyOf.has(match)) throw new Error('an economy is already attached to this match');
   const economy = new Economy(match, ruleset, builds, tickDt);
   economyOf.set(match, economy);
+  setStatMultiplier(match, 'economy', (i, key) => economy.multiplier(i, key));
+  setRewardSink(match, economy.rewards);
   const tickNow = () => Math.round(match.clockSec / tickDt);
 
   attachAttribution(match, (h) => economy.onHit(h.srcBot, h.srcTeam, h.victim, h.dmg, h.killed, h.pos, tickNow()));

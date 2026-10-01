@@ -62,8 +62,8 @@ tools/               jam tooling: headless match runner (tools/match/), the mode
 runs/                operator records and match logs (per-run directories are local/ignored)
 artifacts/           exported workspaces and frozen submissions (local/ignored)
 src/                 original generated game specimen; not maintained game source
-                     (src/replay.ts, src/live.ts, src/mapVariant.ts, src/economy.ts and src/attribution.ts
-                     are jam tooling that drive the
+                     (src/replay.ts, src/live.ts, src/mapVariant.ts, src/economy.ts, src/objective.ts,
+                     src/ruleset/ and src/attribution.ts are jam tooling that drive the
                      unchanged sim from outside; src/render.ts is a pure read of match state, not frozen, and is actively
                      maintained — see docs/render-spec.md)
 docs/                current design notes and historical recordings; not implicit run inputs
@@ -133,11 +133,20 @@ at base (`src/economy.ts`, every number in `src/economy/eco-1.json`; the design 
 `docs/economy-spec.md`). It is off by default until the Sun 10-04 go/no-go. A schema side buys the
 shopping list its prose compiled to (`build`), else its instrument's default. The log records the
 whole ruleset and every bot's list, and `--verify` replays with it; logs without one have no economy.
+**River objective.** `--objective river-1` plays the Bandstand: a neutral stage that alternates
+between two river sites, taken by holding it (any enemy on it freezes the capture), paying the team a
+45 s Encore buff, plus gold and XP when the economy is on (`src/objective.ts`, every number in
+`src/objective/river-1.json`; the design is `docs/economy-spec.md` §9). It is off by default until its
+own Sun 10-04 go/no-go. The log records the ruleset and every opening; logs without one have none.
 **Metrics.** `npm run metrics -- --group <label> <log.json>… [--group …] --md out.md --heatmaps pfx`
 replays logs and reports how they were played: PvP vs PvE damage and time, team fights, team
 proximity, where fights and deaths happen relative to towers, a gold proxy and its swinginess,
 first blood / first tower, per-bot numbers vs the others in their position, position heatmaps, and
 seed-paired differences against the first group (`tools/match/metrics.ts` has the definitions).
+Logs played with the river objective add the Bandstand's numbers (openings, captures, contested
+share, team fights at an open Bandstand, capture split, Encore uptime) and its sites on the
+heatmaps; `--prereg bandstand` appends the pre-registered verdict of
+[`docs/economy-spec.md`](docs/economy-spec.md) §9.8, the first group read as P and each later one as O.
 
 **Cadence.** The runner is lockstep: the sim does not advance while a model is thinking, so a
 match depends only on the seed and the replies, never on GPU speed. The game polls each pilot every

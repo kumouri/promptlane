@@ -165,9 +165,18 @@ model hosted, `qwen/qwen3.5-9b`, ≈$0.0006 per three-instrument compile — see
 **Target vocabulary — the one place prose nuance is deliberately flattened.** Jev's questions judge
 *conditions*, but nothing in this pipeline asks Jev to pick *which entity*. Once a rule fires, its
 target is resolved deterministically in Python (`tools/jev/target_resolve.py`) from a **fixed,
-10-item vocabulary** (`home`, `push_lane`, `nearest_enemy`, `lowest_hp_enemy`,
+11-item vocabulary** (`home`, `push_lane`, `nearest_enemy`, `lowest_hp_enemy`,
 `densest_cluster_enemy`, `isolated_enemy`, `nearest_tower`, `threatened_ally_enemy`,
-`nearby_minion`, `none`). The translator's job is to pick the closest-matching selector for what the
+`nearby_minion`, `bandstand`, `none`). *(2026-09-30: `bandstand` is the river objective's stage,
+[`economy-spec.md` §9.7](economy-spec.md). It resolves to the stage while its status is `upcoming`
+or `open`. While it is `closed` or `done`, or in a match with no objective, it resolves exactly as
+`push_lane` does, so a stale "go take the Bandstand" rule walks up the lane instead of parking. It
+is one more value of the existing `target_selector`, so the compiled-schema format version is
+unchanged. The transparency views render it as "move to the Bandstand". In a match with the
+objective, Jev's state paragraph (`fidelity_harness.describe_observation`) ends with the stage's
+status, distance, progress from your side, whether it is contested, how many of your team are on
+it, what taking it gives, and who has Encore. Without the objective it ends with "There is no
+Bandstand in this match.")* The translator's job is to pick the closest-matching selector for what the
 prose says ("densest cluster" → `densest_cluster_enemy`, "softest target" → `lowest_hp_enemy`), not
 to invent new ones. **This is a real, named simplification, not a hidden one**: it is a smaller
 version of the same idea the memo's §6 flagged for the whole translation layer, applied specifically

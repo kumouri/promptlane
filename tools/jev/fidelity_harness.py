@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import random
 import statistics
@@ -48,7 +49,7 @@ from client import (  # noqa: E402
 )
 from economy_rules import item_name  # noqa: E402
 from ground_truth import ground_truth_action  # noqa: E402
-from scenarios import all_scenarios, build_observation, ABILITIES  # noqa: E402
+from scenarios import all_scenarios, build_observation, river_rules, ABILITIES  # noqa: E402
 from target_resolve import resolve_target  # noqa: E402
 from translator import (  # noqa: E402
     GuardNode,
@@ -177,7 +178,14 @@ def describe_observation(obs: dict) -> str:
     `self.gold`/`level`/`items`/..., per-entity `level`/`gold`/`bounty`/`items`, top-level
     `respawning` and `shop`), a sentence or two per field group is added after the matching part of
     the description, so a condition like "can it afford its next item?" or "is an enemy respawning?"
-    is answerable from the text. An observation without those fields is described exactly as before."""
+    is answerable from the text. An observation without those fields is described exactly as before.
+
+    RIVER OBJECTIVE. The Bandstand's lines come last (`_bandstand_lines`, §9.7); an observation
+    without a `bandstand` block gets the single line "There is no Bandstand in this match." The one
+    exception to "no precomputed distance" is the Bandstand's distance from this bot, which the
+    stakes need to read as a decision.
+
+    This is also what `schema_server.py` shows Jev live (via `run_prediction`)."""
     self_ = obs["self"]
     parts = [
         f"This is a {self_['team']}-team bearbot playing {self_['instrument']}, "
@@ -233,7 +241,76 @@ def describe_observation(obs: dict) -> str:
         parts.append(f"{'Ally' if r['team'] == self_['team'] else 'Enemy'} {r['id']} respawns in {_seconds(r['inSec'])} s.")
     if obs.get("shop"):
         parts.append("The base shop sells: " + ", ".join(f"{item_name(i['item'])} ({i['cost']} gold)" for i in obs["shop"]) + ".")
+    parts.extend(_bandstand_lines(obs))
     return " ".join(parts)
+
+
+def _pct(frac: float) -> str:
+    return f"{round(abs(frac) * 100)} %"
+
+
+def _more_seconds(secs: float) -> str:
+    """Encore time left, whole seconds rounded up ("1 more second", "21 more seconds")."""
+    n = math.ceil(secs)
+    return f"{n} more second{'' if n == 1 else 's'}"
+
+
+def _bandstand_lines(obs: dict) -> list[str]:
+    """The river objective (`docs/economy-spec.md` §9.7), appended after every other line so a match
+    without it reads exactly as before plus one sentence. That sentence ("There is no Bandstand in
+    this match.") is what keeps the with/without measurement (§9.8) clean: Jev is told the stage is
+    absent rather than left to guess. Gold is mentioned only when the economy is on (`self.gold`)."""
+    stand = obs.get("bandstand")
+    if stand is None:
+        return ["There is no Bandstand in this match."]
+    self_ = obs["self"]
+    where = f"the {stand['site']} river"
+    dist = round(((self_["pos"]["x"] - stand["pos"]["x"]) ** 2 + (self_["pos"]["y"] - stand["pos"]["y"]) ** 2) ** 0.5)
+    status = stand["status"]
+    lines: list[str] = []
+    if status == "open":
+        progress = stand.get("progress") or 0
+        if progress > 0:
+            bar = f"Your team is {_pct(progress)} of the way to taking it"
+        elif progress < 0:
+            bar = f"The enemy team is {_pct(progress)} of the way to taking it"
+        else:
+            bar = "Nobody has made progress on it"
+        n = stand.get("alliesOn") or 0
+        if n == 0:
+            on = "none of your team is on it"
+        elif stand.get("selfOn"):
+            on = "you are on it" if n == 1 else f"{n} of your team are on it, you included"
+        else:
+            on = f"{n} of your team {'is' if n == 1 else 'are'} on it"
+        lines.append(f"The Bandstand at {where} is open, {dist} units from you. {bar} and {on}.")
+        if stand.get("contested"):
+            lines.append("Both teams are on it, so it is contested and nobody can take it until one side leaves.")
+        river = river_rules()
+        mods = river["encore"]["mods"]
+        stakes = (
+            f"Taking it gives your whole team Encore (+{_pct(mods['attackDamage'])} attack damage, "
+            f"+{_pct(mods['moveSpeed'])} move speed for {river['encore']['durationSec']} s)"
+        )
+        if "gold" in self_:
+            stakes += f" and {river['economy']['goldTeam']} gold each"
+        lines.append(stakes + ".")
+    elif status == "upcoming":
+        lines.append(f"The Bandstand opens at {where} in {stand['opensInSec']} s, {dist} units from you.")
+    elif status == "closed":
+        lines.append(f"The Bandstand is closed; the next one opens at {where} in {stand['opensInSec']} s.")
+    else:  # "done"
+        lines.append("The Bandstand is done for this match; it will not open again.")
+
+    if (self_.get("encoreSec") or 0) > 0:
+        lines.append(f"You have Encore for {_more_seconds(self_['encoreSec'])}.")
+    for a in obs["allies"]:
+        if (a.get("encoreSec") or 0) > 0:
+            lines.append(f"Ally {a['id']} has Encore for {_more_seconds(a['encoreSec'])}.")
+    for e in obs["visibleEnemies"]:
+        if e.get("encore"):
+            lines.append(f"Enemy {e['id']} has Encore.")
+    return lines
 
 
 def run_prediction(client, schema: TranslatedSchema, obs: dict) -> dict:
