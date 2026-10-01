@@ -6,9 +6,11 @@
 Q11–Q13 are still open. **P1 (§7) is built**, off by default until the Sun 10-04 gate; §11 records
 how it was built and the choices the spec left open. **The river objective (O1 and O2) is built**,
 also off by default until its own go/no-go at the same gate; §12 records how, and its §9.8
-measurement. **The income tuning pass and P2's house side are built** (§13): the ruleset is now
-`eco-2`, the house tiers shop on purpose, and §6's measurement is one command (§13.5). The
-entrant-facing part of P2 (README, template, compile preview) waits for the gate.
+measurement. **The redesign after that measurement failed, `river-2` and `recall-2`, is ruled
+(Ceryce, 2026-09-30 23:00 and 23:02 CT; Q18) and built**, both opt-in. §9.10 has the design, the
+design check and its measurement. **The income tuning pass and P2's house side are built** (§13): the
+ruleset is now `eco-2`, the house tiers shop on purpose, and §6's measurement is one command (§13.5).
+The entrant-facing part of P2 (README, template, compile preview) waits for the gate.
 **Written:** 2026-09-30, after Ceryce chose "minimal economy before the jam" (19:57 CT). §9, the
 neutral river objective, was added the same evening after she backed the idea (20:34 CT).
 **Jam:** Fri 2026-10-16. Entry cutoff is midnight Central on Thu 10-15. Sign-ups close Tue 10-06.
@@ -920,6 +922,53 @@ economy" → **option A.**
   `pvp-1` goes into the Jam unanswered.
 - C: after the Jam. **Cost:** the Jam runs on `pvp-1` as it is, with about 2.75 team fights a match.
 
+**Q18. The Bandstand redesign after the failed §9.8 run** (`river-2`, `recall-2`; §9.10). **RULED
+2026-09-30 23:00 CT, corrected 23:02 CT** (Telegram, in chat, not a picker). Her two messages, verbatim:
+
+> "Uncaptured stages close after 30s if no one is on it, 45s if someone is on it. Having more of one
+> team than the other will lower the lower number teams control, but it won't raise the control of the
+> higher team. Make recall a channeled 4s teleport, interrupted by any damage except in the last 0.5s
+> of its channel. Capturing down to 7.5s, 5s, 3s (1, 2, 3 people). We want a team that coordinated
+> before the time to be able to take it before any player can make it there to interrupt them. If these
+> tweaks don't work we'll look into having them in opposing corners of the jungle with a longer capture
+> time and a weaker buff, maybe just gold and exp for your team or something, so they aren't as
+> impactful but still work at least getting the one on your side when it's up, and if the enemy team is
+> doing well enough or focuses on it or something they can possibly cover both and use that to
+> snowball. In the last situation we would also probably make them both trigger at the same time every
+> 90s or something."
+>
+> — Ceryce, 2026-09-30 23:00 CT
+
+> "Then make it linear, 7.5 / 5 / 2.5. Correct on both assumptions"
+>
+> — Ceryce, 2026-09-30 23:02 CT, correcting the 3 s above and confirming Q18a and Q18b as read below
+
+What is ruled, as built (§9.10):
+
+- **Q18a, close timer (ruled: the reading she confirmed at 23:02).** An open stage nobody has captured
+  closes 30 s after opening. If any bot is on the stage at that moment, the window extends, closing at
+  45 s after opening at the latest. A closed-uncaptured stage schedules the next one exactly like a
+  capture does: the other site, 75 s later, none after 9:00.
+- **Q18b, control (ruled: the reading she confirmed at 23:02).** A stage has one owning team's
+  control bar, 0 to full. Uncontested, the bots on it raise their team's control at the new rates.
+  - With both teams present and equal numbers, nothing moves.
+  - Otherwise the team with **more** bots lowers the outnumbered team's control, at the outnumbering
+    margin's rate. Its **own** control never rises while any enemy is on the stage.
+  - An empty stage still drains (15 s for a full bar).
+- **Q18c, capture times (ruled, corrected at 23:02).** Full in **7.5 / 5 / 2.5 s** for 1 / 2 / 3 bots.
+  This is linear, not the 3 s of the 23:00 message.
+- **Q18d, recall (ruled).** A 4.0 s channel at the bot's position, then a teleport to its own
+  fountain, with a full heal on arrival as today. It replaces the 3× run.
+  - Damage taken in the first 3.5 s cancels the channel: the bot stays where it is, and the recall
+    must be issued again. Damage in the last 0.5 s does not cancel it.
+  - Choosing another action also cancels it.
+- **Q18e, the design goal (ruled).** A team that coordinated before the opening can take the stage
+  before any enemy can get there to interrupt. It is checked in §9.10, with no number adjusted beyond
+  hers.
+- **Q18f, the fallback (not to be built unless these tweaks fail).** Both stages go in opposing
+  corners of the jungle, with a longer capture time and a weaker buff (perhaps gold and XP for the team
+  only), both triggering at once every 90 s or so.
+
 ---
 
 ## 9. Neutral river objective: the Bandstand (`river-1`)
@@ -930,6 +979,10 @@ economy" → **option A.**
 freezes it" (§9.4), Q15 "Two river sites taking turns" (§9.2–§9.3), Q16 "Encore buff + gold + XP"
 (§9.5), Q17 "Own go/no-go on 10-04, with or without the economy" (§9.9). The design below is the
 ruled design.
+
+**Redesigned 2026-09-30 23:00 CT (Q18) after `river-1` failed §9.8.** Ceryce's words, verbatim, are in
+§8 Q18. §9.1–§9.9 describe `river-1`, which stays so its logs replay. **§9.10 is `river-2` and
+`recall-2`:** what changes, the design check and their measurement.
 
 She was replying to the PvP balance study ([`runs/balance-pvp-2026-09-30.md`](../runs/balance-pvp-2026-09-30.md),
 PR #48). Its `pvp-1` map, now `DEFAULT_MAP` in [`src/mapVariant.ts`](../src/mapVariant.ts), pulled
@@ -1012,7 +1065,7 @@ This is Q15-C.
 |---|---|---|
 | First opening | **1:30** (90 s), announced 20 s ahead | In the study's baseline, 0 of 52 team fights started before 5:00, and first blood on `pvp-1` averaged 6:00. An early shared point gives the early game a reason to meet. 1:30 is after three waves, so the lanes have formed. |
 | After a capture | the next opening comes **75 s later, at the other site**, announced 20 s ahead | 75 s is two and a half waves. That is long enough to use a 45 s Encore and go home to shop, and short enough that 4 or more contests fit into 600 s. |
-| If nobody takes it | it stays open until captured | A stand-off is still a meeting point. |
+| If nobody takes it | it stays open until captured (`river-1`; `river-2` closes it after 30–45 s, §9.10) | A stand-off is still a meeting point. |
 | Last opening | no opening after **9:00** (540 s) | A reward with no time left to use it is noise. |
 
 If every set is quick, there are at most 7 openings: 1:30, 3:00, 4:30 … 9:00. A realistic match has
@@ -1026,7 +1079,7 @@ every tick from the positions of alive bearbots within 60 of the site.
 | Who is on the stage | What the bar does |
 |---|---|
 | One team only, with *n* bearbots | It moves toward that team at `rate(n) / 15` per second, where `rate` is 1 / 1.5 / 2 for 1 / 2 / 3 bots. From empty, a capture takes **15 s / 10 s / 7.5 s**. Any progress the other team had is wiped out first. |
-| Both teams (**contested**) | It **freezes**. |
+| Both teams (**contested**) | It **freezes** (`river-1`; under `river-2` the bigger group lowers the other team's progress, §9.10). |
 | Nobody | It drains toward 0. A full bar empties in 15 s. |
 
 When the bar reaches ±1, the reward is paid (§9.5), the stage closes, and the next timer starts.
@@ -1340,10 +1393,127 @@ There is no third pass before the Jam.
 - **Plan:** phases O1 and O2 in §7.
 - **Gate:** the objective has its own go/no-go at the §7 gate.
 - **Cut order:** in §7.
-- **Decisions:** Q14–Q17 in §8, all **ruled option A** on 2026-09-30 20:47–20:48 CT.
+- **Decisions:** Q14–Q17 in §8, all **ruled option A** on 2026-09-30 20:47–20:48 CT; the redesign,
+  Q18, ruled 23:00–23:02 CT (§9.10).
 
 The objective is built and measured on the **map-only** game, so its verdict is known **before** the
 Sun 10-04 gate, whatever the economy's state.
+
+### 9.10 The redesign: `river-2` and `recall-2` (Q18)
+
+**Why.** On Jev, `river-1` stalemated: in 12 of 12 hard-vs-hard matches the first stage opened at
+1:30 and stayed contested to the end, with 0 captures and 0 deaths
+([`runs/bandstand-2026-09-30.md`](../runs/bandstand-2026-09-30.md)). Two things made that possible. A
+team could rotate one bot home (the specimen's recall is a 3× run, about 3 s from mid) and back while
+the others kept one body on the stage, and any one enemy body froze the bar forever. Ceryce's redesign
+(§8 Q18, verbatim there) closes both doors.
+
+**What changes.** Both are opt-in layers outside the frozen sim, each with its own name so it can be
+measured on and off:
+
+| | `river-1` | `river-2` (`src/objective/river-2.json`) |
+|---|---|---|
+| Capture, 1 / 2 / 3 bots | 15 / 10 / 7.5 s | **7.5 / 5 / 2.5 s** (`setSec` 7.5, `rateByCount` [0, 1, 1.5, 3]) |
+| Both teams on it | frozen | equal numbers: frozen. **The bigger group lowers the other team's progress** at `rate(margin)` (a margin of 1 lowers it as fast as one bot raises it; a margin of 2, as two do), and never raises its own (`capture.contest: "outnumber"`) |
+| Nobody takes it | open until captured | **closes 30 s after opening**; if a bot is on it then, on the first tick it is empty, and **at 45 s at the latest** (`close`) |
+| After a close | — | the next opening exactly as after a capture: the other site, +75 s, none after 9:00 |
+| Sites, warning, Encore, gold, XP, drain | | unchanged |
+
+| | specimen recall | `recall-2` (`src/recall.ts`, `src/recall/recall-2.json`) |
+|---|---|---|
+| What it is | a run home at 3× speed, healed on arrival | a **4.0 s channel standing still**, then a **teleport to the fountain**, healed |
+| Interrupted by | nothing (another action cancels it) | **damage in the first 3.5 s**, from any source; another action. Not by damage in the last 0.5 s |
+
+**The design check (Q18e).** *A team standing on the stage when it opens must finish before any enemy
+can get there.* The table uses straight-line travel (the sim has no walls) to the stage's edge (a bot
+counts at centre distance ≤ 60). It starts from every lane midpoint and both fountains, at each
+instrument's speed (drums 55, keytar 60, violin 75), and with each movement ability if it is off
+cooldown. Encore is left out: it lasts 45 s and no stage opens within 75 s of a capture, so no bot has
+it at an opening. Margin = enemy arrival − capture time; **a negative margin means an enemy can
+arrive in time to interrupt.** The table is for the top-side site; bottom-side is its mirror (the top
+and bottom lanes swap).
+
+| From | Distance to the edge | drums | keytar | keytar glissando (140 dash) | violin | violin solo (×1.6 for 3 s) | Margin walking: 3 / 2 / 1 bots (2.5 / 5 / 7.5 s) | Margin with an ability ready |
+|---|---:|---:|---:|---:|---:|---:|---|---|
+| top lane midpoint (100, 100) | 223 | 4.05 s | 3.71 s | 1.38 s | 2.97 s | 1.86 s | **+0.47** / −2.03 / −4.53 | −1.12 / −3.62 / −6.12 |
+| mid lane midpoint (500, 500) | 223 | 4.05 s | 3.71 s | 1.38 s | 2.97 s | 1.86 s | **+0.47** / −2.03 / −4.53 | −1.12 / −3.62 / −6.12 |
+| bottom lane midpoint (900, 900) | 789 | 14.34 s | 13.14 s | 10.81 s | 10.51 s | 8.71 s | +8.01 / +5.51 / +3.01 | +6.21 / +3.71 / +1.21 |
+| either fountain | 572 | 10.41 s | 9.54 s | 7.21 s | 7.63 s | 5.83 s | +5.13 / +2.63 / +0.13 | +3.33 / +0.83 / −1.67 |
+
+- **Three bots meet the goal against every walking enemy.** The closest call is a violin from an
+  adjacent lane midpoint, by 0.47 s. The drums and keytar need 1.2–1.6 s longer than the set.
+- **It fails against two abilities from the adjacent lanes.** The keytar's glissando arrives at
+  1.38 s and the violin's solo at 1.86 s, if either is off cooldown and its pilot uses it toward the
+  stage at the opening. The far lane and both fountains are safe for three bots even then.
+- **Two bots or one bot do not meet the goal** from an adjacent lane midpoint, even against a walking
+  enemy: the closest enemy needs 2.97 s, and the sets are 5 and 7.5 s. From the far lane they do. From
+  a fountain, two bots do and one bot only just does (+0.13 s walking).
+- **In practice an enemy also has to decide to go.** Jam pilots decide every 2 s. Everybody hears the
+  20 s warning, so an enemy that pre-positions contests from the first tick. The check is about the
+  enemy who did not.
+- As ruled, no number was adjusted to make a row pass.
+
+**How it was built, and the choices the ruling left open:**
+
+- *Close timer.* "The window extends, closing at 45 s at the latest" is read this way: from 30 s on,
+  the stage closes on the first tick nobody is on it, and at 45 s regardless. A capture on the tick the
+  timer runs out counts as a capture. A closed opening records `closedSec`.
+- *Control.* `river-2` keeps `river-1`'s one signed bar, so "one owning team's control" is the side
+  the bar leans to.
+  - "At the outnumbering margin's rate" uses the capture rates: a margin of 1 lowers the bar by 1/7.5
+    per second, and a margin of 2 by 1/5. (3 v 0 is not contested.)
+  - The bar stops at 0 and never crosses.
+  - `river-1`'s "the other team's progress is wiped out first" is kept, since Q18 did not touch it: a
+    team alone on the stage zeroes the other side's progress before raising its own.
+- *Recall.* The layer swaps a `recall` action for `hold` before the sim ticks, so the 3× run never
+  starts. It watches hp across the sim's own tick, and any loss there is damage, from a bearbot, a
+  minion or a tower.
+  - `hold` does not cancel the channel (the sim's recall also survives `hold`). A `recall` asked again
+    continues it. Any other action cancels it.
+  - An interrupted bot is set to `hold`. Under the Jam's 2 s cadence the sim still polls every 0.5 s
+    and gets the pilot's last action back. So a pilot that still wants to recall issues it again within
+    0.5 s, and the channel starts again from 0.
+  - The teleport lands on the fountain (`BASE`, where the specimen's recall heals). With the economy
+    on, the shop sees the bot there on the same tick.
+  - A channel ends on death.
+- *Tick order.* `recall-2` attaches right after the map, before the objective and the economy. So it
+  wraps the sim's tick directly, and the objective's count already has the teleported bot off the stage.
+- *Observation and Jev.* Neither layer adds an observation field.
+  - Jev's Bandstand description is unchanged and still true ("nobody can take it until one side
+    leaves").
+  - Its Encore and gold numbers come from `river-1.json`, which `river-2` shares (a test pins that).
+- *House tiers.* Unchanged. Hard's "contest it" rule says: if the stand is contested, or the bar leans
+  to the enemy, and hp is over 40 %, go to the Bandstand. That expresses the new mechanics as it is,
+  because under `river-2` going there is how the bigger group forms. Their *recall* rules are another
+  matter (below).
+- *Replay.* A log records `recall` and the `river-2` ruleset whole. Checkpoints gain the open tick
+  (`o`, `river-2` only) and every bot's channel start (`r`). Logs without them replay as before: the
+  first run's 48 `river-1` logs and the committed v1, `pvp-1` and economy logs all still verify.
+- *Off by default.* `--objective river-2` and `--recall recall-2` turn them on. So do the arena's
+  `tournament.objective` and `tournament.recall`, and an evolve campaign's `shape.objective` and
+  `shape.recall`. `DEFAULT_RECALL` is the specimen's recall until Ceryce rules otherwise.
+- *Economy P2.* P2's house tiers were written against the specimen's 3× recall.
+  - When `recall-2` is ruled in, P2 picks it up by passing `--recall recall-2` (or `shape.recall`) in
+    its own runs.
+  - Its tiers' recall rules need rewriting, not just re-measuring. A recall now costs 4 s standing
+    where the bot is, and a hit cancels it. So "recall below X hp" in a lane or a fight gets
+    interrupted by the minions and kills the bot (the measurement below shows exactly that).
+  - The channel rewards walking out of reach first (`move home`), then recalling.
+
+**Measurement.** [`runs/bandstand-2-2026-09-30.md`](../runs/bandstand-2-2026-09-30.md): 12 seed pairs
+on Jev, §9.8's lines unchanged, $1.39.
+
+- **As briefed (`recall-2` on in both arms): FAIL, 7 of 10 lines.** That comes from `recall-2`
+  meeting today's house tiers, not from the objective. Their low-hp recall fires mid-lane, the
+  minions interrupt every channel, and 31 of 65 deaths come before the first stage opens. That leaves
+  0 team fights in either arm.
+- **`river-2` alone (the specimen recall), against the first run's P on the same seeds: 8 of 10
+  pass.** Hard vs hard no longer freezes (0 → 1.83 captures a match), and captures are back to a
+  median of 3.5 a match. The misses are team fights (3.92 against 4.6; the Δ CI is wholly above 0) and
+  the contested share (49.2 % against 50 %).
+- **A new one-sidedness.** In hard vs hard, violet took all 11 captures, each uncontested.
+- **What it needs before `recall-2` can be judged:** house tiers that walk out of reach before they
+  recall.
 
 ---
 
@@ -1494,6 +1664,7 @@ decide, and what the build decided:
   (20.8 %) failed because hard-vs-hard turned every match into one stage contested to the end.
   The tuning pass is not run (it would pass the $5 ceiling, and §9.8's levers don't address a
   stalemate); Ceryce rules at the gate. Spend $3.96.
+- **The redesign** (`river-2`, `recall-2`; Q18) is built and measured in §9.10.
 
 ---
 
