@@ -637,3 +637,25 @@ That is 26 matches an arm, 52 in all, plus one 120 s smoke on C1's flags.
 - **The primary line fails:** ship only the finer tiebreak, labelled as paper, and come back with
   the data.
 - **A keep-line regresses:** Ceryce's call, as with §9.8.
+
+### Amendment: a larger sample, registered before the first real match
+
+**Recorded Thu 2026-10-01, 18:12 CT, after the smoke and before any real match of either arm.** No
+result of this measurement had been seen. The sample is never extended after a result is seen.
+
+- **Reason: Ceryce raised the budget.** She approved the run as above ($5.00, ceiling $7.00), then at
+  17:58 CT raised it: "Give it $15." The extra budget buys statistical power, not new questions.
+- **Measured unit cost.** The 120 s smoke on C1's flags (medium–hard, seed 7) cost **$0.0210** for 336
+  Jev requests, so a full match is about **$0.105**. C1 runs a little shorter.
+- **The amended slots**, identical in both arms, played C0 then C1 per slot, in this order:
+  1. the 24 pre-registered slots above (medium–hard, hard–medium, medium–entrant, entrant–hard on
+     seeds 3, 7, 11, 23, 42, 101);
+  2. the 2 mirror slots above (hard–hard, seeds 7 and 11; reported only);
+  3. **36 added slots:** the same four pairings on **seeds 5, 13, 17, 19, 29, 31, 37, 43, 47**.
+- **So: 62 matches an arm, 124 in all**, about **$12.6** at the smoke's rate, against a **$15.00 hard
+  stop** (`schema_server.py --budget-usd 15.00`). The runner stops launching slots if spent plus the
+  measured average times the matches left would pass $14.50. A stop leaves whole C0/C1 pairs, and the
+  original 26-a-side sample is played first.
+- **Analysis, unchanged except for n.** The primary line and every keep-line are computed as above,
+  seed-paired over the **60** non-mirror slots. The original 24 slots are also reported on their own,
+  as the plan was first registered.
