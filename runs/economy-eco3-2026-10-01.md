@@ -24,6 +24,11 @@ gate?
   just as the gate's income fail was carried by it. The entrant pairing also stays over the income
   band (149.0) and over the gap line (0.319). The lines are pooled medians, as pre-registered, so
   this is a caveat, not a fail.
+- **Both presets were measured on the eco house tiers from before #57.** #57 merged during this
+  run. It made every recall in those tiers walk out of sight of enemies first, a change made for
+  `recall-2` that also changes play under today's recall. The comparison is like for like, because
+  `eco-2` and `eco-3` played the same tiers. But the house medium and hard on `develop` now are not
+  the ones measured (below).
 - **Recommendation for Sun 10-04: ship `eco-3`** (details [at the end](#for-sun-10-04)). The default
   is not flipped here. The spec doesn't make that automatic, so it is Ceryce's call at the gate.
 
@@ -34,8 +39,11 @@ gate?
   leaves A and R alone. The 24 matches are the gate's B1 plan: same tiers, same eco prompts and
   schemas, same pairings (medium violet vs hard or the eco sample entrant green), and the same
   12 seeds, `pvp-1`, cadence 2, full 600 s.
-- **Code:** `a39c46e`, on `develop` after #56 (`37410a9`) plus #58's write-up. Every log is
+- **Code:** `develop` after #56 (`37410a9`), plus #58's write-up and this PR's preset commit
+  (`a39c46e` before this PR was rebased onto `develop` after #57–#59). Every log is
   **`simultaneous-1`**; why is [below](#eco-2-was-pre-56-eco-3-is-post-56-what-that-touches).
+  - **The tiers are the gate's own,** from before #57. Every log carries its prompt text and schemas,
+    so it replays on any later `develop`.
 - **Results:** 24 of 24 exited 0, and all 24 replay-verify (`npm run match -- --verify`, and
   `npm run metrics`, `replay=ok`). **All 24 ended on timeout**, as every §6 match has.
   - 7 went to violet, 7 to green and 10 were drawn.
@@ -217,6 +225,18 @@ condition A's medium-vs-hard shape exactly.
   - But a house-vs-house Jam match will usually buy after 4:30.
   - If that matters at the Jam, the lever is outside §6.2's one pass. §6.2 allows no further constants
     pass before the Jam.
+
+**Caveat: the house tiers moved under this run (#57).**
+- **What changed:** #57 rewrote each eco tier's low-hp and shopping recalls as "an enemy in sight →
+  `move home`, then no enemy in sight → recall". Hard's 300-gold rule now walks home.
+- **Why it applies here:** the change was made for `recall-2`, but the rules apply under any recall.
+- **What it can move:** a bot that walks out of sight before recalling gets home later, so it shops
+  later. That is the first-item and shopping lines, in the house pairing most of all.
+- **What's untouched:** the sample entrant didn't change.
+- **Status:** none of §6.2's lines has been measured on the new tiers, under either preset.
+- **Before the Jam:** if the Jam's house bots are the post-#57 tiers, a 12-match medium-vs-hard check
+  on `eco-3` (about $1.1) would show whether the house pairing's 4:47 first item got later. That is
+  not a second tuning pass; §6.2 allows none.
 
 **The default is not flipped in this PR, and the spec doesn't flip it automatically.**
 - `DEFAULT_ECONOMY` stays `none` until Ceryce's go/no-go (Q10, §7: "Ceryce decides").

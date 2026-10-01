@@ -1949,7 +1949,10 @@ They were played before #56, on the sequential order.
   order.
 - **The ledger forecast held:** income −11.0 against −9.5 forecast, and PvP share of earned −7.3pp
   against −7.4pp.
-- **Caveat:** the lines are pooled medians, and medium vs hard's own first item is 4:47. The entrant
-  pairing carries the pass.
+- **Caveats:**
+  - The lines are pooled medians, and medium vs hard's own first item is 4:47. The entrant pairing
+    carries the pass.
+  - Both presets were measured on the eco tiers from before #57. #57's walk-out-of-sight recalls
+    (§13.2) haven't been measured on either preset.
 - **Recommendation for the gate: ship `eco-3`.** Nothing flips automatically. `DEFAULT_ECONOMY`
   stays none, and §6's conditions stay `eco-2` until Ceryce rules.
