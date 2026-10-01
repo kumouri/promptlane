@@ -1,10 +1,10 @@
 # Economy spec — gold, levels and items for the Jam (eco-1)
 
 **Status:** P1's blocking questions are ruled: Q1, Q2, Q3, Q4 and Q10 (Telegram, 2026-09-30
-20:35–20:37 CT; §8). The spec body below reads against those rulings. Q5–Q9 and Q11–Q17 are still
-open, and Q14–Q17 block the river objective (§9). **P1 (§7) is built**, off by default until the
-Sun 10-04 gate; §11 records how it was built and the choices the spec left open. P2 onward and the
-river objective are not built.
+20:35–20:37 CT; §8). The river objective's four, Q14–Q17, are ruled too (Telegram, 2026-09-30
+20:47–20:48 CT; §8, §9), all option A. The spec body below reads against those rulings. Q5–Q9 and
+Q11–Q13 are still open. **P1 (§7) is built**, off by default until the Sun 10-04 gate; §11 records
+how it was built and the choices the spec left open. P2 onward and the river objective are not built.
 **Written:** 2026-09-30, after Ceryce chose "minimal economy before the jam" (19:57 CT). §9, the
 neutral river objective, was added the same evening after she backed the idea (20:34 CT).
 **Jam:** Fri 2026-10-16. Entry cutoff is midnight Central on Thu 10-15. Sign-ups close Tue 10-06.
@@ -781,7 +781,8 @@ measurement.
 Each question lists the options with the recommendation first. **Q1–Q4 and Q10 blocked P1, and all
 five are ruled** (Telegram pickers, 2026-09-30, times America/Chicago; her answers are quoted
 verbatim). Q5–Q9 and Q11–Q13 are open, and P1 builds their recommendations as constants. **Q14–Q16
-block O1**, and Q17 is needed by the Sun 10-04 gate.
+blocked O1 and Q17 the Sun 10-04 gate; all four are ruled** (Telegram pickers, 2026-09-30
+20:47–20:48 CT), each option A.
 
 **Q1. Respawn.** **RULED 20:35:** "Respawn, timer grows with level" → **option A.**
 - **A (rec, ruled):** respawn at the lane spawn after `6 + 3 × level` s. This is the precondition for any gold risk.
@@ -853,8 +854,9 @@ option here is a constants edit.
 Bandstand and Encore (§9). Rename freely. Only the keys in `eco-1.json` and `river-1.json` are
 load-bearing, plus the selector name `bandstand`, which entrants' compiled schemas will carry.
 
-**Q14. How the river objective is taken** (§9.4).
-- **A (rec):** hold the stage. Any bearbot of one team inside the 60 radius moves a shared bar
+**Q14. How the river objective is taken** (§9.4). **RULED 20:47–20:48:** "Hold the stage; any enemy
+freezes it" → **option A.**
+- **A (rec, ruled):** hold the stage. Any bearbot of one team inside the 60 radius moves a shared bar
   (15 / 10 / 7.5 s for 1 / 2 / 3 bots). Any enemy on the stage freezes it, and an empty stage drains.
   Against opposition, only PvP wins it. The layer reads positions only. **Cost:** about 6–8 h (O1).
 - B: a damage race. It is a neutral bearbot-sized unit with hp, and the team that lands the last hit
@@ -868,8 +870,9 @@ load-bearing, plus the selector name `bandstand`, which entrants' compiled schem
   and a single keytar poke from range 160 cancels it, so it favours whoever brought the keytar rather
   than whoever brought the team.
 
-**Q15. Where and how often** (§9.2–§9.3).
-- **A (rec):** two river sites, (300, 300) and (700, 700), alternating. One is open at a time. The
+**Q15. Where and how often** (§9.2–§9.3). **RULED 20:47–20:48:** "Two river sites taking turns" →
+**option A.**
+- **A (rec, ruled):** two river sites, (300, 300) and (700, 700), alternating. One is open at a time. The
   first opens at 1:30, the next 75 s after each capture, with 20 s warning and none after 9:00. Every
   lane gets near-side objectives. **Cost:** nothing beyond the layer itself; alternating is a few
   lines.
@@ -882,8 +885,8 @@ load-bearing, plus the selector name `bandstand`, which entrants' compiled schem
 - D: both sites open at once. **Cost:** this splits the teams. It works against team fights, which
   are the thing the objective is for.
 
-**Q16. The reward** (§9.5).
-- **A (rec):** a 45 s team Encore (+15 % attack damage, +10 % move speed, lost on death), plus 40
+**Q16. The reward** (§9.5). **RULED 20:47–20:48:** "Encore buff + gold + XP" → **option A.**
+- **A (rec, ruled):** a 45 s team Encore (+15 % attack damage, +10 % move speed, lost on death), plus 40
   gold to every bot on the team, 60 gold split among the capturers, and 40 XP to each capturer when
   the economy is on. It works under every Q2 preset, and as Encore only if the economy is cut.
   **Cost:** one stat derivation shared with the economy (§9.6).
@@ -895,8 +898,9 @@ load-bearing, plus the selector name `bandstand`, which entrants' compiled schem
 - D: A, plus a League-style objective bounty that pays the team that is behind. **Cost:** it needs
   the team-lead model that Q7 defers until swinginess is measured.
 
-**Q17. Shipping and the gate.**
-- **A (rec):** the objective has its own go/no-go at the Sun 10-04 gate. It is measured on the
+**Q17. Shipping and the gate.** **RULED 20:47–20:48:** "Own go/no-go on 10-04, with or without the
+economy" → **option A.**
+- **A (rec, ruled):** the objective has its own go/no-go at the Sun 10-04 gate. It is measured on the
   map-only game before the gate (§9.8), and it ships with or without the economy. If the team-fight
   target misses but nothing regresses, it still ships, as better than nothing. **Cost:** one more
   layer to keep green through the Jam, and about $3 of Jev.
@@ -909,6 +913,11 @@ load-bearing, plus the selector name `bandstand`, which entrants' compiled schem
 ## 9. Neutral river objective: the Bandstand (`river-1`)
 
 > "I like neutral river objective idea." — Ceryce, 2026-09-30 20:34 CT
+
+**Ruled 2026-09-30 20:47–20:48 CT (Telegram pickers), all option A:** Q14 "Hold the stage; any enemy
+freezes it" (§9.4), Q15 "Two river sites taking turns" (§9.2–§9.3), Q16 "Encore buff + gold + XP"
+(§9.5), Q17 "Own go/no-go on 10-04, with or without the economy" (§9.9). The design below is the
+ruled design.
 
 She was replying to the PvP balance study ([`runs/balance-pvp-2026-09-30.md`](../runs/balance-pvp-2026-09-30.md),
 PR #48). Its `pvp-1` map, now `DEFAULT_MAP` in [`src/mapVariant.ts`](../src/mapVariant.ts), pulled
@@ -1312,7 +1321,7 @@ There is no third pass before the Jam.
 - **Plan:** phases O1 and O2 in §7.
 - **Gate:** the objective has its own go/no-go at the §7 gate.
 - **Cut order:** in §7.
-- **Decisions:** Q14–Q17 in §8.
+- **Decisions:** Q14–Q17 in §8, all **ruled option A** on 2026-09-30 20:47–20:48 CT.
 
 The objective is built and measured on the **map-only** game, so its verdict is known **before** the
 Sun 10-04 gate, whatever the economy's state.
