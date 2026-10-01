@@ -30,6 +30,9 @@ import { LiveHub, eventsFromLog, serveSse, sseFollow, sseFrame, sseHead } from '
 import { PromptStore, hashPrompt, isHandle, makeEntrantsSource, validatePromptText } from './prompts.mjs';
 import { Queue, isJevBackend } from './queue.mjs';
 import { SchemaCache } from './schemas.mjs';
+import { makeEntrantsWriter } from './entrants_writer.mjs';
+import { TeamError, makeTeams } from './teams.mjs';
+import { myTeamPage, teamPage, teamsPage } from './pages/teams.mjs';
 import { bracketMatchSeed, bracketPlan, placementPlan } from './rating.mjs';
 import { adminPage } from './pages/admin.mjs';
 import { bracketPage } from './pages/bracket.mjs';
@@ -95,14 +98,14 @@ export function loadConfig(file, overrides = {}) {
   return cfg;
 }
 
-/** Read up to 64 KB of body; JSON or form-encoded → plain object. */
-function readBody(req) {
+/** Read up to `limit` (64 KB) of body; JSON or form-encoded → plain object. */
+function readBody(req, limit = 64 * 1024) {
   return new Promise((resolve, reject) => {
     const chunks = [];
     let size = 0;
     req.on('data', (c) => {
       size += c.length;
-      if (size > 64 * 1024) {
+      if (size > limit) {
         reject(new HttpError(413, 'body too large'));
         req.destroy();
         return;
@@ -244,11 +247,20 @@ export async function createArena({
   const source = makeEntrantsSource(config.entrants);
   const syncInfo = { describe: source.describe, lastAt: null, lastError: null, intervalSec: config.entrants.syncIntervalSec ?? 60 };
   let syncing = null;
+  let teams = null; // below; the sync tells it what validator the repo has
   const sync = () => {
     if (syncing) return syncing;
     syncing = (async () => {
       try {
         const list = await source.fetch();
+        teams?.noteUpstreamValidator(list.validatorBlobSha ?? null);
+        // An entry whose folder is gone (a team renamed when its learner joined, or a deleted folder) leaves the ladder.
+        const present = new Set(list.map((e) => e.handle));
+        for (const handle of [...ledger.state().prompts.keys()].filter((h) => !present.has(h))) {
+          for (const j of pendingPlacements(ledger.state(), handle)) queue.cancel(j.id, `entrants/${handle} is gone`);
+          ledger.append({ type: 'prompt-gone', handle });
+          log.info(`arena: entrants/${handle}/pilot.md is gone; off the ladder`);
+        }
         const state = ledger.state();
         for (const e of list) {
           const problems = validatePromptText(e.text);
@@ -297,11 +309,29 @@ export async function createArena({
     const state = ledger.state();
     const handle = String(raw ?? '').trim();
     if (!isHandle(handle)) throw new HttpError(400, 'handle must be letters, digits, . _ - (your GitHub login)');
+    const mine = teams?.teamFor(user.email)?.members.find((m) => m.email === user.email);
+    if (mine && mine.handle !== handle) throw new HttpError(409, `you are on a team as ${mine.handle} — use that handle`);
     const holder = state.handles.get(handle);
     if (holder && holder !== user.email && !user.organizer) throw new HttpError(409, `handle ${handle} is already claimed by someone else — ask the organizer`);
     if (state.claims.get(user.email) !== handle) ledger.append({ type: 'claim', email: user.email, handle, by: user.email });
     return handle;
   }
+
+  // --- teams (web submissions commit into the entrants repo; docs/arena-runbook.md §1d) -----------
+  teams = makeTeams({
+    ledger,
+    promptStore,
+    schemaCache,
+    writer: hooks.entrantsWriter ?? makeEntrantsWriter(config.entrants),
+    entrantsKind: config.entrants.kind,
+    config: config.submissions,
+    python: compiler.cfg.python,
+    claimHandle: (user, handle) => claimHandle(user, handle),
+    sync,
+    jevLadder,
+    log,
+    now: hooks.now,
+  });
 
   function checkQuota(user, handle, quick) {
     if (user.organizer) return;
@@ -395,6 +425,49 @@ export async function createArena({
       practice: { enabled: !!practiceBackendId, schemas: extra.compiled ? practiceSchemas(extra.compiled.result) : null },
       ...extra,
     });
+  }
+
+  function myTeamView(user, extra = {}) {
+    const team = teams.teamFor(user.email);
+    const at = team ? teams.entryFolder(team) : null;
+    return myTeamPage({
+      user,
+      team,
+      folder: team ? at ?? teams.teamFolder(team.members) : null,
+      current: team ? teams.current(at, team) : null,
+      open: teams.isOpen(),
+      cutoffLabel: teams.cutoffLabel,
+      cfg: teams.cfg,
+      ...extra,
+    });
+  }
+
+  /** A team as its own member (or the organizer) may see it over the API: emails only for the organizer. */
+  function publicTeam(team, user) {
+    return {
+      teamId: team.teamId,
+      folder: teams.entryFolder(team) ?? teams.teamFolder(team.members),
+      members: team.members.map((x) => ({ handle: x.handle, role: x.role, ...(user.organizer ? { email: x.email } : {}) })),
+      joinCode: team.members.length < 2 ? team.joinCode : null,
+    };
+  }
+
+  /**
+   * The team forms write to GitHub on the viewer's behalf, so a cross-site form post riding the
+   * Access cookie must not count: a browser always sends Origin (and Sec-Fetch-Site) on one.
+   */
+  function sameOrigin(req) {
+    const origin = req.headers.origin;
+    if (req.headers['sec-fetch-site'] === 'cross-site') throw new HttpError(403, 'cross-site request refused');
+    if (origin && origin !== 'null') {
+      let host;
+      try {
+        host = new URL(origin).host;
+      } catch {
+        throw new HttpError(403, 'cross-site request refused');
+      }
+      if (host !== req.headers.host) throw new HttpError(403, 'cross-site request refused');
+    } else if (origin === 'null') throw new HttpError(403, 'cross-site request refused');
   }
 
   function positionOf(id) {
@@ -609,6 +682,50 @@ export async function createArena({
       const out = submitTest(user, body);
       return sendJson(res, out, 202);
     }
+    // --- teams ----------------------------------------------------------------------------------
+    let m;
+    if (p === '/teams' && method === 'GET') {
+      const mine = teams.teamFor(user.email);
+      return sendHtml(res, teamsPage({ user, rows: teams.rows(user), open: teams.isOpen(), cutoffLabel: teams.cutoffLabel, myTeam: mine ? teams.entryFolder(mine) ?? teams.teamFolder(mine.members) : null }));
+    }
+    if (p === '/api/teams' && method === 'GET') return sendJson(res, { open: teams.isOpen(), cutoff: teams.cfg.cutoff, teams: teams.rows(user) });
+    m = /^\/(api\/)?teams\/([^/]+)$/.exec(p);
+    if (m && method === 'GET') {
+      let folder;
+      try {
+        folder = decodeURIComponent(m[2]);
+      } catch {
+        throw new HttpError(400, 'bad team name');
+      }
+      const d = teams.detail(user, folder, (j) => !heldFrom(ledger.state(), j, user));
+      if (!d) throw new HttpError(404, 'no such team');
+      if (m[1]) return sendJson(res, { ...d.row, current: d.current, compile: d.compile ? { ...d.compile, record: undefined, markdown: d.compile.record?.markdown } : null, matches: d.matches.map(jobView), joinCode: d.joinCode });
+      return sendHtml(res, teamPage({ user, d }));
+    }
+    if (p === '/team' && method === 'GET') return sendHtml(res, myTeamView(user, { flash: url.searchParams.get('msg') ? { ok: true, text: url.searchParams.get('msg') } : null }));
+    m = /^\/(api\/)?team\/(create|join|submit)$/.exec(p);
+    if (m && method === 'POST') {
+      sameOrigin(req);
+      const body = await readBody(req, 256 * 1024);
+      const api = !!m[1];
+      try {
+        let out;
+        if (m[2] === 'create') out = { team: publicTeam(await teams.create(user, body), user) };
+        else if (m[2] === 'join') {
+          const r = await teams.join(user, body);
+          out = { team: publicTeam(r.team, user), moved: r.moved };
+        } else out = await teams.submit(user, body);
+        if (api) return sendJson(res, out, m[2] === 'submit' && !out.unchanged ? 201 : 200);
+        if (m[2] === 'submit') return sendHtml(res, myTeamView(user, { result: out }));
+        const msg = m[2] === 'create' ? 'Team created — send your learner the join code below.' : out.moved ? `Joined — your team's entry moved to entrants/${out.moved.to}.` : 'Joined.';
+        return redirect(res, `/team?msg=${encodeURIComponent(msg)}`);
+      } catch (err) {
+        if (!(err instanceof TeamError || err instanceof HttpError)) throw err;
+        if (err.retryAfterSec) res.setHeader('Retry-After', String(err.retryAfterSec));
+        if (api) return sendJson(res, { error: err.message, ...(err.problems ? { problems: err.problems } : {}), ...(err.conflict ? { conflict: err.conflict } : {}) }, err.status);
+        return sendHtml(res, myTeamView(user, { flash: { ok: false, text: err.message }, draft: body, conflict: err.conflict }), err.status);
+      }
+    }
     if (p === '/ladder' && method === 'GET') {
       const state = ledger.state();
       const placing = new Set(queuedJobs(state, queue.running).concat([...state.jobs.values()].filter((j) => j.status === 'started')).filter((j) => j.kind === 'placement').flatMap((j) => [j.sides.violet, j.sides.green].filter((r) => !r.house).map((r) => r.handle)));
@@ -636,7 +753,7 @@ export async function createArena({
         jobs: visibleJobs(state, user).map(jobView),
       });
     }
-    let m = /^\/api\/matches\/([A-Za-z0-9._-]+)\/events$/.exec(p);
+    m = /^\/api\/matches\/([A-Za-z0-9._-]+)\/events$/.exec(p);
     if (m && method === 'GET') {
       const state = ledger.state();
       const job = requireVisible(state, state.jobs.get(m[1]), user);
@@ -714,7 +831,7 @@ export async function createArena({
     }
 
     // --- organizer ---------------------------------------------------------------------------
-    if (p === '/admin' || p.startsWith('/api/queue/') || p === '/api/sync' || p === '/api/void' || p === '/api/claims' || /^\/api\/matches\/[^/]+\/cancel$/.test(p) || p.startsWith('/api/brackets')) {
+    if (p === '/admin' || p.startsWith('/api/queue/') || p === '/api/sync' || p === '/api/void' || p === '/api/claims' || /^\/api\/matches\/[^/]+\/cancel$/.test(p) || p.startsWith('/api/brackets') || p === '/api/teams' || /^\/api\/teams\/[^/]+\/disband$/.test(p)) {
       if (!user.organizer) throw new HttpError(403, 'organizer only');
       const state = ledger.state();
       if (p === '/admin' && method === 'GET') {
@@ -730,6 +847,7 @@ export async function createArena({
           ladder: standings(state).filter((r) => r.hash),
           brackets: bracketIds(state),
           tournament,
+          teams: { list: [...state.teams.values()].map((t) => ({ ...t, folder: teams.entryFolder(t) ?? teams.teamFolder(t.members) })), validator: teams.validator, open: teams.isOpen(), cutoffLabel: teams.cutoffLabel },
           flash: url.searchParams.get('msg') ? { ok: true, text: url.searchParams.get('msg') } : null,
         }));
       }
@@ -737,6 +855,21 @@ export async function createArena({
       const body = await readBody(req);
       const wantsJson = (req.headers.accept ?? '').includes('application/json') || (req.headers['content-type'] ?? '').includes('json');
       const done = (msg, to = '/admin', extra = {}) => (wantsJson ? sendJson(res, { ok: true, msg, ...extra }) : redirect(res, `${to}?msg=${encodeURIComponent(msg)}`));
+      if (p === '/api/teams') {
+        try {
+          const { team, linked } = teams.organizerCreate(user, body);
+          const folder = teams.teamFolder(team.members);
+          return done(`team ${folder} created${linked ? ` and linked to entrants/${folder}` : ''}`, '/admin', { team: publicTeam(team, user), linked });
+        } catch (err) {
+          if (err instanceof TeamError) throw new HttpError(err.status, err.message);
+          throw err;
+        }
+      }
+      const disband = /^\/api\/teams\/([^/]+)\/disband$/.exec(p);
+      if (disband) {
+        const t = teams.disband(user, disband[1]);
+        return done(`team ${teams.teamFolder(t.members)} disbanded (the entrants repo is untouched)`);
+      }
       if (p === '/api/brackets') {
         const view = createBracket(user, body);
         return done(`bracket ${view.tournamentId} created: ${view.seeds.length} seeds, ${view.rounds.length} rounds`, `/bracket/${view.tournamentId}`, { bracket: view });
@@ -801,7 +934,7 @@ export async function createArena({
 
   const server = createServer((req, res) => {
     handle(req, res).catch((err) => {
-      const status = err instanceof HttpError || err instanceof AuthError ? err.status : 500;
+      const status = err instanceof HttpError || err instanceof AuthError || err instanceof TeamError ? err.status : 500;
       if (status === 500) log.error(`arena: ${req.method} ${req.url}: ${err.stack ?? err}`);
       const wantsJson = req.url.startsWith('/api/') || (req.headers.accept ?? '').includes('application/json');
       if (wantsJson) return sendJson(res, { error: err.message }, status);

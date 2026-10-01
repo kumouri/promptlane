@@ -1,7 +1,37 @@
 import { esc, fmtDate, page } from './layout.mjs';
 
-/** Organizer page: queue controls, entrants sync, claims, void. Every button is a ledger row. */
-export function adminPage({ user, paused, sync, claims, prompts, queue, running, backends, ladder, brackets, tournament, flash }) {
+function teamsCard({ list, validator, open, cutoffLabel }, btn) {
+  const drift = validator.upstream !== null && validator.upstream !== validator.vendored;
+  return `<div class="card"><h2>Teams</h2>
+<p>Web submissions are ${open ? `<span class="ok">open</span> until ${esc(cutoffLabel)}` : `<span class="warn">closed</span> (${esc(cutoffLabel)})`}.
+Validator: vendored <code>${esc(validator.vendored.slice(0, 7))}</code>, entrants repo <code>${esc(validator.upstream?.slice(0, 7) ?? '—')}</code>
+${drift ? '<span class="bad">— differs: web submissions are refused until you re-vendor (tools/arena/entrants_validator/README.md)</span>' : validator.upstream ? '<span class="ok">same</span>' : '<span class="dim">(not checked yet)</span>'}</p>
+<table><tr><th>Team</th><th>Members</th><th>Join code</th><th>Last web write</th><th></th></tr>
+${list
+  .map(
+    (t) => `<tr><td><a href="/teams/${esc(encodeURIComponent(t.folder))}">${esc(t.folder)}</a></td>
+<td>${t.members.map((m) => `${esc(m.handle)} <span class="dim">(${esc(m.role)} · ${esc(m.email)})</span>`).join('<br>')}</td>
+<td><code>${t.members.length < 2 ? esc(t.joinCode) : '—'}</code></td><td class="dim">${t.lastSubmit ? `${fmtDate(t.lastSubmit.ts)} · <code>${esc(String(t.lastSubmit.commit).slice(0, 8))}</code>` : '—'}</td>
+<td>${btn(`/api/teams/${esc(t.teamId)}/disband`, 'Disband')}</td></tr>`,
+  )
+  .join('')}
+</table>
+<p class="dim">Create a team for people: a learner with you as lead, a team of three, or to <b>link</b> a team that entered by pull
+request (use the handles in its folder, lead first; its members can then submit here too). Disbanding forgets the team here only.</p>
+<form method="post" action="/api/teams">
+<div class="row">
+  <div><label>Lead email</label><input type="text" name="leadEmail" required></div><div><label>Lead handle</label><input type="text" name="leadHandle" required></div>
+</div><div class="row">
+  <div><label>Learner email</label><input type="text" name="learnerEmail"></div><div><label>Learner handle</label><input type="text" name="learnerHandle"></div>
+</div><div class="row">
+  <div><label>Second learner email</label><input type="text" name="learner2Email"></div><div><label>Second learner handle</label><input type="text" name="learner2Handle"></div>
+</div>
+<p><button type="submit">Create team</button></p>
+</form></div>`;
+}
+
+/** Organizer page: queue controls, entrants sync, teams, claims, void. Every button is a ledger row. */
+export function adminPage({ user, paused, sync, claims, prompts, queue, running, backends, ladder, brackets, tournament, teams, flash }) {
   const btn = (action, label, extra = '') =>
     `<form method="post" action="${action}" style="display:inline">${extra}<button class="secondary" type="submit">${label}</button></form>`;
   const body = `
@@ -31,6 +61,7 @@ ${
 <table><tr><th>Handle</th><th>Hash</th><th>Commit</th><th>Seen</th></tr>
 ${[...prompts.entries()].map(([h, p]) => `<tr><td>${esc(h)}</td><td><code>${esc(p.hash.slice(0, 8))}</code></td><td><code>${esc(String(p.commit).slice(0, 8))}</code></td><td class="dim">${fmtDate(p.seenAt)}</td></tr>`).join('')}
 </table></div>
+${teams ? teamsCard(teams, btn) : ''}
 <div class="card"><h2>Handle claims</h2>
 <table><tr><th>Email</th><th>Handle</th><th></th></tr>
 ${[...claims.entries()]

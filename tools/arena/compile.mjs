@@ -49,11 +49,17 @@ export class CompileError extends Error {
   }
 }
 
-/** Rolling-minute and per-Central-day counters, per key plus one global day counter. */
+const COMPILE_WORDS = { noun: 'compiles', per: 'from one address', spent: 'the local command still works' };
+
+/**
+ * Rolling-minute and per-Central-day counters, per key plus one global day counter. `words` names
+ * what is counted in the 429 messages (the compile panel's by default; web submissions pass theirs).
+ */
 export class RateLimiter {
-  constructor({ perIpPerMinute, perIpPerDay, globalPerDay }, now = () => Date.now()) {
+  constructor({ perIpPerMinute, perIpPerDay, globalPerDay }, now = () => Date.now(), words = COMPILE_WORDS) {
     this.limits = { perIpPerMinute, perIpPerDay, globalPerDay };
     this.now = now;
+    this.words = words;
     this.recent = new Map(); // ip -> [ms timestamps within the last minute]
     this.days = new Map(); // `${day}|${ip}` -> count ; `${day}|*` -> global count
   }
@@ -64,14 +70,15 @@ export class RateLimiter {
     const day = dayCT(new Date(t));
     const recent = (this.recent.get(ip) ?? []).filter((x) => t - x < 60_000);
     const { perIpPerMinute, perIpPerDay, globalPerDay } = this.limits;
+    const { noun, per, spent } = this.words;
     if (recent.length >= perIpPerMinute) {
       const retry = Math.ceil((60_000 - (t - recent[0])) / 1000);
-      throw new CompileError(429, `slow down: ${perIpPerMinute} compiles a minute — try again in ${retry} s`, retry);
+      throw new CompileError(429, `slow down: ${perIpPerMinute} ${noun} a minute — try again in ${retry} s`, retry);
     }
     const mine = this.days.get(`${day}|${ip}`) ?? 0;
-    if (mine >= perIpPerDay) throw new CompileError(429, `daily limit reached: ${perIpPerDay} compiles per day (Central Time) from one address`);
+    if (mine >= perIpPerDay) throw new CompileError(429, `daily limit reached: ${perIpPerDay} ${noun} per day (Central Time) ${per}`);
     const all = this.days.get(`${day}|*`) ?? 0;
-    if (all >= globalPerDay) throw new CompileError(429, `the arena's compile budget for today is used up (${globalPerDay}) — the local command still works`);
+    if (all >= globalPerDay) throw new CompileError(429, `the arena's ${noun.replace(/s$/, '')} budget for today is used up (${globalPerDay}) — ${spent}`);
     recent.push(t);
     this.recent.set(ip, recent);
     this.days.set(`${day}|${ip}`, mine + 1);

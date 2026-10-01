@@ -70,10 +70,25 @@ export class SchemaCache {
     this.version = version ?? compilerVersion(root, this.cfg);
     this.run = run ?? spawnCompile({ root, cfg: this.cfg });
     this.inFlight = new Map();
+    /** hash → {error, at}: the last failed compile of a prompt, in memory (a failure is never cached) */
+    this.failures = new Map();
   }
 
   fileFor(hash) {
     return path.join(this.dir, `${hash}.${this.version}.json`);
+  }
+
+  /**
+   * What this compiler has made of a prompt so far, without compiling it (the team page):
+   * `{state: 'compiled', record}` | `{state: 'compiling'}` | `{state: 'failed', error, at}` | `{state: 'not yet'}`.
+   */
+  status(hash) {
+    const f = this.fileFor(hash);
+    if (existsSync(f)) return { state: 'compiled', record: JSON.parse(readFileSync(f, 'utf8')) };
+    if (this.inFlight.has(hash)) return { state: 'compiling' };
+    const fail = this.failures.get(hash);
+    if (fail) return { state: 'failed', ...fail };
+    return { state: 'not yet' };
   }
 
   /**
@@ -95,14 +110,24 @@ export class SchemaCache {
   }
 
   async compile(text, hash, f) {
+    const fail = (err) => {
+      this.failures.set(hash, { error: err.message, at: new Date().toISOString() });
+      return err;
+    };
     let out;
     try {
       out = await this.run(text);
     } catch (err) {
-      throw new CompileFailed(`compile failed — ${err.message ?? err}`);
+      throw fail(new CompileFailed(`compile failed — ${err.message ?? err}`));
     }
     const prompt = out.data?.prompts?.[0];
-    const schemas = schemasFromCompile(prompt);
+    let schemas;
+    try {
+      schemas = schemasFromCompile(prompt);
+    } catch (err) {
+      throw fail(err);
+    }
+    this.failures.delete(hash);
     const usage = out.data?.usage ?? null;
     const record = { hash, compilerVersion: this.version, compiledAt: new Date().toISOString(), backend: out.data?.backend ?? null, usage, schemas, markdown: prompt.markdown ?? null };
     mkdirSync(this.dir, { recursive: true });
