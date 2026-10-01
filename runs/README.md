@@ -39,6 +39,11 @@ release), and
 the Bandstand, 24 seed pairs on Jev, the §9.8 pre-registered verdict; metrics and heatmaps
 `bandstand-2026-09-30-*` beside it, logs on the
 [`data-bandstand-2026-09-30`](https://github.com/kumouri/promptlane/releases/tag/data-bandstand-2026-09-30)
+release), and
+[bandstand-2-2026-09-30.md](bandstand-2-2026-09-30.md) (the redesign, `river-2` and `recall-2`, on
+the same verdict lines, 12 seed pairs per comparison on Jev; metrics and heatmaps
+`bandstand-2-2026-09-30-*` beside it, logs on the
+[`data-bandstand-2-2026-09-30`](https://github.com/kumouri/promptlane/releases/tag/data-bandstand-2-2026-09-30)
 release).
 The bulky captures those documents hash live under ignored `artifacts/<run>-evidence/` and
 `artifacts/<run>-reviewed/`.

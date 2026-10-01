@@ -42,6 +42,14 @@ test('side names are the same in every condition, so metrics pairs them by seed'
   }
 });
 
+test('--recall is opt-in: without it the plan is unchanged, with it every match carries it', () => {
+  const plain = planMeasurement({ date: '2026-10-03', seeds: [7] });
+  assert.ok(plain.every((j) => !j.args.includes('--recall')));
+  const channelled = planMeasurement({ date: '2026-10-03', seeds: [7], recall: 'recall-2' });
+  assert.ok(channelled.every((j) => arg(j, '--recall') === 'recall-2'));
+  assert.deepEqual(channelled.map((j) => j.args.slice(0, -2)), plain.map((j) => j.args));
+});
+
 test('a subset plan, the metrics commands, and bad input', () => {
   assert.equal(planMeasurement({ date: '2026-10-03', conditions: ['B1'], pairings: ['hard'], seeds: [7, 11] }).length, 2);
   const [all, b1] = metricsCommands('2026-10-03');

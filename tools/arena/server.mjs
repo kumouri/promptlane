@@ -227,6 +227,7 @@ export async function createArena({
   if (tournament.map != null) headless.resolveMap(tournament.map); // fail at startup on an unknown map
   if (tournament.economy != null) headless.resolveEconomy(tournament.economy); // likewise an unknown economy ruleset
   if (tournament.objective != null) headless.resolveObjective(tournament.objective); // ... and on an unknown objective
+  if (tournament.recall != null) headless.resolveRecall(tournament.recall); // ... and on an unknown recall rule
   // The ladder's compiles for Jev: once per prompt hash and compiler version, on disk (schemas.mjs).
   const schemaCache = new SchemaCache({ dir: path.join(dataDir, 'schemas'), root: ROOT, config: config.compile, run: hooks.ladderCompileRun, version: hooks.compilerVersion });
   if (jevLadder) {
@@ -237,7 +238,7 @@ export async function createArena({
     );
   }
   const live = new LiveHub();
-  const queue = new Queue({ ledger, backends, headless, dataDir, promptStore, house, schemaCache, map: tournament.map ?? null, economy: tournament.economy ?? null, objective: tournament.objective ?? null, live, log, hooks });
+  const queue = new Queue({ ledger, backends, headless, dataDir, promptStore, house, schemaCache, map: tournament.map ?? null, economy: tournament.economy ?? null, objective: tournament.objective ?? null, recall: tournament.recall ?? null, live, log, hooks });
 
   // --- entrants sync ------------------------------------------------------------------------
   const source = makeEntrantsSource(config.entrants);

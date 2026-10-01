@@ -986,8 +986,9 @@ failing over to Workers AI. That is another door to the same Jev, not another mo
 Unset, the runner's `DEFAULT_MAP` applies, which is also `pvp-1` today (PR #48). Pinning it means a
 later default change can't move the ladder silently.
 
-**Objective.** `tournament.objective` (`"river-1"` = the Bandstand, `"none"` = off;
-docs/economy-spec.md §9) flows the same way and is checked at startup. Unset, the runner's
+**Objective.** `tournament.objective` (`"river-1"` = the Bandstand, `"river-2"` = its redesign,
+`"none"` = off; docs/economy-spec.md §9) flows the same way and is checked at startup, and so does
+`tournament.recall` (`"recall-2"`, or `"none"` = the specimen's recall; §9.10). Unset, the runner's
 `DEFAULT_OBJECTIVE` applies, which is none until the Sun 10-04 gate. The log records the ruleset,
 the `meta` event carries it, and the live view and replay attach it before the first tick.
 

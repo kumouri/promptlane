@@ -459,3 +459,143 @@ test('old logs replay unchanged: committed v1 and pvp-1 (economy) logs still ver
     assert.equal(v.ok, true, `${f} diverged at ${v.firstDivergenceTick}`);
   }
 });
+
+// --- river-2 (§9.10; Ceryce's redesign, 2026-09-30 23:00–23:02 CT) ---------------------------------
+// Registered after the logs above are played, so their hand-built matches cannot take entity ids from
+// the middle of a log being recorded.
+
+const R2 = h.RIVER_2;
+const r2 = () => setup({ rules: R2 });
+
+test('river-2 constants: river-1 plus a 30 s / 45 s close timer, sets of 7.5 / 5 / 2.5 s, and the bigger group pushes', () => {
+  assert.equal(R2.name, 'river-2');
+  assert.equal(h.resolveObjective('river-2'), R2);
+  assert.deepEqual(R2.close, { emptySec: 30, occupiedSec: 45 });
+  assert.deepEqual(R2.capture, { setSec: 7.5, rateByCount: [0, 1, 1.5, 3], drainSec: 15, contest: 'outnumber' });
+  for (const k of ['sites', 'radius', 'schedule', 'encore', 'economy']) assert.deepEqual(R2[k], R[k], k);
+  assert.equal(R.close, undefined, 'river-1 has no close timer');
+  assert.equal(R.capture.contest, undefined, 'river-1 freezes');
+});
+
+for (const [n, sec] of [[1, 7.5], [2, 5], [3, 2.5]]) {
+  test(`river-2: ${n} bearbot(s) of one team take an empty stage in ${sec} s`, async () => {
+    const s = r2();
+    await s.stepTo(OPEN);
+    for (let k = 0; k < n; k++) s.place(k, TOP);
+    await s.stepTo(OPEN + sec * HZ - 1);
+    assert.equal(s.obj.status, 'open', 'not yet');
+    await s.stepTo(OPEN + sec * HZ);
+    assert.equal(s.obj.openings[0].team, 'violet');
+    assert.equal(s.obj.openings[0].captureSec, 90 + sec);
+  });
+}
+
+test('river-2: equal numbers on the stage freeze it, as in river-1', async () => {
+  const s = r2();
+  await s.stepTo(OPEN);
+  s.place(0, TOP);
+  await s.stepTo(OPEN + 75);
+  close(s.obj.bar, 0.5);
+  s.place(3, TOP);
+  await s.stepTo(OPEN + 175);
+  close(s.obj.bar, 0.5, 'frozen 1 v 1');
+  s.place(1, TOP);
+  s.place(4, TOP);
+  await s.stepTo(OPEN + 275);
+  close(s.obj.bar, 0.5, 'frozen 2 v 2');
+});
+
+test('river-2: the bigger group lowers the other team\'s progress at the margin\'s rate, and stops at 0', async () => {
+  const s = r2();
+  await s.stepTo(OPEN);
+  s.place(0, TOP);
+  await s.stepTo(OPEN + 75);
+  close(s.obj.bar, 0.5, 'violet alone: half in 3.75 s');
+  s.place(3, TOP);
+  s.place(4, TOP);
+  await s.stepTo(OPEN + 75 + 30);
+  close(s.obj.bar, 0.5 - 30 / 150, '2 v 1: a margin of 1 lowers it as one bot would raise it (1/7.5 per s)');
+  s.place(5, TOP);
+  await s.stepTo(OPEN + 75 + 30 + 20);
+  close(s.obj.bar, 0.3 - 20 / 100, '3 v 1: a margin of 2 (1/5 per s)');
+  await s.stepTo(OPEN + 75 + 30 + 20 + 100);
+  assert.equal(s.obj.bar, 0, 'down to 0 and no further');
+  assert.equal(s.obj.status, 'open', 'never taken while an enemy stands on it');
+  assert.equal(s.obj.openings[0].contested, true);
+});
+
+test('river-2: the bigger group\'s own progress never rises while any enemy is on the stage', async () => {
+  const s = r2();
+  await s.stepTo(OPEN);
+  s.place(0, TOP);
+  s.place(1, TOP);
+  await s.stepTo(OPEN + 40);
+  close(s.obj.bar, 40 * 1.5 / 150);
+  s.place(2, TOP);
+  s.place(3, TOP);
+  await s.stepTo(OPEN + 200);
+  close(s.obj.bar, 0.4, '3 v 1 holds violet\'s 40 %, does not add to it');
+});
+
+test('river-2: an opening nobody is on at 30 s closes then, and the next is 75 s later at the other site', async () => {
+  const s = r2();
+  await s.stepTo(OPEN + 30 * HZ - 1);
+  assert.equal(s.obj.status, 'open');
+  await s.stepTo(OPEN + 30 * HZ);
+  assert.equal(s.obj.status, 'closed');
+  assert.equal(s.obj.openings[0].closedSec, 120);
+  assert.equal(s.obj.openings[0].captureSec, null);
+  assert.equal(s.obj.openings[0].team, null);
+  assert.equal(s.obj.site.id, 'bottom-side');
+  assert.equal(s.obj.nextOpenTick, OPEN + 30 * HZ + AFTER);
+  await s.stepTo(OPEN + 30 * HZ + AFTER);
+  assert.equal(s.obj.status, 'open');
+  assert.equal(s.obj.openings[1].openSec, 195);
+  assert.equal(s.obj.openings[1].site, 'bottom-side');
+});
+
+test('river-2: a stage occupied at 30 s stays open until the first tick it is empty', async () => {
+  const s = r2();
+  await s.stepTo(OPEN);
+  s.place(0, TOP);
+  s.place(3, TOP); // 1 v 1: nobody can take it
+  await s.stepTo(OPEN + 35 * HZ);
+  assert.equal(s.obj.status, 'open', 'extended past 30 s');
+  s.place(0, { x: 900, y: 100 });
+  s.place(3, { x: 100, y: 900 });
+  await s.stepTo(OPEN + 35 * HZ + 1);
+  assert.equal(s.obj.status, 'closed');
+  assert.equal(s.obj.openings[0].closedSec, 125.05);
+});
+
+test('river-2: and closes at 45 s at the latest, even with bots on it', async () => {
+  const s = r2();
+  await s.stepTo(OPEN);
+  s.place(0, TOP);
+  s.place(3, TOP);
+  await s.stepTo(OPEN + 45 * HZ - 1);
+  assert.equal(s.obj.status, 'open');
+  await s.stepTo(OPEN + 45 * HZ);
+  assert.equal(s.obj.status, 'closed');
+  assert.equal(s.obj.openings[0].closedSec, 135);
+  assert.equal(s.obj.openings[0].contested, true);
+});
+
+test('river-2: a capture before the close timer is an ordinary capture (no closedSec)', async () => {
+  const s = r2();
+  await s.stepTo(OPEN + 25 * HZ);
+  s.place(0, TOP);
+  await s.stepTo(OPEN + 25 * HZ + 7.5 * HZ);
+  assert.equal(s.obj.openings[0].team, 'violet');
+  assert.equal('closedSec' in s.obj.openings[0], false);
+});
+
+test('river-2 checkpoints add the open tick; river-1 checkpoints are exactly what they were', async () => {
+  const a = setup();
+  const b = r2();
+  await a.stepTo(OPEN + 10);
+  await b.stepTo(OPEN + 10);
+  assert.equal(a.obj.checkpoint().length, 5);
+  assert.deepEqual(b.obj.checkpoint().slice(0, 5), a.obj.checkpoint());
+  assert.equal(b.obj.checkpoint()[5], OPEN);
+});

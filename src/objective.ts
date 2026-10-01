@@ -19,6 +19,16 @@
  * function of its seed and its decisions. A log records the ruleset it was played under
  * (`MatchLog.objective`); a log without one replays exactly as before, because nothing is attached.
  * Every number is in `src/objective/river-1.json`.
+ *
+ * `river-2` (§9.10; Ceryce's redesign, 2026-09-30 23:00–23:02 CT) is the same layer with three
+ * switches its constants file turns on, so `river-1` logs replay exactly as before:
+ * - a **close timer** (`close`): an opening nobody takes closes 30 s after it opened, or, if a bot
+ *   is on the stage then, on the first tick the stage is empty, and at 45 s at the latest. The next
+ *   opening is scheduled exactly as after a capture;
+ * - **faster sets**: full in 7.5 / 5 / 2.5 s for 1 / 2 / 3 bots;
+ * - **the bigger group pushes** (`capture.contest: 'outnumber'`): with both teams on the stage, the
+ *   team with more bots lowers the other team's progress at the margin's rate, but never raises its
+ *   own while any enemy is on it. Equal numbers: nothing moves (river-1's freeze).
  */
 import type { Observation, Team, Vec2 } from './types';
 import type { Match } from './sim/match';
@@ -27,6 +37,7 @@ import { dist } from './sim/map';
 import { deriveStats, setStatMultiplier } from './ruleset/stats';
 import { rewardSinkOf } from './ruleset/rewards';
 import RIVER_1_JSON from './objective/river-1.json';
+import RIVER_2_JSON from './objective/river-2.json';
 
 export interface ObjectiveSite {
   id: string;
@@ -52,6 +63,16 @@ export interface ObjectiveRules {
     /** No opening is scheduled after this sim second. */
     lastOpenSec: number;
   };
+  /**
+   * When an opening nobody takes closes (river-2). Absent (river-1): it stays open until captured.
+   * `afterCaptureSec` then also counts from the close.
+   */
+  close?: {
+    /** Seconds after opening at which it closes, if nobody is on the stage at that moment. */
+    emptySec: number;
+    /** If somebody is: it closes on the first tick the stage is empty, and at this second at the latest. */
+    occupiedSec: number;
+  };
   capture: {
     /** Seconds one bearbot needs to take an empty bar. */
     setSec: number;
@@ -59,6 +80,11 @@ export interface ObjectiveRules {
     rateByCount: number[];
     /** Seconds an empty stage takes to drain a full bar back to 0. */
     drainSec: number;
+    /**
+     * Both teams on the stage. `freeze` (river-1, the default): nothing moves. `outnumber` (river-2):
+     * the team with more bots lowers the other team's progress at `rate(margin)`; its own never rises.
+     */
+    contest?: 'freeze' | 'outnumber';
   };
   encore: {
     durationSec: number;
@@ -71,8 +97,9 @@ export interface ObjectiveRules {
 }
 
 export const RIVER_1: ObjectiveRules = RIVER_1_JSON as ObjectiveRules;
+export const RIVER_2: ObjectiveRules = RIVER_2_JSON as ObjectiveRules;
 
-export const OBJECTIVES: Record<string, ObjectiveRules> = { [RIVER_1.name]: RIVER_1 };
+export const OBJECTIVES: Record<string, ObjectiveRules> = { [RIVER_1.name]: RIVER_1, [RIVER_2.name]: RIVER_2 };
 
 /**
  * The objective new matches play with when the caller names none: none, until Ceryce's go/no-go at
@@ -122,8 +149,10 @@ export interface BandstandOpening {
   index: number;
   site: string;
   openSec: number;
-  /** When it was taken; null if the match ended with it open. */
+  /** When it was taken; null if it closed untaken or the match ended with it open. */
   captureSec: number | null;
+  /** river-2: when it closed untaken (`close`). Absent: taken, still open at the end, or river-1. */
+  closedSec?: number;
   team: Team | null;
   /** Bots (indices into `match.bearbots`) on the stage at the moment of capture. */
   capturers: number[];
@@ -178,6 +207,10 @@ export class Objective {
   private readonly lastOpenTick: number;
   private readonly afterCaptureTicks: number;
   private readonly encoreTicks: number;
+  /** river-2's close timer in ticks; null under river-1. */
+  private readonly closeTicks: { empty: number; occupied: number } | null;
+  /** Tick the open stage opened; null while not open. */
+  private openTick: number | null = null;
 
   constructor(
     private readonly match: Match,
@@ -189,6 +222,9 @@ export class Objective {
     this.lastOpenTick = Math.round(rules.schedule.lastOpenSec * this.hz);
     this.afterCaptureTicks = Math.round(rules.schedule.afterCaptureSec * this.hz);
     this.encoreTicks = Math.round(rules.encore.durationSec * this.hz);
+    this.closeTicks = rules.close
+      ? { empty: Math.round(rules.close.emptySec * this.hz), occupied: Math.round(rules.close.occupiedSec * this.hz) }
+      : null;
     const first = Math.round(rules.schedule.firstOpenSec * this.hz);
     this.nextOpenTick = first <= this.lastOpenTick ? first : null;
     if (this.nextOpenTick === null) this.status = 'done';
@@ -221,7 +257,8 @@ export class Objective {
   /**
    * One tick of the objective, run right after the sim's tick (§9.6 tick order):
    * 1. clear the Encore of dead bots; 2. count bots on the stage; 3. move the bar;
-   * 4. on a capture, grant the Encore, then gold and XP if an economy is on;
+   * 4. on a capture, grant the Encore, then gold and XP if an economy is on; otherwise, under
+   *    river-2, close an opening its timer has run out on;
    * 5. advance the schedule; 6. expire finished Encores and derive stats.
    */
   update(): void {
@@ -251,6 +288,12 @@ export class Objective {
       if (v > 0 && g > 0) {
         opening.contested = true;
         opening.contestedTicks += 1;
+        // river-2: the bigger group pushes the other team's progress down, never its own up.
+        if (this.rules.capture.contest === 'outnumber' && v !== g) {
+          const push = this.rate(Math.abs(v - g)) * this.tickDt;
+          if (v > g && this.bar < 0) this.bar = Math.min(0, this.bar + push);
+          else if (g > v && this.bar > 0) this.bar = Math.max(0, this.bar - push);
+        }
       } else if (v > 0) {
         if (this.bar < 0) this.bar = 0;
         this.bar = Math.min(1, this.bar + this.rate(v) * this.tickDt);
@@ -265,6 +308,14 @@ export class Objective {
       // 4. A capture.
       const team: Team | null = this.bar >= 1 - EPS ? 'violet' : this.bar <= -1 + EPS ? 'green' : null;
       if (team) this.capture(opening, team, on[team], t);
+      // 4b. river-2: an opening nobody took closes (a capture on the same tick wins).
+      else if (this.closeTicks && this.openTick !== null) {
+        const age = t - this.openTick;
+        if (age >= this.closeTicks.occupied || (age >= this.closeTicks.empty && v === 0 && g === 0)) {
+          opening.closedSec = round(t * this.tickDt, 2);
+          this.scheduleNext(t);
+        }
+      }
     }
 
     // 5. The schedule.
@@ -273,6 +324,7 @@ export class Objective {
         this.status = 'open';
         this.bar = 0;
         this.nextOpenTick = null;
+        this.openTick = t;
         this.openings.push({
           index: this.openings.length + 1,
           site: this.site.id,
@@ -334,9 +386,16 @@ export class Objective {
       opening.rewarded = true;
     }
 
-    // Close the stage; the next opening is at the other site, unless it would come too late (then
-    // the site stays the last one, which is what a `done` observation shows).
+    this.scheduleNext(t);
+  }
+
+  /**
+   * Close the stage (taken, or river-2's close timer); the next opening is at the other site, unless
+   * it would come too late (then the site stays the last one, which is what a `done` observation shows).
+   */
+  private scheduleNext(t: number): void {
     this.bar = 0;
+    this.openTick = null;
     const next = t + this.afterCaptureTicks;
     this.nextOpenTick = next <= this.lastOpenTick ? next : null;
     this.status = this.nextOpenTick === null ? 'done' : 'closed';
@@ -398,6 +457,8 @@ export class Objective {
       round(this.bar, 4),
       this.nextOpenTick ?? -1,
       this.encoreUntil.map((u) => u ?? -1),
+      // river-2 only, so a river-1 checkpoint is exactly what it was.
+      ...(this.closeTicks ? [this.openTick ?? -1] : []),
     ];
   }
 

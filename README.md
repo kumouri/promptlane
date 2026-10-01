@@ -63,7 +63,7 @@ runs/                operator records and match logs (per-run directories are lo
 artifacts/           exported workspaces and frozen submissions (local/ignored)
 src/                 original generated game specimen; not maintained game source
                      (src/replay.ts, src/live.ts, src/mapVariant.ts, src/economy.ts, src/objective.ts,
-                     src/ruleset/ and src/attribution.ts are jam tooling that drive the
+                     src/recall.ts, src/ruleset/ and src/attribution.ts are jam tooling that drive the
                      unchanged sim from outside; src/render.ts is a pure read of match state, not frozen, and is actively
                      maintained — see docs/render-spec.md)
 docs/                current design notes and historical recordings; not implicit run inputs
@@ -140,6 +140,14 @@ between two river sites, taken by holding it (any enemy on it freezes the captur
 45 s Encore buff, plus gold and XP when the economy is on (`src/objective.ts`, every number in
 `src/objective/river-1.json`; the design is `docs/economy-spec.md` §9). It is off by default until its
 own Sun 10-04 go/no-go. The log records the ruleset and every opening; logs without one have none.
+`--objective river-2` is Ceryce's redesign after `river-1` stalemated on Jev (§9.10): sets of
+7.5 / 5 / 2.5 s, the bigger group pushes the other team's progress down, and an untaken stage closes
+after 30–45 s (`src/objective/river-2.json`).
+**Recall.** `--recall recall-2` replaces the specimen's recall (a run home at 3× speed) with a 4 s
+channel standing still, then a teleport to the fountain; damage in its first 3.5 s cancels it
+(`src/recall.ts`, numbers in `src/recall/recall-2.json`, design in `docs/economy-spec.md` §9.10).
+Off by default. The log records it, `--verify` replays with it, and logs without one keep the
+specimen's recall.
 **Metrics.** `npm run metrics -- --group <label> <log.json>… [--group …] --md out.md --heatmaps pfx`
 replays logs and reports how they were played: PvP vs PvE damage and time, team fights, team
 proximity, where fights and deaths happen relative to towers, a gold proxy and its swinginess,
@@ -147,7 +155,8 @@ first blood / first tower, per-bot numbers vs the others in their position, posi
 seed-paired differences against the first group (`tools/match/metrics.ts` has the definitions).
 Logs played with the river objective add the Bandstand's numbers (openings, captures, contested
 share, team fights at an open Bandstand, capture split, Encore uptime) and its sites on the
-heatmaps; `--prereg bandstand` appends the pre-registered verdict of
+heatmaps. Every log reports its recalls (started, got home, interrupted, share of bot-time spent
+recalling), under either recall rule; `--prereg bandstand` appends the pre-registered verdict of
 [`docs/economy-spec.md`](docs/economy-spec.md) §9.8, the first group read as P and each later one as O.
 
 **Cadence.** The runner is lockstep: the sim does not advance while a model is thinking, so a

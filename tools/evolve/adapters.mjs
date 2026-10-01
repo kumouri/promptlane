@@ -81,6 +81,7 @@ export function makePlayMatch(campaign) {
     if (shape.map !== undefined) args.push('--map', shape.map);
     if (shape.economy !== undefined) args.push('--economy', shape.economy);
     if (shape.objective !== undefined) args.push('--objective', shape.objective);
+    if (shape.recall !== undefined) args.push('--recall', shape.recall);
     const r = await run(process.execPath, args, { timeoutMs: matchWallCapMs(shape) });
     if (r.code !== 0) throw new Error(`match failed (exit ${r.code ?? r.signal}): ${(r.stderr || r.stdout).trim().split('\n').pop()}`);
     return JSON.parse(await readFile(out, 'utf8'));
