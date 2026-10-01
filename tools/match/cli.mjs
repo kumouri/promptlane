@@ -47,6 +47,8 @@ options:
   --a-schemas FILE    side A plays its COMPILED prose on Jev: compile.py --format json output, or
   --b-schemas FILE    {"drums":…,"keytar":…,"violin":…}; needs --jev-schema
   --jev-schema URL    tools/jev/schema_server.py endpoint for the schema sides (the Jam backend)
+  --map NAME          map variant (src/mapVariant.ts): pvp-1 (the default, DEFAULT_MAP there),
+                      v1 (the specimen map) or pvp-1r; recorded in the log, applied on --verify
   --quiet             no progress lines`;
 
 function parseArgs(argv) {
@@ -72,6 +74,7 @@ function parseArgs(argv) {
       case '--a-schemas': args.aSchemas = next(); break;
       case '--b-schemas': args.bSchemas = next(); break;
       case '--jev-schema': args.jevSchema = next(); break;
+      case '--map': args.map = next(); break;
       case '--verify': args.verify = next(); break;
       case '--quiet': args.quiet = true; break;
       case '-h': case '--help': args.help = true; break;
@@ -133,6 +136,7 @@ async function main() {
     return 2;
   }
   if (!Number.isFinite(args.seed)) throw new Error('--seed must be a number');
+  const map = args.map === undefined ? headless.DEFAULT_MAP : headless.resolveMap(args.map);
   if (!(args.cadence >= 0.5)) throw new Error('--cadence must be >= 0.5 (the game asks every 0.5 s)');
   if (args.maxSimSec !== undefined && !(args.maxSimSec > 0)) throw new Error('--max-sim-sec must be a positive number');
 
@@ -184,7 +188,7 @@ async function main() {
   if (jevBackend && backend !== jevBackend) backend = { ...backend, jevSchema: jevBackend };
 
   if (!args.quiet) {
-    console.error(`match: ${sides.violet.name} (violet) vs ${sides.green.name} (green) seed=${args.seed} cadence=${args.cadence}s backend=${backendLabel(backend)}`);
+    console.error(`match: ${sides.violet.name} (violet) vs ${sides.green.name} (green) seed=${args.seed} cadence=${args.cadence}s map=${map.name} backend=${backendLabel(backend)}`);
   }
   const started = Date.now();
   const log = await headless.runMatch({
@@ -193,6 +197,7 @@ async function main() {
     callModelFor,
     decisionPilotFor,
     cadenceSec: args.cadence,
+    map,
     maxSimSec: args.maxSimSec,
     backend,
     flush,

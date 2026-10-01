@@ -28,11 +28,28 @@ v1 refers to the historical design document in its generation manifest.
 - **Names** are bear puns with instruments in them: Bearitone, Grizzly Riff, Kodiak Kick, Ursa
   Minor (piccolo). Add freely; keep them pronounceable on stream.
 
+## Design principle: players fight players
+
+The criterion every balance change is judged against — Ceryce, 2026-09-30 19:46 CT, verbatim:
+
+> "But in general we should aim for a game that at least ENABLES exciting play, and that means it
+> encourages player vs player interaction instead of player vs environment; even the player vs
+> environment parts should encourage team fights and such."
+
+A change passes if it moves play toward bearbot-vs-bearbot interaction and team fights, as
+measured from match logs by `tools/match/metrics.mjs` (PvP share of damage and time, team fights,
+team proximity, where engagements and deaths happen, swinginess). It is not enough for the change
+to sound right; it is measured on Jev, seed-paired against the map it replaces.
+
 ## The map
 
 Classic MOBA diamond: two bases at opposite corners, three lanes (top / mid / bottom), a river
 corner-to-corner, jungle between the lanes, towers along each lane, a nexus at each base. The logo
 (`assets/logo/`) is that map with Jamobair standing in mid.
+
+The specimen sim's tower placement and range are frozen with it; Jam balance variants of them
+(e.g. a neutral fighting stretch between opposing towers) are applied from outside the sim by
+`src/mapVariant.ts`, and each match log records the variant it was played on.
 
 ## "One prompt" — what it means here
 

@@ -62,8 +62,8 @@ tools/               jam tooling: headless match runner (tools/match/), the mode
 runs/                operator records and match logs (per-run directories are local/ignored)
 artifacts/           exported workspaces and frozen submissions (local/ignored)
 src/                 original generated game specimen; not maintained game source
-                     (src/replay.ts and src/live.ts are jam tooling that drive the unchanged sim from
-                     outside; src/render.ts is a pure read of match state, not frozen, and is actively
+                     (src/replay.ts, src/live.ts and src/mapVariant.ts are jam tooling that drive the
+                     unchanged sim from outside; src/render.ts is a pure read of match state, not frozen, and is actively
                      maintained — see docs/render-spec.md)
 docs/                current design notes and historical recordings; not implicit run inputs
                      (docs/arena-site-spec.md: the arena spec, Phases A+B built; arena-runbook.md: how to run it;
@@ -123,6 +123,15 @@ the sim clock (the arena's quick test: 3 sim-minutes at `--cadence 4`); such a l
 **On Jev, the Jam's shape:** `--a-schemas`/`--b-schemas` (the JSON `tools/jev/compile.py` wrote for
 that side's prose) plus `--jev-schema http://127.0.0.1:8797/` (`tools/jev/schema_server.py`) make
 that side decide on its compiled rule cascade instead of a chat model; see `tools/match/cli.mjs`.
+**Map.** New matches play the PvP map `pvp-1` (towers pulled back so each lane has a stretch no
+tower covers; `src/mapVariant.ts`, measured in
+[`runs/balance-pvp-2026-09-30.md`](runs/balance-pvp-2026-09-30.md)); `--map v1` plays the specimen
+map. The log records its map and `--verify` replays on it; logs without one are specimen-map logs.
+**Metrics.** `npm run metrics -- --group <label> <log.json>… [--group …] --md out.md --heatmaps pfx`
+replays logs and reports how they were played: PvP vs PvE damage and time, team fights, team
+proximity, where fights and deaths happen relative to towers, a gold proxy and its swinginess,
+first blood / first tower, per-bot numbers vs the others in their position, position heatmaps, and
+seed-paired differences against the first group (`tools/match/metrics.ts` has the definitions).
 
 **Cadence.** The runner is lockstep: the sim does not advance while a model is thinking, so a
 match depends only on the seed and the replies, never on GPU speed. The game polls each pilot every
