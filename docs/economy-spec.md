@@ -1541,6 +1541,20 @@ balanced, 8 seed pairs, §9.8's lines unchanged, $2.28.
 - **Violet still takes most captures** (42–16 across both objective arms). Yet a scripted mirror
   match with `river-2` and `recall-2` stays exact, so the cause is not the sim or the layers.
 
+**Hard leaves earlier, and a Bandstand mirror probe.**
+[`runs/bandstand-4-2026-10-01.md`](../runs/bandstand-4-2026-10-01.md): the same 8 slots, §9.8's lines
+unchanged, $2.04.
+
+- **Hard's low-hp trigger is now 65 % of max hp** (drums 143, keytar 91, violin 97.5), derived from
+  Bandstand 3's walks home. Deaths before 1:30 fell from 15 to 0, and no channel was broken.
+- **As briefed (P2 vs O2): FAIL, 7 of 10.** PvP damage, first blood and the capture split now
+  pass. The target (team fights 3.25 against 4.6), the contested share (48.8 %) and fights at the
+  stage (0.63) miss, and no keep-line regresses. So §9.8's single tuning pass is next.
+- **Jev reads the Bandstand the same for both sides** (400 mirrored states, ids swapped too).
+- **The pilot path does not.** The nearest-allied-minion target (`tools/jev/target_resolve.py`)
+  breaks a three-lane tie at the fountain on float noise. Green bots are sent up the top lane (135 of
+  136), and violet's mostly down mid. Capture splits and side reads wait on that fix.
+
 ---
 
 ## 10. Sources
