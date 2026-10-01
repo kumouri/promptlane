@@ -252,8 +252,8 @@ test('Bandstand: easy has no rule; medium has one and hard three, right after th
     assert.equal(medium.filter((l) => l.includes('bandstand.pos')).length, 1);
     assert.match(medium.at(-1), /^9\. otherwise wait for the next wave at home/);
     const hard = ruleLines(sideText(HOUSE_TIERS.hard[side]));
-    assert.match(hard[0], /^1\. hp less than 90, and tower, foe or creep is not null -> get out of reach before you recall: /);
-    assert.match(hard[1], /^2\. hp less than 90 -> "kind":"recall"$/);
+    assert.match(hard[0], /^1\. hp less than 65% of self\.maxHp, and tower, foe or creep is not null -> get out of reach before you recall: /);
+    assert.match(hard[1], /^2\. hp less than 65% of self\.maxHp -> "kind":"recall"$/);
     assert.deepEqual(hard.slice(2, 5), [
       `3. stand is "open", foe is null and hp is more than 50% of self.maxHp -> go to the Bandstand: ${MOVE_TO_STAND}`,
       `4. stand is "open", contested is true or standBar is less than 0, and hp is more than 40% of self.maxHp -> go to the Bandstand: ${MOVE_TO_STAND}`,
@@ -295,13 +295,40 @@ test('recall-2: the side files leave reach before each recall, and no example re
       lines.forEach((l, i) => {
         if (!l.endsWith('"kind":"recall"')) return;
         assert.ok(i > 0 && lines[i - 1].includes(`get out of reach before you`) && lines[i - 1].endsWith(`"kind":"move","target":${home}`), `${pair[side]}: ${l}`);
-        assert.match(l, /no enemy is in sight -> |^\d+\. hp less than \d+ -> /, `${pair[side]}: ${l}`);
+        assert.match(l, /no enemy is in sight -> |^\d+\. hp less than \d+(% of self\.maxHp)? -> /, `${pair[side]}: ${l}`);
       });
       // every example reply that recalls has nothing hostile in its worksheet
       for (const ex of sideText(pair[side]).split('\n').filter((x) => x.startsWith('{"hp"'))) {
         const ws = JSON.parse(ex);
         if (ws.kind === 'recall') for (const k of ['tower', 'foe', 'creep']) assert.ok(ws[k] == null, `${pair[side]}: ${ex}`);
       }
+    }
+  }
+});
+
+// Hard leaves at 65 % of its max hp (drums 143, keytar 91, violin 97.5), not a flat 90: walking out under
+// recall-2, 90 hp left hard drums dying in the lane (runs/bandstand-4-2026-10-01.md derives the number).
+test('hard: the low-hp trigger is 65 % of max hp in the prose, both compiled cascades and both side files', () => {
+  for (const file of ['prompts/pilots/house-hard.prose.md', 'prompts/pilots/house-hard-eco.prose.md']) {
+    const prose = sideText(file).replace(/\s+/g, ' ');
+    assert.match(prose, /When your hp is below 65% of your max hp and an enemy minion, enemy tower or enemy bearbot is in sight, move back home\. When your hp is below 65% of your max hp and no enemy is in sight, recall home to heal\./, file);
+    assert.doesNotMatch(prose, /below 90/, file);
+  }
+  for (const file of [HOUSE_TIER_SCHEMAS.hard, HOUSE_TIER_ECO_SCHEMAS.hard]) {
+    for (const [inst, s] of Object.entries(loadHouseSchemas(file, ROOT).schemas)) {
+      for (const r of s.rules.slice(0, 2)) {
+        assert.match(r.condition, /\bhp below 65% of its max hp\b/, `${file} ${inst}: ${r.condition}`);
+        assert.doesNotMatch(r.condition, /\b90\b/, `${file} ${inst}: ${r.condition}`);
+      }
+    }
+  }
+  for (const side of ['violet', 'green']) {
+    const home = side === 'violet' ? '{"x":100,"y":900}' : '{"x":900,"y":100}';
+    // every example that does not head home has hp above 65 % of the largest max (drums, 220), so it holds on every instrument
+    for (const ex of sideText(HOUSE_TIERS.hard[side]).split('\n').filter((x) => x.startsWith('{"hp"'))) {
+      const ws = JSON.parse(ex);
+      if (ws.kind === 'recall' || (ws.kind === 'move' && JSON.stringify(ws.target) === home)) continue;
+      assert.ok(ws.hp >= 0.65 * 220, `${side}: ${ex}`);
     }
   }
 });

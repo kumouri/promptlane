@@ -8,9 +8,10 @@ drums only: Road Case, then Bass Strings, then Amp.
 keytar only: Metronome, then Amp, then Road Case.
 violin only: Amp, then Bass Strings, then Road Case.
 
-Recall with discipline. A hit breaks a recall, so get out of reach first. When your hp is below 90
-hp and an enemy minion, enemy tower or enemy bearbot is in sight, move back home. When your hp is
-below 90 hp and no enemy is in sight, recall home to heal. These come before everything else.
+Recall with discipline. A hit breaks a recall, so get out of reach first. When your hp is below 65%
+of your max hp and an enemy minion, enemy tower or enemy bearbot is in sight, move back home. When
+your hp is below 65% of your max hp and no enemy is in sight, recall home to heal. These come before
+everything else.
 
 Play the Bandstand. When the Bandstand is open, no enemy bearbot is in sight and your hp is above half
 of your max hp, move to the Bandstand. If the Bandstand is open and it is contested or the enemy team

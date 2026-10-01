@@ -51,6 +51,14 @@ symmetry, 489 old logs replayed byte-identically, 10 side-swapped Jev matches an
 logs on the
 [`data-side-fairness-2026-10-01`](https://github.com/kumouri/promptlane/releases/tag/data-side-fairness-2026-10-01)
 release), and
+[bandstand-3-2026-10-01.md](bandstand-3-2026-10-01.md) (`recall-2` with tiers that leave reach
+first, on the fixed map; logs on the
+[`data-bandstand-3-2026-10-01`](https://github.com/kumouri/promptlane/releases/tag/data-bandstand-3-2026-10-01)
+release), and
+[bandstand-4-2026-10-01.md](bandstand-4-2026-10-01.md) (hard's walk-home trigger at 65 % of max hp,
+and a Bandstand-state Jev mirror probe; logs and probe rows on the
+[`data-bandstand-4-2026-10-01`](https://github.com/kumouri/promptlane/releases/tag/data-bandstand-4-2026-10-01)
+release), and
 [economy-gate-2026-10-03.md](economy-gate-2026-10-03.md). That is the economy's §6 pre-registered
 gate: 96 matches on Jev across A, R, B0 and B1, scored line by line, with the tuning pass and the
 go / no-go for the 10-04 gate. Its metrics `economy-measure-2026-10-03-*` are beside it, and its
