@@ -1,6 +1,8 @@
 # Economy spec — gold, levels and items for the Jam (eco-1)
 
-**Status:** draft for Ceryce's rulings (§8). Spec only; nothing here is built yet.
+**Status:** P1's blocking questions are ruled: Q1, Q2, Q3, Q4 and Q10 (Telegram, 2026-09-30
+20:35–20:37 CT; §8). The spec body below reads against those rulings. Q5–Q9 and Q11–Q17 are still
+open, and Q14–Q17 block the river objective (§9). Spec only; nothing here is built yet.
 **Written:** 2026-09-30, after Ceryce chose "minimal economy before the jam" (19:57 CT). §9, the
 neutral river objective, was added the same evening after she backed the idea (20:34 CT).
 **Jam:** Fri 2026-10-16. Entry cutoff is midnight Central on Thu 10-15. Sign-ups close Tue 10-06.
@@ -22,16 +24,16 @@ adds numbers, it is cut.
 
 | # | Recommendation | Why, in one line |
 |---|---|---|
-| 1 | **Respawn becomes part of the ruleset.** Timer is `6 s + 3 s × level`. | Today a death is permanent (§1). That makes any risk to carried gold pointless and rewards hiding. |
-| 2 | **One gold pool, and unspent gold is at risk.** On death, half of your unspent gold **goes to the bots that killed you**. | This is Ceryce's recollection of Dota. Neither Dota nor League actually does it (§2). For her principle it beats both: it creates a hold-vs-spend choice, a risk-while-carrying choice and a hunt-the-carrier choice from one rule. |
+| 1 | **Respawn becomes part of the ruleset.** Timer is `6 s + 3 s × level`. *Ruled, Q1.* | Today a death is permanent (§1). That makes any risk to carried gold pointless and rewards hiding. |
+| 2 | **Dota's two-pool shape, every knob a constant.** Unspent gold sits in an at-risk pool and a safe pool; which sources feed the safe pool, how much of the at-risk pool a death costs, and how much of that loss the killers get are all in `eco-1.json`. **The default:** safe pool empty, half of unspent gold lost on death, **all of it to the bots that killed you**. *Ruled, Q2.* | The default is Ceryce's recollection of Dota, which neither game actually ships (§2). For her principle it beats both: hold-vs-spend, risk-while-carrying and hunt-the-carrier from one rule. Modelling it the Dota way means it can be tuned toward Dota or League by editing numbers (§3.3). |
 | 3 | **Kill gold 200, an assist pool of 100, first blood +100.** Minion last hit 15. Passive 0.5 gold/s. | One kill is worth about 13 last hits. Passive is a floor so even a weak bot gets one item. Most income has to be earned, and about a third of it should come from PvP. |
 | 4 | **Tower gold is part team-wide, part split among the bots standing near it.** | This is the PvE that pulls bots together: objectives pay the bots that show up, so the other team has to show up too. |
 | 5 | **Five levels from shared-proximity XP.** Each level gives +8 % max hp and +8 % attack damage. No level-up choice. | XP for being near a fight or a push, not for last hits, pays for grouping. A level-up choice would add a decision the translator can't express well. |
-| 6 | **Four items in three slots, each with a real cost** (Amp, Road Case, Bass Strings, Metronome). A fifth, Tip Jar, is optional. | A bot can't own everything, and every item gives something up. Bass Strings heals only from damage dealt to enemy bearbots. |
-| 7 | **Buy only at your own base. The prose declares a shopping list.** It is bought automatically when you're at base and can afford the next item. There is no new action kind. | The decision a bot makes during play is *when to go home*. That is a yes/no question Jev already answers well. A `buy` action would be a new failure mode in the translator. |
+| 6 | **Four items in three slots, each with a real cost** (Amp, Road Case, Bass Strings, Metronome). No Tip Jar. *Ruled, Q4; names still placeholders (Q13).* | A bot can't own everything, and every item gives something up. Bass Strings heals only from damage dealt to enemy bearbots. |
+| 7 | **Buy only at your own base. The prose declares a shopping list.** It is bought automatically when you're at base and can afford the next item. There is no new action kind. *Ruled, Q3.* | The decision a bot makes during play is *when to go home*. That is a yes/no question Jev already answers well. A `buy` action would be a new failure mode in the translator. |
 | 8 | **All of it runs outside the frozen sim**, as `src/economy.ts` plus one constants file. Match logs record it as `economy: "eco-1"`. | This is the same pattern as the balance study's `src/mapVariant.ts`. Old logs replay unchanged. |
 | 9 | **Measure on Jev** with the balance study's metric tool, in four seed-paired conditions (§6). There are pre-registered pass/fail lines. | Standing rule: Jev, never qwen 9B. |
-| 10 | **Entrant-facing changes land by Mon 10-05**, numbers freeze Thu 10-08, and there is a go/no-go gate on Sun 10-04 (§7). | Sign-ups close Tue 10-06. Entrants must see the rules they are writing against. |
+| 10 | **Entrant-facing changes land by Mon 10-05**, numbers freeze Thu 10-08, and there is a go/no-go gate on Sun 10-04, end of day (§7). *Ruled, Q10.* | Sign-ups close Tue 10-06. Entrants must see the rules they are writing against. |
 | 11 | **A neutral river objective, the Bandstand** (§9). It alternates between two river sites outside every tower's range. A team takes it by holding the stage, and any enemy on the stage freezes the capture. The reward is a 45 s team Encore buff, plus gold and XP when the economy is on. Bots reach it through one new move selector, with no new action kind. It has its own layer and its own gate, and is measured on Jev before Sun 10-04. | `pvp-1` cut team fights from 4.6 to 2.75 a match by removing the one spot both teams converged on. This puts a shared spot back on neutral ground, and only PvP can win it. |
 
 ---
@@ -166,8 +168,10 @@ gold every time it dies. Dying does not take away reliable gold." The formula is
 | League turret plating split among nearby allies | — | **Yes.** Pushes pay whoever shows up. | Group the push | Low |
 | Shared XP by proximity (both games) | — | **Yes** | Stay near allies | Low |
 
-**Recommendation: carried gold that drops to the killers (§3.3).** One number per bot covers what
-Dota needs two pools for, and adds the transfer that Ceryce remembered. It turns out to be stronger
+**Ruled (Q2): Dota's two-pool shape, defaulting to carried gold that drops to the killers (§3.3).**
+The model has Dota's at-risk and safe pools, with every knob a constant, so it can be moved toward
+Dota or League as measurement comes in. Its default leaves the safe pool empty and pays the whole
+loss to the killers. That default is the transfer Ceryce remembered, and it turns out to be stronger
 for her principle than what either game ships.
 - A bot holding gold has a reason to go home and spend it.
 - A bot that can't go home yet is a richer target.
@@ -186,7 +190,8 @@ Add the cheap PvE-to-fight levers on top:
 and first blood. The economy still exists, but there is no risk-while-carrying decision.
 Spend-vs-hold reduces to "go home when you can afford something". It is the right fallback if
 measurement (§6) shows carried-gold drops make matches runaway, or if the translator can't express
-the risk.
+the risk. Under the ruled model it is a preset, not a rewrite: set the death-loss fraction to 0
+(§3.3).
 
 **Deferred, not cut forever:**
 - *Buyback* needs a second pool and a new action.
@@ -221,13 +226,13 @@ with full hp after **`6 + 3 × level` seconds**: 9 s at level 1, 21 s at level 5
 | **Bearbot kill** | **200** | the credited killer | Kill credit goes to the **last enemy bearbot that damaged the victim within 10 s**. A minion or tower may land the blow, as in League's 15 s rule. 10 s matches the metric tool's `ASSIST_WINDOW_SEC`. |
 | Assist pool | 100, split equally | assisters | An assister is any other enemy bearbot that damaged the victim within 10 s, **or stood within 250 of it at death**. That is Dota's proximity assist; 250 is the metric tool's `FIGHT_RADIUS`. Being in the fight pays. |
 | First blood | +100 | the killer of the first credited kill | Both games have it (Dota 135, League 100). It is a direct answer to "no first blood". |
-| **Death drop** | 50 % of the victim's **unspent** gold | split equally among killer and assisters | §3.3 |
+| **Death drop** | default: 50 % of the victim's **at-risk** gold, all of it paid on | split equally among killer and assisters | §3.3; every number is a knob |
 | Tower | 100 to every bot on the team, alive or dead, **plus 120 split among the team's bots within 300 of the tower** when it falls | team / bots present | The team share keeps a push worth doing. The local share is League's plating rule: the bots that show up are paid, so the defenders have to show up too, and the PvE objective becomes a team fight. |
 | Nexus | — | — | The match ends. |
 
 **Execution** is a death with no enemy bearbot damage in the window, i.e. killed by a tower or minion
-alone. It pays no kill or assist gold, and the victim's drop **vanishes**: it costs the victim but
-pays nobody. This follows League's execution rule and Dota's vanishing loss. Paying the defenders
+alone. It pays no kill or assist gold, and the victim's loss **vanishes**, whatever the killer share
+is set to: it costs the victim but pays nobody. This follows League's execution rule and Dota's vanishing loss. Paying the defenders
 would reward sitting under a tower, which is PvE.
 
 **Expected income per bot over 600 s** (to be checked in §6):
@@ -241,9 +246,41 @@ so a typical bot finishes 2 items and a strong one finishes 3.
 
 ### 3.3 Carried gold and death
 
-- A bot has **one gold number**. All gold, including passive, is **unspent and at risk until it buys an item**. Items are never lost.
-- On a credited death, **`floor(0.5 × gold)`** leaves the victim and is split equally among the killer and the assisters (remainder to the killer). On an execution it vanishes.
-- A bot's **bounty** is the most that killing it pays the enemy team: `200 + 100 + floor(0.5 × gold)` (kill + assist pool + drop). The assist pool is paid only when someone assists. The first-blood bonus is left out. Bounty is shown to everyone (§4.1). Hunting the carrier is a decision the bot can see and make.
+> "Start with half drops to the killers, but model it the dota way so we can tune it to be like dota
+> or league as we find things out." — Ceryce, 2026-09-30 20:36 CT (Q2)
+
+**The model is Dota's shape, with every knob a constant** (`gold.pools` and `gold.death` in §3.7):
+
+- **Two pools per bot.** Unspent gold is either **at risk** (Dota's unreliable) or **safe** (Dota's
+  reliable). Every income source has a ledger key (`passive`, `minion`, `kill`, `assist`, `drop`,
+  `first-blood`, `tower-team`, `tower-local`). **`pools.safeSources`** lists the keys paid into the
+  safe pool; everything else is paid into the at-risk pool. Items are never lost.
+- **Spending** takes from the at-risk pool first, then the safe pool, as in Dota.
+- **Death loss.** On a death the victim loses
+  `loss = min(atRisk, floor(lossOfAtRisk × atRisk + lossOfNetWorth × netWorth))`, where net worth is
+  both pools plus the cost of every item owned. Only the at-risk pool can pay it.
+- **Who gets it.** On a credited death, `floor(toKillers × loss)` is split equally among the killer
+  and the assisters (remainder to the killer). The rest vanishes. On an execution all of it vanishes.
+
+**The default (Q2 option A, the ruling's "start with half drops to the killers"):** `safeSources`
+empty, `lossOfAtRisk` 0.5, `lossOfNetWorth` 0, `toKillers` 1.0. All gold, passive included, is at
+risk until it is spent, and half of it goes to the bots that killed you. Everything else in this
+spec is written against this default.
+
+**Presets** — each is an edit to `eco-1.json` plus a new ruleset name, no code change:
+
+| Preset | `safeSources` | `lossOfAtRisk` | `lossOfNetWorth` | `toKillers` | What it plays like |
+|---|---|---|---|---|---|
+| **Default (Q2-A)** | — | 0.5 | 0 | 1.0 | Carried gold drops to the killers. |
+| Gentler (old Q2-D) | — | 0.25 | 0 | 1.0 | The same, if the default measures as runaway. |
+| Dota-like | `passive` | 0 | 0.025 (net worth / 40) | 0 | Earned gold is at risk, passive is safe, the loss vanishes. |
+| League-like | any | 0 | 0 | — | Nothing is ever lost; kill and assist gold do the work. |
+
+- A bot's **bounty** is the most that killing it pays the enemy team: kill + assist pool +
+  `floor(toKillers × loss)`, which is `200 + 100 + floor(0.5 × atRisk)` under the default. The
+  assist pool is paid only when someone assists. The first-blood bonus is left out. Bounty is shown
+  to everyone (§4.1). Hunting the carrier is a decision the bot can see and make. Under a preset with
+  `toKillers` 0 the bounty is flat, and the carrier-hunting decision goes away.
 - **What this does to a bot's choices:**
   - *Spend vs hold.* Going home costs tempo, often a wave. Staying out risks the gold.
   - *Risk while carrying.* A bot carrying 400 gold has a reason not to start a fight it isn't sure to win.
@@ -251,8 +288,9 @@ so a typical bot finishes 2 items and a strong one finishes 3.
   - *A natural shutdown.* A bot that has been winning and hasn't been home is worth the most.
 - **Snowball check.** The killer gets richer, but a rich killer is in turn worth more to kill. With
   no streak gold, no level term in the bounty and short respawns, the main brake is the bounty
-  itself. Swinginess and comeback rate are measured in §6. If runaway shows up, cut the drop to 25 %
-  or fall back to League-lite (§8 Q2).
+  itself. Swinginess and comeback rate are measured in §6. If runaway shows up, move to the gentler
+  preset, or to Dota-like or League-like, by editing the constants (the Q2 ruling's "as we find
+  things out").
 
 ### 3.4 Experience and levels
 
@@ -272,8 +310,8 @@ so a typical bot finishes 2 items and a strong one finishes 3.
 
 ### 3.5 Items
 
-There are **three slots**. Four items are always in the shop, and a fifth is optional. There's no
-selling, no duplicates and no recipes. **Every item gives up something**, either a stat or what it is
+There are **three slots** and **four items** (Q4, ruled). There's no
+selling, no duplicates and no recipes. The names are placeholders until Q13 is ruled. **Every item gives up something**, either a stat or what it is
 useless for.
 
 | Item | Cost | Gives | Gives up | Who wants it |
@@ -282,7 +320,9 @@ useless for.
 | **Road Case** | 300 | max hp +35 % | move speed −12 % | Tanky but can't chase or escape. A drums frontline. |
 | **Bass Strings** | 350 | heals 30 % of damage dealt **to enemy bearbots** (attacks and abilities) | Nothing from minions, towers or nexus | Only pays off while fighting bearbots. A PvP item by construction. Taken from the design doc's "bass … sustain = lifesteal". |
 | **Metronome** | 350 | ability cooldowns −30 % | basic attack interval +15 % | An ability-first pilot: violin staccato 4 → 2.8 s, keytar chord 7 → 4.9 s. |
-| *Tip Jar* (optional, cut first) | 200 | gold from kills, assists and drops +50 % | Your death drop is **100 %** of unspent gold, not 50 % | Bets on yourself. Pure risk-while-carrying. |
+
+*Tip Jar* (200: +50 % gold from kills, assists and drops, but your death drop is 100 %) was the
+optional fifth item. Q4 ruled it out of eco-1.
 
 - **Stacking.** `stat = instrumentBase × (1 + levelBonus) × Π(1 + itemModifier)`. For example, drums with Road Case and Amp has `220 × 1.35 × 0.85 = 252` hp at level 1.
 - **Three slots from four items**, so every build leaves one out. The choice is what to skip and in what order.
@@ -326,7 +366,8 @@ a new ruleset name, not a code change.
     "start": 0, "passivePerSec": 0.5, "minionLastHit": 15,
     "kill": 200, "assistPool": 100, "firstBlood": 100,
     "towerTeam": 100, "towerLocalPool": 120, "towerLocalRadius": 300,
-    "deathDropFraction": 0.5, "executionDrop": "vanish"
+    "pools": { "safeSources": [] },
+    "death": { "lossOfAtRisk": 0.5, "lossOfNetWorth": 0, "toKillers": 1.0 }
   },
   "credit": { "windowSec": 10, "assistRadius": 250 },
   "xp": {
@@ -339,8 +380,7 @@ a new ruleset name, not a code change.
     "amp":          { "name": "Amp",          "cost": 350, "mods": { "attackDamage": 0.35, "maxHp": -0.15 } },
     "road-case":    { "name": "Road Case",    "cost": 300, "mods": { "maxHp": 0.35, "moveSpeed": -0.12 } },
     "bass-strings": { "name": "Bass Strings", "cost": 350, "mods": { "pvpLifesteal": 0.30 } },
-    "metronome":    { "name": "Metronome",    "cost": 350, "mods": { "abilityCooldown": -0.30, "attackCooldownSec": 0.15 } },
-    "tip-jar":      { "name": "Tip Jar",      "cost": 200, "mods": { "pvpGold": 0.5, "deathDropFraction": 1.0 }, "optional": true }
+    "metronome":    { "name": "Metronome",    "cost": 350, "mods": { "abilityCooldown": -0.30, "attackCooldownSec": 0.15 } }
   },
   "defaultBuilds": {
     "drums":  ["road-case", "bass-strings", "metronome"],
@@ -355,7 +395,7 @@ a new ruleset name, not a code change.
 The economy uses no RNG. Each tick runs in this order:
 
 1. Run the sim tick. Inside it, the attribution hooks record every hp change with its source (§3.9).
-2. Resolve that tick's deaths: kill credit, then gold, then drops, then XP.
+2. Resolve that tick's deaths: kill credit, then gold, then the death loss and its payout, then XP.
 3. Resolve tower deaths: team gold, then local gold, then XP.
 4. Pay passive gold.
 5. Apply level-ups.
@@ -437,8 +477,10 @@ unchanged.
 {
   "self": {
     // …existing fields…
-    "gold": 340,                 // unspent; at risk
-    "bounty": 470,               // what killing you pays the enemy team: 200 + 100 + floor(0.5 × gold)
+    "gold": 340,                 // unspent, both pools
+    "goldAtRisk": 340,           // the part a death can take; equals gold under the default (§3.3)
+    "deathLoss": 170,            // what you would lose if you died now
+    "bounty": 470,               // what killing you pays the enemy team: 200 + 100 + floor(toKillers × deathLoss)
     "level": 3, "xp": 230, "xpToNext": 130,
     "items": ["amp"], "slotsFree": 2,
     "nextItem": { "item": "bass-strings", "cost": 350 },   // null when the list is done or slots are full
@@ -462,6 +504,9 @@ unchanged.
 > bots that killed you, and killing you is worth 470 to them. Items: Amp (2 of 3 slots free). Next on
 > your shopping list: Bass Strings, 350 gold — you cannot afford it yet. You are not at your base.
 > Enemy bb-5 (keytar, level 3) is worth 410 gold if killed. Enemy bb-6 respawns in 7 s.
+
+The death sentence is generated from the knobs, so it stays true under any preset ("…170 of it is
+lost, and none goes to the killers" under Dota-like; omitted when the loss is 0).
 
 ### 4.2 Actions
 
@@ -676,7 +721,7 @@ Reported spend is checked against the `tools/evolve/budget.mjs` caps.
 
 **After the run, if any pass line fails:**
 1. **One** tuning pass on the constants, without changing the design, then re-run B1 only.
-2. If it still fails, rule on the fallback (League-lite, §8 Q2) and re-run B0 and B1 with it.
+2. If it still fails, rule on a preset (gentler, Dota-like or League-like, §3.3) and re-run B0 and B1 with it.
 
 No third pass before the Jam.
 
@@ -690,7 +735,7 @@ Central Thu 10-15, and the Jam is Fri 10-16. Effort is agent working hours. Ever
 
 | Phase | Dates | Effort | Contents | Done when |
 |---|---|---|---|---|
-| **P0 Rulings** | Thu 10-01 | — | Ceryce answers §8. (The balance study's `pvp-1` already shipped as `DEFAULT_MAP`, PR #48.) | Rulings recorded in this spec |
+| **P0 Rulings** | Thu 10-01 | — | Ceryce answers §8. Q1–Q4 and Q10, the ones that block P1, were ruled Wed 09-30 evening. (The balance study's `pvp-1` already shipped as `DEFAULT_MAP`, PR #48.) | Rulings recorded in this spec |
 | **P1 Ruleset layer** | Thu 10-01 – Fri 10-02 | 12–16 h | `eco-1.json`, `src/economy.ts`, `src/attribution.ts`, respawn, items and levels, observation wrapper, auto-buy, log and checkpoint fields, wired into all five places that build a match, HUD, metric-tool respawn support. Tests: ledger arithmetic, determinism, replay of old logs unchanged, replay of eco logs verified. | `npm test` green; an eco-1 match replays OK; v1 logs bit-identical |
 | **O1 Objective layer** (§9) | Thu 10-01 – Fri 10-02, alongside P1 | 6–8 h | `river-1.json`, `src/objective.ts`, the shared `src/ruleset/stats.ts`, the `bandstand` observation block, log and checkpoint fields, the same five call sites, the stage and Encore in `src/render.ts`, and the §9.8 objective metrics. It is built by a separate agent and does not depend on the economy. Of P1 and O1, whichever merges second rebases onto the first (both touch `headless.ts` and the observation wrapper). Tests: determinism; capture, contest and drain arithmetic; v1 and `pvp-1` logs bit-identical; a river-1 match replays OK. | `npm test` green; a river-1 match replays OK |
 | **P2 Decision surface** | Fri 10-02 – Sun 10-04 | 12–16 h | Translator `build` + selector + prompt items block + wire format, `describe_observation`, transparency, house tiers and worksheets, entrants README, template and compile preview, Elysium panel | Compile preview shows a shopping list; house bots shop |
@@ -709,12 +754,12 @@ its observation fields, the `bandstand` selector and its template blank. Numbers
 Thu 10-08, and entrants are told they are provisional.
 
 **What to cut first**, in order, if the schedule slips:
-1. **Tip Jar** (it is already optional).
+1. ~~Tip Jar~~ (ruled out by Q4).
 2. **Bandstand gold and XP.** The objective keeps the Encore, which is the part that pulls teams together. The economy loses a source it doesn't need.
 3. **Metronome.** It is the only item that needs the cooldown-rescaling hook; three items in three slots means everyone owns everything, so drop to two slots.
 4. **The `highest_bounty_enemy` selector.** Bounty stays visible in the description, and "the enemy worth the most" degrades to `lowest_hp_enemy`.
 5. **Levels and XP.** Gold and items carry the decision surface; levels are a power curve.
-6. **The death drop**, i.e. the League-lite fallback.
+6. **The death drop**, i.e. the League-like preset (`lossOfAtRisk` 0). This is a constants edit, not a code cut.
 
 **The objective as a whole is not on this list.** It is the only part of the spec aimed directly at
 the team fights `pvp-1` lost, so it is not traded against economy items to save time. It is cut
@@ -729,28 +774,34 @@ measurement.
 
 ## 8. Open for Ceryce
 
-Each question lists the options with the recommendation first. **Q1–Q4 and Q10 block P1.** Q2's
-answer selects the death rule in `eco-1.json`. **Q14–Q16 block O1**, and Q17 is needed by the Sun
-10-04 gate.
+Each question lists the options with the recommendation first. **Q1–Q4 and Q10 blocked P1, and all
+five are ruled** (Telegram pickers, 2026-09-30, times America/Chicago; her answers are quoted
+verbatim). Q5–Q9 and Q11–Q13 are open, and P1 builds their recommendations as constants. **Q14–Q16
+block O1**, and Q17 is needed by the Sun 10-04 gate.
 
-**Q1. Respawn.**
-- **A (rec):** respawn at the lane spawn after `6 + 3 × level` s. This is the precondition for any gold risk.
+**Q1. Respawn.** **RULED 20:35:** "Respawn, timer grows with level" → **option A.**
+- **A (rec, ruled):** respawn at the lane spawn after `6 + 3 × level` s. This is the precondition for any gold risk.
 - B: no respawn, and the economy without death mechanics (League-lite only). It keeps the specimen's "a death is final" feel, but kills snowball into 3v2s and the risk decisions disappear.
 - C: a fixed 15 s respawn and no levels. Simpler, but late kills mean nothing more than early ones.
 
-**Q2. The gold-at-risk model.**
-- **A (rec):** one pool; half of unspent gold drops **to the killers** on death (your recollection of Dota). It gives the most PvP incentive and three bot decisions from one rule.
+**Q2. The gold-at-risk model.** **RULED 20:36, answered in chat:** "Start with half drops to the
+killers, but model it the dota way so we can tune it to be like dota or league as we find things
+out." → **Dota's two-pool shape with every knob a constant, defaulting to option A** (safe pool
+empty, loss 0.5 of the at-risk pool, 100 % to the killers). B and C become presets of the same model,
+and D is the "gentler" preset (§3.3). The options as they were put:
+- **A (rec, the ruled default):** one pool; half of unspent gold drops **to the killers** on death (your recollection of Dota). It gives the most PvP incentive and three bot decisions from one rule.
 - B: Dota-faithful. Earned gold is at risk, but the loss **vanishes**, and passive gold is safe in a second pool. Death costs, but killing a carrier doesn't pay extra. It also needs a second number per bot.
 - C: League-lite. Nothing is ever lost, with a flat kill bounty and assists. The simplest option, with no carrying-risk decision.
 - D: A with a 25 % drop. Same shape and gentler, if A measures as runaway.
 
-**Q3. How bots buy.**
-- **A (rec):** a shopping list declared in prose and bought automatically at base. The decision during play is when to recall, and there's no new action kind.
+**Q3. How bots buy.** **RULED 20:36:** "Prose shopping list, auto-bought at base" → **option A.**
+- **A (rec, ruled):** a shopping list declared in prose and bought automatically at base. The decision during play is when to recall, and there's no new action kind.
 - B: an explicit `buy` action with an `item` argument, valid only at base. More expressive ("buy Road Case if their violin is fed"), but it is a new kind in 8+ copies of the vocabulary, a new translator failure mode and a wasted 2 s decision.
 - C: A, plus buying anywhere. Removes the spend-vs-hold choice; not recommended.
 
-**Q4. Item set.**
-- **A (rec):** Amp, Road Case, Bass Strings and Metronome, in 3 slots.
+**Q4. Item set.** **RULED 20:36:** "Amp, Road Case, Bass Strings, Metronome; 3 slots" → **option A.**
+No Tip Jar. The names are still placeholders (Q13 is open).
+- **A (rec, ruled):** Amp, Road Case, Bass Strings and Metronome, in 3 slots.
 - B: those four plus Tip Jar.
 - C: three items (cut Metronome) in 2 slots, which is the simplest build.
 - D: A with 2 slots. Sharper choices, but full inventories sooner, so late gold is only bounty.
@@ -760,13 +811,17 @@ answer selects the death rule in `eco-1.json`. **Q14–Q16 block O1**, and Q17 i
 - B: no levels. Gold and items only.
 - C: A plus a choice at levels 3 and 5 (hp or damage). More strategy, but a second decision vocabulary for the translator.
 
-**Q6. Passive income.**
-- **A (rec):** 0.5 gold/s, at risk like all gold.
+**Q6. Passive income.** Under the Q2 ruling the pool is a knob (`pools.safeSources`), so every
+option here is a constants edit.
+- **A (rec):** 0.5 gold/s into the at-risk pool, like all gold. This is the Q2 default.
 - B: none. Every gold is earned, but weak pilots may never buy anything.
-- C: 0.5/s into a safe pool. This is Dota's reliable gold, and it brings Q2-B's second pool.
+- C: 0.5/s into the safe pool (`safeSources: ["passive"]`). This is Dota's reliable gold, and the
+  first step of the Dota-like preset. It no longer costs a second pool to build; Q2's model has one.
 
 **Q7. Comeback mechanic.**
-- **A (rec):** none in eco-1. Measure swinginess first, since the bounty of a rich bot is already a brake.
+- **A (rec):** none in eco-1. Measure swinginess first, since the bounty of a rich bot is already a
+  brake under the Q2 default. That brake holds only while `toKillers` > 0: a Dota-like preset makes
+  the bounty flat, and would bring this question back.
 - B: a League-style objective bounty, where a tower pays the team behind in gold +10 % of the gold gap.
 
 **Q8. Timeout tiebreak.**
@@ -777,8 +832,8 @@ answer selects the death rule in `eco-1.json`. **Q14–Q16 block O1**, and Q17 i
 - **A (rec):** enemy items are visible in the observation. It's a fair fight, and it lets prose say "if their violin has an Amp, stay grouped".
 - B: hidden. Simpler description.
 
-**Q10. Go/no-go date.**
-- **A (rec):** Sun 10-04, end of day, as in §7.
+**Q10. Go/no-go date.** **RULED 20:37:** "Sun 10-04, end of day" → **option A**, a go/no-go.
+- **A (rec, ruled):** Sun 10-04, end of day, as in §7.
 - B: Tue 10-06, which risks publishing entrant rules that then get pulled.
 - C: no gate; always ship the economy.
 
@@ -790,7 +845,7 @@ answer selects the death rule in `eco-1.json`. **Q14–Q16 block O1**, and Q17 i
 - **A (rec):** not in eco-1. Proximity XP and assists already pay for grouping.
 - B: add it in P2 (about 1 h). Prose like "stay near an ally" becomes expressible, and grouping is the clause of your principle it serves most directly.
 
-**Q13. Names.** Amp, Road Case, Bass Strings, Metronome and Tip Jar are working names, and so are
+**Q13. Names.** Amp, Road Case, Bass Strings and Metronome are working names, and so are
 Bandstand and Encore (§9). Rename freely. Only the keys in `eco-1.json` and `river-1.json` are
 load-bearing, plus the selector name `bandstand`, which entrants' compiled schemas will carry.
 
@@ -826,9 +881,9 @@ load-bearing, plus the selector name `bandstand`, which entrants' compiled schem
 **Q16. The reward** (§9.5).
 - **A (rec):** a 45 s team Encore (+15 % attack damage, +10 % move speed, lost on death), plus 40
   gold to every bot on the team, 60 gold split among the capturers, and 40 XP to each capturer when
-  the economy is on. It works under every Q2 answer, and as Encore only if the economy is cut.
+  the economy is on. It works under every Q2 preset, and as Encore only if the economy is cut.
   **Cost:** one stat derivation shared with the economy (§9.6).
-- B: Encore only, in every case. It is simplest, and the objective never interacts with Q2.
+- B: Encore only, in every case. It is simplest, and the objective never interacts with the Q2 gold model.
   **Cost:** the objective doesn't feed the economy, so the spend-vs-hold loop gets no new income
   event to plan around.
 - C: gold and XP only. **Cost:** if the economy is cut, the objective pays nothing, so it needs a
@@ -990,15 +1045,15 @@ When the bar reaches ±1:
   showed up. A capture is worth 40 × 3 + 60 = 180 per team, against 420 for a tower. That is
   enough to matter, but it is not the main income.
 
-**Under each answer to Q2.** The Bandstand is just one more gold source with its own ledger keys,
-`bandstand-team` and `bandstand-local`.
+**Under the Q2 model.** The Bandstand is just one more gold source with its own ledger keys,
+`bandstand-team` and `bandstand-local`. Like every source, it feeds the at-risk pool unless its key
+is listed in `eco-1.json`'s `pools.safeSources` (§3.3).
 
-| Q2 answer | What happens to Bandstand gold |
+| Q2 preset | What happens to Bandstand gold |
 |---|---|
-| A or D | It goes into the one pool, is unspent and at risk like all gold, and drops to the killers by §3.3. |
-| B (Dota-faithful) | It is earned gold, so it goes into the unreliable pool. |
-| C (League-lite) | It is paid and never lost. |
-| Q1-B (no respawn) | No change. |
+| Default or gentler | At risk like all gold, and part of it drops to the killers by §3.3. |
+| Dota-like | It is earned gold, so it is at risk, and the loss vanishes. |
+| League-like | It is paid and never lost. |
 
 **If the economy is cut at the go/no-go gate.**
 
