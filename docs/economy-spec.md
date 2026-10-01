@@ -10,6 +10,8 @@ measurement. **The redesign after that measurement failed, `river-2` and `recall
 (Ceryce, 2026-09-30 23:00 and 23:02 CT; Q18) and built**, both opt-in. §9.10 has the design, the
 design check and its measurement. **The income tuning pass and P2's house side are built** (§13): the
 ruleset is now `eco-2`, the house tiers shop on purpose, and §6's measurement is one command (§13.5).
+§6 ran on `eco-2` and missed three level lines narrowly. The one tuning pass, `eco-3`, passed every
+scorable line, and it is the recommendation for the gate (§13.6).
 The entrant-facing part of P2 (README, template, compile preview) waits for the gate.
 **Written:** 2026-09-30, after Ceryce chose "minimal economy before the jam" (19:57 CT). §9, the
 neutral river objective, was added the same evening after she backed the idea (20:34 CT).
@@ -1760,7 +1762,7 @@ less time in lane.
 **Names.** `src/economy/eco-2.json` is eco-1 with only the gold block's seven prices changed. A
 test pins that. `eco-1` stays registered, so `--economy eco-1` still reproduces the slice. Old logs
 carry their whole ruleset and replay unchanged. The translator's items reader points at `eco-2.json`.
-Items are identical in both, so its prompt is right for either.
+Items are identical in both, so its prompt is right for either. The same holds for `eco-3` (§13.6).
 
 **The likely next knob.** If §6 confirms the smoke's first-item time (5:08 against ≤ 4:30), the
 pass §6.2 allows has `gold.start`, which is 0 today. Something like 100 moves the first item about a
@@ -1923,5 +1925,31 @@ They were played before #56, on the sequential order.
 - **Unscorable on the old order:** `decided` and comeback, which are winner reads.
 - **The proposed single pass (§6.2), `eco-3`:** `gold.start` 100, `kill` 250, `assistPool` 125.
   - `gold.start` alone raises income, because start gold is paid as passive.
-  - Then re-run B1 only, on `--resolution sequential`.
+  - Then re-run B1 only. This proposed `--resolution sequential`; the re-run used `simultaneous-1`
+    (below).
 - **The recommendation for the Sun 10-04 gate is go** on the economy.
+
+**The tuning pass, run:** [`runs/economy-eco3-2026-10-01.md`](../runs/economy-eco3-2026-10-01.md).
+- **`eco-3`** is `src/economy/eco-3.json`: `eco-2` with only those three prices changed, and a test
+  pins that.
+- **The run:** B1's 24 matches on Jev, played by `measure_economy.mjs --conditions B1 --economy eco-3`.
+  It cost $2.21.
+- **Resolution:** played after #56 under `simultaneous-1`, the resolution the Jam plays. The gate was
+  sequential.
+  - `eco-3`'s economy lines are level reads, so this doesn't touch them.
+  - The paired lines against A now cross resolutions. A 5-seed anchor says that biases the PvP lines
+    against `eco-3`, not for it.
+- **Every scorable line passes:**
+  - income 122.0;
+  - first item 3:28;
+  - gap at 6:00 0.186;
+  - PvP share of earned 75.1 %, items 3, carried gold at death 162 and shopping.
+  - Every paired line against A passes too.
+- **Comeback is scorable now: 12 of 14.** `decided` still isn't, because A was played on the old
+  order.
+- **The ledger forecast held:** income −11.0 against −9.5 forecast, and PvP share of earned −7.3pp
+  against −7.4pp.
+- **Caveat:** the lines are pooled medians, and medium vs hard's own first item is 4:47. The entrant
+  pairing carries the pass.
+- **Recommendation for the gate: ship `eco-3`.** Nothing flips automatically. `DEFAULT_ECONOMY`
+  stays none, and §6's conditions stay `eco-2` until Ceryce rules.
