@@ -7,9 +7,10 @@ and one process serves every practice match at once. (Its listen backlog is size
 `local_http.py`.)
 
 The decision itself is `fidelity_harness.run_prediction`, unchanged -- the same code that measured
-the translator (`docs/prose-to-schema-translator.md` §3): every rule's condition is one `noul`
-question in a single Jev call, the first "yes" in cascade order wins, and the winning rule's target
-selector is resolved against the observation in Python (`target_resolve.py`).
+the translator (`docs/prose-to-schema-translator.md` §3): every node's condition anywhere in the
+tree (rules, guards, and the rules inside a guard's branches) is one `noul` question in a single Jev
+call, the first "yes" in cascade order wins, a guard routes to its yes- or no-branch, and the winning
+rule's target selector is resolved against the observation in Python (`target_resolve.py`).
 
     GET  /health  -> {"ok": true, "backend": "jev-schema", "model", "requests", "errors",
                       "avg_seconds", "tokens_in", "cost_usd", "budget_usd", "jev_backend",
@@ -92,7 +93,7 @@ class JevSchemaBackend:
         if not isinstance(body.get("schema"), dict) or not isinstance(body.get("observation"), dict):
             raise ValueError("body needs {schema: {...}, observation: {...}}")
         schema = schema_from_dict(body["schema"])
-        if not schema.rules:
+        if not schema.root.nodes:
             raise ValueError("schema has no rules")
         with self.lock:
             if self.budget_usd is not None and self.cost_usd >= self.budget_usd:

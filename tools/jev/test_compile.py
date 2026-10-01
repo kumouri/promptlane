@@ -210,5 +210,112 @@ class EntrantProseTests(unittest.TestCase):
             self.assertEqual(C.main([]), 2)
 
 
+# A violin translation with a guard (translator-guards-and-defaults-spec.md §2.2): one root rule, then
+# a strategic-verdict guard whose yes-branch has a nested rule and whose no-branch has only a default.
+GUARD_REPLY = json.dumps({
+    "rules": [
+        {"id": "low_hp_recall", "condition": "is this bot's hp below a quarter of its max?",
+         "criteria": {"true": "hp < 25% max", "false": "hp >= 25% max"},
+         "action": {"kind": "recall", "ability": None, "target_selector": "none"}},
+        {"type": "guard", "id": "can_win_fight",
+         "condition": "can this bot win the fight it is in or about to enter, by itself, right now?",
+         "criteria": {"true": "a winnable fight is present", "false": "no winnable fight is present"},
+         "then": {"nodes": [{"id": "opener_ready", "condition": "is staccato ready and an enemy bearbot in range?",
+                             "criteria": {"true": "staccato ready, enemy in range", "false": "otherwise"},
+                             "action": {"kind": "ability", "ability": "staccato", "target_selector": "nearest_enemy"}}],
+                  "default_action": {"kind": "attack", "ability": None, "target_selector": "nearest_enemy"}},
+         "else": {"nodes": [], "default_action": {"kind": "move", "ability": None, "target_selector": "home"}}},
+    ],
+    "default_action": {"kind": "move", "ability": None, "target_selector": "push_lane"},
+})
+
+GUARD_PROSE = """You are a violin bearbot. Recall when your health drops below a quarter.
+You only take fights you can win: when you can, open with staccato, otherwise fall back home.
+"""
+
+GUARD_OBS = {
+    "clockSec": 42.0,
+    "self": {"id": "bb-1", "team": "violet", "lane": "top", "instrument": "violin", "pos": {"x": 300, "y": 300},
+             "hp": 200, "maxHp": 220, "moveSpeed": 55, "cooldowns": {"staccato": 0, "solo": 3.5}},
+    "allies": [],
+    "visibleEnemies": [{"id": "bb-4", "pos": {"x": 320, "y": 310}, "hp": 150, "maxHp": 150, "kind": "bearbot"}],
+    "nearbyMinions": [],
+    "nearbyTowers": [],
+}
+
+
+class _RecordingJev:
+    """Says yes to the ids in `yes`, and records every question id it was asked."""
+
+    model = "recording-jev"
+
+    def __init__(self, yes: set[str]):
+        self.yes, self.asked = yes, []
+
+    def ask(self, state, questions):
+        self.asked.append([q.id for q in questions])
+        return {"answers": {q.id: {"noul": 0.9 if q.id in self.yes else 0.1} for q in questions},
+                "usage": {"input_tokens": 500}}
+
+
+class GuardNodesSurviveTheSavePathTests(unittest.TestCase):
+    """A guard the translator emits must reach the Jev server: the schema compile.py hands on (the
+    `schema` field of --format json, which door B's practice match POSTs; --save-schemas files;
+    --schema-in) has to carry the whole tree, not the flat root-rules view."""
+
+    ALL_IDS = ["low_hp_recall", "can_win_fight", "opener_ready"]
+
+    def _compiled(self) -> dict:
+        e = C.compile_prompt(GUARD_PROSE, "entrants/vi/pilot.md", ("violin",), ScriptedBackend([GUARD_REPLY]))["instruments"]["violin"]
+        self.assertTrue(e["ok"], e.get("error"))
+        return e["schema"]
+
+    def test_saved_schema_keeps_the_guard_and_both_branches(self):
+        saved = self._compiled()
+        guard = next((r for r in saved["rules"] if r.get("type") == "guard"), None)
+        self.assertIsNotNone(guard, saved["rules"])
+        self.assertEqual(guard["id"], "can_win_fight")
+        self.assertEqual([n["id"] for n in guard["then"]["nodes"]], ["opener_ready"])
+        self.assertEqual(guard["then"]["default_action"]["kind"], "attack")
+        self.assertEqual(guard["else"]["nodes"], [])
+        self.assertEqual(guard["else"]["default_action"]["target_selector"], "home")
+
+    def test_save_load_round_trip_is_the_same_tree(self):
+        from translator import collect_nodes
+        reloaded = C.schema_from_dict(json.loads(json.dumps(self._compiled())))
+        self.assertEqual([n.id for n in collect_nodes(reloaded.root)], self.ALL_IDS)
+        self.assertEqual(C.schema_to_dict(reloaded), self._compiled())
+
+    def test_save_schemas_file_carries_the_guard(self):
+        with tempfile.TemporaryDirectory() as d:
+            f = Path(d) / "pilot.md"
+            f.write_text(GUARD_PROSE, encoding="utf-8")
+            orig = C.make_backend
+            C.make_backend = lambda *a, **k: ScriptedBackend([GUARD_REPLY], budget=a[2])
+            try:
+                with redirect_stdout(io.StringIO()):
+                    rc = C.main([str(f), "--instrument", "violin", "--save-schemas", d, "--format", "json"])
+            finally:
+                C.make_backend = orig
+            self.assertEqual(rc, 0)
+            saved = json.loads((Path(d) / f"{Path(d).name}-violin.json").read_text(encoding="utf-8"))
+        self.assertIn("can_win_fight", [r["id"] for r in saved["rules"]])
+
+    def test_schema_server_asks_jev_every_node_and_walks_the_guard(self):
+        from schema_server import JevSchemaBackend
+        body = json.loads(json.dumps({"schema": self._compiled(), "observation": GUARD_OBS}))  # over the wire
+        jev = _RecordingJev({"can_win_fight", "opener_ready"})
+        out = JevSchemaBackend(jev, budget_usd=None).decide(body)
+        self.assertEqual(jev.asked, [self.ALL_IDS])
+        self.assertEqual(out["rule"], "opener_ready")
+        self.assertEqual(out["action"], {"kind": "ability", "ability": "staccato", "target": "bb-4"})
+
+        # guard says no: the else-branch's own default (retreat home), not the root's push_lane
+        out = JevSchemaBackend(_RecordingJev(set()), budget_usd=None).decide(body)
+        self.assertIsNone(out["rule"])
+        self.assertEqual(out["action"]["kind"], "move")
+        self.assertEqual(set(out["answers"]), set(self.ALL_IDS))
+
+
 if __name__ == "__main__":
     unittest.main()

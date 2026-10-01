@@ -46,7 +46,15 @@ from llm_backends import Backend, BackendError, BudgetExceeded, TokenBudget, mak
 from scenarios import ABILITIES  # noqa: E402
 from segment import auto_segments, hand_segments_for  # noqa: E402
 from transparency import build_report, render_report_markdown  # noqa: E402
-from translator import TranslatedRule, TranslatedSchema, scope_to_instrument, translate_pilot  # noqa: E402
+from translator import (  # noqa: E402
+    Action,
+    Cascade,
+    GuardNode,
+    TranslatedRule,
+    TranslatedSchema,
+    scope_to_instrument,
+    translate_pilot,
+)
 
 INSTRUMENTS = ("drums", "keytar", "violin")
 DEFAULT_MAX_TOTAL_TOKENS = 60_000
@@ -54,54 +62,83 @@ FORMAT_VERSION = 1
 
 
 # --- schema <-> JSON (the flat shape runs/jev-translator-schema-*.json already uses) ---------------
+#
+# A plain rule is the flat object below. A guard (translator-guards-and-defaults-spec.md §2.2) sits
+# inline in the same list as {"type": "guard", "id", "condition", "criteria_true", "criteria_false",
+# "then": {"nodes": [...], "default_action": {...} | null}, "else": {...same...}} -- the WHOLE tree is
+# written, not `schema.rules` (the root's plain rules only), so a guard and everything under it
+# reaches the Jev server (`schema_server.py`). A schema with no guards serializes exactly as before.
+
+def _action_to_dict(action: Action | None) -> dict | None:
+    return None if action is None else {"kind": action.kind, "ability": action.ability, "target_selector": action.target_selector}
+
+
+def _node_to_dict(n) -> dict:
+    if isinstance(n, GuardNode):
+        return {
+            "type": "guard",
+            "id": n.id,
+            "condition": n.condition,
+            "criteria_true": n.criteria_true,
+            "criteria_false": n.criteria_false,
+            "then": {"nodes": [_node_to_dict(c) for c in n.then.nodes], "default_action": _action_to_dict(n.then.default)},
+            "else": {"nodes": [_node_to_dict(c) for c in n.else_.nodes], "default_action": _action_to_dict(n.else_.default)},
+        }
+    return {
+        "id": n.id,
+        "condition": n.condition,
+        "criteria_true": n.criteria_true,
+        "criteria_false": n.criteria_false,
+        "action_kind": n.action_kind,
+        "action_ability": n.action_ability,
+        "action_target_selector": n.action_target_selector,
+    }
+
 
 def schema_to_dict(schema: TranslatedSchema) -> dict:
     return {
         "pilot_file": schema.pilot_file,
         "instrument": schema.instrument,
-        "rules": [
-            {
-                "id": r.id,
-                "condition": r.condition,
-                "criteria_true": r.criteria_true,
-                "criteria_false": r.criteria_false,
-                "action_kind": r.action_kind,
-                "action_ability": r.action_ability,
-                "action_target_selector": r.action_target_selector,
-            }
-            for r in schema.rules
-        ],
+        "rules": [_node_to_dict(n) for n in schema.root.nodes],
         "default_action": {"kind": schema.default_kind, "ability": schema.default_ability, "target_selector": schema.default_target_selector},
         "validation_notes": list(schema.validation_notes),
     }
 
 
+def _action_from_dict(a: dict | None) -> Action | None:
+    return None if a is None else Action(a.get("kind", "hold"), a.get("ability"), a.get("target_selector"))
+
+
+def _node_from_dict(r: dict):
+    criteria = r.get("criteria") or {}
+    ct = r.get("criteria_true", criteria.get("true", "the condition holds"))
+    cf = r.get("criteria_false", criteria.get("false", "the condition does not hold"))
+    if r.get("type") == "guard":
+        if not isinstance(r.get("then"), dict) or not isinstance(r.get("else"), dict):
+            raise ValueError(f"guard {r['id']}: 'then' and 'else' must both be present cascade objects")
+        branch = lambda b: Cascade(nodes=tuple(_node_from_dict(c) for c in b.get("nodes") or ()), default=_action_from_dict(b.get("default_action")))  # noqa: E731
+        return GuardNode(id=r["id"], condition=r["condition"], criteria_true=ct, criteria_false=cf, then=branch(r["then"]), else_=branch(r["else"]))
+    action = r.get("action") or {}
+    return TranslatedRule(
+        id=r["id"],
+        condition=r["condition"],
+        criteria_true=ct,
+        criteria_false=cf,
+        action_kind=r.get("action_kind", action.get("kind")),
+        action_ability=r.get("action_ability", action.get("ability")),
+        action_target_selector=r.get("action_target_selector", action.get("target_selector")),
+    )
+
+
 def schema_from_dict(d: dict) -> TranslatedSchema:
-    rules = []
-    for r in d["rules"]:
-        action = r.get("action") or {}
-        criteria = r.get("criteria") or {}
-        rules.append(
-            TranslatedRule(
-                id=r["id"],
-                condition=r["condition"],
-                criteria_true=r.get("criteria_true", criteria.get("true", "the condition holds")),
-                criteria_false=r.get("criteria_false", criteria.get("false", "the condition does not hold")),
-                action_kind=r.get("action_kind", action.get("kind")),
-                action_ability=r.get("action_ability", action.get("ability")),
-                action_target_selector=r.get("action_target_selector", action.get("target_selector")),
-            )
-        )
     da = d.get("default_action") or {}
     return TranslatedSchema(
         pilot_file=d.get("pilot_file", "pilot.md"),
         instrument=d["instrument"],
-        rules=rules,
-        default_kind=da.get("kind", "hold"),
-        default_ability=da.get("ability"),
-        default_target_selector=da.get("target_selector"),
         raw_model_output="",
         validation_notes=tuple(d.get("validation_notes") or ()),
+        root=Cascade(nodes=tuple(_node_from_dict(r) for r in d["rules"]),
+                     default=Action(da.get("kind", "hold"), da.get("ability"), da.get("target_selector"))),
     )
 
 

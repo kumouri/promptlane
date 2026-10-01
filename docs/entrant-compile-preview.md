@@ -140,8 +140,9 @@ decisions unanswered (`runs/jev-client-renew-2026-09-30.md`). How it plays:
   schemas, so the match plays the rules the entrant just read, not a fresh sampled translation.
 - `Queue.decisionPilotFor` routes the practice side to `tools/match/jevSchemaPilot.ts`, which posts
   `{schema, observation}` per decision. The server decides with `fidelity_harness.run_prediction`
-  unchanged: one Jev call per decision, the first "yes" in cascade order wins, and the target is
-  resolved in Python.
+  unchanged: one Jev call per decision covering every node in the tree (guards and the rules inside
+  their branches included), the first "yes" in cascade order wins, a guard routes to its yes- or
+  no-branch, and the target is resolved in Python.
 - The house plays green as usual.
 - It counts as a quick test: same quota, never ranked, replay-verified.
 - The match log records each of the entrant's decisions as `{rule, action, answers, ms}`, so the
@@ -244,6 +245,17 @@ after the fix: **1 of 21 compiles failed the same way (≈5%)** -- reduced, not 
 named risk, not something claimed fixed outright. `runs/entrant-compile-smoke-2026-09-25-phase5.json`
 is one representative live batch (checked in as caught, including its one live failure, not
 re-rolled until clean).
+
+**Fixed 2026-09-30: guards were dropped from the schema `compile.py` hands on.** Until then
+`compile.schema_to_dict` wrote `schema.rules` — the root cascade's plain rules only — so a guard and
+every rule in its branches vanished from the `schema` field of `--format json`, from
+`--save-schemas` files and from what a practice or Jam match POSTs to `schema_server.py`. The view
+still rendered the guard, so an entrant would have read a guard that never played. It now writes the
+whole tree: a guard sits inline in `rules` as `{"type": "guard", ..., "then": {"nodes", "default_action"},
+"else": {...}}`, and a schema with no guards serializes byte-for-byte as before.
+`test_compile.GuardNodesSurviveTheSavePathTests` pins it end to end (compile → JSON → server → the
+questions Jev is asked). No checked-in compile was affected: none of the 1,629 compiled schemas in
+`runs/`, the evolve-campaign store or the entrants repo had a guard in its view.
 
 ## Not done / known limits
 
