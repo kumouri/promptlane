@@ -23,6 +23,10 @@
  * match at a time by default (the Jev token-renewal history argues against parallel runs; `--parallel 2`
  * is what the slice used). A log that already exists is skipped, so an interrupted run resumes by
  * running the same command again. At the end it prints the two `npm run metrics` commands.
+ *
+ * `--recall recall-2` plays every match with the channelled recall (src/recall.ts, docs/economy-spec.md
+ * §9.10) instead of the specimen's 3x run. Without it the plan is exactly the one above. Use a new
+ * `--date` for such a run, so its logs never mix with a run on the specimen recall.
  */
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -60,7 +64,7 @@ export const PAIRINGS = { hard: ['medium', 'hard'], entrant: ['medium', 'entrant
 export const logFile = (date, condition, pairing, seed) => `runs/economy-measure-${date}-${condition}-medium-vs-${pairing}-seed${seed}.json`;
 
 /** Every match of the plan, seed-major, as the `npm run match` arguments that play it. */
-export function planMeasurement({ date, jevSchema = 'http://127.0.0.1:8851/', seeds = SEEDS, conditions = Object.keys(CONDITIONS), pairings = Object.keys(PAIRINGS) }) {
+export function planMeasurement({ date, jevSchema = 'http://127.0.0.1:8851/', seeds = SEEDS, conditions = Object.keys(CONDITIONS), pairings = Object.keys(PAIRINGS), recall = null }) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date ?? '')) throw new Error('--date YYYY-MM-DD is required (it names the logs)');
   const jobs = [];
   for (const seed of seeds) {
@@ -76,6 +80,7 @@ export function planMeasurement({ date, jevSchema = 'http://127.0.0.1:8851/', se
           '--b', b.prompt, '--b-schemas', b.schemas, '--name-b', b.name,
           '--jev-schema', jevSchema, '--map', 'pvp-1', '--cadence', '2', '--seed', String(seed),
           '--economy', c.economy, '--out', out, '--quiet',
+          ...(recall ? ['--recall', recall] : []),
         ];
         jobs.push({ seed, pairing, condition, out, args });
       }
@@ -109,6 +114,7 @@ function parseArgs(argv) {
       case '--conditions': args.conditions = list(); break;
       case '--pairings': args.pairings = list(); break;
       case '--parallel': args.parallel = Number(next()); break;
+      case '--recall': args.recall = next(); break;
       case '--dry-run': args.dryRun = true; break;
       default: throw new Error(`unknown option ${a}`);
     }

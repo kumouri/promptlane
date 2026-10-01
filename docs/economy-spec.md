@@ -1492,9 +1492,12 @@ and bottom lanes swap).
 - *Off by default.* `--objective river-2` and `--recall recall-2` turn them on. So do the arena's
   `tournament.objective` and `tournament.recall`, and an evolve campaign's `shape.objective` and
   `shape.recall`. `DEFAULT_RECALL` is the specimen's recall until Ceryce rules otherwise.
-- *Economy P2.* P2's house tiers were written against the specimen's 3× recall.
-  - When `recall-2` is ruled in, P2 picks it up by passing `--recall recall-2` (or `shape.recall`) in
-    its own runs.
+- *Economy P2* (§13). P2's house tiers were written against the specimen's 3× recall.
+  - When `recall-2` is ruled in, P2 picks it up with `measure_economy.mjs --recall recall-2` (under a
+    new `--date`), or `--recall` / `shape.recall` / `tournament.recall` elsewhere. Without the flag,
+    the plan is unchanged.
+  - The metric tool's shopping-recall count (§13.2) reads a `recall-2` channel as the recall, so it
+    works under either rule.
   - Its tiers' recall rules need rewriting, not just re-measuring. A recall now costs 4 s standing
     where the bot is, and a hit cancels it. So "recall below X hp" in a lane or a fight gets
     interrupted by the minions and kills the bot (the measurement below shows exactly that).
@@ -1511,7 +1514,9 @@ on Jev, §9.8's lines unchanged, $1.39.
   pass.** Hard vs hard no longer freezes (0 → 1.83 captures a match), and captures are back to a
   median of 3.5 a match. The misses are team fights (3.92 against 4.6; the Δ CI is wholly above 0) and
   the contested share (49.2 % against 50 %).
-- **A new one-sidedness.** In hard vs hard, violet took all 11 captures, each uncontested.
+- **A new one-sidedness.** In hard vs hard, violet took all 11 captures, each uncontested. §13.3's
+  finding is the likely cause, though it is not traced here: on `pvp-1` the frozen sim gives violet's
+  minions an edge.
 - **What it needs before `recall-2` can be judged:** house tiers that walk out of reach before they
   recall.
 
@@ -1775,7 +1780,7 @@ minute earlier and changes nothing else.
   `observe: false` keeps the gold, level and shop fields out of the observation. Pilots see only who
   is respawning.
 - **Metrics.** Shopping recalls (§6.2) are counted per side. A shopping recall is a recall started
-  above half hp that buys on the way in. The §6.2 economy lines are now rows of `npm run metrics`'
+  above half hp that buys on the way in. Under `recall-2` the channel is the recall (§9.10). The §6.2 economy lines are now rows of `npm run metrics`'
   table (means; the spec's medians are in `--json`). Caveat: a tier whose low-hp recall fires above
   half hp is counted when that recall happens to buy. Medium's 75 %-of-max retreat does, which is
   why the slice already shows medium at 2.0 a match.
