@@ -1,4 +1,5 @@
-import type { Match } from './sim/match';
+import { TICK_DT, type Match } from './sim/match';
+import { getEconomy, type Economy } from './economy';
 import { INSTRUMENTS } from './sim/entities';
 import { LANE_PATHS, LANES, WORLD_SIZE, inRiver } from './sim/map';
 import type { Lane, Team, Vec2 } from './types';
@@ -198,7 +199,8 @@ export function render(ctx: CanvasRenderingContext2D, match: Match, selectedBotI
   for (const n of match.nexuses) drawables.push(nexusDrawable(n, fx, t));
   for (const tw of match.towers) drawables.push(towerDrawable(tw, fx, t));
   for (const m of match.minions) drawables.push(minionDrawable(m, fx, t));
-  for (const b of match.bearbots) drawables.push(bearbotDrawable(b, b.id === selectedBotId, fx, t, match.clockSec));
+  const economy = getEconomy(match) ?? null;
+  match.bearbots.forEach((b, i) => drawables.push(bearbotDrawable(b, b.id === selectedBotId, fx, t, match.clockSec, economy ? { economy, index: i } : null)));
   drawables.sort((a, b) => compareDepth(a, b));
 
   for (const d of drawables) {
@@ -635,7 +637,7 @@ function drawInstrumentMarker(ctx: CanvasRenderingContext2D, instrument: 'drums'
   ctx.restore();
 }
 
-function bearbotDrawable(b: Match['bearbots'][number], selected: boolean, fx: RenderFx, t: number, clockSec: number): Drawable {
+function bearbotDrawable(b: Match['bearbots'][number], selected: boolean, fx: RenderFx, t: number, clockSec: number, eco: { economy: Economy; index: number } | null): Drawable {
   const color = teamColor(b.team);
   const jitter = stableOffset(b.id, JITTER_MAGNITUDE);
   const renderPos = { x: b.pos.x + jitter.x, y: b.pos.y + jitter.y };
@@ -659,6 +661,8 @@ function bearbotDrawable(b: Match['bearbots'][number], selected: boolean, fx: Re
         const p = deathProgress(bfx.deathAt, t);
         if (p === null) {
           drawHusk(ctx, screenPos, radiusPx, color, 'circle', fit.kx);
+          const at = eco?.economy.bots[eco.index].respawnAtTick;
+          if (at != null) drawEcoTag(ctx, screenPos.x, screenPos.y - radiusPx - 8 * fit.kx, `${Math.max(0, Math.ceil(at * TICK_DT - clockSec))}s`, fit.kx);
           return;
         }
         drawBearChassis(ctx, screenPos, radiusPx * (1 - 0.35 * p), color, 1 - p);
@@ -693,8 +697,28 @@ function bearbotDrawable(b: Match['bearbots'][number], selected: boolean, fx: Re
       if (t < bfx.hitFlashUntil) drawHitFlash(ctx, screenPos, radiusPx + 3 * fit.kx, 'circle', fit.kx);
 
       drawHpBar(ctx, screenPos.x, screenPos.y - radiusPx - 10 * fit.kx, 34 * fit.kx, b.hp, b.maxHp, color, fit.kx);
+      if (eco) {
+        const e = eco.economy.bots[eco.index];
+        const items = e.items.map((k) => eco.economy.ruleset.items[k]?.name.slice(0, 1) ?? '?').join('');
+        drawEcoTag(ctx, screenPos.x, screenPos.y + radiusPx + 9 * fit.kx, `L${e.level} ${eco.economy.gold(eco.index)}g${items ? ' ' + items : ''}`, fit.kx);
+      }
     },
   };
+}
+
+/** Economy matches (src/economy.ts): level, unspent gold and item initials under a bearbot, or its respawn countdown over its husk. */
+function drawEcoTag(ctx: CanvasRenderingContext2D, x: number, y: number, text: string, px: number): void {
+  const fontSize = Math.max(9, 10 * px);
+  ctx.save();
+  ctx.font = `bold ${fontSize}px 'Courier New', monospace`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.lineWidth = Math.max(2, 3 * px);
+  ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+  ctx.strokeText(text, x, y);
+  ctx.fillStyle = '#ffd34d';
+  ctx.fillText(text, x, y);
+  ctx.restore();
 }
 
 // --- team-fight cluster count badge (§5, acceptance criterion 4) ------------------------------

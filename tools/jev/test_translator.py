@@ -378,5 +378,60 @@ class DefaultTieTests(unittest.TestCase):
             T.resolve_default_tie([("only one", T.Action("hold", None, None))])
 
 
+def _reply_with(**extra) -> str:
+    return json.dumps({**VALID_SCHEMA, **extra})
+
+
+class BuildTests(unittest.TestCase):
+    def test_no_build_key_is_none_with_no_notes(self):
+        schema = T.parse_schema(VALID_SCHEMA, "pilot.md", "keytar", "raw")
+        self.assertIsNone(schema.build)
+        self.assertEqual(schema.validation_notes, ())
+
+    def test_build_is_parsed_in_prose_order_from_names(self):
+        raw = dict(VALID_SCHEMA, build=["Amp", "bass strings", "The Road Case"])
+        schema = T.parse_schema(raw, "pilot.md", "keytar", "raw")
+        self.assertEqual(schema.build, ("amp", "bass-strings", "road-case"))
+        self.assertEqual(schema.validation_notes, ())
+
+    def test_bad_entries_become_validation_notes(self):
+        raw = dict(VALID_SCHEMA, build=["amp", "Tip Jar", "amp", "road-case", "metronome", "bass-strings"])
+        schema = T.parse_schema(raw, "pilot.md", "keytar", "raw")
+        self.assertEqual(schema.build, ("amp", "road-case", "metronome"))
+        self.assertEqual(len(schema.validation_notes), 3)  # unknown, duplicate, truncated
+        self.assertTrue(all(n.startswith("build:") for n in schema.validation_notes))
+
+    def test_translate_pilot_carries_build_through(self):
+        schema = T.translate_pilot("Buy the Amp first, then Bass Strings.", "pilot.md", "violin", "staccato", "double_stop",
+                                   generate=lambda p: _reply_with(build=["amp", "bass-strings"]))
+        self.assertEqual(schema.build, ("amp", "bass-strings"))
+
+    def test_build_survives_the_priority_guard(self):
+        prose = "Recall when hp is below a quarter, no exceptions. Engage enemy bearbots. Buy the Amp."
+        reply = json.dumps({**VALID_SCHEMA, "rules": list(reversed(VALID_SCHEMA["rules"])), "build": ["amp"]})
+        schema = T.translate_pilot(prose, "pilot.md", "keytar", "chord", "arpeggio", generate=lambda p: reply)
+        self.assertEqual(schema.rules[0].id, "recall_low_hp")  # promoted: the guard rebuilt the schema
+        self.assertEqual(schema.build, ("amp",))
+
+    def test_prompt_has_an_items_block_generated_from_the_constants(self):
+        import economy_rules as E
+        prompt = T._translation_prompt("some prose", "keytar", "chord", "arpeggio")
+        for key, it in E.items().items():
+            for part in (key, it["name"], str(it["cost"]), it["gives"], it["givesUp"]):
+                self.assertIn(part, prompt)
+        self.assertIn('If the prose names items or a shopping order, emit "build" in that order; otherwise omit it.', prompt)
+        self.assertLess(prompt.index("ITEMS a bearbot"), prompt.index("PROSE PILOT:"))
+
+    def test_no_new_target_selector(self):
+        self.assertEqual(len(T.TARGET_SELECTORS), 10)
+        self.assertNotIn("highest_bounty_enemy", T.TARGET_SELECTORS)
+
+    def test_render_markdown_files_build_notes_apart_from_priority_fixes(self):
+        raw = dict(VALID_SCHEMA, build=["amp", "Tip Jar"])
+        text = T.render_markdown(T.parse_schema(raw, "pilot.md", "keytar", "raw"))
+        self.assertIn("Shopping list -- what was changed", text)
+        self.assertNotIn("Automatic priority fixes", text)
+
+
 if __name__ == "__main__":
     unittest.main()

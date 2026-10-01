@@ -46,6 +46,7 @@ from client import (  # noqa: E402
     estimate_request_tokens,
     resolve_workers_ai_token,
 )
+from economy_rules import item_name  # noqa: E402
 from ground_truth import ground_truth_action  # noqa: E402
 from scenarios import all_scenarios, build_observation, ABILITIES  # noqa: E402
 from target_resolve import resolve_target  # noqa: E402
@@ -92,11 +93,91 @@ class DumbStubJevClient:
         return {"model": "stub-jev", "answers": answers, "usage": {"input_tokens": input_tokens, "output_tokens": 0}}
 
 
+def _items_text(keys) -> str:
+    return ", ".join(item_name(k) for k in keys) if keys else "none"
+
+
+def _death_clause(loss: int, payout: int) -> str:
+    """What dying costs, worded from the two numbers the economy layer reports so it stays true under
+    every `gold.death` preset (`docs/economy-spec.md` §3.3): all of the loss goes to the killers,
+    part of it does, none of it does, or there is no loss."""
+    if loss <= 0:
+        return "its gold is safe if it dies"
+    if payout >= loss:
+        return f"if it dies, {loss} of it goes to the bots that kill it"
+    if payout > 0:
+        return f"if it dies, it loses {loss} of it: {payout} goes to the killers and the rest is lost"
+    return f"if it dies, {loss} of it is lost"
+
+
+def _seconds(x) -> str:
+    return f"{x:g}"
+
+
+def _economy_self_sentences(self_: dict) -> list[str]:
+    """The bearbot's own economy facts (`docs/economy-spec.md` §4.1), one sentence per field group,
+    in the third person like the rest of this description. Only the fields present are described."""
+    out: list[str] = []
+    if "level" in self_:
+        xp_to_next = self_.get("xpToNext")
+        out.append(
+            f"This bearbot is level {self_['level']}"
+            + (f" ({xp_to_next} XP to level {self_['level'] + 1})." if xp_to_next is not None else " (the highest level).")
+        )
+    if "gold" in self_:
+        text = f"It carries {self_['gold']} unspent gold"
+        if "deathLoss" in self_:
+            text += f"; {_death_clause(self_['deathLoss'], self_.get('deathPayout', 0))}"
+        if "bounty" in self_:
+            text += f", and killing it is worth {self_['bounty']} gold to the enemy team"
+        out.append(text + ".")
+    if "items" in self_:
+        text = f"Items: {_items_text(self_['items'])}"
+        if "slotsFree" in self_:
+            text += f" ({self_['slotsFree']} of {self_['slotsFree'] + len(self_['items'])} slots free)"
+        out.append(text + ".")
+    if "nextItem" in self_:
+        nxt = self_["nextItem"]
+        if nxt is None:
+            out.append("Nothing is left on its shopping list to buy.")
+        else:
+            can = self_.get("gold", 0) >= nxt["cost"]
+            out.append(
+                f"Next on its shopping list: {item_name(nxt['item'])}, {nxt['cost']} gold -- "
+                + ("it can afford it now." if can else "it cannot afford it yet.")
+            )
+    if "atShop" in self_:
+        out.append("It is at its base, where it can shop." if self_["atShop"] else "It is not at its base.")
+    return out
+
+
+def _economy_other_sentence(role: str, e: dict) -> str | None:
+    """`role` is "Ally" or "Enemy". An ally shows level, gold and items; an enemy bearbot shows level,
+    bounty and items (enemy gold is hidden, only what killing it pays is visible)."""
+    facts = []
+    if "level" in e:
+        facts.append(f"level {e['level']}")
+    if "items" in e:
+        facts.append(f"items: {_items_text(e['items'])}")
+    head = f"{role} {e['id']}" + (f" ({', '.join(facts)})" if facts else "")
+    if "gold" in e:
+        return f"{head} carries {e['gold']} gold."
+    if "bounty" in e:
+        return f"{head} is worth {e['bounty']} gold if killed."
+    return f"{head}." if facts else None
+
+
 def describe_observation(obs: dict) -> str:
     """A short, dense, detailed paragraph (TypeSafe's own guidance, quoted in `serializer.py`),
     generic over any `Observation` -- not tied to one pilot's worksheet the way `serializer.
     state_paragraph` is. No precomputed distance/range: only raw positions, same as the real
-    contract gives the game's own chat-model pilots (`tools/arena/pages/contract.mjs`)."""
+    contract gives the game's own chat-model pilots (`tools/arena/pages/contract.mjs`).
+
+    ECONOMY. When the observation carries the economy layer's fields (`docs/economy-spec.md` §4.1:
+    `self.gold`/`level`/`items`/..., per-entity `level`/`gold`/`bounty`/`items`, top-level
+    `respawning` and `shop`), a sentence or two per field group is added after the matching part of
+    the description, so a condition like "can it afford its next item?" or "is an enemy respawning?"
+    is answerable from the text. An observation without those fields is described exactly as before."""
     self_ = obs["self"]
     parts = [
         f"This is a {self_['team']}-team bearbot playing {self_['instrument']}, "
@@ -110,6 +191,7 @@ def describe_observation(obs: dict) -> str:
         for name, secs in self_["cooldowns"].items()
     ]
     parts.append("Cooldowns: " + ", ".join(cd_bits) + ".")
+    parts += _economy_self_sentences(self_)
     if obs["allies"]:
         parts.append(
             "Allies visible: "
@@ -122,6 +204,7 @@ def describe_observation(obs: dict) -> str:
         )
     else:
         parts.append("No allies visible nearby.")
+    parts += [t for t in (_economy_other_sentence("Ally", a) for a in obs["allies"]) if t]
     if obs["visibleEnemies"]:
         parts.append(
             "Visible enemies: "
@@ -134,6 +217,7 @@ def describe_observation(obs: dict) -> str:
         )
     else:
         parts.append("No enemies visible.")
+    parts += [t for t in (_economy_other_sentence("Enemy", e) for e in obs["visibleEnemies"] if e.get("kind") == "bearbot") if t]
     if obs["nearbyMinions"]:
         parts.append(
             "Nearby minions: "
@@ -145,6 +229,10 @@ def describe_observation(obs: dict) -> str:
         )
     else:
         parts.append("No minions nearby.")
+    for r in obs.get("respawning") or ():
+        parts.append(f"{'Ally' if r['team'] == self_['team'] else 'Enemy'} {r['id']} respawns in {_seconds(r['inSec'])} s.")
+    if obs.get("shop"):
+        parts.append("The base shop sells: " + ", ".join(f"{item_name(i['item'])} ({i['cost']} gold)" for i in obs["shop"]) + ".")
     return " ".join(parts)
 
 

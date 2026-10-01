@@ -58,7 +58,9 @@ from translator import (  # noqa: E402
 
 INSTRUMENTS = ("drums", "keytar", "violin")
 DEFAULT_MAX_TOTAL_TOKENS = 60_000
-FORMAT_VERSION = 1
+# 2: schemas carry "build" (the entrant's shopping list, or null for the instrument default).
+# A version-1 schema has no "build" and reads as null, so v1 files still load.
+FORMAT_VERSION = 2
 
 
 # --- schema <-> JSON (the flat shape runs/jev-translator-schema-*.json already uses) ---------------
@@ -102,6 +104,7 @@ def schema_to_dict(schema: TranslatedSchema) -> dict:
         "rules": [_node_to_dict(n) for n in schema.root.nodes],
         "default_action": {"kind": schema.default_kind, "ability": schema.default_ability, "target_selector": schema.default_target_selector},
         "validation_notes": list(schema.validation_notes),
+        "build": None if schema.build is None else list(schema.build),
     }
 
 
@@ -132,11 +135,13 @@ def _node_from_dict(r: dict):
 
 def schema_from_dict(d: dict) -> TranslatedSchema:
     da = d.get("default_action") or {}
+    build = d.get("build")
     return TranslatedSchema(
         pilot_file=d.get("pilot_file", "pilot.md"),
         instrument=d["instrument"],
         raw_model_output="",
         validation_notes=tuple(d.get("validation_notes") or ()),
+        build=None if build is None else tuple(build),
         root=Cascade(nodes=tuple(_node_from_dict(r) for r in d["rules"]),
                      default=Action(da.get("kind", "hold"), da.get("ability"), da.get("target_selector"))),
     )

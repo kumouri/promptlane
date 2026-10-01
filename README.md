@@ -62,7 +62,8 @@ tools/               jam tooling: headless match runner (tools/match/), the mode
 runs/                operator records and match logs (per-run directories are local/ignored)
 artifacts/           exported workspaces and frozen submissions (local/ignored)
 src/                 original generated game specimen; not maintained game source
-                     (src/replay.ts, src/live.ts and src/mapVariant.ts are jam tooling that drive the
+                     (src/replay.ts, src/live.ts, src/mapVariant.ts, src/economy.ts and src/attribution.ts
+                     are jam tooling that drive the
                      unchanged sim from outside; src/render.ts is a pure read of match state, not frozen, and is actively
                      maintained — see docs/render-spec.md)
 docs/                current design notes and historical recordings; not implicit run inputs
@@ -127,6 +128,11 @@ that side decide on its compiled rule cascade instead of a chat model; see `tool
 tower covers; `src/mapVariant.ts`, measured in
 [`runs/balance-pvp-2026-09-30.md`](runs/balance-pvp-2026-09-30.md)); `--map v1` plays the specimen
 map. The log records its map and `--verify` replays on it; logs without one are specimen-map logs.
+**Economy.** `--economy eco-1` plays the Jam economy: respawn, gold, levels, four items and a shop
+at base (`src/economy.ts`, every number in `src/economy/eco-1.json`; the design is
+`docs/economy-spec.md`). It is off by default until the Sun 10-04 go/no-go. A schema side buys the
+shopping list its prose compiled to (`build`), else its instrument's default. The log records the
+whole ruleset and every bot's list, and `--verify` replays with it; logs without one have no economy.
 **Metrics.** `npm run metrics -- --group <label> <log.json>… [--group …] --md out.md --heatmaps pfx`
 replays logs and reports how they were played: PvP vs PvE damage and time, team fights, team
 proximity, where fights and deaths happen relative to towers, a gold proxy and its swinginess,

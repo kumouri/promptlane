@@ -13,8 +13,12 @@
  * damage to a source without editing `src/sim`. The checkpoints are still compared, so a metric
  * set is only reported for a replay that reproduced the logged match (`replayOk`).
  *
- * There is no gold in the specimen sim (no economy, no respawn: a dead bearbot stays dead). Gold
- * here is a transparent PROXY, `GOLD` below: the value of what a team destroyed.
+ * The damage attribution itself lives in `src/attribution.ts`, shared with the economy layer.
+ *
+ * There is no gold in the specimen sim (no economy, no respawn: a dead bearbot stays dead). For a log
+ * without an economy, gold here is a transparent PROXY, `GOLD` below: the value of what a team
+ * destroyed. A log WITH an economy (`src/economy.ts`) is replayed with it attached: bots respawn and
+ * can die more than once, gold is the real ledger, and `economy` carries the spec's §6.2 numbers.
  */
 import type { Action, Instrument, Lane, Team, Vec2 } from '../../src/types';
 import { Match, TICK_DT, type RosterSlot } from '../../src/sim/match';
@@ -22,6 +26,8 @@ import type { Bearbot, Unit } from '../../src/sim/entities';
 import { WORLD_SIZE, dist, otherTeam } from '../../src/sim/map';
 import { JAM_ROSTER, ReplayPilot, checkpointOf, decisionsByBot, idNumber, tickOf, type MatchLog } from '../../src/replay';
 import { applyMapVariant, resolveMap, type MapVariant } from '../../src/mapVariant';
+import { attachAttribution } from '../../src/attribution';
+import { GOLD_SOURCES, attachEconomy, type Economy, type GoldSource } from '../../src/economy';
 
 export { LANE_PATHS } from '../../src/sim/map';
 export { towerPos } from '../../src/mapVariant';
@@ -172,20 +178,39 @@ export interface MatchMetrics {
   deathsByKiller: Record<SourceKind, number>;
   deathSites: Array<{ sec: number; bot: number; pos: Vec2; coverage: Coverage; killerKind: SourceKind; killer: number | null }>;
   bots: BotMetrics[];
+  /** The real economy's numbers (§6.2 of docs/economy-spec.md), when the log has an economy; else null. */
+  economy: EconomyMetrics | null;
   /** Alive bot-ticks per HEAT_CELL cell, row-major [y][x] flattened, per team. */
   heat: Record<Team, number[]>;
 }
 
+export interface EconomyMetrics {
+  ruleset: string;
+  /** Everything earned, per bot per minute. */
+  goldPerMinPerBot: number;
+  /** The same, by ledger source. */
+  goldPerMinBySource: Record<GoldSource, number>;
+  /** (kill + assist + drop + first blood) ÷ all non-passive gold; null when nothing was earned. */
+  pvpShareOfEarned: number | null;
+  /** Items each bot owned at the end, in roster order. */
+  itemsAtEnd: number[];
+  /** Median over the bots that bought anything of their first purchase time; null if nobody bought. */
+  firstItemSec: number | null;
+  /** Median unspent gold carried into a death; null without deaths. */
+  carriedAtDeath: number | null;
+  /** Gold lost on death, and the part of it paid to killers. */
+  lostOnDeath: number;
+  paidToKillers: number;
+  respawns: number;
+  /** |violet − green earned at 6:00| ÷ both teams' earned then: 0 = level, 1 = one team has it all. */
+  goldDiffShareAt6: number | null;
+  /** 1 if the team behind in gold at 5:00 won, 0 if it lost; null if level at 5:00, a draw, or the match ended earlier. */
+  comeback: number | null;
+}
+
 // --- measuring one log ---------------------------------------------------------------------------
 
-type Snapshot = Map<Unit, { hp: number; alive: boolean }>;
-type Patched = {
-  approachAndAttack(bot: Bearbot, target: Unit, speed: number, dt: number): void;
-  tryUseAbility(bot: Bearbot, action: Action): void;
-  updateMinions(dt: number): void;
-  updateTowers(dt: number): void;
-  tick(dt: number): void;
-};
+type Steppable = { tick(dt: number): void };
 
 const defaultFlush = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 const MATCH_DURATION_SEC = 600;
@@ -230,63 +255,29 @@ export async function measureLog(log: MatchLog, flush: () => Promise<void> = def
   }));
   match = new Match(log.seed, roster);
   applyMapVariant(match, variant);
+  const economy: Economy | null = log.economy ? attachEconomy(match, log.economy.ruleset, log.economy.builds, TICK_DT) : null;
   const m = match;
   const botIndex = new Map<Bearbot, number>(m.bearbots.map((b, i) => [b, i]));
 
-  // --- damage attribution -----------------------------------------------------------------
+  // --- damage attribution (src/attribution.ts) -------------------------------------------------
   const events: DamageEvent[] = [];
   let tickNow = 0;
   const allUnits = (): Unit[] => [...m.bearbots, ...m.minions, ...m.towers, ...m.nexuses];
-  const snapshot = (): Snapshot => new Map(allUnits().map((u) => [u, { hp: u.hp, alive: u.alive }]));
-  const record = (srcKind: SourceKind, srcTeam: Team, srcBot: number | null, victim: Unit, before: { hp: number; alive: boolean }) => {
-    const dmg = before.hp - victim.hp;
-    if (!(dmg > 0)) return;
+  attachAttribution(m, (h) => {
     events.push({
       tick: tickNow,
-      srcKind,
-      srcTeam,
-      srcBot,
-      victimKind: victim.kind,
-      victimTeam: victim.team,
-      victimBot: victim.kind === 'bearbot' ? botIndex.get(victim) ?? null : null,
-      dmg,
-      killed: before.alive && !victim.alive,
-      pos: { x: victim.pos.x, y: victim.pos.y },
+      srcKind: h.srcKind,
+      srcTeam: h.srcTeam,
+      srcBot: h.srcBot ? botIndex.get(h.srcBot) ?? null : null,
+      victimKind: h.victim.kind,
+      victimTeam: h.victim.team,
+      victimBot: h.victim.kind === 'bearbot' ? botIndex.get(h.victim) ?? null : null,
+      dmg: h.dmg,
+      killed: h.killed,
+      pos: h.pos,
     });
-  };
-  const diffAll = (before: Snapshot, src: (victim: Unit) => [SourceKind, Team, number | null]) => {
-    for (const [u, b] of before) {
-      if (b.hp > u.hp) {
-        const [k, team, bot] = src(u);
-        record(k, team, bot, u, b);
-      }
-    }
-  };
-  const p = m as unknown as Patched;
-  const origAttack = p.approachAndAttack.bind(m);
-  const origAbility = p.tryUseAbility.bind(m);
-  const origMinions = p.updateMinions.bind(m);
-  const origTowers = p.updateTowers.bind(m);
-  p.approachAndAttack = (bot, target, speed, dt) => {
-    const before = { hp: target.hp, alive: target.alive };
-    origAttack(bot, target, speed, dt);
-    record('bearbot', bot.team, botIndex.get(bot) ?? null, target, before);
-  };
-  p.tryUseAbility = (bot, action) => {
-    const before = snapshot();
-    origAbility(bot, action);
-    diffAll(before, () => ['bearbot', bot.team, botIndex.get(bot) ?? null]);
-  };
-  p.updateMinions = (dt) => {
-    const before = snapshot();
-    origMinions(dt);
-    diffAll(before, (v) => ['minion', otherTeam(v.team), null]);
-  };
-  p.updateTowers = (dt) => {
-    const before = snapshot();
-    origTowers(dt);
-    diffAll(before, (v) => ['tower', otherTeam(v.team), null]);
-  };
+  });
+  const p = m as unknown as Steppable;
 
   // --- per-tick accumulators ----------------------------------------------------------------
   const n = m.bearbots.length;
@@ -297,6 +288,7 @@ export async function measureLog(log: MatchLog, flush: () => Promise<void> = def
   const heat: Record<Team, number[]> = { violet: new Array(HEAT_N * HEAT_N).fill(0), green: new Array(HEAT_N * HEAT_N).fill(0) };
   const gold: Record<Team, number> = { violet: 0, green: 0 };
   const goldDiffBySec: number[] = [0];
+  const goldTotalBySec: number[] = [0];
   const fightTicks: Array<{ tick: number; at: Vec2 }> = [];
   const coverageDamage: Record<Coverage, number> = { neutral: 0, 'victim-tower': 0, 'enemy-tower': 0, both: 0 };
   const deathSites: MatchMetrics['deathSites'] = [];
@@ -354,6 +346,7 @@ export async function measureLog(log: MatchLog, flush: () => Promise<void> = def
         const recent = recentBotDamage[v].filter((r) => t - r.tick <= assistTicks && m.bearbots[r.bot].team !== e.victimTeam);
         // League's credit rule: the last-hitting bearbot, else the last bearbot that hit it within the window.
         const killer = e.srcKind === 'bearbot' && !friendly ? e.srcBot : recent.length ? recent[recent.length - 1].bot : null;
+        recentBotDamage[v] = []; // a respawned bot's next death is credited afresh
         const team = otherTeam(e.victimTeam);
         gold[team] += GOLD.bearbot;
         if (killer !== null) {
@@ -412,7 +405,19 @@ export async function measureLog(log: MatchLog, flush: () => Promise<void> = def
       }
     }
 
-    if (t % Math.round(1 / TICK_DT) === 0) goldDiffBySec.push(gold.violet - gold.green);
+    if (economy) {
+      // The real ledger replaces the proxy: everything each team has earned so far.
+      for (const team of TEAMS) gold[team] = 0;
+      economy.bots.forEach((e, i) => {
+        const earned = GOLD_SOURCES.reduce((s, k) => s + e.earned[k], 0);
+        gold[m.bearbots[i].team] += earned;
+        goldBot[i] = earned;
+      });
+    }
+    if (t % Math.round(1 / TICK_DT) === 0) {
+      goldDiffBySec.push(gold.violet - gold.green);
+      goldTotalBySec.push(gold.violet + gold.green);
+    }
   }
 
   // --- fold ------------------------------------------------------------------------------------
@@ -511,6 +516,7 @@ export async function measureLog(log: MatchLog, flush: () => Promise<void> = def
     deathsByKiller[d.killerKind] += 1;
   }
   const totalDeaths = deaths.reduce((s, x) => s + x, 0);
+  const economyMetrics = economy ? measureEconomy(economy, durationMin, m.winner, goldDiffBySec, goldTotalBySec) : null;
 
   return {
     ...(file ? { file } : {}),
@@ -561,7 +567,55 @@ export async function measureLog(log: MatchLog, flush: () => Promise<void> = def
     deathsByKiller,
     deathSites,
     bots,
+    economy: economyMetrics,
     heat,
+  };
+}
+
+const median = (xs: number[]): number | null => {
+  if (!xs.length) return null;
+  const v = [...xs].sort((a, b) => a - b);
+  const mid = Math.floor(v.length / 2);
+  return v.length % 2 ? v[mid] : (v[mid - 1] + v[mid]) / 2;
+};
+
+function measureEconomy(economy: Economy, durationMin: number, winner: Team | null, diffBySec: number[], totalBySec: number[]): EconomyMetrics {
+  const n = economy.bots.length;
+  const perBotMin = (x: number) => (durationMin > 0 ? x / n / durationMin : 0);
+  const bySource = Object.fromEntries(GOLD_SOURCES.map((k) => [k, economy.bots.reduce((s, e) => s + e.earned[k], 0)])) as Record<GoldSource, number>;
+  const total = GOLD_SOURCES.reduce((s, k) => s + bySource[k], 0);
+  const pvp = bySource.kill + bySource.assist + bySource.drop + bySource['first-blood'];
+  const firstBuy = new Map<number, number>();
+  const carried: number[] = [];
+  let lost = 0;
+  let paid = 0;
+  let respawns = 0;
+  for (const ev of economy.events) {
+    if (ev.kind === 'buy' && !firstBuy.has(ev.bot)) firstBuy.set(ev.bot, ev.tick * TICK_DT);
+    if (ev.kind === 'death') {
+      carried.push(ev.carried);
+      lost += ev.loss;
+      paid += ev.paid;
+    }
+    if (ev.kind === 'respawn') respawns += 1;
+  }
+  const at6 = diffBySec.length > 360 ? diffBySec[360] : null;
+  const total6 = totalBySec.length > 360 ? totalBySec[360] : null;
+  const lead5 = diffBySec.length > 300 ? Math.sign(diffBySec[300]) : 0;
+  const behind5: Team | null = lead5 > 0 ? 'green' : lead5 < 0 ? 'violet' : null;
+  return {
+    ruleset: economy.ruleset.name,
+    goldPerMinPerBot: perBotMin(total),
+    goldPerMinBySource: Object.fromEntries(GOLD_SOURCES.map((k) => [k, perBotMin(bySource[k])])) as Record<GoldSource, number>,
+    pvpShareOfEarned: ratio(pvp, total - bySource.passive),
+    itemsAtEnd: economy.bots.map((e) => e.items.length),
+    firstItemSec: median([...firstBuy.values()]),
+    carriedAtDeath: median(carried),
+    lostOnDeath: lost,
+    paidToKillers: paid,
+    respawns,
+    goldDiffShareAt6: at6 !== null && total6 ? Math.abs(at6) / total6 : null,
+    comeback: behind5 && winner ? (winner === behind5 ? 1 : 0) : null,
   };
 }
 
@@ -661,6 +715,14 @@ export function matchValues(m: MatchMetrics): Record<string, number | null> {
     pvpDamageUnderBoth: m.pvpDamageByCoverage?.both ?? null,
     deathsUnderEnemyTower: m.deaths ? (m.deathsByCoverage['enemy-tower'] + m.deathsByCoverage.both) / m.deaths : null,
     deathsToTowers: m.deaths ? m.deathsByKiller.tower / m.deaths : null,
+    // The economy's own lines (docs/economy-spec.md §6.2); null on a log without an economy.
+    ecoGoldPerMinPerBot: m.economy?.goldPerMinPerBot ?? null,
+    ecoPvpShareOfEarned: m.economy?.pvpShareOfEarned ?? null,
+    ecoItemsPerBot: m.economy ? m.economy.itemsAtEnd.reduce((s, x) => s + x, 0) / m.economy.itemsAtEnd.length : null,
+    ecoFirstItemSec: m.economy?.firstItemSec ?? null,
+    ecoCarriedAtDeath: m.economy?.carriedAtDeath ?? null,
+    ecoGoldDiffShareAt6: m.economy?.goldDiffShareAt6 ?? null,
+    ecoComeback: m.economy?.comeback ?? null,
   };
 }
 

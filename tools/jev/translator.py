@@ -37,7 +37,11 @@ schemas (`docs/translator-guards-and-defaults-spec.md` §10). Two deterministic 
 `scope_to_instrument` sets aside lines explicitly marked for another instrument before the model
 sees the prose, and `enforce_instrument_scope` removes any rule that still fires another
 instrument's ability or asks about its cooldown (a no-op in the sim, pre-empting everything below).
-The prompt itself is deliberately unchanged: telling the model the prose is shared was measured
+SHOPPING LIST. The prompt also carries an items block generated from `src/economy/eco-1.json`
+(`economy_rules.item_lines`); a prose that names items or a shopping order becomes `schema.build`,
+validated by `economy_rules.normalize_build` (unknown/duplicate items dropped, over-long lists cut to
+the slot count, each with a `build:` note). No new target selectors were added for it.
+The instrument-scope prompt itself is deliberately unchanged: telling the model the prose is shared was measured
 (spec §10.4): each wording tried either made it write MORE foreign-ability rules or added compile failures.
 """
 from __future__ import annotations
@@ -51,6 +55,7 @@ from dataclasses import dataclass, field
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ground_truth import _ollama_generate, resolve_ollama_url  # noqa: E402
+from economy_rules import NOTE_PREFIX, item_lines, normalize_build, slots  # noqa: E402
 from number_normalize import normalize_numbers_for_trace  # noqa: E402
 from scenarios import ABILITIES  # noqa: E402
 
@@ -138,7 +143,11 @@ class TranslatedSchema:
     `rules` for a tree WITH guards is the root cascade's own top-level `TranslatedRule` nodes only
     (guard nodes and everything nested inside a branch are not in it) -- `root` is the only
     representation that sees the whole tree, so anything that saves or sends a schema must walk
-    `root` (as `compile.py`'s schema_to_dict does), never `rules`."""
+    `root` (as `compile.py`'s schema_to_dict does), never `rules`.
+
+    `build` is the entrant's shopping list: ordered `eco-1.json` item keys, at most `shop.slots`,
+    already validated by `economy_rules.normalize_build`. `None` means "the prose names no items" --
+    the economy layer then uses the instrument's default build (`docs/economy-spec.md` §4.3)."""
 
     pilot_file: str
     instrument: str
@@ -149,6 +158,7 @@ class TranslatedSchema:
     default_target_selector: str | None = None
     validation_notes: tuple[str, ...] = ()
     root: Cascade | None = None
+    build: tuple[str, ...] | None = None
 
     def __post_init__(self):
         if self.root is None:
@@ -188,6 +198,7 @@ def _extract_json_object(text: str) -> dict:
 
 def _translation_prompt(pilot_text: str, instrument: str, primary_ability: str, ultimate_ability: str) -> str:
     selectors_desc = "\n".join(f'  "{k}" -- {v}' for k, v in TARGET_SELECTORS.items())
+    item_lines_desc = "\n".join(item_lines())
     return f"""You are translating a game-bot prompt written in prose into a strict decision table.
 
 The bot plays {instrument}. Its two abilities are named "{primary_ability}" (primary) and
@@ -243,6 +254,11 @@ If the prose has NO strategic-verdict content, output only plain rules -- do not
 
 {{"rules": [{{"id": "...", "condition": "...", "criteria": {{"true": "...", "false": "..."}}, "action": {{"kind": "...", "ability": null, "target_selector": null}}}}],
  "default_action": {{"kind": "...", "ability": null, "target_selector": null}}}}
+
+ITEMS a bearbot can buy at its base (at most {slots()} per bearbot, bought in order):
+{item_lines_desc}
+If the prose names items or a shopping order, emit "build" in that order; otherwise omit it. "build" is
+a top-level key next to "rules", a list of item keys from the list above, e.g. "build": ["amp", "road-case"].
 
 PROSE PILOT:
 {pilot_text.strip()}
@@ -307,7 +323,11 @@ def parse_schema(raw_json: dict, pilot_file: str, instrument: str, raw_text: str
     root = _parse_cascade(raw_json.get("rules"), raw_json.get("default_action"), default_required=True)
     if not root.nodes:
         raise ValueError("translator produced zero rules")
-    return TranslatedSchema(pilot_file=pilot_file, instrument=instrument, raw_model_output=raw_text, root=root)
+    build, build_notes = normalize_build(raw_json.get("build"), instrument)
+    return TranslatedSchema(
+        pilot_file=pilot_file, instrument=instrument, raw_model_output=raw_text, root=root,
+        validation_notes=build_notes, build=build,
+    )
 
 
 def collect_nodes(cascade: Cascade) -> list[Node]:
@@ -522,6 +542,7 @@ def enforce_absolute_priority(schema: TranslatedSchema, pilot_text: str) -> Tran
         raw_model_output=schema.raw_model_output,
         root=new_root,
         validation_notes=schema.validation_notes + (note,),
+        build=schema.build,
     )
 
 
@@ -728,6 +749,7 @@ def enforce_instrument_scope(schema: TranslatedSchema, instrument: str, primary_
         raw_model_output=schema.raw_model_output,
         root=new_root,
         validation_notes=schema.validation_notes + tuple(notes),
+        build=schema.build,
     )
 
 
@@ -896,10 +918,14 @@ def render_markdown(schema: TranslatedSchema) -> str:
     default_desc = _describe_action(schema.default_kind, schema.default_ability, schema.default_target_selector)
     lines.append(f"| — | — | *(none of the above — root default)* | {default_desc} |")
     scope_notes = [n for n in schema.validation_notes if n.startswith("instrument scope:")]
-    priority_notes = [n for n in schema.validation_notes if n not in scope_notes]
+    build_notes = [n for n in schema.validation_notes if n.startswith(NOTE_PREFIX)]
+    priority_notes = [n for n in schema.validation_notes if n not in scope_notes and n not in build_notes]
     if priority_notes:
         lines += ["", "**Automatic priority fixes applied to this schema:**", ""]
         lines += [f"- {note}" for note in priority_notes]
+    if build_notes:
+        lines += ["", "**Shopping list -- what was changed:**", ""]
+        lines += [f"- {note}" for note in build_notes]
     if scope_notes:
         lines += ["", "**Instrument scope -- what was kept out of this instrument's schema:**", ""]
         lines += [f"- {note}" for note in scope_notes]

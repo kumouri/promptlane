@@ -18,6 +18,7 @@
 import type { Action, Observation, Pilot, Team } from './types';
 import { Match, TICK_DT, type RosterSlot } from './sim/match';
 import { applyMapVariant, resolveMap, type MapVariant } from './mapVariant';
+import { attachEconomy, type LogEconomy } from './economy';
 import {
   JAM_ROSTER,
   ReplayPilot,
@@ -44,6 +45,8 @@ export interface LiveMeta {
   idBase: number;
   /** The log's map variant; absent = the specimen map. */
   map?: MapVariant;
+  /** The log's economy ruleset and shopping lists; absent = no economy. */
+  economy?: LogEconomy;
   backend: Record<string, unknown>;
   sides: Record<Team, LogSide>;
   createdAt?: string;
@@ -130,7 +133,7 @@ export class LiveFeed {
   /** A finished log, loaded whole: everything is known up front. */
   static fromLog(log: MatchLog): LiveFeed {
     const f = new LiveFeed();
-    f.apply({ event: 'meta', data: { seed: log.seed, tickDt: log.tickDt, cadenceSec: log.cadenceSec, idBase: log.idBase, ...(log.map ? { map: log.map } : {}), backend: log.backend, sides: log.sides, createdAt: log.createdAt, finished: true } });
+    f.apply({ event: 'meta', data: { seed: log.seed, tickDt: log.tickDt, cadenceSec: log.cadenceSec, idBase: log.idBase, ...(log.map ? { map: log.map } : {}), ...(log.economy ? { economy: log.economy } : {}), backend: log.backend, sides: log.sides, createdAt: log.createdAt, finished: true } });
     for (const d of log.decisions) f.apply({ event: 'decision', data: d });
     for (const c of log.checkpoints) f.apply({ event: 'checkpoint', data: c });
     f.apply({ event: 'result', data: log.result });
@@ -179,6 +182,7 @@ export function buildMatch(feed: LiveFeed, onDecision?: (botIndex: number, decis
   }));
   match = new Match(meta.seed, roster);
   applyMapVariant(match, resolveMap(meta.map));
+  if (meta.economy) attachEconomy(match, meta.economy.ruleset, meta.economy.builds, TICK_DT);
   return { match, asks };
 }
 

@@ -40,6 +40,7 @@ from dataclasses import dataclass
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from expressibility import FILES as PILOT_SEGMENTS  # noqa: E402
+from economy_rules import NOTE_PREFIX, default_build, format_build  # noqa: E402
 from translator import (  # noqa: E402
     Action,
     Cascade,
@@ -324,6 +325,15 @@ def build_report(schema: TranslatedSchema, pilot_file: str, segments=None, label
     )
 
 
+def shopping_list_line(schema: TranslatedSchema) -> str:
+    """The entrant-facing shopping list: their own (`schema.build`) or, when their prose names no
+    items, the instrument's default from `eco-1.json` -- said so, so a default is never mistaken
+    for something the entrant wrote."""
+    if schema.build:
+        return f"Shopping list: {format_build(schema.build)} (from your prose)"
+    return f"Shopping list: {format_build(default_build(schema.instrument))} (default for {schema.instrument} — your prose names no items)"
+
+
 def render_report_markdown(report: TransparencyReport) -> str:
     """The full entrant-facing transparency view: a quick-scan table (same shape as
     `translator.render_markdown`), then per-rule provenance/order/Jev-ask detail, then a Dropped
@@ -357,6 +367,7 @@ def render_report_markdown(report: TransparencyReport) -> str:
         lines.append(f"| {row['label']} | {row['branch'] or '—'} | {row['condition']} | {row['then']} |")
     default_desc = _describe_action(schema.default_kind, schema.default_ability, schema.default_target_selector)
     lines.append(f"| — | — | *(none of the above — root default)* | {default_desc} |")
+    lines += ["", shopping_list_line(schema)]
 
     rule_by_label = {rp.position: rp for rp in report.rules}
     guard_by_label = {gp.label: gp for gp in report.guards}
@@ -400,10 +411,15 @@ def render_report_markdown(report: TransparencyReport) -> str:
         lines.append("")
 
     scope_notes = [n for n in schema.validation_notes if n.startswith("instrument scope:")]
-    priority_notes = [n for n in schema.validation_notes if n not in scope_notes]
+    build_notes = [n for n in schema.validation_notes if n.startswith(NOTE_PREFIX)]
+    priority_notes = [n for n in schema.validation_notes if n not in scope_notes and n not in build_notes]
     if priority_notes:
         lines += ["## Automatic priority fixes applied to this schema", ""]
         lines += [f"- {note}" for note in priority_notes]
+        lines.append("")
+    if build_notes:
+        lines += ["## Shopping list — what was changed", ""]
+        lines += [f"- {note}" for note in build_notes]
         lines.append("")
     if scope_notes:
         lines += ["## Instrument scope — what was kept out of this instrument's schema", ""]

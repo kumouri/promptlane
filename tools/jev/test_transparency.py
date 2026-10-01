@@ -179,5 +179,38 @@ class UnknownPilotFileTests(unittest.TestCase):
             X.build_report(schema, "house-violet.md")
 
 
+class ShoppingListLineTests(unittest.TestCase):
+    def _schema(self, instrument, build=None, notes=()):
+        return TranslatedSchema(
+            pilot_file="pilot.md", instrument=instrument, raw_model_output="{}",
+            rules=[_rule("engage", "is an enemy near?")],
+            default_kind="move", default_ability=None, default_target_selector="push_lane",
+            validation_notes=notes, build=build,
+        )
+
+    def _render(self, schema):
+        return X.render_report_markdown(X.build_report(schema, "pilot.md", segments=[("rule", "Engage.")], labels="auto"))
+
+    def test_line_from_the_prose(self):
+        self.assertEqual(X.shopping_list_line(self._schema("violin", ("amp", "bass-strings", "road-case"))),
+                         "Shopping list: Amp → Bass Strings → Road Case (from your prose)")
+
+    def test_line_for_the_default(self):
+        self.assertEqual(X.shopping_list_line(self._schema("keytar")),
+                         "Shopping list: Metronome → Amp → Road Case (default for keytar — your prose names no items)")
+
+    def test_line_is_in_the_report_before_rule_detail(self):
+        text = self._render(self._schema("drums", ("road-case",)))
+        self.assertIn("\nShopping list: Road Case (from your prose)\n", text)
+        self.assertLess(text.index("Shopping list:"), text.index("## Rule detail"))
+
+    def test_build_notes_get_their_own_section(self):
+        note = "build: dropped 'Tip Jar' from the shopping list -- it is not an item in this game (Amp)."
+        text = self._render(self._schema("keytar", ("amp",), (note,)))
+        self.assertIn("## Shopping list — what was changed", text)
+        self.assertIn(f"- {note}", text)
+        self.assertNotIn("Automatic priority fixes", text)
+
+
 if __name__ == "__main__":
     unittest.main()

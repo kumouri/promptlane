@@ -5,6 +5,7 @@
  * crash anywhere resumes without redoing finished work, two stores with the same config come out
  * identical, and the epoch's promotion test replaces (or joins) the opponents only when it passes.
  */
+import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -176,6 +177,21 @@ test('pairings: both sides of every seed, no self-play, stable keys', () => {
   assert.deepEqual(p.map((m) => [m.violet, m.green, m.seed]), [['c', 'o', 5], ['o', 'c', 5], ['c', 'o', 6], ['o', 'c', 6]]);
   assert.equal(p[0].key, matchKey({ violet: 'c', green: 'o', seed: 5, shape }));
   assert.notEqual(p[0].key, matchKey({ violet: 'c', green: 'o', seed: 5, shape: { cadenceSec: 4, maxSimSec: 180 } }));
+});
+
+test('matchKey covers the ruleset: map and economy change the key; a pre-ruleset shape keeps its old key', async () => {
+  const legacy = { cadenceSec: 2, maxSimSec: 600 };
+  const k = (shape) => matchKey({ violet: 'c', green: 'o', seed: 5, shape });
+  assert.equal(k(legacy), createHash('sha256').update(['c', 'o', 5, 2, 600].join('|')).digest('hex').slice(0, 16), 'old campaigns keep their cache');
+  const pvp = { ...legacy, map: 'pvp-1', economy: 'none' };
+  assert.notEqual(k(pvp), k(legacy));
+  assert.notEqual(k(pvp), k({ ...pvp, map: 'v1' }));
+  assert.notEqual(k(pvp), k({ ...pvp, economy: 'eco-1' }));
+  assert.equal(k(pvp), k({ ...pvp }));
+  const { loadHeadless } = await import('../match/load.mjs');
+  const headless = await loadHeadless();
+  assert.equal(DEFAULT_CAMPAIGN.shape.map, headless.DEFAULT_MAP.name, 'the campaign default follows DEFAULT_MAP');
+  assert.equal(DEFAULT_CAMPAIGN.shape.economy, headless.DEFAULT_ECONOMY?.name ?? 'none');
 });
 
 test('sentences: split on sentence ends and blank lines', () => {
