@@ -131,6 +131,7 @@ test('harness playMatch adapter: runs the CLI and the log summarises', async () 
   assert.ok(s.realDecisions > 0);
   assert.ok(s.rules.drums.r1 > 0 || s.rules.drums.default > 0);
   assert.ok([0, 0.5, 1].includes(s.score));
+  assert.equal(log.resolution, undefined, 'a shape without a resolution keeps the sequential order it was cached under');
 });
 
 test('harness observe adapter: a replay recovers what each pilot saw, and the descriptors read it', async () => {

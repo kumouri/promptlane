@@ -3,7 +3,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import { CONDITIONS, PAIRINGS, SEEDS, metricsCommands, planMeasurement } from './measure_economy.mjs';
+import { CONDITIONS, DEFAULT_RESOLUTION, PAIRINGS, SEEDS, checkResolution, metricsCommands, planMeasurement } from './measure_economy.mjs';
+import { loadHeadless } from './load.mjs';
 
 const ROOT = path.resolve(import.meta.dirname, '..', '..');
 const arg = (job, flag) => job.args[job.args.indexOf(flag) + 1];
@@ -58,4 +59,18 @@ test('a subset plan, the metrics commands, and bad input', () => {
   assert.throws(() => planMeasurement({}), /--date YYYY-MM-DD is required/);
   assert.throws(() => planMeasurement({ date: '2026-10-03', conditions: ['C'] }), /unknown condition C/);
   assert.throws(() => planMeasurement({ date: '2026-10-03', pairings: ['easy'] }), /unknown pairing easy/);
+});
+
+test('every match names its tick resolution, and a run never mixes two', async () => {
+  const headless = await loadHeadless();
+  assert.equal(DEFAULT_RESOLUTION, headless.DEFAULT_RESOLUTION, 'the plan default follows src/resolution.ts');
+  const jobs = planMeasurement({ date: '2026-10-03', seeds: [7] });
+  assert.ok(jobs.every((j) => arg(j, '--resolution') === 'simultaneous-1'));
+  const old = planMeasurement({ date: '2026-10-03', seeds: [7], resolution: 'sequential' });
+  assert.ok(old.every((j) => arg(j, '--resolution') === 'sequential'));
+  // the first job's log exists and was written before the field (sequential)
+  const readLog = (out) => (out === jobs[0].out ? { schema: 'promptlane-match-log-1' } : null);
+  assert.throws(() => checkResolution(jobs, 'simultaneous-1', readLog), /played under resolution sequential, not simultaneous-1: pass --resolution sequential/);
+  assert.doesNotThrow(() => checkResolution(old, 'sequential', readLog));
+  assert.doesNotThrow(() => checkResolution(jobs, 'simultaneous-1', (out) => (out === jobs[0].out ? { resolution: 'simultaneous-1' } : null)));
 });

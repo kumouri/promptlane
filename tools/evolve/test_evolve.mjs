@@ -201,6 +201,11 @@ test('matchKey covers the ruleset: map and economy change the key; a pre-ruleset
   assert.equal(k({ ...river, recall: undefined }), k(river));
   assert.notEqual(k({ ...river, recall: 'recall-2' }), k(river));
   assert.notEqual(k({ ...river, objective: 'river-2' }), k({ ...river, objective: 'river-1' }));
+  // The tick resolution: hashed when the shape names it; an objective-era shape keeps its key.
+  const resolved = { ...river, resolution: 'simultaneous-1' };
+  assert.notEqual(k(resolved), k(river));
+  assert.notEqual(k(resolved), k({ ...resolved, resolution: 'sequential' }));
+  assert.equal(DEFAULT_CAMPAIGN.shape.resolution, headless.DEFAULT_RESOLUTION, 'the campaign default follows DEFAULT_RESOLUTION');
 });
 
 test('sentences: split on sentence ends and blank lines', () => {

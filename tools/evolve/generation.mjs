@@ -53,8 +53,9 @@ export const DEFAULT_CAMPAIGN = {
   // `--objective`) and the cache key hashes it, so a later change to the runner's defaults can't leak
   // into a campaign or reuse a match played under other rules. `map` mirrors DEFAULT_MAP
   // (src/mapVariant.ts; a test holds them equal); `economy` and `objective` are none until the Sun
-  // 10-04 gate (src/economy.ts DEFAULT_ECONOMY, src/objective.ts DEFAULT_OBJECTIVE).
-  shape: { cadenceSec: 2, maxSimSec: 600, map: 'pvp-1', economy: 'none', objective: 'none' },
+  // 10-04 gate (src/economy.ts DEFAULT_ECONOMY, src/objective.ts DEFAULT_OBJECTIVE); `resolution`
+  // mirrors DEFAULT_RESOLUTION (src/resolution.ts).
+  shape: { cadenceSec: 2, maxSimSec: 600, map: 'pvp-1', economy: 'none', objective: 'none', resolution: 'simultaneous-1' },
   evaluation: { seedsPerEpoch: 4 },
   population: { parents: 2, childrenPerParent: 2 },
   // hall of fame capped at the last 3 champions: ruled 2026-09-30 01:50 CT (spec §10 Q2)
@@ -132,7 +133,11 @@ export const SIM_VERSION = 'specimen-v1';
  * never reused under another; one whose shape also names the river objective (every campaign
  * created since the Bandstand) hashes that as well, and so does one that names a recall rule
  * (`shape.recall`, src/recall.ts). A campaign created before any of them keeps the key it always
- * had, so its cache stays valid; its matches still play the runner's defaults.
+ * had, so its cache stays valid; its matches still play the runner's defaults, except the tick
+ * resolution. A shape that names its resolution (every campaign created since
+ * `src/resolution.ts`) hashes it; one that doesn't was cached under the frozen sim's sequential
+ * order and keeps playing it (`makePlayMatch` passes `--resolution sequential`), so a cached match
+ * and a fresh one under the same key are always played the same way.
  */
 export function matchKey({ violet, green, seed, shape }) {
   const parts = [violet, green, seed, shape.cadenceSec, shape.maxSimSec];
@@ -141,6 +146,7 @@ export function matchKey({ violet, green, seed, shape }) {
   }
   if (shape.objective !== undefined) parts.push(`objective=${shape.objective}`);
   if (shape.recall !== undefined) parts.push(`recall=${shape.recall}`);
+  if (shape.resolution !== undefined) parts.push(`resolution=${shape.resolution}`);
   return sha256(parts.join('|')).slice(0, 16);
 }
 
