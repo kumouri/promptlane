@@ -15,6 +15,7 @@
 import type { Action, Observation, Pilot, Team } from '../../src/types';
 import { Match, TICK_DT, type RosterSlot } from '../../src/sim/match';
 import { PromptPilot } from '../../src/pilots/promptPilot';
+import { DEFAULT_MAP, SPECIMEN_MAP, applyMapVariant, resolveMap, type MapVariant } from '../../src/mapVariant';
 import type { CallModel } from '../../src/pilots/callModel';
 import type { TracingDecision, TracingPilot } from './jevPilot';
 import {
@@ -36,6 +37,7 @@ export { mockCallModel } from '../../src/pilots/callModel';
 export { jevTracingPilot } from './jevPilot';
 export { jevTeamTracingPilot } from './jevTeamPilot';
 export { jevSchemaTracingPilot } from './jevSchemaPilot';
+export { DEFAULT_MAP, MAP_VARIANTS, PVP_MAP, SPECIMEN_MAP, laneCoverage, resolveMap } from '../../src/mapVariant';
 
 const MATCH_DURATION_SEC = 600;
 const MAX_TICKS = Math.ceil(MATCH_DURATION_SEC / TICK_DT) + 2;
@@ -64,6 +66,12 @@ export interface RunOptions {
   /** Seconds of sim time between real model calls per bearbot. 0.5 = the game's own polling rate. */
   cadenceSec?: number;
   backend: Record<string, unknown>;
+  /**
+   * Map variant (`src/mapVariant.ts`) — a name such as `'pvp-1'` or a variant object. Default:
+   * `DEFAULT_MAP`. Recorded in the log as `map` unless it is the specimen map, so a specimen-map log
+   * is byte-for-byte what it was before variants existed.
+   */
+  map?: string | MapVariant;
   /** Yields to the event loop so the sim's own promise chain settles between ticks. */
   flush?: () => Promise<void>;
   /** Progress callback, once per sim-minute. */
@@ -178,6 +186,7 @@ class RecordingPilot implements Pilot {
 export async function runMatch(opts: RunOptions): Promise<MatchLog> {
   const cadenceSec = opts.cadenceSec ?? 0.5;
   const flush = opts.flush ?? defaultFlush;
+  const map = opts.map === undefined ? DEFAULT_MAP : resolveMap(opts.map);
   const stats: Record<Team, SideStats> = { violet: emptyStats(), green: emptyStats() };
   const totalMs: Record<Team, { value: number }> = { violet: { value: 0 }, green: { value: 0 } };
 
@@ -188,6 +197,7 @@ export async function runMatch(opts: RunOptions): Promise<MatchLog> {
     tickDt: TICK_DT,
     cadenceSec,
     idBase: 0,
+    ...(map.name === SPECIMEN_MAP.name ? {} : { map }),
     backend: opts.backend,
     sides: opts.sides,
     decisions: [],
@@ -222,6 +232,7 @@ export async function runMatch(opts: RunOptions): Promise<MatchLog> {
   }));
 
   match = new Match(opts.seed, roster);
+  applyMapVariant(match, map);
   log.idBase = idNumber(match.nexuses[0].id);
   opts.onStart?.(log);
 
@@ -332,6 +343,7 @@ export async function verifyReplay(
     },
   }));
   match = new Match(log.seed, roster);
+  applyMapVariant(match, resolveMap(log.map));
 
   const expected = new Map(log.checkpoints.map((c) => [c.tick, c.state]));
   let compared = 0;

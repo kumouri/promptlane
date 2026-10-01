@@ -10,6 +10,7 @@
  */
 import type { Action, Instrument, Lane, Observation, Pilot, Team } from './types';
 import type { Match } from './sim/match';
+import type { MapVariant } from './mapVariant';
 
 export const MATCH_LOG_SCHEMA = 'promptlane-match-log-1';
 
@@ -91,6 +92,11 @@ export interface MatchLog {
   cadenceSec: number;
   /** Numeric part of the first entity id the match allocated; replay remaps ids by the offset. */
   idBase: number;
+  /**
+   * The map variant the match was played on (`src/mapVariant.ts`). Absent = the specimen map, which
+   * is every log written before variants existed; a replay applies the same variant.
+   */
+  map?: MapVariant;
   /** Which model answered: `{kind:'mock'}` or `{kind:'http', endpoint, health}`. */
   backend: Record<string, unknown>;
   sides: Record<Team, LogSide>;
