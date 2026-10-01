@@ -5,7 +5,9 @@ give up ground than die.
 Your shopping list is Road Case first, then Metronome, then Amp. You never go home just to shop:
 you buy whenever retreating or waiting takes you home anyway.
 
-Retreat early. When your hp is below 100, recall home to heal. This comes before everything else.
+Retreat early. A hit breaks a recall, so get out of reach first. When your hp is below 100 and an
+enemy minion, enemy tower or enemy bearbot is in sight, move back home. When your hp is below 100
+and no enemy is in sight, recall home to heal. These come before everything else.
 
 Never go near an enemy tower. If you can see an enemy tower or the enemy nexus, move back home.
 

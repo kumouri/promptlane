@@ -82,7 +82,8 @@ export interface JevDecideResponse {
 /** house-violet.md's rules evaluated in code on the exact worksheet -- the TypeScript twin of
  * `tools/jev/rules.py::ground_truth_answers` + `first_match`, used only when the jev-house server
  * itself can't be reached (`house_server.py` has its own fallback for when Jev can't be). The
- * Bandstand rule is second, as in the file, and can only match when the worksheet has `stand`. */
+ * Bandstand rule is second, as in the file, and can only match when the worksheet has `stand`. Rule 1
+ * is the file's single low-hp recall from before its 2026-10-01 split for `recall-2`, as in `rules.py`. */
 export function decideByRules(ws: Worksheet): { bucket: ActionBucket; rule: number } {
   const rule3 =
     ws.cd === 0 &&

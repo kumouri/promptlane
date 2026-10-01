@@ -24,7 +24,8 @@ It is not a champion voice; it is written for the ruled test backend (`qwen3.5:9
   legal and they are what makes the model's comparisons work. `stand` is `bandstand.status`, and
   null in a match without the river objective (see "The Bandstand" below).
 - **Strategy:** ride your own minion wave, fight what it meets, press towers only with the wave,
-  recall under 75 hp, abilities only with the cooldown at 0; with the objective on, go to the
+  under 75 hp walk home while an enemy is in sight and recall once none is (see "Recall: out of
+  reach first" below), abilities only with the cooldown at 0; with the objective on, go to the
   Bandstand while it is open and no enemy bearbot is in sight.
 - **Per-instrument lines** (`keytar only: …`) are the form the Jev translator recognises: compiled
   with `tools/jev/compile.py`, each instrument's schema gets only its own line
@@ -44,12 +45,44 @@ easy and hard are only played when asked for (`config.house.tier` or `--house-ti
 
 | tier | archetype | rules, in order |
 |---|---|---|
-| easy | defend, never risk a bearbot | recall under 100 hp → leave whenever an enemy tower is near → attack the nearest enemy → stay with a friendly minion → wait at home. No abilities. |
-| medium | ride the wave (above) | recall under 75 → *the Bandstand* → leave a tower without a wave → ability → attack the foe → the tower → ride → home |
-| hard | towers and kills | recall under 90 → *the Bandstand, three rules* → leave a tower without a wave → ability on a bearbot under 100 hp → attack that bearbot → the tower if 2+ friendly minions are in sight → the lowest-hp bearbot → the nearest minion → ride → home |
+| easy | defend, never risk a bearbot | under 100 hp: walk home while an enemy is in sight, else recall → leave whenever an enemy tower is near → attack the nearest enemy → stay with a friendly minion → wait at home. No abilities. |
+| medium | ride the wave (above) | under 75: walk home while an enemy is in sight, else recall → *the Bandstand* → leave a tower without a wave → ability → attack the foe → the tower → ride → home |
+| hard | towers and kills | under 90: walk home while an enemy is in sight, else recall → *the Bandstand, three rules* → leave a tower without a wave → ability on a bearbot under 100 hp → attack that bearbot → the tower if 2+ friendly minions are in sight → the lowest-hp bearbot → the nearest minion → ride → home |
+
+**Recall: out of reach first** (2026-10-01, for `recall-2`, [`docs/economy-spec.md`
+§9.10](../../docs/economy-spec.md)). Under `recall-2` a recall is a 4 s channel that any hit in its
+first 3.5 s breaks, so a tier that recalls in a lane dies standing in it
+(`runs/bandstand-2-2026-09-30.md`). Every tier's single low-hp recall is now two rules on the same
+threshold: **"an enemy minion, tower or bearbot is in sight → move home"**, then **"no enemy is in
+sight → recall"**. Vision is 260, beyond a tower's 160 range and a minion's 130 aggro radius plus
+its 30 attack range, so "no enemy in sight" means out of reach, and Jev reads it straight off its
+description ("No enemies visible."). A channel a hit breaks is not re-issued into the same damage:
+the next decision sees the enemy and walks. The eco tiers' shopping recall is split the same way,
+and hard-eco's "carrying 300 with a stronger enemy bearbot in sight" walks home instead of recalling,
+since an enemy is in sight by definition. Under the specimen's 3× recall (still the default), the
+change only delays a recall until the bot is out of sight.
+- **How the schemas changed.** Each source was recompiled with `compile.py --backend ollama` as
+  before, and only the new recall rules were taken from the compile. They replace the old recall
+  rule objects in the checked-in schema; every other rule object, the root default and the build
+  are kept byte for byte, as the Bandstand rules were spliced in (#53). A fresh compile rewords
+  the untouched rules too, so taking it whole would have changed more than the recall. Per
+  instrument, the first sample of the final wording was kept whose new questions name only what
+  Jev's description states (an enemy in sight, none in sight; no worksheet names such as `foe` or
+  `self.hp`). The rule-by-rule diff and the samples tried are in
+  [`runs/bandstand-3-2026-10-01.md`](../../runs/bandstand-3-2026-10-01.md).
+- **Medium keeps its 75 %-of-max reading.** The translator reads medium's "hp less than 75" as
+  "75 % of its max", as it did before (`runs/house-tiers-2026-09-30.md`), and the new pair keeps it.
+  Medium-eco's kept samples read "below 75" on all three instruments; its old keytar recall said
+  "75 % of its max".
+- **Medium's worksheet lines say "in sight", not "foe or tower is not null".** With the worksheet
+  keys in the line, the translator copied them into Jev's questions.
+- **This moves the placement bar.** Medium is the arena's bar, so a ladder restarted on these files
+  plays the new pair; the `house` ledger row records the new hash.
+- `tools/arena/test_house.mjs` checks that every recall rule, in every tier's schema and side file,
+  follows a move home.
 
 **The Bandstand** (the river objective, [`docs/economy-spec.md` §9.7](../../docs/economy-spec.md)).
-Medium and hard go to `bandstand.pos` by rules placed right after the low-hp recall. Easy has no
+Medium and hard go to `bandstand.pos` by rules placed right after the low-hp pair. Easy has no
 Bandstand rule: easy stays easy.
 
 | tier | worksheet keys added | Bandstand rules |
@@ -76,8 +109,9 @@ the latter in `npm run match --a-schemas` shape, so a tier can also be played on
 Medium's `house-violet.md` was compiled the same way for the Jev sanity run
 (`runs/house-tiers-{compile,schemas}-medium-2026-09-30.*`); its side files are unchanged.
 
-**`house-<tier>.schemas.json`** (easy, medium, hard) are byte copies of those three
-`runs/house-tiers-schemas-*-2026-09-30.json` files. They are what the house plays on a Jev ladder
+**`house-<tier>.schemas.json`** (easy, medium, hard) started as byte copies of those three
+`runs/house-tiers-schemas-*-2026-09-30.json` files, and have since had the Bandstand rules (#53)
+and the out-of-reach recall pair (above) spliced in. They are what the house plays on a Jev ladder
 (`tools/arena/house.mjs`, [`docs/arena-site-spec.md` §9](../../docs/arena-site-spec.md)). They are
 fixed, not recompiled, so the placement bar doesn't move with a sampled compile. To change what the
 house plays on Jev, recompile on purpose, replace the file, and restart the arena; the `house`
@@ -126,11 +160,11 @@ economy-aware version instead, picked by `tools/arena/house.mjs` (`HOUSE_TIERS_E
 same three strategies plus the decisions [`docs/economy-spec.md`](../../docs/economy-spec.md) §4.4
 gives each tier. With no economy nothing changes, so the placement bar above doesn't move.
 
-| tier | files | shopping list (declared in the prose) | economy rules, after the low-hp recall |
+| tier | files | shopping list (declared in the prose) | economy rules, after the low-hp pair |
 |---|---|---|---|
 | easy | `house-easy-eco.prose.md` (both sides) | Road Case → Metronome → Amp | none: it buys only when retreating or waiting takes it home |
-| medium | `house-eco-violet.md` / `house-eco-green.md` | each instrument's default | can afford the next item and no foe in sight → recall to shop |
-| hard | `house-hard-eco.prose.md` (both sides) | drums Road Case → Bass Strings → Amp; keytar and violin their defaults | the medium rule; carrying ≥ 300 gold with a stronger enemy bearbot in sight → recall to spend it; attack the enemy bearbot **worth the most gold** (`highest_bounty_enemy`) instead of the lowest-hp one |
+| medium | `house-eco-violet.md` / `house-eco-green.md` | each instrument's default | can afford the next item, no enemy bearbot or minion in sight: with an enemy tower in sight walk home, with no enemy in sight recall to shop |
+| hard | `house-hard-eco.prose.md` (both sides) | drums Road Case → Bass Strings → Amp; keytar and violin their defaults | can afford the next item and no enemy bearbot in sight: with an enemy minion or tower in sight walk home, with none recall to shop; carrying ≥ 300 gold with a stronger enemy bearbot in sight → walk home to spend it; attack the enemy bearbot **worth the most gold** (`highest_bounty_enemy`) instead of the lowest-hp one |
 
 - **Medium keeps its worksheet.** It adds three keys after `hp`: `"gold": self.gold`,
   `"next": self.nextItem.cost` (null when the list is done) and `"home": self.atShop`; the rest,
@@ -151,10 +185,11 @@ gives each tier. With no economy nothing changes, so the placement bar above doe
   right after each instrument's low-hp recall, with every other rule unchanged. So medium-eco and
   hard-eco differ from medium and hard only by the economy (`test_house.mjs` checks it). The
   transparency reports above predate the splice. Without the objective the Bandstand rules can't
-  match, so the order is low-hp recall → (Bandstand) → shopping recall → the rest.
+  match, so the order is the low-hp pair → (Bandstand) → the shopping pair → the rest. The recall
+  pairs were spliced the same way ("Recall: out of reach first" above).
 - **The worksheet keys reach only the worksheet prompt and its compile.** The Jev worksheet house
   bot (`tools/jev/rules.py`, `house_server.py`, `jevPilot.ts`, shadow only) still mirrors the plain
-  medium cascade; see `docs/economy-spec.md` §13.2.
+  medium cascade from before the recall split; see `docs/economy-spec.md` §13.2.
 
 ## Sample entrants for the economy measurement: `sample-entrant*.prose.md`
 

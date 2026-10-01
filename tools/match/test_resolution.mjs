@@ -116,6 +116,37 @@ test('a mirror match (the same pilot on both sides) stays its own mirror image e
   assert.equal(sim.match.winner, null);
 });
 
+test('river-2 and recall-2 keep a mirror match its own mirror image under simultaneous-1', async () => {
+  // Both Bandstand sites lie on the mirror axis, so a fair layer can't break the mirror. The pilot is
+  // mirrorPilot plus "mid goes to the open Bandstand", and it leaves reach before a channelled recall.
+  // Measured for runs/bandstand-3-2026-10-01.md, where violet still took most captures on Jev.
+  const standPilot = () => {
+    const base = mirrorPilot();
+    return {
+      decide: async (obs) => {
+        if (obs.self.hp / obs.self.maxHp < 0.4) return obs.visibleEnemies.length ? { kind: 'move', target: BASE[obs.self.team] } : { kind: 'recall' };
+        if (obs.bandstand?.status === 'open' && obs.self.lane === 'mid') return { kind: 'move', target: obs.bandstand.pos };
+        return base.decide(obs);
+      },
+    };
+  };
+  const match = build({ resolution: 'simultaneous-1', pilot: standPilot });
+  h.attachRecall(match, h.resolveRecall('recall-2'), h.TICK_DT);
+  const objective = h.attachObjective(match, h.resolveObjective('river-2'), h.TICK_DT);
+  let firstAsymmetricTick = null;
+  for (let t = 1; t <= 600 / h.TICK_DT && !match.ended; t++) {
+    match.tick(h.TICK_DT);
+    await flush();
+    if (firstAsymmetricTick === null && JSON.stringify(sideState(match, 'violet', false)) !== JSON.stringify(sideState(match, 'green', true))) {
+      firstAsymmetricTick = t;
+    }
+  }
+  assert.equal(firstAsymmetricTick, null);
+  const summary = objective.summary();
+  assert.ok(summary.openings.length > 0, 'the stage opened');
+  assert.equal(summary.captures.violet, summary.captures.green);
+});
+
 test('simultaneous-1: a unit killed this step still acts this step, and dies at its end', () => {
   const match = build({ resolution: 'simultaneous-1' });
   const [vb, , , gb] = match.bearbots;
