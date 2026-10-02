@@ -416,6 +416,13 @@ was read and before the first paid call.
     `own_front_tower`.
   - **If an instrument has no full pass after n3, no Jev is spent.** That is reported instead.
   - The screen's per-clause result for the picks is reported: which rule each prose sentence became.
+  - **Amendment, committed after n1–n3 were screened and before any Jev:** the cap goes from n3 to
+    §1.2's six compiles (n4–n6). Only keytar can still be picked from them, and nothing else in §4
+    changes. n1–n3 gave drums n2 and violin n1 full passes, but no keytar pass. Every keytar sample
+    compiled an extra bare "hp below half → walk home" first rule, so its low-hp recall could never
+    fire (n3 failed on that alone, (j)). n1 and n2 also dropped the sight clauses from the shopping
+    walk (b). Those are real compile failures, not screen bugs. If keytar still has no pass after n6,
+    no Jev is spent.
 - `tools/arena/test_house.mjs` pins the new sentence and the `push_lane` fallback. The README and
   the house hash row follow it.
 
