@@ -19,6 +19,9 @@
  * without an economy, gold here is a transparent PROXY, `GOLD` below: the value of what a team
  * destroyed. A log WITH an economy (`src/economy.ts`) is replayed with it attached: bots respawn and
  * can die more than once, gold is the real ledger, and `economy` carries the spec's §6.2 numbers.
+ * It also carries the late game's (docs/late-game-economy-spec.md §7.6), which read the same under any
+ * ruleset: what each bot's items are worth (`totalCost`) and the gold it never spent, when it first
+ * bought a tier-2 and a tier-3 item (null under a ruleset without recipes), and its level at 8:00.
  *
  * A log with the river objective (`src/objective.ts`, the Bandstand of docs/economy-spec.md §9) is
  * replayed with it attached, so the checkpoints (which then carry the objective's state) still
@@ -45,7 +48,7 @@ import { BASE, WORLD_SIZE, dist, otherTeam } from '../../src/sim/map';
 import { JAM_ROSTER, ReplayPilot, checkpointOf, decisionsByBot, idNumber, tickOf, type MatchLog } from '../../src/replay';
 import { applyMapVariant, resolveMap, type MapVariant } from '../../src/mapVariant';
 import { attachAttribution } from '../../src/attribution';
-import { ECO_1_GOLD_SOURCES, GOLD_SOURCES, attachEconomy, type Economy, type GoldSource } from '../../src/economy';
+import { ECO_1_GOLD_SOURCES, GOLD_SOURCES, attachEconomy, itemTier, totalCost, type Economy, type GoldSource } from '../../src/economy';
 import { attachObjective, resolveObjective, type Objective } from '../../src/objective';
 import { attachRecall, resolveRecall, type Recall } from '../../src/recall';
 import { attachFinale, resolveFinale } from '../../src/finale';
@@ -94,6 +97,11 @@ export const HEAT_N = Math.ceil(WORLD_SIZE / HEAT_CELL);
 export const BANDSTAND_FIGHT_RADIUS = FIGHT_RADIUS;
 /** The move selector that resolves to the Bandstand (tools/jev/target_resolve.py; contract §"Move selector"). */
 export const BANDSTAND_SELECTOR = 'bandstand';
+/**
+ * When `levelAt480` reads each bot's level: 8:00, when the Final Chorus starts and when the late
+ * game's tier 3 and level 8 are meant to land (docs/late-game-economy-spec.md §6 lines 2–3).
+ */
+export const LEVEL_SAMPLE_SEC = 480;
 
 /** Violet's base is at (100, 900): the river (x == y) splits the map, violet's half has y > x. */
 export function onOpponentSide(team: Team, p: Vec2): boolean {
@@ -229,8 +237,18 @@ export interface EconomyMetrics {
   goldPerMinBySource: Record<GoldSource, number>;
   /** (kill + assist + drop + first blood) ÷ all non-passive gold; null when nothing was earned. */
   pvpShareOfEarned: number | null;
-  /** Items each bot owned at the end, in roster order. */
+  /** Items each bot owned at the end, in roster order (a count: a tier-2 or tier-3 item is one). */
   itemsAtEnd: number[];
+  /** What each bot's items at the end are worth: the sum of their `totalCost` (late-game spec §7.6). */
+  itemValueAtEnd: number[];
+  /** Each bot's unspent gold at the end (at-risk + safe). */
+  unspentAtEnd: number[];
+  /** Per bot, sim seconds of its first tier-2 (recipe) purchase; null if it never made one (always, under a ruleset without recipes). */
+  tier2At: Array<number | null>;
+  /** Per bot, sim seconds of its first tier-3 (upgrade) purchase; null if it never made one. */
+  tier3At: Array<number | null>;
+  /** Per bot, its level at 8:00 sim time; null for every bot when the match ended before 8:00. */
+  levelAt480: Array<number | null>;
   /** Median over the bots that bought anything of their first purchase time; null if nobody bought. */
   firstItemSec: number | null;
   /** Median unspent gold carried into a death; null without deaths. */
@@ -421,6 +439,9 @@ export async function measureLog(log: MatchLog, flush: () => Promise<void> = def
   const shoppingRecalls: Record<Team, number> = { violet: 0, green: 0 };
   const recallsAboveHalfHp: Record<Team, number> = { violet: 0, green: 0 };
   let ecoEventCursor = 0;
+  /** Each bot's level at 8:00 (late-game spec §6 line 2), sampled on that tick; stays null if the match ends first. */
+  const levelAt480Tick = Math.round(LEVEL_SAMPLE_SEC / TICK_DT);
+  let levelAt480: number[] | null = null;
   /** Bot `i` is recalling: the specimen's run home (`bearbot.recalling`), or recall-2's channel. */
   const recallingNow = (b: Bearbot, i: number) => b.alive && (recall ? recall.channelling(i) : b.recalling);
   /** The specimen's recall, read off `bearbot.recalling` (a recall-2 log reads its layer instead). */
@@ -581,6 +602,7 @@ export async function measureLog(log: MatchLog, flush: () => Promise<void> = def
         } else if (!recallingNow(b, i)) shopRecall[i] = false;
         wasRecalling[i] = recallingNow(b, i);
       });
+      if (t === levelAt480Tick) levelAt480 = economy.bots.map((e) => e.level);
     }
     if (t % Math.round(1 / TICK_DT) === 0) {
       goldDiffBySec.push(gold.violet - gold.green);
@@ -685,7 +707,7 @@ export async function measureLog(log: MatchLog, flush: () => Promise<void> = def
   }
   const totalDeaths = deaths.reduce((s, x) => s + x, 0);
   const economyMetrics = economy
-    ? { ...measureEconomy(economy, durationMin, m.winner, goldDiffBySec, goldTotalBySec), shoppingRecalls, recallsAboveHalfHp }
+    ? { ...measureEconomy(economy, durationMin, m.winner, goldDiffBySec, goldTotalBySec, levelAt480), shoppingRecalls, recallsAboveHalfHp }
     : null;
   const objectiveMetrics = objective ? measureObjective(objective, fights, openSiteAt, encoreTicks, alive.reduce((s, x) => s + x, 0), m.winner) : null;
 
@@ -774,6 +796,7 @@ function measureEconomy(
   winner: Team | null,
   diffBySec: number[],
   totalBySec: number[],
+  levelAt480: number[] | null,
 ): Omit<EconomyMetrics, 'shoppingRecalls' | 'recallsAboveHalfHp'> {
   const n = economy.bots.length;
   const perBotMin = (x: number) => (durationMin > 0 ? x / n / durationMin : 0);
@@ -782,12 +805,19 @@ function measureEconomy(
   const total = ECO_1_GOLD_SOURCES.reduce((s, k) => s + bySource[k], 0);
   const pvp = bySource.kill + bySource.assist + bySource.drop + bySource['first-blood'];
   const firstBuy = new Map<number, number>();
+  const tier2At: Array<number | null> = economy.bots.map(() => null);
+  const tier3At: Array<number | null> = economy.bots.map(() => null);
   const carried: number[] = [];
   let lost = 0;
   let paid = 0;
   let respawns = 0;
   for (const ev of economy.events) {
     if (ev.kind === 'buy' && !firstBuy.has(ev.bot)) firstBuy.set(ev.bot, ev.tick * TICK_DT);
+    if (ev.kind === 'buy') {
+      const tier = itemTier(economy.ruleset, ev.item);
+      if (tier === 2 && tier2At[ev.bot] === null) tier2At[ev.bot] = ev.tick * TICK_DT;
+      if (tier === 3 && tier3At[ev.bot] === null) tier3At[ev.bot] = ev.tick * TICK_DT;
+    }
     if (ev.kind === 'death') {
       carried.push(ev.carried);
       lost += ev.loss;
@@ -805,6 +835,11 @@ function measureEconomy(
     goldPerMinBySource: Object.fromEntries(GOLD_SOURCES.map((k) => [k, perBotMin(bySource[k])])) as Record<GoldSource, number>,
     pvpShareOfEarned: ratio(pvp, total - bySource.passive),
     itemsAtEnd: economy.bots.map((e) => e.items.length),
+    itemValueAtEnd: economy.bots.map((e) => e.items.reduce((s, k) => s + totalCost(economy.ruleset, k), 0)),
+    unspentAtEnd: economy.bots.map((_, i) => economy.gold(i)),
+    tier2At,
+    tier3At,
+    levelAt480: levelAt480 ?? economy.bots.map(() => null),
     firstItemSec: median([...firstBuy.values()]),
     carriedAtDeath: median(carried),
     lostOnDeath: lost,
@@ -1015,6 +1050,16 @@ export function matchValues(m: MatchMetrics): Record<string, number | null> {
     // Per side, because §6.2's line is per tier ("> 0 for medium and hard") and a pairing fixes each tier's side.
     ecoShoppingRecallsViolet: m.economy?.shoppingRecalls.violet ?? null,
     ecoShoppingRecallsGreen: m.economy?.shoppingRecalls.green ?? null,
+    // The late game's lines (docs/late-game-economy-spec.md §6 lines 1–3, §7.6); null on a log without
+    // an economy. Under a ruleset without recipes the tier times are null (nobody can buy one).
+    ecoItemValuePerBot: m.economy ? mean(m.economy.itemValueAtEnd) : null,
+    ecoUnspentAtEnd: m.economy ? median(m.economy.unspentAtEnd) : null,
+    // Per side, as line 1 reads ("defenders vs the entrant"): the median of that team's bots.
+    ecoUnspentAtEndViolet: m.economy ? median(m.economy.unspentAtEnd.filter((_, i) => m.bots[i]?.team === 'violet')) : null,
+    ecoUnspentAtEndGreen: m.economy ? median(m.economy.unspentAtEnd.filter((_, i) => m.bots[i]?.team === 'green')) : null,
+    ecoTier2AtSec: m.economy ? median(m.economy.tier2At.filter((x): x is number => x !== null)) : null,
+    ecoTier3AtSec: m.economy ? median(m.economy.tier3At.filter((x): x is number => x !== null)) : null,
+    ecoLevelAt480: m.economy ? mean(m.economy.levelAt480) : null,
     // The Bandstand (docs/economy-spec.md §9.8); null on a log without an objective.
     bandstandOpenings: m.objective?.openings ?? null,
     bandstandClosedUntaken: m.objective?.closedUntaken ?? null,

@@ -228,5 +228,32 @@ class EconomyObservationTests(unittest.TestCase):
             self.assertNotIn(word, jev.last_state)
 
 
+
+class LateGameObservationTests(unittest.TestCase):
+    """docs/late-game-economy-spec.md §7.4: no decision change -- a schema compiled under eco-3-late
+    (its "economy" key and a declared build) decides against an eco-3-late observation (tier/from
+    fields, level 8, tier-3 items) exactly like any other, and Jev is shown the new sentences."""
+
+    def test_decides_and_describes(self):
+        schema = {**SCHEMA, "economy": "eco-3-late", "build": ["wall-of-sound", "arpeggiator"]}
+        obs = json.loads(json.dumps(OBS))
+        obs["self"].update(gold=500, level=8, xp=1010, xpToNext=None, items=["wall-of-sound", "click-track"], slotsFree=1,
+                           nextItem={"item": "arpeggiator", "cost": 400, "tier": 3, "from": ["click-track"]}, atShop=False)
+        obs["visibleEnemies"][0].update(level=8, bounty=410, items=["feedback", "headliner"])
+        obs["shop"] = [{"item": "amp", "cost": 350, "tier": 1},
+                       {"item": "tour-bus", "cost": 250, "tier": 2, "from": ["road-case", "metronome"]},
+                       {"item": "headliner", "cost": 400, "tier": 3, "from": ["tour-bus"]}]
+        jev = FakeJev({"enemy_near"})
+        out = JevSchemaBackend(jev).decide({"schema": schema, "observation": obs})
+        self.assertEqual(out["rule"], "enemy_near")
+        self.assertEqual(out["action"], {"kind": "ability", "ability": "kick", "target": "bb-4"})
+        self.assertIn("This bearbot is level 8 (the highest level).", jev.last_state)
+        self.assertIn("Items: Wall of Sound (tier 3, upgraded from Backline), Click Track (tier 2, made from Metronome and Amp)", jev.last_state)
+        self.assertIn("Next on its shopping list: Arpeggiator, an upgrade of its Click Track, 400 gold -- it can afford it now.", jev.last_state)
+        self.assertIn("items: Feedback (tier 3), Headliner (tier 3)", jev.last_state)
+        # the same schema without the late fields decides the same way: build is never read for decisions
+        plain = JevSchemaBackend(FakeJev({"enemy_near"})).decide({"schema": SCHEMA, "observation": obs})
+        self.assertEqual(plain["action"], out["action"])
+
 if __name__ == "__main__":
     unittest.main()
