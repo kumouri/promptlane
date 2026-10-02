@@ -309,7 +309,10 @@ but worth not architecting against).
   stat, and inventing one to look like a broadcast HUD would be showing something that isn't real.
   *Economy matches are the exception, because there the stat is real:* a match whose log has an
   economy (`src/economy.ts`) draws each bearbot's level, unspent gold and item initials under it
-  (`L3 340g RA`), and a respawn countdown over a dead bearbot's husk. A match without one draws
+  (`L3 340g RA`), and a respawn countdown over a dead bearbot's husk. Under a ruleset whose items
+  carry an `abbr` (`eco-3-late`, [`late-game-economy-spec.md`](late-game-economy-spec.md) §7.5) each
+  item shows its two-letter abbr instead, tier as weight: tier 1 plain, tier 2 bold, tier 3 bold in
+  the team colour (`L7 120g Wa Mt`). A match without one draws
   exactly what it did before. *Likewise the river objective:* a match whose log has one
   (`src/objective.ts`) draws the Bandstand's stage on the river, its capture bar as a ring in the
   leading team's colour, a countdown while it is closed or upcoming, a contested rim, a gold glow on

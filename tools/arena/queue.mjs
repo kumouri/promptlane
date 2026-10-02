@@ -132,7 +132,7 @@ export class Queue {
    *                         `none`); unset = the runner's DEFAULT_FINALE (none: play to 10:00)
    * @param opts.live        LiveHub (optional) — running jobs stream their events into it
    * @param opts.economy     economy ruleset name for every match (`tournament.economy`, src/economy.ts);
-   *                         null/unset = none (the default until the Sun 10-04 gate)
+   *                         null/unset = none (the default until the go/no-go gate)
    * @param opts.hooks       test seams: `afterRun(log, job)` may replace the log before verify;
    *                         `callModelFor(job)` replaces the adapter; `wallCapMs` overrides the cap
    */

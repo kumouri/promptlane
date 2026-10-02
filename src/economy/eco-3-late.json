@@ -1,0 +1,46 @@
+{
+  "name": "eco-3-late",
+  "respawn": { "baseSec": 6, "perLevelSec": 3 },
+  "gold": {
+    "start": 100,
+    "passivePerSec": 0.75,
+    "minionLastHit": 25,
+    "kill": 250,
+    "assistPool": 125,
+    "firstBlood": 150,
+    "towerTeam": 125,
+    "towerLocalPool": 150,
+    "towerLocalRadius": 300,
+    "pools": { "safeSources": [] },
+    "death": { "lossOfAtRisk": 0.5, "lossOfNetWorth": 0, "toKillers": 1.0 }
+  },
+  "credit": { "windowSec": 10, "assistRadius": 250 },
+  "xp": {
+    "radius": 300,
+    "minion": 10,
+    "kill": 60,
+    "tower": 40,
+    "thresholds": [0, 80, 200, 360, 560, 710, 860, 1010],
+    "perLevel": { "maxHp": 0.08, "attackDamage": 0.08 }
+  },
+  "shop": { "radius": 150, "slots": 3, "planSteps": 10 },
+  "items": {
+    "amp": { "name": "Amp", "tier": 1, "abbr": "Am", "cost": 350, "gives": "attack damage +35%", "givesUp": "max hp -15%", "mods": { "attackDamage": 0.35, "maxHp": -0.15 } },
+    "road-case": { "name": "Road Case", "tier": 1, "abbr": "Rc", "cost": 300, "gives": "max hp +35%", "givesUp": "move speed -12%", "mods": { "maxHp": 0.35, "moveSpeed": -0.12 } },
+    "bass-strings": { "name": "Bass Strings", "tier": 1, "abbr": "Bs", "cost": 350, "gives": "heals 30% of the damage you deal to enemy bearbots", "givesUp": "no healing from minions, towers or the nexus", "mods": { "pvpLifesteal": 0.3 } },
+    "metronome": { "name": "Metronome", "tier": 1, "abbr": "Mt", "cost": 350, "gives": "ability cooldowns -30%", "givesUp": "basic attacks 15% slower", "mods": { "abilityCooldown": -0.3, "attackCooldownSec": 0.15 } },
+    "backline": { "name": "Backline", "tier": 2, "from": ["road-case", "bass-strings"], "abbr": "Bk", "cost": 250, "gives": "max hp +50%; heals 40% of the damage you deal to enemy bearbots", "givesUp": "move speed -12%", "mods": { "maxHp": 0.5, "moveSpeed": -0.12, "pvpLifesteal": 0.4 } },
+    "click-track": { "name": "Click Track", "tier": 2, "from": ["metronome", "amp"], "abbr": "Ct", "cost": 250, "gives": "attack damage +50%; ability cooldowns -35%", "givesUp": "max hp -15%; basic attacks 15% slower", "mods": { "attackDamage": 0.5, "maxHp": -0.15, "abilityCooldown": -0.35, "attackCooldownSec": 0.15 } },
+    "fuzz-pedal": { "name": "Fuzz Pedal", "tier": 2, "from": ["amp", "bass-strings"], "abbr": "Fz", "cost": 250, "gives": "attack damage +50%; heals 40% of the damage you deal to enemy bearbots", "givesUp": "max hp -15%", "mods": { "attackDamage": 0.5, "maxHp": -0.15, "pvpLifesteal": 0.4 } },
+    "tour-bus": { "name": "Tour Bus", "tier": 2, "from": ["road-case", "metronome"], "abbr": "Tb", "cost": 250, "gives": "max hp +50%; ability cooldowns -35%", "givesUp": "move speed -12%; basic attacks 15% slower", "mods": { "maxHp": 0.5, "moveSpeed": -0.12, "abilityCooldown": -0.35, "attackCooldownSec": 0.15 } },
+    "wall-of-sound": { "name": "Wall of Sound", "tier": 3, "from": ["backline"], "abbr": "Wa", "cost": 400, "gives": "max hp +80%; heals 40% of the damage you deal to enemy bearbots", "givesUp": "move speed -12%", "mods": { "maxHp": 0.8, "moveSpeed": -0.12, "pvpLifesteal": 0.4 } },
+    "arpeggiator": { "name": "Arpeggiator", "tier": 3, "from": ["click-track"], "abbr": "Ar", "cost": 400, "gives": "attack damage +50%; ability cooldowns -35%; time between basic attacks -25%", "givesUp": "max hp -15%", "mods": { "attackDamage": 0.5, "maxHp": -0.15, "abilityCooldown": -0.35, "attackCooldownSec": -0.25 } },
+    "feedback": { "name": "Feedback", "tier": 3, "from": ["fuzz-pedal"], "abbr": "Fb", "cost": 400, "gives": "attack damage +50%; heals 70% of the damage you deal to enemy bearbots", "givesUp": "max hp -15%", "mods": { "attackDamage": 0.5, "maxHp": -0.15, "pvpLifesteal": 0.7 } },
+    "headliner": { "name": "Headliner", "tier": 3, "from": ["tour-bus"], "abbr": "Hl", "cost": 400, "gives": "max hp +50%; ability cooldowns -35%; heals 2% of max hp a second", "givesUp": "move speed -12%; basic attacks 15% slower", "mods": { "maxHp": 0.5, "moveSpeed": -0.12, "abilityCooldown": -0.35, "attackCooldownSec": 0.15, "regenPerSec": 0.02 } }
+  },
+  "defaultBuilds": {
+    "drums": ["road-case", "bass-strings", "metronome", "backline", "amp", "wall-of-sound", "click-track", "arpeggiator"],
+    "keytar": ["metronome", "amp", "road-case", "click-track", "bass-strings", "arpeggiator", "backline", "wall-of-sound"],
+    "violin": ["amp", "bass-strings", "road-case", "fuzz-pedal", "metronome", "feedback", "tour-bus", "headliner"]
+  }
+}

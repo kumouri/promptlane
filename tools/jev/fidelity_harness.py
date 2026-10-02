@@ -29,6 +29,7 @@ defeat the point (ground truth has to be real).
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -47,7 +48,7 @@ from client import (  # noqa: E402
     estimate_request_tokens,
     resolve_workers_ai_token,
 )
-from economy_rules import item_name  # noqa: E402
+from economy_rules import item_from, item_name, item_tier, join_names  # noqa: E402
 from ground_truth import ground_truth_action  # noqa: E402
 from scenarios import all_scenarios, build_observation, river_rules, ABILITIES  # noqa: E402
 from target_resolve import DEFAULT_TARGETING, resolve_target  # noqa: E402
@@ -82,21 +83,65 @@ class DumbStubJevClient:
     """Plumbing-only dry run: seeded pseudo-random noul answers, no ground-truth concept (unlike
     `client.StubSystemOneClient`, which needs a hand-coded oracle per question -- this harness's
     questions are LLM-authored prose, not fixed formulas, so there is no such oracle to stub
-    against). Exercises the wire shape and the rest of the pipeline; says nothing about fidelity."""
+    against). Exercises the wire shape and the rest of the pipeline; says nothing about fidelity.
+
+    Each answer is a function of the seed, the state and the question alone, never of call order:
+    `schema_server.py --stub` is threaded, so six bots' asks arrive in whatever order the network
+    delivers them, and one shared random stream dealt the same draws to different bots run to run
+    (a seeded stub match played differently every time; `tools/match/test_vocab.mjs`)."""
 
     backend = "stub"  # the "door" a stub decision reports (`run_prediction`)
 
     def __init__(self, seed: int = 20260923):
-        self._rng = random.Random(seed)
+        self._seed = seed
+
+    def _noul(self, state, q) -> float:
+        key = json.dumps([self._seed, state, q.id, q.instructions, q.criteria], sort_keys=True, default=str)
+        rng = random.Random(int.from_bytes(hashlib.sha256(key.encode("utf-8")).digest()[:8], "big"))
+        return round(rng.uniform(0.1, 0.9), 4)
 
     def ask(self, state, questions: list) -> dict:
-        answers = {q.id: {"noul": round(self._rng.uniform(0.1, 0.9), 4)} for q in questions}
+        answers = {q.id: {"noul": self._noul(state, q)} for q in questions}
         input_tokens = estimate_request_tokens(state, questions)
         return {"model": "stub-jev", "answers": answers, "usage": {"input_tokens": input_tokens, "output_tokens": 0}}
 
 
-def _items_text(keys) -> str:
-    return ", ".join(item_name(k) for k in keys) if keys else "none"
+def _items_text(keys, made_from: bool = False) -> str:
+    """Item names, comma-separated. A tier-2/3 item (late-game spec §7.3; its tier and parts looked up
+    by key across the ruleset files, so this never raises) gets "(tier N)", or with `made_from`
+    "(tier 2, made from A and B)" / "(tier 3, upgraded from C)". A tier-1 item reads as before."""
+    return ", ".join(_item_text(k, made_from) for k in keys) if keys else "none"
+
+
+def _item_text(key, made_from: bool) -> str:
+    tier = item_tier(key)
+    if tier < 2:
+        return item_name(key)
+    parts = [item_name(p) for p in item_from(key)]
+    if not made_from or not parts:
+        return f"{item_name(key)} (tier {tier})"
+    how = "upgraded from" if len(parts) == 1 else "made from"
+    return f"{item_name(key)} (tier {tier}, {how} {join_names(parts)})"
+
+
+def _recipe_clause(entry: dict) -> str:
+    """For a nextItem/shop entry carrying `from` (a recipe or upgrade under a ruleset with recipes):
+    ", an upgrade of its Backline" / ", combining its Road Case and Bass Strings"; else ""."""
+    parts = [item_name(p) for p in entry.get("from") or ()]
+    if not parts:
+        return ""
+    if entry.get("tier", 3 if len(parts) == 1 else 2) >= 3:
+        return f", an upgrade of its {join_names(parts)}"
+    return f", combining its {join_names(parts)}"
+
+
+def _shop_entry_text(entry: dict) -> str:
+    parts = [item_name(p) for p in entry.get("from") or ()]
+    if not parts:
+        return f"{item_name(entry['item'])} ({entry['cost']} gold)"
+    if entry.get("tier", 3 if len(parts) == 1 else 2) >= 3:
+        return f"{item_name(entry['item'])} ({entry['cost']} gold to upgrade {join_names(parts)})"
+    return f"{item_name(entry['item'])} ({entry['cost']} gold to combine {join_names(parts)})"
 
 
 def _death_clause(loss: int, payout: int) -> str:
@@ -134,7 +179,7 @@ def _economy_self_sentences(self_: dict) -> list[str]:
             text += f", and killing it is worth {self_['bounty']} gold to the enemy team"
         out.append(text + ".")
     if "items" in self_:
-        text = f"Items: {_items_text(self_['items'])}"
+        text = f"Items: {_items_text(self_['items'], made_from=True)}"
         if "slotsFree" in self_:
             text += f" ({self_['slotsFree']} of {self_['slotsFree'] + len(self_['items'])} slots free)"
         out.append(text + ".")
@@ -145,7 +190,7 @@ def _economy_self_sentences(self_: dict) -> list[str]:
         else:
             can = self_.get("gold", 0) >= nxt["cost"]
             out.append(
-                f"Next on its shopping list: {item_name(nxt['item'])}, {nxt['cost']} gold -- "
+                f"Next on its shopping list: {item_name(nxt['item'])}{_recipe_clause(nxt)}, {nxt['cost']} gold -- "
                 + ("it can afford it now." if can else "it cannot afford it yet.")
             )
     if "atShop" in self_:
@@ -190,6 +235,9 @@ def _describe_vocab1(obs: dict) -> str:
     `respawning` and `shop`), a sentence or two per field group is added after the matching part of
     the description, so a condition like "can it afford its next item?" or "is an enemy respawning?"
     is answerable from the text. An observation without those fields is described exactly as before.
+    Under a ruleset with recipes (`docs/late-game-economy-spec.md` §7.3) a tier-2/3 item is named with
+    its tier (and, for this bot's own items, what it is made from), and a next item or shop entry
+    carrying `from` says it combines or upgrades those parts; tier-1 items read exactly as before.
 
     RIVER OBJECTIVE. The Bandstand's lines come last (`_bandstand_lines`, §9.7); an observation
     without a `bandstand` block gets the single line "There is no Bandstand in this match." The one
@@ -251,7 +299,7 @@ def _describe_vocab1(obs: dict) -> str:
     for r in obs.get("respawning") or ():
         parts.append(f"{'Ally' if r['team'] == self_['team'] else 'Enemy'} {r['id']} respawns in {_seconds(r['inSec'])} s.")
     if obs.get("shop"):
-        parts.append("The base shop sells: " + ", ".join(f"{item_name(i['item'])} ({i['cost']} gold)" for i in obs["shop"]) + ".")
+        parts.append("The base shop sells: " + ", ".join(_shop_entry_text(i) for i in obs["shop"]) + ".")
     parts.extend(_bandstand_lines(obs))
     return " ".join(parts)
 

@@ -325,5 +325,65 @@ class DescribeObservationEconomyTests(unittest.TestCase):
         self.assertIn("Nothing is left on its shopping list to buy.", text)
 
 
+
+def _late_obs(**self_over):
+    """An eco-3-late observation (docs/late-game-economy-spec.md §7.3): items of any tier, `nextItem`
+    and `shop` entries carrying `tier` (and `from` for a recipe or upgrade)."""
+    obs = _economy_obs(**{"level": 7, "xpToNext": 110, "items": ["backline", "metronome"], "slotsFree": 1,
+                          "nextItem": {"item": "wall-of-sound", "cost": 400, "tier": 3, "from": ["backline"]}, **self_over})
+    obs["allies"][0].update(items=["click-track"])
+    obs["visibleEnemies"][0].update(level=7, items=["arpeggiator", "amp"])
+    obs["shop"] = [{"item": "amp", "cost": 350, "tier": 1},
+                   {"item": "backline", "cost": 250, "tier": 2, "from": ["road-case", "bass-strings"]},
+                   {"item": "wall-of-sound", "cost": 400, "tier": 3, "from": ["backline"]}]
+    return obs
+
+
+class DescribeObservationLateGameTests(unittest.TestCase):
+    def test_own_items_name_their_tier_and_parts(self):
+        text = FH.describe_observation(_late_obs())
+        self.assertIn("Items: Backline (tier 2, made from Road Case and Bass Strings), Metronome (1 of 3 slots free).", text)
+        text = FH.describe_observation(_late_obs(items=["wall-of-sound", "arpeggiator", "amp"], slotsFree=0))
+        self.assertIn("Items: Wall of Sound (tier 3, upgraded from Backline), Arpeggiator (tier 3, upgraded from Click Track), "
+                      "Amp (0 of 3 slots free).", text)
+
+    def test_next_item_says_upgrade_or_combine(self):
+        text = FH.describe_observation(_late_obs())
+        self.assertIn("Next on its shopping list: Wall of Sound, an upgrade of its Backline, 400 gold -- it cannot afford it yet.", text)
+        text = FH.describe_observation(_late_obs(gold=260, nextItem={"item": "backline", "cost": 250, "tier": 2, "from": ["road-case", "bass-strings"]}))
+        self.assertIn("Next on its shopping list: Backline, combining its Road Case and Bass Strings, 250 gold -- it can afford it now.", text)
+
+    def test_a_tier_1_next_item_reads_as_before(self):
+        text = FH.describe_observation(_late_obs(nextItem={"item": "amp", "cost": 350, "tier": 1}))
+        self.assertIn("Next on its shopping list: Amp, 350 gold -- it cannot afford it yet.", text)
+
+    def test_allies_and_enemies_name_the_tier(self):
+        text = FH.describe_observation(_late_obs())
+        self.assertIn("Ally bb-2 (level 2, items: Click Track (tier 2)) carries 120 gold.", text)
+        self.assertIn("Enemy bb-5 (level 7, items: Arpeggiator (tier 3), Amp) is worth 410 gold if killed.", text)
+
+    def test_the_shop_says_what_a_recipe_or_upgrade_takes(self):
+        text = FH.describe_observation(_late_obs())
+        self.assertIn("The base shop sells: Amp (350 gold), Backline (250 gold to combine Road Case and Bass Strings), "
+                      "Wall of Sound (400 gold to upgrade Backline).", text)
+
+    def test_level_8_is_the_highest_level(self):
+        text = FH.describe_observation(_late_obs(level=8, xp=1010, xpToNext=None))
+        self.assertIn("This bearbot is level 8 (the highest level).", text)
+
+    def test_a_tier_field_alone_changes_nothing(self):
+        # eco-3-late's tier-1 entries carry "tier": 1; they must read exactly as an older ruleset's
+        old = _economy_obs()
+        new = json.loads(json.dumps(old))
+        new["self"]["nextItem"]["tier"] = 1
+        for entry in new["shop"]:
+            entry["tier"] = 1
+        self.assertEqual(FH.describe_observation(new), FH.describe_observation(old))
+
+    def test_unknown_keys_never_raise(self):
+        text = FH.describe_observation(_late_obs(items=["mystery-item"], slotsFree=2, nextItem={"item": "nope", "cost": 5, "tier": 2, "from": ["huh", "what"]}))
+        self.assertIn("Items: mystery-item (2 of 3 slots free).", text)
+        self.assertIn("Next on its shopping list: nope, combining its huh and what, 5 gold", text)
+
 if __name__ == "__main__":
     unittest.main()

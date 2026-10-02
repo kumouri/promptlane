@@ -45,7 +45,7 @@ export { jevTeamTracingPilot } from './jevTeamPilot';
 export { DEFAULT_TARGETING, FIRST_MIN, OWN_LANE_1, TARGETINGS, jevSchemaTracingPilot, resolveTargeting, targetingUnsupported } from './jevSchemaPilot';
 export { DEFAULT_VOCAB, VOCAB_1, VOCAB_2, VOCABS, schemaVocab, vocabUnsupported, vocabsOf } from './jevSchemaPilot';
 export { DEFAULT_MAP, MAP_VARIANTS, PVP_MAP, SPECIMEN_MAP, laneCoverage, resolveMap } from '../../src/mapVariant';
-export { DEFAULT_ECONOMY, ECONOMY_RULESETS, ECO_1, ECO_2, ECO_3, RESPAWN_ONLY, attachEconomy, getEconomy, resolveBuild, resolveEconomy } from '../../src/economy';
+export { DEFAULT_ECONOMY, ECONOMY_RULESETS, ECO_1, ECO_2, ECO_3, ECO_3_LATE, RESPAWN_ONLY, attachEconomy, expandBuild, getEconomy, hasRecipes, itemTier, resolveBuild, resolveEconomy, totalCost } from '../../src/economy';
 export { DEFAULT_OBJECTIVE, OBJECTIVES, RIVER_1, RIVER_2, RIVER_2_SET10, attachObjective, getObjective, resolveObjective } from '../../src/objective';
 export { DEFAULT_RECALL, RECALL_2, RECALL_RULES, attachRecall, getRecall, recallTotals, resolveRecall } from '../../src/recall';
 export { setRewardSink } from '../../src/ruleset/rewards';
@@ -91,7 +91,7 @@ export interface RunOptions {
   map?: string | MapVariant;
   /**
    * Economy ruleset (`src/economy.ts`) — a name such as `'eco-2'`, a ruleset object, or `'none'`.
-   * Default: `DEFAULT_ECONOMY` (none until the Sun 10-04 gate). Recorded in the log, with every
+   * Default: `DEFAULT_ECONOMY` (none until the go/no-go gate). Recorded in the log, with every
    * bot's shopping list, as `economy`; a match without one writes no `economy` field at all.
    */
   economy?: string | EconomyRuleset | null;
@@ -102,7 +102,7 @@ export interface RunOptions {
   buildFor?: (botIndex: number) => readonly string[] | null | undefined;
   /**
    * River objective (`src/objective.ts`) — a name such as `'river-1'`, a ruleset object, or `'none'`.
-   * Default: `DEFAULT_OBJECTIVE` (none until the Sun 10-04 gate). Recorded in the log as `objective`;
+   * Default: `DEFAULT_OBJECTIVE` (none until the go/no-go gate). Recorded in the log as `objective`;
    * a match without one writes no `objective` field, so its log is exactly what it was before.
    */
   objective?: string | ObjectiveRules | null;
