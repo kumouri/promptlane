@@ -49,7 +49,8 @@ options:
   --b-schemas FILE    {"drums":…,"keytar":…,"violin":…}; needs --jev-schema
   --jev-schema URL    tools/jev/schema_server.py endpoint for the schema sides (the Jam backend)
   --map NAME          map variant (src/mapVariant.ts): pvp-1 (the default, DEFAULT_MAP there),
-                      v1 (the specimen map), pvp-1r, or pvp-2 (opt-in: the world x1.33, new tower
+                      v1 (the specimen map), pvp-1r, pvp-1-hp400 (pvp-1 with outer towers at 400 hp
+                      and inner at 600, opt-in), or pvp-2 (opt-in: the world x1.33, new tower
                       spots, an out-of-base speed boost and a teleport to a friendly tower; needs
                       the simultaneous-1 resolution, and is meant to be played with --recall
                       recall-2); recorded in the log, applied on --verify

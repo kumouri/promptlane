@@ -49,6 +49,13 @@ export interface MapVariant {
   homeguard?: HomeguardRules;
   /** Teleport to a friendly tower, every bot's extra ability (`src/teleport.ts`). Absent = none. */
   teleport?: TeleportRules;
+  /**
+   * Tower hp (and maxHp) at the start: [tier 1 (inner), tier 2 (outer)]. Absent = the specimen's 900
+   * for both, and the towers' hp is not touched, so a log recorded without it replays unchanged.
+   */
+  towerHp?: [number, number];
+  /** Nexus hp (and maxHp) at the start. Absent = the specimen's 2200, not touched. */
+  nexusHp?: number;
 }
 
 /** The specimen's own map, exactly as `sim/map.ts` and `sim/entities.ts` build it. */
@@ -84,11 +91,22 @@ export const PVP_2_MAP: MapVariant = {
   teleport: TELEPORT_1,
 };
 
+/**
+ * pvp-1 with the towers' hp cut (opt-in, 2026-10-02): outer towers 400, inner 600, nexus unchanged
+ * at 2200. On pvp-1 at 900 no tower fell before the Final Chorus's 8:00 in any recorded Jev match.
+ * The weakest outer tower had lost a median of about 430 by 7:59, and no inner tower or nexus had
+ * been touched. Outer 400 is the knee: the cut that puts the first tower down before 8:00 in about
+ * half the matches. Inner 600 keeps an inner tower tougher than the outer one in front of it.
+ * See runs/tower-hp-2026-10-02.md.
+ */
+export const PVP_TOWER_HP_MAP: MapVariant = { ...PVP_MAP, name: 'pvp-1-hp400', towerHp: [600, 400] };
+
 export const MAP_VARIANTS: Record<string, MapVariant> = {
   [SPECIMEN_MAP.name]: SPECIMEN_MAP,
   [PVP_MAP.name]: PVP_MAP,
   [PVP_SHORT_RANGE_MAP.name]: PVP_SHORT_RANGE_MAP,
   [PVP_2_MAP.name]: PVP_2_MAP,
+  [PVP_TOWER_HP_MAP.name]: PVP_TOWER_HP_MAP,
 };
 
 /**
@@ -127,8 +145,9 @@ export function towerPos(variant: MapVariant, lane: Lane, team: Team, tier: 1 | 
 export const LANE_SPAWN_T = 0.08;
 
 /**
- * Move and re-range the towers of a match that has not ticked yet. A no-op on the specimen map, so
- * a v1 match is bit-identical whether or not this is called.
+ * Move and re-range the towers of a match that has not ticked yet, and set the structures' hp when
+ * the variant carries it (`towerHp`, `nexusHp`). A no-op on the specimen map, so a v1 match is
+ * bit-identical whether or not this is called.
  *
  * On a scaled variant it also moves the nexuses and the bearbots to the scaled world, registers the
  * geometry on the match (`src/geometry.ts`), and wraps the sim's minion-wave step so each new
@@ -142,7 +161,9 @@ export function applyMapVariant(match: Match, variant: MapVariant): void {
     t.pos.x = p.x;
     t.pos.y = p.y;
     t.attackRange = variant.towerRange;
+    if (variant.towerHp) t.hp = t.maxHp = variant.towerHp[t.tier - 1];
   }
+  if (variant.nexusHp != null) for (const n of match.nexuses) n.hp = n.maxHp = variant.nexusHp;
   const scale = variant.scale ?? 1;
   if (scale === 1) return;
   const geo = variantGeometry(variant);
