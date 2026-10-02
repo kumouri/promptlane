@@ -553,3 +553,25 @@ only; vocab-1's prompt and guard are byte for byte as before.
   override words (§2 of the run).
 
 The evidence and the free recompiles are in `runs/vocab2-node-cap-2026-10-02.md`.
+
+### 8.5 A shopping list is the build, never a rule
+
+A shopping line ("Drums: Road Case, then Bass Strings, then Metronome") sometimes also compiled into
+rules: "is this bot at its base? → go home" once per item, or "can this bot afford the Amp? → go
+home". The first holds the bot at its fountain for as long as it stands there. Under `vocab-2`,
+`translator.enforce_shopping_list` runs after the instrument-scope guard and before the priority
+guard:
+
+- A **pure shopping sentence** is item names and ordering words only ("buy an amp first, then a
+  road case"). "I buy an Amp when I can afford it" is a rule, not a list.
+- A rule **restates** one if it asks about an item no other sentence names, unless it asks about the
+  "next item" (that is "when I can afford my next item…"). It also restates one if it asks only
+  whether the bot is at its base, moves home or holds, has a shop or buy id, and no other sentence
+  speaks of the base.
+- Such a rule is dropped, with a `build:` note the entrant sees under "Shopping list — what was
+  changed". If `build` is missing too, the reply is rejected, and the retry quotes the shopping line.
+- A `build` action kind gets a retry message saying where the list goes.
+
+The prompt says nothing new. A line that forbade the "at its base" rule, quoting it, made the
+translator write it in 6 of 12 compiles. vocab-1 is unchanged. The evidence and the free recompiles
+are in `runs/vocab2-shopping-not-rules-2026-10-02.md`.

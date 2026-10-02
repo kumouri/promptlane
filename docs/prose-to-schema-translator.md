@@ -236,7 +236,10 @@ Strings → Road Case (from your prose)" or "(default for keytar — your prose 
 `describe_observation` (`fidelity_harness.py`) states the economy fields (`gold`, `level`, items,
 bounty, respawns, ...) in plain sentences whenever an observation carries them, so a rule such as
 "can this bot afford its next item?" is answerable. Observations without those fields are described
-byte-for-byte as before. See `docs/economy-spec.md` §4.1, §4.3 and §4.5.
+byte-for-byte as before. See `docs/economy-spec.md` §4.1, §4.3 and §4.5. Under vocab-2 a shopping
+list is `build` only: `translator.enforce_shopping_list` drops a rule that restates a pure shopping
+sentence ("is this bot at its base? → home" per item) with a `build:` note, or rejects the reply for
+a retry when `build` is missing (`docs/vocabulary-spec.md` §8.5).
 
 **Recipe rulesets (`eco-3-late`).** When the ruleset has recipes (any item with a `from`), the items
 block groups items by tier with what each is made from, and asks for `build` as the items in the
