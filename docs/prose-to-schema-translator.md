@@ -145,6 +145,16 @@ touching a JSON schema. **Whether they reliably *would* is untested** — this m
 user study; it only establishes that the artifact exists and is legible, and shows one concrete case
 (§4.2) where a careful read of exactly this kind of table would catch a real bug.
 
+**Design priority: fidelity (Ceryce, 2026-10-02 15:14 CT).** "The most important part of this whole
+thing is the translation from prose to Jev. It HAS to be right." The 9B translator is sampled, so a
+legible table is not enough by itself. Deterministic checks after the model reject any schema that
+says something the prose doesn't. Each check's retry quotes only the prose, never the model's own
+wrong output, because the 9B copies that back. If the last attempt is still wrong, the offending part
+is dropped with a note the entrant sees, never shipped. The rulings made under this priority:
+- **Guards (16:20 CT):** a `vocab-2` guard may only sit above rules the prose places under its
+  verdict. See `docs/translator-guards-and-defaults-spec.md` §2.2 and `docs/vocabulary-spec.md`
+  §8.10.
+
 **Follow-up, `docs/translator-transparency.md`:** adds per-rule provenance (which prose sentence a
 rule came from), an explicit "what was dropped" view, and a working prose-revision loop built on the
 keytar bug diagnosed in §4.2 below — read that memo for the full transparency design and the jam-rule
@@ -223,6 +233,12 @@ when a rule's question asks only whether a thing IS there ("is there any enemy w
 but the rule's own id or its prose sentence says it is NOT ("no enemy is in sight"). The retry quotes
 the sentence. On the last attempt the rule is dropped with a `negation:` note instead. A question that
 keeps its "no" or "not" is never touched. See `docs/vocabulary-spec.md` §8.6.
+
+**Guard-scope check, vocab-2 only, added 2026-10-02.** `translator.enforce_guard_scope` rejects a
+reply in which a guard has any node after it, because a guard always routes, so those nodes are never
+checked. It also rejects one in which a guard's branches hold a node from prose outside its verdict.
+The retry quotes those nodes' sentences. On the last attempt the guard is flattened instead, with a
+`guard scope:` note. See `docs/vocabulary-spec.md` §8.10.
 
 **Shopping list (`build`), added with the economy.** The schema also carries `build`: an ordered
 tuple of at most `shop.slots` unique item keys, or `None` for "the prose names no items" (the

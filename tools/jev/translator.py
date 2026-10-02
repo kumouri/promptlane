@@ -13,6 +13,12 @@ requirement is satisfiable by inspection, not by trusting the translator. See
 an entrant can't read turns "prompt-writing" into "hope the model got it right," which is exactly
 the worry §6 raises about this whole approach.
 
+DESIGN PRIORITY: fidelity (Ceryce, 2026-10-02: the translation from prose to Jev "HAS to be right").
+The model is sampled, so deterministic checks after it reject what the prose doesn't say. Their retries
+quote the prose, never the model's wrong output (the 9B copies it back), and a last attempt that is still
+wrong drops the offending part with a note the entrant sees. Under that priority a vocab-2 guard may only
+sit above rules the prose places under its verdict (`enforce_guard_scope`, GUARD SCOPE below).
+
 MODEL: host Ollama's `qwen3.5:9b` (`$OLLAMA_HOST`, this repo's own `DEFAULT_OLLAMA_MODEL` in
 `tools/model_server.py`) -- already configured in this repo, and free (local inference, no API
 spend), so the translation step's reported cost is real ($0 in dollars, real in wall-clock/tokens --
@@ -59,6 +65,9 @@ NEGATION (vocab-2 only): `enforce_negation` rejects a reply in which a rule asks
 there while the rule's id or its prose sentence says it is NOT ("no enemy is in sight"), and the
 retry quotes the sentence; on the last attempt it drops the rule with a `negation:` note instead.
 The prompt is unchanged here too.
+GUARD SCOPE (vocab-2 only): `enforce_guard_scope` rejects a reply in which a guard has a node after it
+(never checked: a guard always routes) or holds a node from prose outside its verdict; the retry quotes
+those nodes' sentences, and the last attempt flattens the guard with a `guard scope:` note.
 Economy P2 added one target selector,
 `highest_bounty_enemy` (`docs/economy-spec.md` §4.2): "go after the enemy worth the most gold".
 VOCABULARIES (`vocab.py`, `docs/vocabulary-spec.md`): `TARGET_SELECTORS` is vocab-1's list. vocab-2
@@ -962,6 +971,208 @@ def _promote(schema: TranslatedSchema, root_nodes: list, matched_indices: set[in
     )
 
 
+# --- a guard holds only the rules its verdict governs (vocab-2 only) ---------------------------------
+#
+# Ruling (Ceryce, 2026-10-02 16:20 CT, under her 15:14 fidelity ruling): a vocab-2 guard may only sit above
+# rules that the prose actually places under its verdict. A guard sends every decision into one of its two
+# branches, so no node after it in its cascade is ever checked, and a rule inside a branch is checked only on
+# that side of the guard's question. The 9B's guards on the sample entrant ("can this bot afford its next item
+# and is there an enemy bearbot in sight?") held recall, the fights and the pushes, or sat above them as dead
+# rules (runs/vocab2-guard-scope-2026-10-02.md). Under vocab-2 a guard with any node after it, or with a node in
+# a branch from prose outside its verdict, is rejected. The retry quotes only those nodes' prose sentences,
+# never the guard (the 9B copies back what it is shown: #87, #89). On the last attempt the guard is flattened:
+# the nodes from other prose become plain nodes in its place, the ones from its verdict's own prose (which
+# applied only under it) are removed, and a `guard scope:` note says so. The prompt and vocab-1 are unchanged.
+
+GUARD_SCOPE_NOTE_PREFIX = "guard scope:"
+
+# Words nearly every rule's question uses, which say nothing about which verdict a guard asks (after `_stem`).
+_VERDICT_FILLER = frozenset(
+    "enemy enemie opponent foe bearbot bot minion wave creep tower nexus ally allie allied friendly teammate "
+    "sight see seen visible near nearby nearest close closer range inside around there here current currently right now "
+    "itself about can could will would should may might ha have having am i me my we our us you your it t s don doesn isn "
+    "aren cannot".split()
+)
+_OTHERWISE = re.compile(r"^\W*(?:otherwise|else|if\s+not)\b", re.IGNORECASE)
+
+
+class GuardScopeError(SchemaValidationError):
+    """A guard above nodes its prose does not place under its verdict (`enforce_guard_scope`). `translate_pilot`
+    retries it without develop's generic "finish the guard shape" line: this reply has the shape already."""
+
+
+def _stem(token: str) -> str:
+    return token[:-1] if len(token) > 3 and token.endswith("s") and not token.endswith(("ss", "us")) else token
+
+
+def _stems(text: str) -> set[str]:
+    return {_stem(t) for t in _tokenize(text)}
+
+
+def _prose_paragraphs(pilot_text: str) -> list[list[str]]:
+    """`_prose_sentences`, grouped by the paragraph (blank-line block) each is in."""
+    from segment import auto_segments
+
+    paragraphs = []
+    for block in re.split(r"\n\s*\n", pilot_text.replace("\r\n", "\n")):
+        sentences = [text for label, text in auto_segments(block) if label != "boilerplate"]
+        if sentences:
+            paragraphs.append(sentences)
+    return paragraphs
+
+
+def _verdict_scope(guard: GuardNode, paragraphs: list[list[str]]) -> set[int]:
+    """The paragraphs whose prose is placed under `guard`'s verdict: every paragraph with a sentence naming two
+    of the words of the guard's question that most rules don't use (`_VERDICT_FILLER`; "afford", "next" and
+    "item", or "side", "stronger" and "fight"), or all of them when there are fewer; a heading's whole section;
+    the paragraph a line ending in ":" introduces, with the list items that follow it; and an "Otherwise ..."
+    paragraph right after a scoped one. One shared word is not enough: "the next wave" is not about affording
+    the next item."""
+    key = _stems(guard.condition) - _VERDICT_FILLER
+    need = min(2, len(key))
+    scope = {k for k, para in enumerate(paragraphs) if need and any(len(_stems(s) & key) >= need for s in para)}
+    for k in sorted(scope):
+        head = _HEADING.match(paragraphs[k][0])
+        j = k + 1
+        while head and j < len(paragraphs):
+            nxt = _HEADING.match(paragraphs[j][0])
+            if nxt and len(nxt.group(1)) <= len(head.group(1)):
+                break
+            scope.add(j)
+            j += 1
+    for k in range(len(paragraphs) - 1):
+        if k not in scope:
+            continue
+        if paragraphs[k][-1].rstrip().endswith(":"):
+            j = k + 1
+            scope.add(j)
+            while j + 1 < len(paragraphs) and _LIST_ITEM.match(paragraphs[j][0]) and _LIST_ITEM.match(paragraphs[j + 1][0]):
+                j += 1
+                scope.add(j)
+        elif _OTHERWISE.match(paragraphs[k + 1][0]):
+            scope.add(k + 1)
+    return scope
+
+
+def _node_sentences(node: Node, sentences: list[str]) -> set[int]:
+    """The sentence(s) a node states: those sharing the most words with it (its id, and a rule's target,
+    included), at least two. Empty when none does."""
+    if isinstance(node, GuardNode):
+        tokens = _tokenize(" ".join((node.condition, node.criteria_true, node.criteria_false)))
+    else:
+        tokens = _rule_tokens_v2(node)
+    tokens |= _tokenize(node.id.replace("_", " "))
+    scores = [len(tokens & _tokenize(s)) for s in sentences]
+    top = max(scores, default=0)
+    return {i for i, score in enumerate(scores) if score == top} if top >= 2 else set()
+
+
+@dataclass(frozen=True)
+class _Overreach:
+    """A guard the prose does not support, and the nodes it sits above. `after`: the nodes after it, never
+    checked. In its branches, by the sentence(s) each states (`_node_sentences`): `outside`, only sentences
+    outside its verdict; `unclear`, none, or some on each side; `inside`, only sentences of its verdict.
+    `quoted`: the sentences outside its verdict that those nodes state, for the retry."""
+
+    guard: GuardNode
+    after: tuple
+    outside: tuple
+    unclear: tuple
+    inside: tuple
+    quoted: tuple
+
+
+def _overreach(guard: GuardNode, after: tuple, paragraphs: list[list[str]]) -> _Overreach | None:
+    sentences = [s for para in paragraphs for s in para]
+    scope = _verdict_scope(guard, paragraphs)
+    in_scope = {i for i, k in enumerate(k for k, para in enumerate(paragraphs) for _ in para) if k in scope}
+    outside, unclear, inside = [], [], []
+    for node in guard.then.nodes + guard.else_.nodes:
+        own = _node_sentences(node, sentences)
+        (inside if own and own <= in_scope else outside if own and not own & in_scope else unclear).append(node)
+    if not after and not outside and not unclear:
+        return None
+    quoted = sorted({i for n in (*after, *outside, *unclear) for i in _node_sentences(n, sentences)} - in_scope)
+    return _Overreach(guard, tuple(after), tuple(outside), tuple(unclear), tuple(inside), tuple(quoted))
+
+
+def enforce_guard_scope(schema: TranslatedSchema, pilot_text: str, drop: bool = False) -> TranslatedSchema:
+    """vocab-2 only (vocab-1 gets `schema` back). When a guard anywhere in the tree has a node after it in its
+    cascade, or a node in a branch whose prose sentence is outside its verdict (`_overreach`), raises
+    `GuardScopeError`, which `translate_pilot` retries; the message quotes those nodes' prose sentences, never
+    the guard. With `drop` (`translate_pilot`'s last attempt) every such guard is flattened instead: its
+    branches' nodes from other prose take its place as plain nodes, the ones from its verdict's prose and its
+    branches' defaults are removed, each guard with a `guard scope:` note the entrant sees, and it raises only
+    if nothing would be left at the root. A schema whose guards hold only their verdict's rules, at the end of
+    their cascade, is returned as it came."""
+    if schema.vocab != VOCAB_2:
+        return schema
+    paragraphs = _prose_paragraphs(pilot_text)
+    sentences = [s for para in paragraphs for s in para]
+    found: list[_Overreach] = []
+
+    def walk(cascade: Cascade) -> Cascade:
+        nodes: list[Node] = []
+        for i, node in enumerate(cascade.nodes):
+            if not isinstance(node, GuardNode):
+                nodes.append(node)
+                continue
+            node = dataclasses.replace(node, then=walk(node.then), else_=walk(node.else_))
+            over = _overreach(node, cascade.nodes[i + 1:], paragraphs)
+            if over is None:
+                nodes.append(node)
+                continue
+            found.append(over)
+            taken = {n.id for n in nodes} | {n.id for n in cascade.nodes[i + 1:]}
+            for n in over.outside:
+                if n.id not in taken:
+                    nodes.append(n)
+                    taken.add(n.id)
+        return Cascade(nodes=tuple(nodes), default=cascade.default)
+
+    new_root = walk(schema.root)
+    if not found:
+        return schema
+    if drop:
+        seen = len(found)
+        while new_root.nodes:  # a flattened guard can put a nested guard above nodes of its own; check again
+            new_root = walk(new_root)
+            if len(found) == seen:
+                break
+            seen = len(found)
+    if not drop or not new_root.nodes:
+        quoted = found[0].quoted
+        msg = ("a guard sends every decision into one of its two branches: no rule after it is ever checked, and a rule inside "
+               "it is checked only on one side of its question. ")
+        if quoted:
+            msg += ("The prose does not place these sentences under that question: "
+                    + "; ".join(f'"{" ".join(sentences[i].split())[:200]}"' for i in quoted[:3])
+                    + (f" (and {len(quoted) - 3} more)" if len(quoted) > 3 else "") + ". ")
+        raise GuardScopeError(msg + 'Write plain rules instead, each with its own "action", in the order the prose gives them')
+
+    def ids(nodes) -> str:
+        return ", ".join(n.id for n in nodes)
+
+    notes = []
+    for over in found:
+        why = [f"the {len(over.after)} node(s) after it ({ids(over.after)}) were never checked"] if over.after else []
+        if over.outside or over.unclear:
+            why.append(f"its branches held {len(over.outside) + len(over.unclear)} node(s) "
+                       f"({ids(over.outside + over.unclear)}) that your prose does not place under its question")
+        removed = over.inside + over.unclear
+        notes.append(
+            f'{GUARD_SCOPE_NOTE_PREFIX} removed the guard {over.guard.id} ("{over.guard.condition}"). A guard sends every decision '
+            f"into one of its two branches, and here {' and '.join(why)}. "
+            + (f"The ones from other sentences of your prose ({ids(over.outside)}) now stand in its place as plain rules. "
+               if over.outside else "")
+            + (f"Removed with it: {ids(removed)}, which your prose does not clearly state apart from its question, and its "
+               "branches' defaults. "
+               if removed else "Its branches' defaults were removed with it. ")
+            + "Every translation put rules under it that your prose does not; rewording the prose may help."
+        )
+    return dataclasses.replace(schema, root=new_root, rules=(), validation_notes=schema.validation_notes + tuple(notes))
+
+
 # --- a shopping list is the build, never a rule (vocab-2 only) --------------------------------------
 #
 # "Drums: Road Case, then Bass Strings, then Metronome" belongs in `build`. The 9B translator sometimes
@@ -1610,11 +1821,12 @@ def translate_pilot(
             if scope_notes or guard_notes:
                 schema = dataclasses.replace(schema, validation_notes=schema.validation_notes + guard_notes + scope_notes)
             schema = enforce_instrument_scope(schema, instrument, primary_ability, ultimate_ability, teleport=teleport)
+            schema = enforce_guard_scope(schema, scoped.text, drop=last)
             schema = enforce_shopping_list(schema, scoped.text)
             schema = enforce_identity_rules(schema, scoped.text, drop=last)
             schema = enforce_negation(schema, scoped.text, drop=attempt == max_attempts - 1)
             return enforce_absolute_priority(schema, scoped.text)
-        except UnfinishedGuardError as err:
+        except (UnfinishedGuardError, GuardScopeError) as err:
             last_err = err
             prompt = (
                 _translation_prompt(scoped.text, instrument, primary_ability, ultimate_ability, vocab, economy=economy, map_=map_)
@@ -1749,15 +1961,20 @@ def render_markdown(schema: TranslatedSchema) -> str:
     identity_notes = [n for n in schema.validation_notes if n.startswith(IDENTITY_NOTE_PREFIX)]
     unfinished_notes = [n for n in schema.validation_notes if n.startswith(UNFINISHED_GUARD_NOTE_PREFIX)]
     negation_notes = [n for n in schema.validation_notes if n.startswith(NEGATION_NOTE_PREFIX)]
+    guard_scope_notes = [n for n in schema.validation_notes if n.startswith(GUARD_SCOPE_NOTE_PREFIX)]
     priority_notes = [n for n in schema.validation_notes
                       if n not in scope_notes and n not in build_notes and n not in target_notes
-                      and n not in identity_notes and n not in unfinished_notes and n not in negation_notes]
+                      and n not in identity_notes and n not in unfinished_notes and n not in negation_notes
+                      and n not in guard_scope_notes]
     if priority_notes:
         lines += ["", "**Automatic priority fixes applied to this schema:**", ""]
         lines += [f"- {note}" for note in priority_notes]
     if unfinished_notes:
         lines += ["", "**Unfinished guards -- what was removed:**", ""]
         lines += [f"- {note}" for note in unfinished_notes]
+    if guard_scope_notes:
+        lines += ["", "**Guards over rules your prose does not put under them -- what was removed:**", ""]
+        lines += [f"- {note}" for note in guard_scope_notes]
     if identity_notes:
         lines += ["", "**Rules about which bearbot this is -- what was removed:**", ""]
         lines += [f"- {note}" for note in identity_notes]

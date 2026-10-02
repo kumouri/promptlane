@@ -250,6 +250,14 @@ class ShoppingListLineTests(unittest.TestCase):
         self.assertIn(f"- {note}", text)
         self.assertNotIn("Automatic priority fixes", text)
 
+    def test_guard_scope_notes_get_their_own_section(self):
+        note = ('guard scope: removed the guard guard_shop_or_fight ("can this bot afford its next item?"). A guard sends every '
+                "decision into one of its two branches, and here the 8 node(s) after it (recall) were never checked.")
+        text = self._render(self._schema("keytar", ("amp",), (note,)))
+        self.assertIn("## Guards over rules your prose does not put under them — what was removed", text)
+        self.assertIn(f"- {note}", text)
+        self.assertNotIn("Automatic priority fixes", text)
+
 
 class RecipeShoppingListLineTests(unittest.TestCase):
     """Under a ruleset with recipes the line is the plan the match will buy, parts filled in, with

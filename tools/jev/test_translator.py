@@ -4,6 +4,7 @@ from __future__ import annotations
 import dataclasses
 import json
 import os
+import re
 import sys
 import unittest
 
@@ -1342,6 +1343,236 @@ class UnfinishedGuardTests(unittest.TestCase):
         self.assertIn("**Unfinished guards -- what was removed:**", md)
         self.assertIn("unfinished guard: removed guard_shop_priority", md)
         self.assertNotIn("**Automatic priority fixes applied to this schema:**", md)
+
+
+GUARD_SCOPE = json.loads(open(os.path.join(os.path.dirname(__file__), "testdata", "guard_scope.json"), encoding="utf-8").read())
+PUSH_LANE = {"kind": "move", "ability": None, "target_selector": "push_lane"}
+STRONGER = "is this bot's side stronger in the fight near it?"
+
+
+def _saved_guard(index: int) -> tuple[T.TranslatedSchema, str]:
+    from compile import schema_from_dict
+
+    case = GUARD_SCOPE["schemas"][index]
+    return schema_from_dict(case["schema"]), T.scope_to_instrument(GUARD_SCOPE["prose"], case["instrument"]).text
+
+
+def _node(rid, condition, kind="attack", ability=None, target="lowest_hp_enemy"):
+    return {"id": rid, "condition": condition, "criteria": {"true": "yes", "false": "no"},
+            "action": {"kind": kind, "ability": ability, "target_selector": target}}
+
+
+def _guard(rid, condition, then, else_, then_default=None, else_default=None):
+    return {"type": "guard", "id": rid, "condition": condition, "criteria": {"true": "yes", "false": "no"},
+            "then": {"nodes": then, "default_action": then_default}, "else": {"nodes": else_, "default_action": else_default}}
+
+
+def _tree(*nodes) -> T.TranslatedSchema:
+    return T.parse_schema({"rules": list(nodes), "default_action": PUSH_LANE}, "p.md", "violin", "raw", "vocab-2")
+
+
+RECALL_RULE = _node("recall_low", "is this bot's hp below a quarter of its max?", "recall", target=None)
+STACCATO_RULE = _node("staccato_lowest", "is staccato ready and is an enemy bearbot in sight?", "ability", "staccato")
+FALL_BACK_RULE = _node("fall_back_own_tower", "is an enemy bearbot in sight?", "move", target="own_tower")
+ATTACK_LOWEST = {"kind": "attack", "ability": None, "target_selector": "lowest_hp_enemy"}
+TO_OWN_TOWER = {"kind": "move", "ability": None, "target_selector": "own_tower"}
+RECALL_LINE = "Recall the moment your hp drops below a quarter of your max, no matter what."
+VERDICT_PARAGRAPH = ("You only take fights you can win. When your side is stronger in the fight near you, play staccato on the enemy "
+                     "with the lowest hp when it is ready, and otherwise attack the enemy with the lowest hp. When your side is "
+                     "weaker, fall back to your own tower.")
+
+
+class GuardScopeTests(unittest.TestCase):
+    """vocab-2: a guard may only sit above rules the prose places under its verdict (Ceryce, 2026-10-02 16:20 CT;
+    runs/vocab2-guard-scope-2026-10-02.md). Fixtures: every typed guard in the #84-#89 data prereleases, verbatim."""
+
+    def test_every_saved_guard_is_rejected_quoting_only_prose(self):
+        prose_sentences = set(T._prose_sentences(GUARD_SCOPE["prose"]))
+        for i, case in enumerate(GUARD_SCOPE["schemas"]):
+            schema, prose = _saved_guard(i)
+            guard = next(n for n in T.collect_nodes(schema.root) if isinstance(n, T.GuardNode))
+            with self.subTest(case["pr"] + " " + case["sample"] + " " + case["instrument"]):
+                with self.assertRaises(T.GuardScopeError) as err:
+                    T.enforce_guard_scope(schema, prose)
+                msg = str(err.exception)
+                self.assertTrue(msg.startswith("a guard sends every decision into one of its two branches"), msg)
+                self.assertTrue(msg.endswith('Write plain rules instead, each with its own "action", in the order the prose gives them'))
+                # never the model's own output: not the guard's question, not its id (#87, #89: the 9B copies it back)
+                self.assertNotIn(guard.condition, msg)
+                self.assertNotIn(guard.id, msg)
+                quoted = re.findall(r'"([^"]+)"', msg.split("under that question: ")[1].split(". Write plain rules")[0])
+                self.assertTrue(quoted)
+                for q in quoted:
+                    self.assertIn(q, {" ".join(s.split()) for s in prose_sentences})
+
+    def test_the_typed_guard_from_89s_retry_ab_is_rejected(self):
+        case = GUARD_SCOPE["replies"][0]
+        schema = T.parse_schema(T._extract_json_object(case["reply"]), "p.md", case["instrument"], "raw", "vocab-2", economy="eco-3-late")
+        self.assertIsInstance(schema.root.nodes[0], T.GuardNode)
+        with self.assertRaises(T.GuardScopeError):
+            T.enforce_guard_scope(schema, T.scope_to_instrument(GUARD_SCOPE["prose"], case["instrument"]).text)
+
+    def test_on_the_last_attempt_the_guard_is_flattened_with_a_note(self):
+        for i, case in enumerate(GUARD_SCOPE["schemas"]):
+            schema, prose = _saved_guard(i)
+            with self.subTest(case["pr"] + " " + case["sample"] + " " + case["instrument"]):
+                fixed = T.enforce_guard_scope(schema, prose, drop=True)
+                self.assertFalse([n for n in T.collect_nodes(fixed.root) if isinstance(n, T.GuardNode)])
+                notes = fixed.validation_notes[len(schema.validation_notes):]
+                self.assertEqual(len(notes), 1)
+                self.assertTrue(notes[0].startswith("guard scope: removed the guard "), notes[0])
+                self.assertEqual(fixed.root.default, schema.root.default)
+                self.assertEqual(fixed.build, schema.build)
+                # the dead rules after the guard come back, in their order
+                index = next(k for k, n in enumerate(schema.root.nodes) if isinstance(n, T.GuardNode))
+                after = [n.id for n in schema.root.nodes[index + 1:]]
+                ids = [n.id for n in fixed.root.nodes]
+                self.assertEqual(ids[len(ids) - len(after):] if after else [], after)
+
+    def test_flattening_keeps_the_rules_of_other_sentences_and_drops_the_verdicts_own(self):
+        schema, prose = _saved_guard(0)  # #84 variant2 s1 keytar: one guard, every rule in its branches
+        fixed = T.enforce_guard_scope(schema, prose, drop=True)
+        self.assertEqual([n.id for n in fixed.root.nodes],
+                         ["recall_if_low_hp", "push_or_attack_tower", "attack_tower_if_one_minion", "chord_ready_lowest_hp",
+                          "attack_highest_bounty", "push_if_one_dead", "attack_enemy_minion", "walk_with_minion"])
+        note = fixed.validation_notes[-1]
+        self.assertIn("Removed with it: go_home_shop", note)  # "enemy tower in sight? -> home" applied only under the guard
+        md = T.render_markdown(fixed)
+        self.assertIn("**Guards over rules your prose does not put under them -- what was removed:**", md)
+        self.assertNotIn("Automatic priority fixes", md)
+
+    def test_drop_still_raises_when_nothing_would_be_left(self):
+        # recall is stated nowhere in this prose, so it is unclear and goes with the guard, and so does staccato
+        schema = _tree(_guard("can_win", STRONGER, [STACCATO_RULE, RECALL_RULE], []))
+        with self.assertRaises(T.GuardScopeError):
+            T.enforce_guard_scope(schema, VERDICT_PARAGRAPH, drop=True)
+
+    def test_guards_the_prose_does_scope_are_returned_untouched(self):
+        cases = {
+            "the verdict's own paragraph": (f"{RECALL_LINE}\n\n{VERDICT_PARAGRAPH}",
+                                            _tree(RECALL_RULE, _guard("can_win", STRONGER, [STACCATO_RULE], [], ATTACK_LOWEST, TO_OWN_TOWER))),
+            "paragraphs that restate the verdict": (
+                f"{RECALL_LINE}\n\nYou only take fights you can win.\n\n"
+                "When your side is stronger in the fight near you, play staccato on the enemy with the lowest hp when it is ready.\n\n"
+                "When your side is weaker in the fight near you and an enemy bearbot is in sight, fall back to your own tower.",
+                _tree(RECALL_RULE, _guard("can_win", STRONGER, [STACCATO_RULE], [FALL_BACK_RULE]))),
+            "a heading's section, with its otherwise": (
+                f"{RECALL_LINE}\n\n## Fights: only when my side is stronger\nPlay staccato on the enemy with the lowest hp when it is "
+                "ready.\n\nOtherwise attack the enemy with the lowest hp.\n\n## Shopping\nBuy an Amp first.",
+                _tree(RECALL_RULE, _guard("can_win", STRONGER, [STACCATO_RULE], [], ATTACK_LOWEST, TO_OWN_TOWER))),
+            "a lead-in and its list": (
+                f"{RECALL_LINE}\n\nWhen my side is stronger in the fight near me:\n\n"
+                "- play staccato on the enemy with the lowest hp when it is ready\n\n- attack the enemy with the lowest hp",
+                _tree(RECALL_RULE, _guard("can_win", STRONGER, [STACCATO_RULE], [], ATTACK_LOWEST, TO_OWN_TOWER))),
+            "no rules under it at all": (VERDICT_PARAGRAPH, _tree(RECALL_RULE, _guard("can_win", STRONGER, [], [], ATTACK_LOWEST, TO_OWN_TOWER))),
+        }
+        for name, (prose, schema) in cases.items():
+            with self.subTest(name):
+                self.assertIs(T.enforce_guard_scope(schema, prose), schema)
+                self.assertIs(T.enforce_guard_scope(schema, prose, drop=True), schema)
+
+    def test_violin_md_does_not_place_its_opener_under_its_verdict(self):
+        # Known strictness, flagged for a ruling (docs/vocabulary-spec.md §8.10): the guards spec's own worked tree
+        # (§3.2) puts Staccato under "you only take fights you can win", which ends its paragraph; the Staccato
+        # paragraph after it never restates the verdict, so under vocab-2 the guard is rejected.
+        prose = T.scope_to_instrument(open(os.path.join(os.path.dirname(__file__), "..", "..", "prompts", "pilots", "violin.md"),
+                                           encoding="utf-8").read(), "violin").text
+        opener = _node("staccato_opener", "is staccato off cooldown and is the target in its range?", "ability", "staccato", "isolated_enemy")
+        schema = _tree(RECALL_RULE, _guard("can_win_fight", "can this bot win the fight it is in or about to enter, by itself, right now?",
+                                           [opener], [], {"kind": "move", "ability": None, "target_selector": "isolated_enemy"}))
+        self.assertEqual(T._verdict_scope(schema.root.nodes[1], T._prose_paragraphs(prose)), {1})
+        with self.assertRaises(T.GuardScopeError) as err:
+            T.enforce_guard_scope(schema, prose)
+        self.assertIn('"Staccato (quick high-damage stab', str(err.exception))
+
+    def test_a_rule_from_other_prose_inside_a_branch_is_rejected(self):
+        schema = _tree(_guard("can_win", STRONGER, [STACCATO_RULE], [RECALL_RULE]))
+        with self.assertRaises(T.GuardScopeError) as err:
+            T.enforce_guard_scope(schema, f"{RECALL_LINE}\n\n{VERDICT_PARAGRAPH}")
+        self.assertIn(f'under that question: "{RECALL_LINE}"', str(err.exception))
+        fixed = T.enforce_guard_scope(schema, f"{RECALL_LINE}\n\n{VERDICT_PARAGRAPH}", drop=True)
+        self.assertEqual([n.id for n in fixed.root.nodes], ["recall_low"])
+        self.assertIn("Removed with it: staccato_lowest", fixed.validation_notes[-1])
+
+    def test_any_node_after_a_guard_is_rejected_even_when_its_branches_are_right(self):
+        schema = _tree(_guard("can_win", STRONGER, [STACCATO_RULE], [], ATTACK_LOWEST, TO_OWN_TOWER), RECALL_RULE)
+        prose = f"{VERDICT_PARAGRAPH}\n\n{RECALL_LINE}"
+        with self.assertRaises(T.GuardScopeError):
+            T.enforce_guard_scope(schema, prose)
+        fixed = T.enforce_guard_scope(schema, prose, drop=True)
+        self.assertEqual([n.id for n in fixed.root.nodes], ["recall_low"])
+        self.assertIn("the 1 node(s) after it (recall_low) were never checked", fixed.validation_notes[-1])
+
+    def test_one_shared_word_is_not_the_verdict(self):
+        # "the next wave" shares "next" with "afford its next item": it does not put the walk under that question
+        prose = "When I can afford my next item and no enemy is in sight, I head home to shop.\n\n" \
+                "Otherwise I walk with my nearest minion, and if I have no minions near me I go home and wait for the next wave."
+        walk = _node("walk_with_minion", "is there a minion near me?", "move", target="nearby_minion")
+        schema = _tree(_guard("afford", "can this bot afford its next item?", [], [walk], {"kind": "move", "ability": None, "target_selector": "home"}))
+        with self.assertRaises(T.GuardScopeError):
+            T.enforce_guard_scope(schema, prose.replace("Otherwise I", "Then I"))
+        self.assertEqual(T._verdict_scope(schema.root.nodes[0], T._prose_paragraphs(prose.replace("Otherwise I", "Then I"))), {0})
+
+    def test_a_nested_guard_is_held_to_the_same_rule_and_flattened_in_turn(self):
+        inner = _guard("inner", "can this bot afford its next item?", [RECALL_RULE], [])
+        schema = _tree(_guard("can_win", STRONGER, [inner, STACCATO_RULE], []))
+        prose = f"{RECALL_LINE}\n\n{VERDICT_PARAGRAPH}\n\nWhen I can afford my next item, I head home to shop."
+        with self.assertRaises(T.GuardScopeError):
+            T.enforce_guard_scope(schema, prose)
+        fixed = T.enforce_guard_scope(schema, prose, drop=True)
+        self.assertFalse([n for n in T.collect_nodes(fixed.root) if isinstance(n, T.GuardNode)])
+        self.assertIn("recall_low", [n.id for n in fixed.root.nodes])
+        self.assertEqual(len([n for n in fixed.validation_notes if n.startswith("guard scope:")]), 2)
+
+    def test_flat_schemas_are_never_touched(self):
+        for i, case in enumerate(NEGATION["schemas"]):
+            schema, prose = _negation(i)
+            with self.subTest(case["pr"] + " " + case["sample"] + " " + case["instrument"]):
+                self.assertIs(T.enforce_guard_scope(schema, prose), schema)
+                self.assertIs(T.enforce_guard_scope(schema, prose, drop=True), schema)
+
+    def test_vocab1_is_unchanged(self):
+        schema, prose = _saved_guard(0)
+        schema = dataclasses.replace(schema, vocab="vocab-1")
+        self.assertIs(T.enforce_guard_scope(schema, prose), schema)
+        self.assertIs(T.enforce_guard_scope(schema, prose, drop=True), schema)
+
+    def test_translate_pilot_retries_without_the_generic_guard_line_and_keeps_the_flat_reply(self):
+        bad = GUARD_SCOPE["replies"][0]["reply"]  # #89's A/B: a typed guard holding every rule
+        flat = json.loads(json.dumps(_negation_reply(0)))  # a flat reply that passes every check after its fix
+        for r in flat["rules"]:
+            if r["id"] == "shop_no_enemy":
+                r["condition"] = "is no enemy within 260 units?"
+        replies, prompts = [bad, json.dumps(flat)], []
+
+        def generate(prompt):
+            prompts.append(prompt)
+            return replies[len(prompts) - 1]
+
+        schema = T.translate_pilot(GUARD_SCOPE["prose"], "pilot.md", "violin", "staccato", "glissando", generate=generate,
+                                   vocab="vocab-2", economy="eco-3-late")
+        self.assertEqual(len(prompts), 2)
+        retry = prompts[1].split("Your previous attempt was invalid:")[1]
+        self.assertIn("a guard sends every decision into one of its two branches", retry)
+        self.assertNotIn("finish the guard shape", retry)
+        self.assertNotIn("can this bot afford its next item AND is there an enemy bearbot in sight?", retry)
+        self.assertNotIn("guard_shop_or_fight", retry)
+        self.assertFalse([n for n in T.collect_nodes(schema.root) if isinstance(n, T.GuardNode)])
+        self.assertFalse([n for n in schema.validation_notes if n.startswith("guard scope:")])
+
+    def test_translate_pilot_flattens_on_its_last_attempt_instead_of_failing(self):
+        prompts = []
+
+        def generate(prompt):
+            prompts.append(prompt)
+            return GUARD_SCOPE["replies"][0]["reply"]
+
+        schema = T.translate_pilot(GUARD_SCOPE["prose"], "pilot.md", "drums", "kick", "fill", generate=generate, vocab="vocab-2",
+                                   economy="eco-3-late")
+        self.assertEqual(len(prompts), 3)
+        self.assertFalse([n for n in T.collect_nodes(schema.root) if isinstance(n, T.GuardNode)])
+        self.assertIn("recall_if_hp_low_or_tower_threat", [n.id for n in schema.rules])
+        self.assertTrue([n for n in schema.validation_notes if n.startswith("guard scope: removed the guard guard_shop_or_fight")])
 
 
 if __name__ == "__main__":

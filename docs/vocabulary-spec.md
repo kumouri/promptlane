@@ -559,8 +559,8 @@ The evidence and the free recompiles are in `runs/vocab2-node-cap-2026-10-02.md`
 A shopping line ("Drums: Road Case, then Bass Strings, then Metronome") sometimes also compiled into
 rules: "is this bot at its base? → go home" once per item, or "can this bot afford the Amp? → go
 home". The first holds the bot at its fountain for as long as it stands there. Under `vocab-2`,
-`translator.enforce_shopping_list` runs after the instrument-scope guard and before the priority
-guard:
+`translator.enforce_shopping_list` runs after the instrument-scope guard and the guard-scope check
+(§8.10), and before the priority guard:
 
 - A **pure shopping sentence** is item names and ordering words only ("buy an amp first, then a
   road case"). "I buy an Amp when I can afford it" is a rule, not a list.
@@ -682,3 +682,43 @@ targets for it: `tp_lane_tower` (its own lane's outer tower, else the inner one)
 `tp_threatened_tower` (its own tower with the most enemy bearbots near it). The schema records
 `"map": "pvp-2"`. Without `--map`, or with any other map, the prompt and the parse are byte for byte
 what they were. Couriers are not built (the run's §4 says why), so there is no courier fact yet.
+
+### 8.10 A guard holds only the rules its verdict governs
+
+**Ruling (Ceryce, 2026-10-02 16:20 CT):** a `vocab-2` guard may only sit above rules that the prose
+places under its verdict. A guard over unrelated rules is rejected and retried.
+
+A guard sends every decision into one of its two branches. So no rule after it is ever checked, and a
+rule inside a branch is checked only on one side of its question. The 9B's typed guards on the sample
+entrant asked things like "can this bot afford its next item and is there an enemy bearbot in sight?".
+They held recall, the fights and the pushes in their branches, or sat above them as dead rules.
+Under `vocab-2`, `translator.enforce_guard_scope` runs right after the instrument-scope guard:
+
+- **The verdict's prose.** A guard's question has words that most rules don't use ("afford", "next",
+  "item"; "side", "stronger", "fight"). Every paragraph with a sentence naming two of them is the
+  verdict's prose, or naming all of them when there are fewer than two. One shared word is not
+  enough: "the next wave" is not about affording the next item. That prose also takes in:
+  - a heading's whole section;
+  - the paragraph a line ending in ":" introduces, with the list items after it;
+  - an "Otherwise …" paragraph right after.
+- **What a node states.** Each node states the sentence(s) sharing the most words with it, at least
+  two.
+- **Rejected:** a guard with any node after it in its cascade, or with a node in a branch that states
+  a sentence outside the verdict's prose.
+- **The retry** quotes only those nodes' prose sentences, never the guard's question or id. It asks
+  for plain rules in the prose's order, and leaves out develop's "finish the guard shape" line.
+- **On the last attempt** the guard is flattened instead, with a `guard scope:` note the entrant
+  sees under "Guards over rules your prose does not put under them — what was removed":
+  - nodes from other sentences take its place as plain rules;
+  - the nodes after it are checked again;
+  - nodes that state only its verdict's prose are removed, since they applied only under its
+    question. So are nodes whose sentence is unclear, and the branches' own defaults.
+- A guard that holds only its verdict's rules, at the end of its cascade, is returned as it came.
+
+**Known strictness.** `prompts/pilots/violin.md` ends its verdict paragraph with "you only take fights
+you can win in one phrase", and puts Staccato and Solo in the next paragraph. That paragraph does not
+restate the verdict, so a guard holding them is rejected. A rule placed under a verdict has to say so
+in its own paragraph, or restate the verdict's words ("when my side is stronger in the fight …").
+
+The prompt is unchanged, and vocab-1 is unchanged. The evidence and the free recompiles are in
+`runs/vocab2-guard-scope-2026-10-02.md`.

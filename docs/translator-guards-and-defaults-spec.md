@@ -137,6 +137,29 @@ root), the same "missing override, don't ship it" behavior it has today for a fu
 is a safe failure (loud, not silent), but it is a case this spec defers to Phase 1 implementation
 rather than solving here.
 
+**Ruling, 2026-10-02 16:20 CT (Ceryce, "Yes", on Margo's recommendation), under her 15:14 fidelity
+ruling ("The most important part of this whole thing is the translation from prose to Jev. It HAS to
+be right."): a `vocab-2` guard may only sit above rules that the prose actually places under its
+verdict. A guard over unrelated rules is rejected and retried.**
+- The retry quotes only the relevant prose sentences. It never echoes the model's wrong output: #87
+  and #89 found the 9B copies it back.
+- On the last attempt the guard is dropped and flattened, with a note the entrant sees, rather than
+  shipping dead rules.
+
+Why it was needed: "commits to that branch" above means every node after a guard in its cascade is
+never checked. The 9B's typed guards on the sample entrant put recall, the fights and the pushes
+inside a branch, or left them after the guard as dead rules. #89 found develop's old retry producing
+one in 24 replies (`runs/vocab2-identity-rules-2026-10-02.md` §4).
+
+It is built as `translator.enforce_guard_scope`. What counts as "the prose places it under the
+verdict" is in `docs/vocabulary-spec.md` §8.10. In short, a node must state a sentence in the
+verdict's own paragraph or section, or one that restates the verdict's words, and no node may follow
+a guard. The evidence is `runs/vocab2-guard-scope-2026-10-02.md`. vocab-1 trees are unchanged.
+
+One consequence needs a look. This spec's own worked example (§3.2) puts violin.md's Staccato and Solo
+under "you only take fights you can win". They are in the next paragraph and don't restate it, so
+under `vocab-2` that tree is rejected, and the retry asks for plain rules.
+
 ### 2.3 Rendering: `render_markdown` and the transparency view
 
 **Quick-view table.** Today's flat `| # | Condition | Then |` table gains a **Branch** column so a
