@@ -138,6 +138,7 @@ PVP2_SELECTORS = {
     "tp_threatened_tower": "a teleport's destination: this bearbot's own standing tower with the most enemy bearbots near it "
     "(teleport to defend a tower under attack)",
 }
+SELECTOR_DESCRIPTIONS.update(PVP2_SELECTORS)  # the reports describe every target a schema can hold
 
 
 def allowed_selectors(vocab: str, map_=None) -> tuple:

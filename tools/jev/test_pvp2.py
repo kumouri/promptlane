@@ -191,5 +191,22 @@ class Translator(unittest.TestCase):
         self.assertNotIn("map", schema_to_dict(plain))
 
 
+class SampleEntrant(unittest.TestCase):
+    def test_the_pvp2_entrant_is_the_siege_entrant_plus_one_teleport_rule(self):
+        pilots = HERE.parents[1] / "prompts" / "pilots"
+        siege = json.loads((pilots / "sample-entrant-siege.schemas.json").read_text(encoding="utf-8"))
+        pvp2 = json.loads((pilots / "sample-entrant-pvp2.schemas.json").read_text(encoding="utf-8"))
+        for inst in ("drums", "keytar", "violin"):
+            mine, base = pvp2[inst], siege[inst]
+            self.assertEqual(mine["map"], "pvp-2")
+            tp = [r for r in mine["rules"] if r.get("action_ability") == "teleport"]
+            self.assertEqual(len(tp), 1, inst)
+            self.assertEqual(tp[0]["action_target_selector"], "tp_threatened_tower")
+            self.assertEqual([r for r in mine["rules"] if r is not tp[0]], base["rules"], inst)
+            at = mine["rules"].index(tp[0])
+            self.assertIn("will an enemy tower shoot", mine["rules"][at - 1]["condition"])
+            self.assertEqual(schema_from_dict(mine).map, "pvp-2")
+
+
 if __name__ == "__main__":
     unittest.main()

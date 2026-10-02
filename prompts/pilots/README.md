@@ -319,3 +319,17 @@ On Jev it decided all 12 of its matches:
 - it dealt about 900 structure damage a match (that entrant dealt 195).
 
 It isn't the economy measurement's entrant, which stays `sample-entrant-eco.*`.
+
+## The pvp-2 sample entrant: `sample-entrant-pvp2.*`
+
+This is the siege entrant plus one sentence for the opt-in `pvp-2` map's teleport
+([`runs/pvp-2-2026-10-02.md`](../../runs/pvp-2-2026-10-02.md)): "When my teleport is ready, an enemy
+bearbot is within 260 units of one of my towers, and no enemy is in sight, I teleport to the tower
+they are attacking."
+- **Its schema is spliced:** `sample-entrant-siege.schemas.json` byte for byte, with that rule's object
+  from one free compile (`compile.py --vocab vocab-2 --economy eco-3-late --map pvp-2 --backend
+  ollama`) placed right after "will an enemy tower shoot this bot?". Each instrument's schema records
+  `"map": "pvp-2"`.
+- **Its targets:** the rule fires `ability teleport` at `tp_threatened_tower`, which is only offered
+  to pvp-2 compiles.
+- **Where it plays:** on pvp-1 the observation has no teleport fields, so the rule never fires.
