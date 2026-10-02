@@ -110,6 +110,10 @@ home when no rule applied, and dealt a third of medium's structure damage. Only
   byte, and with them the cascade overruns the translator's 1,800-token reply. From the first
   sample, the low-hp pair, the 480-second rule, the one-minion tower rule and the root default were
   taken. Every other rule object is byte for byte. All three samples compiled the same rules.
+- **On Jev, pre-registered (Final Chorus on): hard won all 14 decided medium–hard matches of 18**,
+  and 5 of 5 decided against easy. The sample entrant still beat it, 6 of 6, as it beats medium.
+  Hard's bearbots now deal 934 structure damage a match against medium's 266, and hard dies 5.2
+  times a match (medium 3.7).
 - **The plain hard is unchanged** (65 %, two minions, home). The Jam plays with an economy, so it
   plays the eco file.
 - `test_house.mjs` pins all four changes in the prose and the cascade.

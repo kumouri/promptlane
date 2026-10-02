@@ -15,7 +15,29 @@ stand-in disagree? Can the house tier be fixed without touching the game?
 
 ## Verdict
 
-*Pending: the Jev measurement below is pre-registered and has not been run yet.*
+- **PASS on every pre-registered line.** On Jev, with the Final Chorus on:
+  - **hard won all 14 decided medium–hard matches** (14 of 18 decided; one-sided exact binomial
+    p = 0.00006), playing either side;
+  - it won 5 of 5 decided against easy;
+  - the sample entrant still beat it, 6 of 6;
+  - medium–easy drew 4 of 4.
+- **Why hard lost before** (high confidence, measured on the logs; §1):
+  - it walked out at 65 % of max hp and was chased down on the way home;
+  - it went home whenever no rule applied;
+  - it hit towers only with two minions near.
+  - Its bearbots dealt 164 structure damage a match against medium's 640.
+- **Why the stand-in said the opposite** (high confidence, reproduced; §2): it misread three
+  conditions in the eco tiers' wording. Its medium stood at the fountain for most of each sim. Jev
+  reads all three as written, and the compiler is faithful.
+- **The fix** (§3), only in `house-hard-eco.prose.md` and its schemas:
+  - walk out at 50 %, not 65 %;
+  - hit a tower with one minion near;
+  - attack any enemy tower in sight after 480 seconds;
+  - push the lane instead of going home.
+  - Now hard deals 934 structure damage a match against medium's 266.
+- **Spend: $3.2388** of the $5.00 stop. The smoke was free (stub).
+- **Open for Ceryce:** the sample entrant beats both medium and hard. Hard's deaths rose from 3.4 to
+  5.2 a match. The plain hard (no economy) keeps the old strategy. See §5.
 
 ## 1. Why hard loses: it doesn't go where towers are taken
 
@@ -244,7 +266,78 @@ death, nexus, or a tower lead at 10:00).
 
 ## 5. Result
 
-*Not run yet.*
+**The run** went as registered:
+- **Timeline (CT):**
+  - plan committed at 01:14:50 (`f60f976`) and pushed;
+  - stub smoke at 01:17;
+  - first real match launched at 01:18:56;
+  - last finished at 01:52:04.
+- **Smoke (stub, $0):** medium–hard, seed 7, 120 s, on `:8932`. 336 requests, 0 errors, and it
+  replay-verifies.
+- **The sample:** all 34 matches played in plan order. The spend guard never fired, and nothing was
+  retried, added or dropped.
+- **Clean:**
+  - 34 of 34 logs replay-verify;
+  - 52,547 Jev calls with 0 call errors and 0 parse errors;
+  - the server served 52,547 requests with 0 errors and no Workers AI failover, so every answer was
+    TypeSafe's Jev.
+
+| block | matches | decided | results | how they ended |
+|---|---:|---:|---|---|
+| **P** medium–hard, hard–medium | 18 | **14** | **hard 14, medium 0** | 6 tower lead at 8:00, 8 first tower in sudden death, 4 level at 10:00 |
+| E hard–easy, easy–hard | 6 | 5 | hard 5, easy 0 | 5 sudden death, 1 level at 10:00 |
+| C medium–easy, easy–medium | 4 | 0 | — | 4 level at 10:00 |
+| S entrant–hard, hard–entrant | 6 | 6 | entrant 6, hard 0 | 6 sudden death |
+
+| line | result | pass line | |
+|---|---|---|---|
+| 1. primary: hard above medium | hard 14 of 14 decided (100 %), p = 0.00006 | ≥ 6 decided, ≥ 2/3, p < 0.05 | **PASS** |
+| 2. guard: not losing to easy | easy 0 of 5 decided | below 50 % | **PASS** |
+| 3. guard: not a wall | hard 0 of 6 decided against the entrant | fails only on a sweep of ≥ 3 | **PASS** |
+| 4. control: medium vs easy unchanged | no decided match | medium ≥ half of decided, or none | **PASS** |
+
+- **Both sides:** as violet, hard won 7 and drew 2. As green, it won 7 and drew 2.
+  - All 6 wins on a tower lead at 8:00 came as green. That is too few to read as a side effect.
+- **The game hard plays now** (P's 18 matches, against the Final Chorus run's medium–hard C1, 30
+  matches):
+
+| per team, per match | hard, before | hard, now | medium, before | medium, now |
+|---|---:|---:|---:|---:|
+| structure damage by its bearbots | 164 | **934** | 640 | 266 |
+| deaths | 3.43 | 5.22 | 2.27 | 3.72 |
+| PvP damage dealt | 857 | 917 | 3,546 | 2,954 |
+
+| hard, per bot, share of alive time | drums | keytar | violin |
+|---|---|---|---|
+| on the opponent's side, before → now | 11.7 → 18.1 % | 2.5 → 12.4 % | 5.1 → 14.0 % |
+| at its own fountain, before → now | 30.2 → 11.4 % | 34.2 → 20.7 % | 31.8 → 13.8 % |
+
+- **Jev reads the new 480-second rule as written.** Its answers match the clock and the towers in
+  sight on 99.96 % of hard's 13,388 decisions in P. It said yes on all 267 decisions after 480 s with
+  an enemy tower in sight, and on 5 before 480 s.
+- **Against the stand-in's forecast:** Jev decided fewer medium–hard matches (78 % against 87 %),
+  and hard won all of them (stand-in 48–4). Hard died less than forecast (5.2 a match against
+  13–16). Against the entrant Jev was harsher (0–6 against 11–28).
+
+### What Ceryce may want to decide before the ladder opens
+
+1. **The sample entrant beats both house tiers.**
+   - It won 6 of 6 against this hard. In the Final Chorus run it won 13 of 13 against the old hard
+     and 8 of 14 decided against medium.
+   - It dies about 21 times a match diving towers, and the Final Chorus rewards chip damage over
+     deaths.
+   - Hard sits above medium, but an entrant that just pushes clears both. Whether that is the ladder
+     she wants (a tower diver tops the house) is a rules or ladder question, not a house-tier one.
+2. **Hard is now a pusher.** It dies 5.2 times a match (medium 3.7), and spends far less time at
+   its fountain. That is the tier's "towers and kills" as written, made to work under these rules.
+3. **The 480-second rule reads the clock.** It is not tied to the Final Chorus, and it helped
+   without it in the stand-in (39–1 against medium). If the Final Chorus ships off, hard's
+   advantage over medium on Jev is unmeasured; the stand-in says it holds.
+4. **The plain hard (no economy) is unchanged.** The Jam plays with an economy, so it plays the eco
+   file. Carrying the four changes over to `house-hard.prose.md` means re-rendering the qwen side
+   files too. That is a follow-up if she wants the tiers kept in step.
+5. **Placement isn't affected:** medium stays the bar. A ladder restarted on these files plays the
+   new hard schema hash wherever `config.house.tier` is `hard`.
 
 ## Files
 
@@ -252,5 +345,14 @@ death, nexus, or a tower lead at 10:00).
   of the prose without its Bandstand paragraph);
 - `prompts/pilots/house-hard-eco.{prose.md,schemas.json}`, `prompts/pilots/README.md`,
   `tools/arena/test_house.mjs`.
-- **The diagnosis probe, the corrected stand-in and the sim runner are scratch tools, outside the
-  repo.** They will go into the measurement's log zip.
+- **The 34 logs and the smoke aren't in git.** They are on the
+  [`data-house-hard-2026-10-02`](https://github.com/kumouri/promptlane/releases/tag/data-house-hard-2026-10-02)
+  prerelease as `house-hard-match-logs-2026-10-02.zip`: 3.5 MB, 47.9 MB raw, sha256
+  `7cc7e3c73f9fe26dd004c1dcbe47dcfc4406c0736a35f3e96336ab076119d55b`.
+  - The zip has `runs/house-hard-2026-10-02-SHA256SUMS`.
+  - `runs/house-hard-2026-10-02-analysis/` holds the scratch tools behind this page: the per-bot
+    replay probe, the corrected stand-in and its sim runner, the fidelity check, the variant sweeps,
+    the compile samples and the splice, and the runner, plan and scorer.
+- **Log names:** `runs/house-hard-2026-10-02-<violet tier>-<green tier>-seed<N>.json`. To check one,
+  unzip at the repo root and run `npm run match -- --verify runs/house-hard-2026-10-02-medium-hard-seed7.json`.
+- **Spend:** $3.2388 by the server's ledger, for 52,547 requests, against the $5.00 stop.
