@@ -22,6 +22,7 @@ import { attachEconomy, type LogEconomy } from './economy';
 import { attachObjective, resolveObjective, type ObjectiveRules } from './objective';
 import { attachRecall, resolveRecall, type RecallRules } from './recall';
 import { attachResolution, resolveResolution } from './resolution';
+import { attachMapRules } from './mapRules';
 import { attachFinale, resolveFinale, type FinaleRules } from './finale';
 import {
   JAM_ROSTER,
@@ -194,9 +195,12 @@ export function buildMatch(feed: LiveFeed, onDecision?: (botIndex: number, decis
       ),
   }));
   match = new Match(meta.seed, roster);
-  applyMapVariant(match, resolveMap(meta.map));
-  // map, then resolution, then recall, then objective, then economy, then finale, exactly as the runner does; a log without one attaches nothing
-  attachResolution(match, resolveResolution(meta.resolution));
+  const map = resolveMap(meta.map);
+  applyMapVariant(match, map);
+  // map, then resolution, then the map's own layers, then recall, then objective, then economy, then finale, exactly as the runner does; a log without one attaches nothing
+  const resolution = resolveResolution(meta.resolution);
+  attachResolution(match, resolution);
+  attachMapRules(match, map, resolution);
   const recall = resolveRecall(meta.recall);
   if (recall) attachRecall(match, recall, TICK_DT);
   const objective = resolveObjective(meta.objective);

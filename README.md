@@ -62,7 +62,8 @@ tools/               jam tooling: headless match runner (tools/match/), the mode
 runs/                operator records and match logs (per-run directories are local/ignored)
 artifacts/           exported workspaces and frozen submissions (local/ignored)
 src/                 original generated game specimen; not maintained game source
-                     (src/replay.ts, src/live.ts, src/mapVariant.ts, src/economy.ts, src/objective.ts,
+                     (src/replay.ts, src/live.ts, src/mapVariant.ts, src/geometry.ts, src/mapRules.ts,
+                     src/homeguard.ts, src/teleport.ts, src/economy.ts, src/objective.ts,
                      src/recall.ts, src/ruleset/ and src/attribution.ts are jam tooling that drive the
                      unchanged sim from outside; src/render.ts is a pure read of match state, not frozen, and is actively
                      maintained — see docs/render-spec.md)
@@ -137,6 +138,10 @@ that side decide on its compiled rule cascade instead of a chat model; see `tool
 tower covers; `src/mapVariant.ts`, measured in
 [`runs/balance-pvp-2026-09-30.md`](runs/balance-pvp-2026-09-30.md)); `--map v1` plays the specimen
 map. The log records its map and `--verify` replays on it; logs without one are specimen-map logs.
+`--map pvp-2` is opt-in: the world scaled ×1.33 with new tower spots, an out-of-base speed boost and a
+teleport to a friendly tower (`src/geometry.ts`, `src/homeguard.ts`, `src/teleport.ts`; play it with
+`--resolution simultaneous-1 --recall recall-2`). What it is and what it measured:
+[`runs/pvp-2-2026-10-02.md`](runs/pvp-2-2026-10-02.md).
 **Resolution.** New matches resolve each tick simultaneously: both sides' bearbots and minions act
 on the same start-of-step world (`--resolution simultaneous-1`, `src/resolution.ts`). The frozen sim's
 own order lets violet act first, which tilted `pvp-1` toward violet

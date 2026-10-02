@@ -20,6 +20,7 @@ import { DEFAULT_ECONOMY, attachEconomy, resolveBuilds, resolveEconomy, type Eco
 import { DEFAULT_OBJECTIVE, attachObjective, resolveObjective, type ObjectiveRules } from '../../src/objective';
 import { DEFAULT_RECALL, attachRecall, resolveRecall, type RecallRules } from '../../src/recall';
 import { DEFAULT_RESOLUTION, SEQUENTIAL, attachResolution, resolveResolution } from '../../src/resolution';
+import { attachMapRules } from '../../src/mapRules';
 import { DEFAULT_FINALE, attachFinale, resolveFinale, type EndReason, type FinaleRules } from '../../src/finale';
 import type { CallModel } from '../../src/pilots/callModel';
 import type { TracingDecision, TracingPilot } from './jevPilot';
@@ -44,14 +45,18 @@ export { jevTracingPilot } from './jevPilot';
 export { jevTeamTracingPilot } from './jevTeamPilot';
 export { DEFAULT_TARGETING, FIRST_MIN, OWN_LANE_1, TARGETINGS, jevSchemaTracingPilot, resolveTargeting, targetingUnsupported } from './jevSchemaPilot';
 export { DEFAULT_VOCAB, VOCAB_1, VOCAB_2, VOCABS, approachOutOfRange, schemaVocab, vocabUnsupported, vocabsOf } from './jevSchemaPilot';
-export { DEFAULT_MAP, MAP_VARIANTS, PVP_MAP, SPECIMEN_MAP, laneCoverage, resolveMap } from '../../src/mapVariant';
+export { DEFAULT_MAP, MAP_VARIANTS, PVP_MAP, PVP_2_MAP, SPECIMEN_MAP, laneCoverage, resolveMap, towerPos, variantGeometry } from '../../src/mapVariant';
+export { attachMapRules } from '../../src/mapRules';
+export { attachHomeguard, getHomeguard, homeguardTotals } from '../../src/homeguard';
+export { TELEPORT_ABILITY, attachTeleport, getTeleport } from '../../src/teleport';
+export { mapGeometry } from '../../src/geometry';
 export { DEFAULT_ECONOMY, ECONOMY_RULESETS, ECO_1, ECO_2, ECO_3, ECO_3_LATE, RESPAWN_ONLY, attachEconomy, expandBuild, getEconomy, hasRecipes, itemTier, resolveBuild, resolveEconomy, totalCost } from '../../src/economy';
 export { DEFAULT_OBJECTIVE, OBJECTIVES, RIVER_1, RIVER_2, RIVER_2_SET10, attachObjective, getObjective, resolveObjective } from '../../src/objective';
 export { DEFAULT_RECALL, RECALL_2, RECALL_RULES, attachRecall, getRecall, recallTotals, resolveRecall } from '../../src/recall';
 export { setRewardSink } from '../../src/ruleset/rewards';
 export { DEFAULT_RESOLUTION, RESOLUTIONS, SEQUENTIAL, SIMULTANEOUS_1, attachResolution, getResolution, resolveResolution } from '../../src/resolution';
 export { DEFAULT_FINALE, FINALES, FINAL_CHORUS_1, attachFinale, endReasonLabel, getFinale, resolveFinale } from '../../src/finale';
-/** For the economy's, the objective's, the recall's and the finale's rule tests (`test_economy.mjs`, `test_objective.mjs`, `test_recall.mjs`, `test_finale.mjs`), which build matches by hand. */
+/** For the economy's, the objective's, the recall's, the finale's and pvp-2's rule tests (`test_economy.mjs`, `test_objective.mjs`, `test_recall.mjs`, `test_finale.mjs`, `test_pvp2.mjs`), which build matches by hand. */
 export { Match, TICK_DT, applyMapVariant, checkpointOf };
 export { BASE, LANE_PATHS, pointAlongPath } from '../../src/sim/map';
 export { INSTRUMENTS } from '../../src/sim/entities';
@@ -306,10 +311,12 @@ export async function runMatch(opts: RunOptions): Promise<MatchLog> {
 
   match = new Match(opts.seed, roster);
   applyMapVariant(match, map);
-  // Map, then resolution (before anything wraps the sim's steps), then recall, then objective,
-  // then economy, then finale: the recall hugs the sim's own tick (src/recall.ts), the economy's
+  // Map, then resolution (before anything wraps the sim's steps), then the map's own layers (pvp-2's
+  // speed boost and teleport, src/mapRules.ts), then recall, then objective, then economy, then
+  // finale: the map's layers and the recall hug the sim's own tick (src/recall.ts), the economy's
   // steps run after the objective's update (§9.6), and the finale reads the finished tick.
   attachResolution(match, resolution);
+  const { homeguard, teleport } = attachMapRules(match, map, resolution);
   const recall = recallRules ? attachRecall(match, recallRules, TICK_DT) : null;
   const objective = objectiveRules ? attachObjective(match, objectiveRules, TICK_DT) : null;
   const economy = economyRules && builds ? attachEconomy(match, economyRules, builds, TICK_DT) : null;
@@ -374,6 +381,8 @@ export async function runMatch(opts: RunOptions): Promise<MatchLog> {
   if (objective) log.result.objective = objective.summary();
   if (recall) log.result.recall = recall.summary();
   if (finale) log.result.finale = finale.summary();
+  if (homeguard) log.result.homeguard = homeguard.summary();
+  if (teleport) log.result.teleport = teleport.summary();
   return log;
 }
 
@@ -428,8 +437,11 @@ export async function verifyReplay(
     },
   }));
   match = new Match(log.seed, roster);
-  applyMapVariant(match, resolveMap(log.map));
-  attachResolution(match, resolveResolution(log.resolution));
+  const map = resolveMap(log.map);
+  applyMapVariant(match, map);
+  const resolution = resolveResolution(log.resolution);
+  attachResolution(match, resolution);
+  attachMapRules(match, map, resolution);
   const recallRules = resolveRecall(log.recall);
   if (recallRules) attachRecall(match, recallRules, TICK_DT);
   const objectiveRules = resolveObjective(log.objective);

@@ -397,8 +397,11 @@ async function main() {
     for (const g of perGroup) {
       const variant = headless.resolveMap(g.map);
       const towers = [];
-      for (const lane of ['top', 'mid', 'bottom']) for (const team of ['violet', 'green']) for (const tier of [1, 2]) towers.push({ team, range: variant.towerRange, pos: metrics.towerPos(variant, lane, team, tier) });
-      const deathSites = g.matches.flatMap((m) => m.deathSites.map((d) => ({ ...d, team: d.bot < 3 ? 'violet' : 'green' })));
+      // A scaled map (pvp-2) is drawn in the specimen's 1000-unit frame, as its heat is binned.
+      const s = variant.scale ?? 1;
+      const unscale = (p) => ({ x: p.x / s, y: p.y / s });
+      for (const lane of ['top', 'mid', 'bottom']) for (const team of ['violet', 'green']) for (const tier of [1, 2]) towers.push({ team, range: variant.towerRange / s, pos: unscale(metrics.towerPos(variant, lane, team, tier)) });
+      const deathSites = g.matches.flatMap((m) => m.deathSites.map((d) => ({ ...d, pos: unscale(d.pos), team: d.bot < 3 ? 'violet' : 'green' })));
       const objective = g.matches.find((m) => m.objective)?.objective;
       const sites = objective ? objective.sites.map((s) => ({ pos: s.pos, radius: objective.radius })) : [];
       const png = renderHeatmap({ heat: g.aggregate.heat, heatN: metrics.HEAT_N, towers, lanePaths: Object.values(LANE_PATHS), deathSites, sites });

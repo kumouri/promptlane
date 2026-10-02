@@ -1,0 +1,6 @@
+{
+  "name": "teleport-1",
+  "channelSec": 5,
+  "cooldownSec": 90,
+  "landOffset": 40
+}

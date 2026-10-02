@@ -427,7 +427,53 @@ def _describe_vocab2(obs: dict, spec: MapSpec) -> str:
     if obs.get("shop"):
         parts.append("The base shop sells: " + ", ".join(f"{item_name(i['item'])} ({i['cost']} gold)" for i in obs["shop"]) + ".")
     parts.extend(_bandstand_lines(obs))
+    parts.extend(_map_rule_lines(obs))
     return " ".join(parts)
+
+
+_TIER = {1: "inner", 2: "outer"}
+
+
+def _map_rule_lines(obs: dict) -> list[str]:
+    """A map with a speed boost and a teleport (pvp-2: `src/homeguard.ts`, `src/teleport.ts`). Each line
+    is stated only when the observation carries its field, so a pvp-1 description is unchanged; the
+    facts they state are `vocab.FACTS_PVP2`."""
+    self_ = obs["self"]
+    team = self_["team"]
+    lines: list[str] = []
+    if "speedBoost" in self_:
+        lines.append("Its out-of-base speed boost is on: it moves faster until it takes damage or enters the river."
+                     if self_["speedBoost"] else
+                     "Its out-of-base speed boost is off (it comes back the next time it is in its base).")
+    tp = obs.get("teleport")
+    if tp is not None:
+        if tp.get("channel"):
+            c = tp["channel"]
+            # "ready" stays stated while it channels (the cooldown starts at the landing): a rule asking "is the
+            # teleport ready?" must keep firing, or the next decision's other action cancels the channel. Stated
+            # "channelling" alone, Jev answered that question yes 6 % of the time mid-channel (runs/pvp-2-2026-10-02.md §2.4).
+            lines.append(f"Its teleport is ready and in use: it is channelling to its tower {c['tower']}, landing in "
+                         f"{_seconds(c['leftSec'])} s, and choosing any other action cancels it.")
+        elif tp.get("ready"):
+            lines.append("Its teleport is ready: it can teleport to any of its team's standing towers (5 s standing still, then it lands there).")
+        else:
+            lines.append(f"Its teleport is on cooldown for {_seconds(tp['cooldownSec'])} more s.")
+        towers = tp.get("towers") or []
+        if towers:
+            def tower(t):
+                near = t.get("enemyBearbots") or 0
+                at = f", {near} enemy bearbot{'' if near == 1 else 's'} within 260 units of it" if near else ""
+                return f"{t['id']} ({t['lane']} {_TIER.get(t['tier'], t['tier'])}, {t['hp']:.0f}/{t['maxHp']:.0f} hp{at})"
+            lines.append("Your standing towers, anywhere on the map: " + "; ".join(tower(t) for t in towers) + ".")
+        else:
+            lines.append("Your standing towers, anywhere on the map: none.")
+    for t in obs.get("teleports") or ():
+        if t["id"] == self_["id"]:
+            continue
+        who = "Ally" if t["team"] == team else "Enemy"
+        whose = "your" if t["team"] == team else "their"
+        lines.append(f"{who} {t['id']} is teleporting to {whose} {t['lane']} tower {t['tower']}, landing in {_seconds(t['leftSec'])} s.")
+    return lines
 
 
 def _pct(frac: float) -> str:

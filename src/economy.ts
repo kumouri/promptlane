@@ -24,7 +24,8 @@
 import type { Instrument, Observation, Team } from './types';
 import type { Match } from './sim/match';
 import type { Bearbot, Unit } from './sim/entities';
-import { BASE, LANE_PATHS, dist, pointAlongPath } from './sim/map';
+import { dist, pointAlongPath } from './sim/map';
+import { mapGeometry } from './geometry';
 import { attachAttribution } from './attribution';
 import { deriveStats, setStatMultiplier } from './ruleset/stats';
 import { setRewardSink, type RewardSink } from './ruleset/rewards';
@@ -620,7 +621,7 @@ export class Economy {
   private respawn(i: number, tick: number): void {
     const b = this.match.bearbots[i];
     const e = this.bots[i];
-    const spawn = pointAlongPath(LANE_PATHS[b.lane], b.team === 'violet' ? 0.08 : 0.92);
+    const spawn = pointAlongPath(mapGeometry(this.match).lanePaths[b.lane], b.team === 'violet' ? 0.08 : 0.92);
     this.deriveStats(i);
     b.alive = true;
     b.hp = b.maxHp;
@@ -639,9 +640,11 @@ export class Economy {
     this.events.push({ tick, kind: 'respawn', bot: i });
   }
 
+  /** Within `shop.radius` of its base point; on a scaled map (`src/geometry.ts`) the radius scales with the base. */
   atShop(i: number): boolean {
     const b = this.match.bearbots[i];
-    return b.alive && dist(b.pos, BASE[b.team]) <= this.ruleset.shop.radius;
+    const geo = mapGeometry(this.match);
+    return b.alive && dist(b.pos, geo.base[b.team]) <= this.ruleset.shop.radius * geo.scale;
   }
 
   /**

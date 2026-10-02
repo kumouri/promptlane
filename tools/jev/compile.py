@@ -69,7 +69,7 @@ from translator import (  # noqa: E402
     scope_to_instrument,
     translate_pilot,
 )
-from vocab import DEFAULT_VOCAB, LEGACY_VOCAB, VOCABS, resolve_vocab  # noqa: E402
+from vocab import DEFAULT_VOCAB, LEGACY_VOCAB, MAPS, VOCABS, resolve_vocab  # noqa: E402
 
 INSTRUMENTS = ("drums", "keytar", "violin")
 DEFAULT_MAX_TOTAL_TOKENS = 60_000
@@ -129,6 +129,8 @@ def schema_to_dict(schema: TranslatedSchema) -> dict:
         out["economy"] = schema.economy
     if schema.vocab != LEGACY_VOCAB:
         out["vocab"] = schema.vocab
+    if schema.map:
+        out["map"] = schema.map
     return out
 
 
@@ -172,6 +174,7 @@ def schema_from_dict(d: dict) -> TranslatedSchema:
         root=Cascade(nodes=tuple(_node_from_dict(r) for r in d["rules"]),
                      default=Action(da.get("kind", "hold"), da.get("ability"), da.get("target_selector"))),
         vocab=resolve_vocab(d.get("vocab")),
+        map=d.get("map"),
     )
 
 
@@ -187,7 +190,7 @@ def segments_for(text: str, display_name: str):
 
 
 def compile_instrument(text: str, display_name: str, instrument: str, backend: Backend | None, attempts: int = 3,
-                       schema: TranslatedSchema | None = None, vocab: str = DEFAULT_VOCAB, economy: str | None = None) -> dict:
+                       schema: TranslatedSchema | None = None, vocab: str = DEFAULT_VOCAB, economy: str | None = None, map_: str | None = None) -> dict:
     """One instrument: translate (unless `schema` is given), then build + render the report.
     Never raises for a translation failure -- the entry says what went wrong instead.
 
@@ -202,7 +205,7 @@ def compile_instrument(text: str, display_name: str, instrument: str, backend: B
         if schema is None:
             primary, ultimate = ABILITIES[instrument]
             schema = translate_pilot(text, pilot_file, instrument, primary, ultimate, max_attempts=attempts, generate=backend.generate, vocab=vocab,
-                                     economy=economy)
+                                     economy=economy, map_=map_)
         report = build_report(schema, pilot_file, segments=segments, labels=labels)
         entry.update(ok=True, schema=schema_to_dict(schema), markdown=render_report_markdown(report),
                      dropped=[{"label": d.label, "text": d.text.strip()} for d in report.dropped if d.text.strip()],
@@ -217,14 +220,15 @@ def compile_instrument(text: str, display_name: str, instrument: str, backend: B
 
 
 def compile_prompt(text: str, display_name: str, instruments, backend: Backend | None, parallel: int = 1,
-                   attempts: int = 3, schemas: dict | None = None, vocab: str = DEFAULT_VOCAB, economy: str | None = None) -> dict:
+                   attempts: int = 3, schemas: dict | None = None, vocab: str = DEFAULT_VOCAB, economy: str | None = None,
+                   map_: str | None = None) -> dict:
     """`vocab` is what a fresh translation is compiled under; a saved schema (`schemas`) keeps its own.
     The result's `vocab` names the vocabulary every compiled instrument is in. `economy` None (or the
     default's name) compiles for `DEFAULT_ECONOMY` and adds nothing to the result; any other ruleset
     is recorded as `result["economy"]`."""
     text = text.replace("\r\n", "\n")
     economy = None if economy == DEFAULT_ECONOMY else economy
-    work = lambda inst: compile_instrument(text, display_name, inst, backend, attempts, (schemas or {}).get(inst), vocab, economy)  # noqa: E731
+    work = lambda inst: compile_instrument(text, display_name, inst, backend, attempts, (schemas or {}).get(inst), vocab, economy, map_)  # noqa: E731
     with ThreadPoolExecutor(max_workers=max(1, parallel)) as pool:
         entries = list(pool.map(work, instruments))
     used = sorted({e["schema"].get("vocab", LEGACY_VOCAB) for e in entries if e["ok"]}) or [vocab]
@@ -321,6 +325,10 @@ def parse_args(argv=None) -> argparse.Namespace:
     p.add_argument("--vocab", choices=VOCABS, default=DEFAULT_VOCAB,
                    help=f"the vocabulary to compile under (tools/jev/vocab.py; default {DEFAULT_VOCAB}). "
                    f"{LEGACY_VOCAB} writes exactly the schema JSON compiles wrote before vocabularies existed")
+    p.add_argument("--map", choices=tuple(MAPS), default=None,
+                   help="the map the prose is written for (src/mapVariant.ts). pvp-2 offers a vocab-2 compile its teleport "
+                   "(a third ability, aimed by tp_lane_tower or tp_threatened_tower) and its facts, and the schema records "
+                   "\"map\"; no map (the default) or any other compiles exactly as before")
     return p.parse_args(argv)
 
 
@@ -364,7 +372,7 @@ def main(argv=None) -> int:
     parallel = args.parallel or (3 if args.backend == "openrouter" else 1)
 
     started = time.perf_counter()
-    results = [compile_prompt(text, name, instruments, backend, parallel, args.attempts, schemas, args.vocab, economy) for name, text in sources]
+    results = [compile_prompt(text, name, instruments, backend, parallel, args.attempts, schemas, args.vocab, economy, args.map) for name, text in sources]
     usage = backend.usage.as_dict() if backend else {"calls": 0, "prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0, "cost_usd": 0.0, "seconds": 0.0}
     usage["wall_seconds"] = round(time.perf_counter() - started, 2)
 

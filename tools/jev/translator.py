@@ -86,7 +86,7 @@ from ground_truth import _ollama_generate, resolve_ollama_url  # noqa: E402
 from economy_rules import NOTE_PREFIX, format_build, items, items_prompt_block, normalize_build  # noqa: E402
 from number_normalize import normalize_numbers_for_trace  # noqa: E402
 from scenarios import ABILITIES  # noqa: E402
-from vocab import VOCAB_1, VOCAB_2, facts_for, resolve_vocab  # noqa: E402
+from vocab import VOCAB_1, VOCAB_2, facts_for, map_has_teleport, resolve_vocab  # noqa: E402
 
 DEFAULT_MODEL = "qwen3.5:9b"
 
@@ -134,11 +134,31 @@ VOCAB2_MEANINGS = {
 }
 
 
-def selectors_for(vocab: str) -> dict:
+# pvp-2's teleport (`src/teleport.ts`): one more ability every instrument has, aimed at one of the bot's
+# own towers by one of two targets (`target_resolve.PVP2_SELECTORS`). Offered only to a vocab-2 compile
+# told the map (`compile.py --map pvp-2`), so every other prompt and parse is unchanged.
+TELEPORT_ABILITY = "teleport"
+PVP2_SELECTORS = {
+    "tp_lane_tower": "a teleport's destination: the outer (else inner) standing tower of this bearbot's own lane "
+    "(teleport back to my lane)",
+    "tp_threatened_tower": "a teleport's destination: this bearbot's own standing tower with the most enemy bearbots near it "
+    "(teleport to defend a tower under attack)",
+}
+SELECTOR_DESCRIPTIONS.update(PVP2_SELECTORS)  # the reports describe every target a schema can hold
+
+
+def allowed_selectors(vocab: str, map_=None) -> tuple:
+    """The selector names a schema in `vocab`, compiled for `map_`, may use."""
+    vocab = resolve_vocab(vocab)
+    extra = tuple(PVP2_SELECTORS) if vocab == VOCAB_2 and map_has_teleport(map_) else ()
+    return SELECTORS_BY_VOCAB[vocab] + extra
+
+
+def selectors_for(vocab: str, map_=None) -> dict:
     """The selectors a schema in `vocab` may name, with their translator-prompt meanings."""
     vocab = resolve_vocab(vocab)
-    meanings = {**SELECTOR_DESCRIPTIONS, **VOCAB2_MEANINGS} if vocab == VOCAB_2 else SELECTOR_DESCRIPTIONS
-    return {k: meanings[k] for k in SELECTORS_BY_VOCAB[vocab]}
+    meanings = {**SELECTOR_DESCRIPTIONS, **VOCAB2_MEANINGS, **PVP2_SELECTORS} if vocab == VOCAB_2 else SELECTOR_DESCRIPTIONS
+    return {k: meanings[k] for k in allowed_selectors(vocab, map_)}
 
 
 # --- targets the prose meant (vocab-2 only; vocab-1 parses exactly as it always did) ----------------
@@ -342,6 +362,8 @@ class TranslatedSchema:
     build: tuple[str, ...] | None = None
     vocab: str = VOCAB_1
     economy: str | None = None
+    # The map a compile was told (`compile.py --map`), when it offered that map's rules (pvp-2's teleport).
+    map: str | None = None
 
     def __post_init__(self):
         if self.root is None:
@@ -401,11 +423,11 @@ _NODE_COUNT = {
 }
 
 
-def facts_prompt_block(vocab: str) -> str:
+def facts_prompt_block(vocab: str, map_=None) -> str:
     """The "facts the game states" list (spec §4.1 A5), from `vocab.FACTS_V2`, the table whose
     `lead` phrases `test_vocab.py` finds in every vocab-2 description. Empty for vocab-1, which
     never had one, so its prompt is unchanged."""
-    facts = facts_for(vocab)
+    facts = facts_for(vocab, map_)
     if not facts:
         return ""
     lines = "\n".join(f"  - {f.says}" + (f" (when {f.when})" if f.when else "") for f in facts)
@@ -419,15 +441,22 @@ def facts_prompt_block(vocab: str) -> str:
 
 
 def _translation_prompt(pilot_text: str, instrument: str, primary_ability: str, ultimate_ability: str, vocab: str = VOCAB_1,
-                        economy: str | None = None) -> str:
+                        economy: str | None = None, map_=None) -> str:
     """vocab-1's prompt is byte-identical to the one every schema compiled before vocab-2 was
     (golden-tested, `test_vocab.py`); vocab-2 adds its six selectors, the facts list, and a condition
     example in those facts' terms. `economy` picks the ITEMS block (`economy_rules.items_prompt_block`);
     the default ruleset's is the pre-recipe text exactly."""
     vocab = resolve_vocab(vocab)
-    selectors = selectors_for(vocab)
+    selectors = selectors_for(vocab, map_)
     selectors_desc = "\n".join(f'  "{k}" -- {v}' for k, v in selectors.items())
-    facts_block = facts_prompt_block(vocab)
+    facts_block = facts_prompt_block(vocab, map_)
+    teleport = vocab == VOCAB_2 and map_has_teleport(map_)
+    abilities = f'"{primary_ability}", "{ultimate_ability}", "{TELEPORT_ABILITY}", null' if teleport else f'"{primary_ability}", "{ultimate_ability}", null'
+    teleport_desc = (
+        f'\nOn this map every bot also has a "{TELEPORT_ABILITY}" ability: 5 s standing still, then it lands at one of its own\n'
+        'towers. A teleport is {"kind": "ability", "ability": "teleport", "target_selector": "tp_lane_tower" or\n'
+        '"tp_threatened_tower"}; those two targets are for the teleport only.\n'
+    ) if teleport else ""
     condition_desc = _CONDITION_DESC[vocab]
     items_block = items_prompt_block(economy)
     return f"""You are translating a game-bot prompt written in prose into a strict decision table.
@@ -435,14 +464,14 @@ def _translation_prompt(pilot_text: str, instrument: str, primary_ability: str, 
 The bot plays {instrument}. Its two abilities are named "{primary_ability}" (primary) and
 "{ultimate_ability}" (secondary/ultimate) -- use exactly these strings for "ability" fields, never
 invent a different name.
-
+{teleport_desc}
 Read this prose pilot below and extract its strategy as an ORDERED list of nodes, evaluated top to
 bottom, FIRST MATCH WINS -- exactly like a priority list. Most nodes are RULES. A rule has:
   "id": a short snake_case id
 {condition_desc}
   "criteria": {{"true": "one short clause describing what 'true' looks like in the state",
       "false": "one short clause describing what 'false' looks like in the state"}}
-  "action": {{"kind": one of {ACTION_KINDS}, "ability": one of ["{primary_ability}", "{ultimate_ability}", null],
+  "action": {{"kind": one of {ACTION_KINDS}, "ability": one of [{abilities}],
       "target_selector": one of {list(selectors)} or null}}
 
 target_selector meanings (pick the closest match to what the prose says; do not invent a new one):
@@ -491,7 +520,7 @@ PROSE PILOT:
 """
 
 
-def _validate_action(action: dict, context: str, vocab: str = VOCAB_1) -> tuple[str, str | None, str | None]:
+def _validate_action(action: dict, context: str, vocab: str = VOCAB_1, map_=None) -> tuple[str, str | None, str | None]:
     """Only `vocab`'s selectors are accepted (`selectors_for`): a vocab-1 compile naming a vocab-2
     selector is invalid, exactly as any unknown selector always was."""
     kind = action.get("kind")
@@ -504,15 +533,16 @@ def _validate_action(action: dict, context: str, vocab: str = VOCAB_1) -> tuple[
     if ability is not None and not isinstance(ability, str):
         raise ValueError(f"{context}: invalid ability {ability!r}")
     selector = action.get("target_selector")
-    if selector is not None and selector not in SELECTORS_BY_VOCAB[vocab]:
+    allowed = allowed_selectors(vocab, map_)
+    if selector is not None and selector not in allowed:
         if vocab == VOCAB_1:
             raise ValueError(f"{context}: unknown target_selector {selector!r}")
         raise ValueError(f"{context}: unknown target_selector {selector!r} -- there is no such target; use exactly one of "
-                         f"{', '.join(SELECTORS_BY_VOCAB[vocab])}, or null")
+                         f"{', '.join(allowed)}, or null")
     return kind, ability, selector
 
 
-def _parse_node(raw: dict, idx: int, vocab: str = VOCAB_1) -> Node:
+def _parse_node(raw: dict, idx: int, vocab: str = VOCAB_1, map_=None) -> Node:
     rid = raw.get("id") or f"r{idx+1}"
     cond = raw.get("condition")
     if not cond or not isinstance(cond, str):
@@ -525,10 +555,10 @@ def _parse_node(raw: dict, idx: int, vocab: str = VOCAB_1) -> Node:
         else_raw = raw.get("else")
         if not isinstance(then_raw, dict) or not isinstance(else_raw, dict):
             raise ValueError(f"guard {rid}: 'then' and 'else' must both be present cascade objects")
-        then_cascade = _parse_cascade(then_raw.get("nodes") or [], then_raw.get("default_action"), default_required=False, vocab=vocab)
-        else_cascade = _parse_cascade(else_raw.get("nodes") or [], else_raw.get("default_action"), default_required=False, vocab=vocab)
+        then_cascade = _parse_cascade(then_raw.get("nodes") or [], then_raw.get("default_action"), default_required=False, vocab=vocab, map_=map_)
+        else_cascade = _parse_cascade(else_raw.get("nodes") or [], else_raw.get("default_action"), default_required=False, vocab=vocab, map_=map_)
         return GuardNode(id=rid, condition=cond, criteria_true=ct, criteria_false=cf, then=then_cascade, else_=else_cascade)
-    kind, ability, selector = _validate_action(raw.get("action") or {}, f"rule {rid}", vocab)
+    kind, ability, selector = _validate_action(raw.get("action") or {}, f"rule {rid}", vocab, map_)
     return TranslatedRule(
         id=rid,
         condition=cond,
@@ -540,13 +570,13 @@ def _parse_node(raw: dict, idx: int, vocab: str = VOCAB_1) -> Node:
     )
 
 
-def _parse_cascade(nodes_raw: list, default_raw: dict | None, default_required: bool, vocab: str = VOCAB_1) -> Cascade:
-    nodes = tuple(_parse_node(r, i, vocab) for i, r in enumerate(nodes_raw or []))
+def _parse_cascade(nodes_raw: list, default_raw: dict | None, default_required: bool, vocab: str = VOCAB_1, map_=None) -> Cascade:
+    nodes = tuple(_parse_node(r, i, vocab, map_) for i, r in enumerate(nodes_raw or []))
     if default_required:
-        kind, ability, selector = _validate_action(default_raw or {}, "default_action", vocab)
+        kind, ability, selector = _validate_action(default_raw or {}, "default_action", vocab, map_)
         default = Action(kind, ability, selector)
     elif default_raw is not None:
-        kind, ability, selector = _validate_action(default_raw, "default_action", vocab)
+        kind, ability, selector = _validate_action(default_raw, "default_action", vocab, map_)
         default = Action(kind, ability, selector)
     else:
         default = None
@@ -630,19 +660,20 @@ def enforce_finished_guards(raw_json: dict, vocab: str, drop: bool = False) -> t
 
 
 def parse_schema(raw_json: dict, pilot_file: str, instrument: str, raw_text: str, vocab: str = VOCAB_1,
-                 economy: str | None = None) -> TranslatedSchema:
+                 economy: str | None = None, map_=None) -> TranslatedSchema:
     """`vocab` is what the model was prompted with (`_translation_prompt`); the schema records it.
     `economy` is the ruleset `build` is checked against (None = `economy_rules.DEFAULT_ECONOMY`).
     Under vocab-2 the targets are first corrected to the ones the rules mean (`normalize_targets`)."""
     vocab = resolve_vocab(vocab)
     raw_json, target_notes = normalize_targets(raw_json, vocab)
-    root = _parse_cascade(raw_json.get("rules"), raw_json.get("default_action"), default_required=True, vocab=vocab)
+    root = _parse_cascade(raw_json.get("rules"), raw_json.get("default_action"), default_required=True, vocab=vocab, map_=map_)
     if not root.nodes:
         raise ValueError("translator produced zero rules")
     build, build_notes = normalize_build(raw_json.get("build"), instrument, economy)
     return TranslatedSchema(
         pilot_file=pilot_file, instrument=instrument, raw_model_output=raw_text, root=root,
         validation_notes=target_notes + build_notes, build=build, vocab=vocab, economy=economy,
+        map=map_ if vocab == VOCAB_2 and map_has_teleport(map_) else None,
     )
 
 
@@ -1275,7 +1306,8 @@ def _foreign_cooldown_question(condition: str, instrument: str) -> str | None:
     return None
 
 
-def enforce_instrument_scope(schema: TranslatedSchema, instrument: str, primary_ability: str, ultimate_ability: str) -> TranslatedSchema:
+def enforce_instrument_scope(schema: TranslatedSchema, instrument: str, primary_ability: str, ultimate_ability: str,
+                             teleport: bool = False) -> TranslatedSchema:
     """Schema-assembly guard, the backstop behind `scope_to_instrument` and the prompt: walks the
     WHOLE tree (rules nested in guard branches too) and
 
@@ -1295,6 +1327,8 @@ def enforce_instrument_scope(schema: TranslatedSchema, instrument: str, primary_
     which `translate_pilot` retries like a parse failure -- if a cascade DEFAULT names a foreign
     ability, or if nothing is left at the root."""
     own = {primary_ability.lower(): primary_ability, ultimate_ability.lower(): ultimate_ability}
+    if teleport:  # pvp-2: every instrument's (`TELEPORT_ABILITY`)
+        own[TELEPORT_ABILITY] = TELEPORT_ABILITY
     others = [i for i in ABILITIES if i != instrument]
     notes: list[str] = []
 
@@ -1534,12 +1568,16 @@ def translate_pilot(
     generate=None,
     vocab: str = VOCAB_1,
     economy: str | None = None,
+    map_=None,
 ) -> TranslatedSchema:
     """`generate`, when given, is a `prompt -> reply text` callable that replaces the host-Ollama
     call (`llm_backends.Backend.generate` -- how `compile.py` runs the same translation on
     OpenRouter, or under a token cap). The prompt, parsing, retries and guards are the same
     either way. `economy` names the ruleset whose items the prompt lists and `build` is checked
     against (None = `economy_rules.DEFAULT_ECONOMY`); every backend gets the same prompt.
+
+    `map_` (a map name, `compile.py --map`): pvp-2 offers vocab-2 compiles its teleport (`TELEPORT_ABILITY`,
+    `PVP2_SELECTORS`) and its facts (`vocab.FACTS_PVP2`); any other map, or none, changes nothing.
 
     `vocab` (`vocab.py`) picks the prompt's selector and facts lists and the selectors the reply
     may name, and the schema records it. vocab-1 by default here, so a research harness keeps the
@@ -1560,17 +1598,18 @@ def translate_pilot(
             f"of the {instrument} schema (each is compiled only for the instrument it names): {quoted}",
         )
     vocab = resolve_vocab(vocab)
-    prompt = _translation_prompt(scoped.text, instrument, primary_ability, ultimate_ability, vocab, economy=economy)
+    prompt = _translation_prompt(scoped.text, instrument, primary_ability, ultimate_ability, vocab, economy=economy, map_=map_)
+    teleport = vocab == VOCAB_2 and map_has_teleport(map_)
     last_err: Exception | None = None
     for attempt in range(max_attempts):
         reply = generate(prompt)
         last = attempt == max_attempts - 1
         try:
             raw_json, guard_notes = enforce_finished_guards(_extract_json_object(reply), vocab, drop=last)
-            schema = parse_schema(raw_json, pilot_file, instrument, reply, vocab, economy=economy)
+            schema = parse_schema(raw_json, pilot_file, instrument, reply, vocab, economy=economy, map_=map_)
             if scope_notes or guard_notes:
                 schema = dataclasses.replace(schema, validation_notes=schema.validation_notes + guard_notes + scope_notes)
-            schema = enforce_instrument_scope(schema, instrument, primary_ability, ultimate_ability)
+            schema = enforce_instrument_scope(schema, instrument, primary_ability, ultimate_ability, teleport=teleport)
             schema = enforce_shopping_list(schema, scoped.text)
             schema = enforce_identity_rules(schema, scoped.text, drop=last)
             schema = enforce_negation(schema, scoped.text, drop=attempt == max_attempts - 1)
@@ -1578,13 +1617,13 @@ def translate_pilot(
         except UnfinishedGuardError as err:
             last_err = err
             prompt = (
-                _translation_prompt(scoped.text, instrument, primary_ability, ultimate_ability, vocab, economy=economy)
+                _translation_prompt(scoped.text, instrument, primary_ability, ultimate_ability, vocab, economy=economy, map_=map_)
                 + f"\n\nYour previous attempt was invalid: {err}. Output ONLY the JSON object, no other text."
             )
         except (ValueError, json.JSONDecodeError) as err:
             last_err = err
             prompt = (
-                _translation_prompt(scoped.text, instrument, primary_ability, ultimate_ability, vocab, economy=economy)
+                _translation_prompt(scoped.text, instrument, primary_ability, ultimate_ability, vocab, economy=economy, map_=map_)
                 + f"\n\nYour previous attempt was invalid: {err}. If this mentions a 'guard_'-named "
                 "rule, you emitted a plain rule action for something that needed the full guard shape "
                 "(type/then/else) -- either finish the guard shape or use a normal rule instead. "
