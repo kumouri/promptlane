@@ -116,9 +116,11 @@ class Vocab1IsByteIdentical(unittest.TestCase):
                 for sel in GOLDEN["selectors"]:
                     self.assertEqual(resolve_target(sel, o, targeting, VOCAB_2, "pvp-1"), want[f"{targeting}:{sel}"], sel)
 
-    # Recompiled under vocab-2 on purpose (vocabulary spec §7 D3, runs/vocab-house-tiers-2026-10-02.md).
+    # Recompiled under vocab-2 on purpose (vocabulary spec §7 D3, runs/vocab-house-tiers-2026-10-02.md,
+    # runs/jev-recheck-vocab2-2026-10-02.md).
     VOCAB2_ON_PURPOSE = frozenset({"house-easy-eco.schemas.json", "house-hard-eco.schemas.json",
-                                   "vocab-house-tiers-2026-10-02-sample-entrant-eco-vocab2.schemas.json"})
+                                   "vocab-house-tiers-2026-10-02-sample-entrant-eco-vocab2.schemas.json",
+                                   "jev-recheck-vocab2-2026-10-02-sample-entrant-eco-vocab2.schemas.json"})
 
     def test_every_checked_in_schema_is_vocab1_and_plays_the_vocab1_description(self):
         files = sorted(REPO.glob("prompts/pilots/*.schemas.json")) + sorted(REPO.glob("runs/*schema*.json"))
