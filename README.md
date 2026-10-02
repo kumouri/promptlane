@@ -73,7 +73,9 @@ docs/                current design notes and historical recordings; not implici
                      elevation) both built; economy-spec.md: gold, levels, items, respawn and a neutral
                      river objective for the Jam, with the Dota 2 / League gold comparison;
                      fewer-draws-spec.md: why matches draw at 10:00, and candidate rules that decide
-                     them within the 600 s)
+                     them within the 600 s; presentation-spec.md: what a spectator or entrant can't
+                     read from the viewer and site today, and a ranked plan for a better presentation
+                     layer, with screenshots and a GPT visual critique under docs/presentation/)
 assets/logo/         Jamobair, the mascot (PNG on black, on near-black, and transparent)
 assets/favicon/      the bearbot tab icon (SVG, PNG, ICO) and make_favicon.mjs, which draws them
 ```
@@ -209,7 +211,11 @@ jam-day bracket: entrants paste a prompt and run a quick test against the house 
 prompts in `jamobair-entrants` are placed automatically on three seeds, an Elo ladder is folded
 from an append-only ledger with every match re-verified before it counts, every match can be
 watched live (`/play/?live=<id>`), and the organizer seeds a single-elimination bracket from the
-ladder, pre-runs the early rounds, and plays the semis and final live. The ladder plays both sides
+ladder, pre-runs the early rounds, and plays the semis and final live. `/teams` lists every team
+with its members, status and standing. On `/team` a team can create itself, take its learner in
+by join code, and submit its `pilot.md` from the browser. The arena runs the entrants validator,
+then commits the file into `jamobair-entrants`, so the repo stays the one record (runbook §1d).
+The ladder plays both sides
 on Jev, as the Jam does: entrant prose is compiled once by `tools/jev/compile.py`, and the house
 plays its tier's compiled schemas (spec §9). Start it, expose it behind
 Cloudflare Access, and operate it — including the jam-day sequence — per

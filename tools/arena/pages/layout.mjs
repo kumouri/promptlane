@@ -51,8 +51,10 @@ const NAV = [
   ['/', 'Home'],
   ['/contract', 'Contract'],
   ['/compile', 'Compile'],
+  ['/team', 'Your team'],
   ['/test', 'Test'],
   ['/ladder', 'Ladder'],
+  ['/teams', 'Teams'],
   ['/matches', 'Matches'],
   ['/bracket', 'Bracket'],
 ];

@@ -44,10 +44,10 @@ time; the <a href="/matches">queue</a> shows where yours is.</p>
   </div>
   <p><button type="submit">Queue the match</button></p>
 </form>
-<p class="dim">To get <em>on the ladder</em> you merge: <code>entrants/${esc(user.handle ?? '<handle>')}/pilot.md</code> in
-<a href="https://github.com/kumouri/jamobair-entrants">jamobair-entrants</a> (needs access — ask Ceryce in Slack).
-See the <a href="/contract">prompt contract</a> for the exact rules. Placements queue themselves within a minute
-of the merge. Anyone who can watch a match can read the prompt that played in it, scratch included.</p>
+<p class="dim">To get <em>on the ladder</em>, submit your team's pilot on <a href="/team">Your team</a>, or merge
+<code>entrants/&lt;team&gt;/pilot.md</code> in <a href="https://github.com/kumouri/jamobair-entrants">jamobair-entrants</a>
+(needs access — ask Ceryce in Slack). See the <a href="/contract">prompt contract</a> for the exact rules. Placements
+queue themselves within a minute. Anyone who can watch a match can read the prompt that played in it, scratch included.</p>
 `;
   return page({ title: 'Test', path: '/test', user, body, flash });
 }

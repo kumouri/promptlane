@@ -76,6 +76,7 @@ The entrants poller shells out to `gh api` for `kumouri/jamobair-entrants` (`mai
 | `house` | `{handle, tier}` (the example: `medium`) or `{handle, files}` — ordered candidates; a candidate is a `{violet, green}` pair (one prompt per side) or one file; the first whose files all exist wins: the `house-*.md` pair, then `house.md`, then `drums.md`. `schemas` (default `null` = the tier's `prompts/pilots/house-<tier>.schemas.json`) is what the house plays on a Jev ladder (§4). `backend` (default `null`, text-model ladders only) names a `kind: "jev-http"` entry to have Jev play the house side — §6, *5.3 Jam day with the Jev house bot* |
 | `organizerEmail` | the one organizer (Q19); refused if left as `CHANGE-ME` in Access mode; `ARENA_ORGANIZER_EMAIL` overrides |
 | `compile` | the `/compile` panel (§1b) **and the Jev ladder's own compiles** (§1c): `backend` (`ollama`/`openrouter`), `model`, per-IP and global limits (panel only), `ipHeader`, `practiceBackend` |
+| `submissions` | web teams and submissions (§1d): `enabled`, `cutoff` (ISO instant; default midnight Central ending Thu 15 Oct), `maxPromptBytes`, per-person and global rate limits. Absent = those defaults. Accepted submissions are committed to the `entrants` repo |
 
 Changing the tournament block appends a new `tournament` row; nothing already played is altered.
 
@@ -267,6 +268,119 @@ nothing to reset.
 
 ---
 
+## 1d. Teams and web submissions (`/teams`, `/team`)
+
+Built 2026-10-01 on Ceryce's ask: "a way to view teams and stuff on the website, and to make your
+submissions via the website instead of via github". Pull requests keep working exactly as before;
+the web is a second door into the same repo.
+
+**What a person sees.**
+
+- **`/teams`**: every entry, web or GitHub. Each row shows the folder name (`alice+bob`), the members' handles with
+  lead/learner (lead first, as the folder orders them), and a status: *not submitted yet*,
+  *submitted — syncing*, *placing* or *on the ladder*. It also shows the last update, the ladder
+  rank · Elo · current W-D-L, and whether the team is managed on the web or by pull request.
+- **`/teams/<folder>`**: the pilot as committed (escaped, in a `<pre>`). On a Jev ladder it also
+  shows what the ladder's compiler made of the pilot (*compiled* with the rule counts and the
+  transparency view, *compiling*, or *failed* with the reason), then the last 20 matches with
+  replay and watch-live links.
+- **`/team`** (*Your team* in the nav): if you are not on a team, *Create* (you are its lead; pick
+  your handle) or *Join* (your handle plus the join code your lead sends you). If you are, the team's
+  `pilot.md` sits in a text box and *Submit* commits it. The page then shows the commit and
+  "the entrants validator passed it", or the validator's own words for what is wrong, or a conflict
+  (below).
+
+Every authenticated viewer sees `/teams`, the same audience as a match log, which already carries
+each side's prose. Emails show only to the organizer, and a join code only to the team's members
+and the organizer.
+
+**Rules, all enforced server-side** (`tools/arena/teams.mjs`):
+
+| Rule | How |
+|---|---|
+| Identity | the Access email, exactly as everywhere else (`auth.mjs`) |
+| Only members edit | a team's members are emails in the ledger (`team`, `team-member` rows). A self-claimed handle is never enough, so a handle a GitHub entry already names cannot be taken on the web |
+| Team shape | the creator is the lead; one learner joins with the join code (10 characters, case-insensitive). A second learner (a team of three) and "Ceryce as lead" are the organizer's to assign, as the entrants README rules |
+| Validation | the entrants repo's own `tools/validate_entry.py`, run as itself on the exact bytes to be committed. Below: *one validator* |
+| Cutoff | `submissions.cutoff`, default `2026-10-16T05:00:00Z`: **midnight Central at the end of Thursday 15 October** (the entrants repo's ruling of 2026-09-30 05:40 CT, which replaced 17:00 CT). From that instant, create, join and submit answer 403. Pages stay readable |
+| Size | `maxPromptBytes` 32 KB, a web-form limit only. The validator has no cap, so a bigger entry can still go in by pull request |
+| Rate | per Access email: `perUserPerMinute` 2 and `perUserPerDay` 30 submissions; `globalPerDay` 300; joins and creates 5 a minute, 20 a day (so join codes can't be guessed). In memory, like the compile panel's limits; a restart resets them |
+| Cross-site posts | the team forms refuse a request whose `Origin` is not this host. **The tunnel must not rewrite `Host`** (cloudflared's default; no `httpHostHeader` on the `elysium.` ingress) |
+| Prose is data | never executed or shelled: `gh` gets an argv and the text goes on stdin as JSON. Every page puts it through `esc()` |
+
+### Source of truth: the arena commits into jamobair-entrants
+
+**Decision.** An accepted web submission becomes a commit on the entrants repo's `main`, the ref
+the sync polls. The arena keeps no store of its own.
+
+**Why.** It is the option that leaves the ladder's sync path untouched. The poller, placements,
+`prompt-seen` rows, the repo's `validate` check and the git history see a web submission exactly as
+they see a merged pull request. The arena syncs right after its own write, so placements queue
+within seconds. The alternative, a local store that the sync merges with the repo, is the second
+source of truth that [`arena-site-spec.md` §3.2](arena-site-spec.md#32-prompt-store-git-backed-vs-upload)
+already turned down. It would need a merge rule between two stores, the cutoff would live on one
+workstation, and the repo would stop being the jam-day roster.
+
+**How** (`tools/arena/entrants_writer.mjs`). The write goes through the Git Data API via `gh api`:
+read `main` and its tree, write one tree, write one commit, then move `refs/heads/main`
+fast-forward only (`force: false`). If `main` moved meanwhile because of an unrelated merge, it
+re-reads and retries. The commit message is
+`entrants/<team>: pilot.md from <handle> (<role>)`; handles only, never an email.
+
+**Credential and scope.** It uses the `gh` login the sync already uses on the host (account
+`kumouri`; `gh auth status` lists `repo` among its scopes). **No new secret.** What it needs:
+
+- the `repo` scope (write access to a private repo's contents) — already there;
+- the right to update `main` past its branch protection. `main` requires a pull request and the
+  `validate` check, with *Do not allow bypassing* off (`enforce_admins: false`). `kumouri` is the
+  repo's admin, so its ref update goes through as an admin bypass. GitHub records each one as
+  bypassing protection. The `validate` workflow still runs on the push (it triggers on `push` to
+  `main`), so the CI gate stays visible.
+
+If bypassing is ever turned off for admins, a web submission answers **502 "GitHub refused the
+commit: …"** and writes nothing; pull requests keep working. The fix would be a bypass-list entry
+for whichever account the arena's `gh` runs as.
+
+**Same team, edited both ways.** Every web write names the blob it replaces; the form carries it
+in a hidden field, and the API takes it as `base`. If `main` holds anything else at that path (a
+pull request merged since the page loaded, or a teammate's own web submission), the write is
+refused with **409** and nothing is committed. The page shows what the repo has now above the
+user's draft; submitting again replaces it knowingly. A pull request still *open* when a web write
+lands conflicts on GitHub at merge time. The organizer resolves it there, as for any two pull
+requests touching one file.
+
+**One validator.** `tools/arena/entrants_validator/validate_entry.py` is a byte-for-byte copy of
+the entrants repo's `tools/validate_entry.py`. The README beside it pins its blob sha and says how
+to re-vendor. Every web submission runs that copy on a temp `entrants/<team>/pilot.md`, exactly as
+the repo's check runs on a pull request. The copy is pinned rather than fetched because anyone who
+can merge to the entrants repo could otherwise run code on this host. Each sync and each write
+compare the upstream file's blob sha with the pinned one. **While they differ, web submissions
+answer 503** and `/admin` → *Teams* shows both shas. The sync's own JavaScript port of the rules
+(`prompts.mjs`) is held to the copy by `test_teams.mjs`, including where Python's regex dialect and
+JavaScript's differ.
+
+**A learner joins a team that already has an entry.** One commit moves `entrants/alice/pilot.md` to
+`entrants/alice+bob/pilot.md`. The sync then appends `prompt-gone` for `alice`, which leaves the
+ladder, and places `alice+bob` as a new entrant from 1000, exactly as if a pull request had renamed
+the folder.
+
+**Teams that entered by pull request** are listed, read-only on the web. To let one submit here:
+`/admin` → *Teams* → create the team with the folder's handles (lead first) and its members'
+emails. That links it, and its members can then edit it from `/team`. The same form makes a team for
+a learner with Ceryce as lead, or a team of three. *Disband* forgets a team on the arena only; the
+repo is untouched.
+
+**Operator checks.** `gh auth status` must be good on the host, the same as for the sync.
+`/admin` → *Teams* shows open/closed with the cutoff, the validator shas, and every team with
+member emails and join codes. The API, all behind Access: `GET /api/teams`,
+`/api/teams/<folder>`; `POST /api/team/create {handle}`, `/api/team/join {handle, code}`,
+`/api/team/submit {prompt, base}` (`base` = the blob sha replaced, `""` for a first submission) →
+`201 {folder, commit, hash, blobSha}`, or `422 {problems}`, `409 {conflict}`, `403`, `413`, `429`,
+`503`. Organizer-only: `POST /api/teams {leadEmail, leadHandle, learnerEmail?, learnerHandle?,
+learner2Email?, learner2Handle?}`, `/api/teams/<teamId>/disband`.
+
+---
+
 ## 2. Expose it to InRhythm (Access + tunnel) — by hand, once
 
 Rulings: Cloudflare Access one-time PIN (Q1), `inrhythm.com` (Q2), hostname **`elysium.`** on the
@@ -309,9 +423,10 @@ this is created by code**; the steps below are the deployment note.
 7. **Smoke it from a phone:** open `https://elysium.<zone>/`, get the PIN by email, paste a prompt on
    *Test*, watch the result page fill in, press *Watch the replay*.
 
-Identity is the Access email; the **handle** (GitHub login = `entrants/<handle>` folder) is typed
-once on the Test page and recorded as a `claim` row. First come, first served; the organizer
-reassigns on `/admin`.
+Identity is the Access email; the **handle** (a name in the `entrants/<team>` folder) is typed
+once, on the Test page or when creating or joining a team, and recorded as a `claim` row. First
+come, first served; the organizer reassigns on `/admin`. Team membership is by email, not by
+handle (§1d).
 
 ---
 
@@ -431,10 +546,12 @@ The same rules can instead be played by Jev (shadow only unless Ceryce flips it)
 
 ## 5. What runs unattended
 
-- **Sync**: every 60 s the poller lists `entrants/*/pilot.md` on `main`, validates each with the
-  entrants validator's rules, and for any *new* content hash writes a `prompt-seen` row, cancels
-  that handle's not-yet-started placements, and queues three placements (seeds 7, 11, 42,
-  entrant on violet/green/violet, full match on the tournament backend).
+- **Sync**: every 60 s, and right after a web submission (§1d), the poller lists
+  `entrants/*/pilot.md` on `main`. Each folder is one team, named `lead[+learner[+learner]]`. It
+  validates each entry with the entrants validator's rules, and for any *new* content hash writes a
+  `prompt-seen` row, cancels that entry's not-yet-started placements, and queues three placements
+  (seeds 7, 11, 42, entrant on violet/green/violet, full match on the tournament backend). A
+  folder that disappears gets a `prompt-gone` row and leaves the ladder.
 - **Queue**: one worker per backend. Priority `organizer` > `bracket` > `placement` > `test`,
   FIFO within a class. Before each job the worker probes the model server's `/health`; if it is
   down it waits 30 s and tries again without touching the job. A Jev backend also checks that the
@@ -462,7 +579,7 @@ row, so a wrong press is undone by the next one, never by editing history.
 
 | When | Do | What happens |
 |---|---|---|
-| **Thu 10-01, after the 17:00 CT cutoff** | `/admin` → *Sync now* (so the last merges are in), wait for the placements to finish (`/matches` shows an empty queue), then `/admin` → *Jam-day bracket* → **Create bracket from the ladder** (id `jam`, backend `qwen9b`, cadence **2**, 600 s, pre-run rounds **2**) | A `bracket` row pins every entrant's handle, merged hash and Elo in ladder order; byes go to the top seeds. Nothing runs yet. |
+| **After the cutoff, Fri 10-16 00:00 CT (midnight Central)** — web submissions close by themselves at that instant (§1d) | `/admin` → *Sync now* (so the last merges are in), wait for the placements to finish (`/matches` shows an empty queue), then `/admin` → *Jam-day bracket* → **Create bracket from the ladder** (id `jam`, backend `qwen9b`, cadence **2**, 600 s, pre-run rounds **2**) | A `bracket` row pins every entrant's handle, merged hash and Elo in ladder order; byes go to the top seeds. Nothing runs yet. |
 | **Thu night** | `/bracket` → **Run round 1**. When its matches are finished (`done` on the page; ~25 min each, one at a time), **Run round 2** | Round-1/2 matches queue at `bracket` priority and are verified before they count. Both rounds are **held**: only you can see results, match pages, logs or streams; spectators see "held until jam day" and no pairings for later rounds. |
 | **Fri, before announcing** | `npm run build` if `src/` changed since the last build; `/matches` should be idle; open `/bracket` yourself in a second browser without the organizer identity (or a phone) to confirm what a remote spectator will actually see, before anyone is watching | — |
 | **Fri, opening** | `/bracket` → **Reveal results** on round 1, then on round 2 | Results, pairings and replays appear for everyone. |
@@ -644,7 +761,7 @@ match plays Jev; entrants never do. **Back out:** set `"backend": null` and rest
 
 ## 7. Tests
 
-`npm run test:arena` — `node --test` over `tools/arena/test_*.mjs` (112 tests): the `arena.` →
+`npm run test:arena` — `node --test` over `tools/arena/test_*.mjs`: the `arena.` →
 `elysium.` redirect, Elo and placements, ledger folds (quota, standings, recovery), the ported
 validator, Access JWT refusal, the verify gate and wall cap, the house pair, the bracket (seeding,
 byes, the Q7 tie order, the fold through void/re-run/ruling/reveal), the live stream (backlog,
@@ -658,4 +775,9 @@ rate limiter, the real `compile.py` child against a fake Ollama, a practice matc
 schema server), and the Jev ladder (`test_jev_ladder.mjs`: the compile cache and compiler version,
 placements on a fake schema server with spend and doors on the ledger and nothing asking the qwen
 port, a compile failure, an outage mid-match, the unanswered-rate rule, both spend caps, the
-holds, and the house's schema files). No GPU and no Jev; it is what CI runs.
+holds, and the house's schema files), and teams (`test_teams.mjs`: the web refuses what the
+entrants repo's check refuses and accepts what it accepts, in its words; the sync's JavaScript port
+against the vendored validator on Python-vs-JavaScript regex edges; the cutoff; only members edit;
+escaping; the teams pages; commit → placements; a join renaming the folder; a stale edit refused as
+a conflict; the rate and size limits; validator drift; the GitHub writer against a fake `gh`). No
+GPU and no Jev; it is what CI runs. `test_teams.mjs` needs Python, as `test_compile.mjs` does.

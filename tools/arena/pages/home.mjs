@@ -14,12 +14,12 @@ Elysium runs your prompt against the house bot before the jam so you can see how
   <p>Paste a prompt on <a href="/test">Test</a> and run a quick match (3 sim-minutes) against the house bot.
   You get a result line and a replay you can watch. Scratch prompts are never ranked and never kept.</p></div>
   <div class="card"><h2>2 · Get on the ladder</h2>
-  <p>Read the <a href="/contract">prompt contract</a>, then ask Ceryce in Slack for access to
-  <a href="https://github.com/kumouri/jamobair-entrants">jamobair-entrants</a> — it's private, round one is
-  IR-only, and no prompt is needed to ask. Once you're in, fork it and merge
-  <code>entrants/&lt;your-handle&gt;/pilot.md</code>. The arena polls <code>main</code>, sees the new prompt, and
+  <p>Read the <a href="/contract">prompt contract</a>, then on <a href="/team">Your team</a> create your team (or
+  join your lead's with their code) and submit your <code>pilot.md</code> right here — the arena commits it to
+  <a href="https://github.com/kumouri/jamobair-entrants">jamobair-entrants</a> for you. Pull requests there work too
+  (<code>entrants/&lt;team&gt;/pilot.md</code>; ask Ceryce in Slack for access). The arena sees the new prompt and
   plays your three placement matches against the house bot automatically (seeds
-  ${esc(tournament.placementSeeds.join(', '))}, full ten minutes each).</p></div>
+  ${esc(tournament.placementSeeds.join(', '))}, full ten minutes each). <a href="/teams">Teams</a> lists everyone.</p></div>
   <div class="card"><h2>3 · Climb</h2>
   <p>The <a href="/ladder">ladder</a> is Elo: start 1000, K 32, draw ½. A revised prompt keeps its rating and
   re-places. Only full matches with merged prompts count; quick tests are for iteration.</p></div>
@@ -42,7 +42,7 @@ Elysium runs your prompt against the house bot before the jam so you can see how
 <h2>Rules in one breath</h2>
 <p>One file, no code fences, no URLs. Your prompt drives all three bearbots on your side
 (drums top, keytar mid, violin bottom). A destroyed nexus wins; at ten minutes it goes to towers standing, then
-nexus health. Cutoff <b>Thu 1 Oct 2026, 17:00 CT</b>; jam day <b>Fri 2 Oct</b>. The full prompt contract is on
+nexus health. Cutoff <b>midnight CT going into Fri 16 Oct 2026</b>; jam day <b>Fri 16 Oct</b>. The full prompt contract is on
 the <a href="/contract">contract page</a> — no GitHub access needed to read it.</p>
 `;
   return page({ title: 'Home', path: '/', user, body });
