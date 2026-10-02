@@ -308,6 +308,155 @@ class NodeCountPromptTests(unittest.TestCase):
         self.assertIn("Use between 3 and 8 top-level nodes.", T._translation_prompt("Push the lane.", "drums", "kick", "fill"))
 
 
+SHOPPING = json.loads(open(os.path.join(os.path.dirname(__file__), "testdata", "shopping_rules.json"), encoding="utf-8").read())
+
+
+def _shopping_reply(index: int, **changes) -> dict:
+    """A saved schema of `shopping_rules.json` as the translator reply it was parsed from."""
+    saved = {**SHOPPING["schemas"][index]["schema"], **changes}
+    rules = [{"id": r["id"], "condition": r["condition"], "criteria": {"true": r["criteria_true"], "false": r["criteria_false"]},
+              "action": {"kind": r["action_kind"], "ability": r["action_ability"], "target_selector": r["action_target_selector"]}}
+             for r in saved["rules"]]
+    reply = {"rules": rules, "default_action": saved["default_action"]}
+    if saved.get("build") is not None:
+        reply["build"] = saved["build"]
+    return reply
+
+
+def _shopping(index: int, **changes) -> tuple[T.TranslatedSchema, str]:
+    case = SHOPPING["schemas"][index]
+    schema = T.parse_schema(_shopping_reply(index, **changes), "pilot.md", case["instrument"], "raw", "vocab-2", economy="eco-3-late")
+    return schema, T.scope_to_instrument(SHOPPING["prose"], case["instrument"]).text
+
+
+class ShoppingListIsNotARuleTests(unittest.TestCase):
+    """vocab-2: a shopping-list line is `build` only (#84's and #85's "at its base -> go home" rules)."""
+
+    def test_the_rules_that_restate_the_shopping_list_are_dropped(self):
+        for i, case in enumerate(SHOPPING["schemas"]):
+            if case["drops"] == "raise" or not case["drops"]:
+                continue
+            schema, prose = _shopping(i)
+            with self.subTest(case["pr"] + " " + case["sample"] + " " + case["instrument"]):
+                fixed = T.enforce_shopping_list(schema, prose)
+                self.assertEqual([r.id for r in fixed.rules], [r.id for r in schema.rules if r.id not in case["drops"]])
+                self.assertEqual(fixed.build, schema.build)
+                notes = fixed.validation_notes[len(schema.validation_notes):]
+                self.assertEqual([n.split()[3] for n in notes], case["drops"])
+                self.assertTrue(all(n.startswith("build: removed rule ") for n in notes))
+
+    def test_no_parking_rule_survives(self):
+        for i, case in enumerate(SHOPPING["schemas"]):
+            if case["drops"] == "raise":
+                continue
+            fixed = T.enforce_shopping_list(*_shopping(i))
+            self.assertFalse([r.id for r in fixed.rules if r.condition == "is this bot at its base?"], case["sample"])
+
+    def test_real_go_home_rules_survive(self):
+        for i, case in enumerate(SHOPPING["schemas"]):
+            if case["drops"] == "raise":
+                continue
+            schema, prose = _shopping(i)
+            kept = {r.id for r in T.enforce_shopping_list(schema, prose).rules}
+            home = [r for r in schema.rules if r.action_target_selector == "home" and r.id not in case["drops"]]
+            self.assertTrue(home, case["sample"])  # back off, spend gold, no minions, ...
+            for r in home:
+                self.assertIn(r.id, kept, f"{case['sample']}: {r.condition}")
+
+    def test_afford_my_next_item_is_a_rule_even_when_it_lists_the_items(self):
+        schema, prose = _shopping(5)  # #84 s4 keytar
+        self.assertIn("(Metronome, then Amp, then Road Case)", schema.rules[0].condition)
+        self.assertIs(T.enforce_shopping_list(schema, prose), schema)
+
+    def test_a_clean_compile_is_unchanged(self):
+        schema, prose = _shopping(6)  # #85 s1 drums
+        self.assertIs(T.enforce_shopping_list(schema, prose), schema)
+
+    def test_no_build_list_raises_and_quotes_the_line(self):
+        schema, prose = _shopping(3)  # #85 s2 violin
+        self.assertIsNone(schema.build)
+        with self.assertRaises(T.SchemaValidationError) as err:
+            T.enforce_shopping_list(schema, prose)
+        self.assertIn("Violin: Amp, then Bass Strings, then Road Case.", str(err.exception))
+        self.assertIn('"build"', str(err.exception))
+
+    def test_translate_pilot_retries_when_the_list_became_rules_only(self):
+        fixed_reply = _shopping_reply(3)
+        fixed_reply = {**fixed_reply, "build": ["amp", "bass-strings", "road-case"],
+                       "rules": [r for r in fixed_reply["rules"] if r["id"] != "shop_order" and not r["id"].startswith("shop_")]}
+        replies, prompts = [json.dumps(_shopping_reply(3)), json.dumps(fixed_reply)], []
+
+        def generate(prompt):
+            prompts.append(prompt)
+            return replies[len(prompts) - 1]
+
+        schema = T.translate_pilot(SHOPPING["prose"], "pilot.md", "violin", "staccato", "glissando", generate=generate, vocab="vocab-2",
+                                   economy="eco-3-late")
+        self.assertEqual(len(prompts), 2)
+        self.assertIn("Violin: Amp, then Bass Strings, then Road Case.", prompts[1].split("Your previous attempt was invalid:")[1])
+        self.assertEqual(schema.build, ("amp", "bass-strings", "road-case"))
+
+    def test_translate_pilot_drops_them_without_a_retry_when_build_is_there(self):
+        prompts = []
+
+        def generate(prompt):
+            prompts.append(prompt)
+            return json.dumps(_shopping_reply(0))  # #85 s4 drums
+
+        schema = T.translate_pilot(SHOPPING["prose"], "pilot.md", "drums", "kick", "fill", generate=generate, vocab="vocab-2", economy="eco-3-late")
+        self.assertEqual(len(prompts), 1)
+        self.assertFalse({"buy_road_case", "buy_bass_strings", "buy_metronome"} & {r.id for r in schema.rules})
+        self.assertEqual(schema.build, ("road-case", "bass-strings", "metronome"))
+        md = T.render_markdown(schema)
+        self.assertIn("**Shopping list -- what was changed:**", md)
+        self.assertIn("removed rule buy_road_case", md)
+
+    def test_vocab1_is_unchanged(self):
+        schema, prose = _shopping(0)
+        schema = dataclasses.replace(schema, vocab="vocab-1")
+        self.assertIs(T.enforce_shopping_list(schema, prose), schema)
+
+    def test_what_is_a_shopping_sentence(self):
+        pats = T._item_patterns("eco-3-late")
+        for s in ("buy an amp first, then a road case", "Drums: Road Case, then Bass Strings, then Metronome.",
+                  "Our shopping lists, in order:\nViolin: Amp, then Bass Strings, then Road Case.", "Rush a Wall of Sound."):
+            self.assertTrue(T._is_shopping_sentence(s, pats), s)
+        for s in ("I buy an Amp when I can afford it.", "When I can afford my next item and no enemy is in sight, I head home to shop.",
+                  "When my hp drops below a third of my max, I go home.", "Once I own a Road Case, I dive their tower."):
+            self.assertFalse(T._is_shopping_sentence(s, pats), s)
+
+    def test_a_rule_about_an_item_another_sentence_names_is_kept(self):
+        prose = "Buy a Road Case first, then an Amp.\n\nOnce I have a Road Case, I attack the nearest enemy tower."
+        rules = [{"id": "dive_with_case", "condition": "does this bot have a Road Case?", "action": {"kind": "attack", "ability": None, "target_selector": "nearest_tower"}},
+                 {"id": "buy_amp", "condition": "does this bot have an Amp?", "action": {"kind": "move", "ability": None, "target_selector": "home"}}]
+        schema = T.parse_schema({"rules": rules, "default_action": {"kind": "move", "ability": None, "target_selector": "push_lane"},
+                                 "build": ["road-case", "amp"]}, "p.md", "drums", "raw", "vocab-2")
+        self.assertEqual([r.id for r in T.enforce_shopping_list(schema, prose).rules], ["dive_with_case"])
+
+    def test_an_at_base_rule_the_prose_states_is_kept(self):
+        prose = "Buy an Amp first, then a Road Case.\n\nIf I'm at my base, I wait there for the next wave."
+        rules = [{"id": "shop_wait", "condition": "is this bot at its base?", "action": {"kind": "hold", "ability": None, "target_selector": None}}]
+        schema = T.parse_schema({"rules": rules, "default_action": {"kind": "move", "ability": None, "target_selector": "push_lane"},
+                                 "build": ["amp", "road-case"]}, "p.md", "drums", "raw", "vocab-2")
+        self.assertIs(T.enforce_shopping_list(schema, prose), schema)
+
+    def test_the_prompt_does_not_name_the_parking_rule(self):
+        # A vocab-2 prompt line forbidding "is this bot at its base?" rules doubled how often the translator
+        # wrote them (runs/vocab2-shopping-not-rules-2026-10-02.md §2); the guard alone does the job.
+        for vocab in ("vocab-1", "vocab-2"):
+            self.assertNotIn("at its base?", T._translation_prompt("Buy the amp.", "drums", "kick", "fill", vocab, economy="eco-3-late"))
+
+    def test_a_build_action_says_where_the_list_goes(self):
+        reply = _shopping_reply(0)
+        reply["rules"][1]["action"]["kind"] = "build"  # #85's variant-3 s1 violin failed on this
+        with self.assertRaises(ValueError) as err:
+            T.parse_schema(reply, "p.md", "drums", "raw", "vocab-2", economy="eco-3-late")
+        self.assertIn('top-level "build" list', str(err.exception))
+        with self.assertRaises(ValueError) as err:
+            T.parse_schema(reply, "p.md", "drums", "raw", "vocab-1", economy="eco-3-late")
+        self.assertEqual(str(err.exception), "rule buy_road_case: invalid action kind 'build'")
+
+
 class RenderMarkdownTests(unittest.TestCase):
     def test_render_is_plain_prose_with_no_jev_wire_terms(self):
         schema = T.parse_schema(VALID_SCHEMA, "prompts/pilots/drums.md", "drums", "raw")

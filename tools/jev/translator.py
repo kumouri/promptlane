@@ -45,7 +45,11 @@ SHOPPING LIST. The prompt also carries an items block generated from the ruleset
 names items or a shopping order becomes `schema.build`, validated by `economy_rules.normalize_build`
 (unknown/duplicate items dropped, over-long lists cut to the slot count, each with a `build:` note).
 Under a ruleset with recipes (`docs/late-game-economy-spec.md` §7.4) `build` lists items of any tier
-in the prose's order and the notes say which parts the match will fill in. Economy P2 added one target selector,
+in the prose's order and the notes say which parts the match will fill in. Under vocab-2 a shopping list
+is `build` only, never a rule: `enforce_shopping_list` drops a rule that only restates the list (or
+rejects the reply when `build` is missing, so the retry quotes the line). The prompt does not say so:
+a line that did, quoting the rule it forbids, made the translator write that rule more often.
+Economy P2 added one target selector,
 `highest_bounty_enemy` (`docs/economy-spec.md` §4.2): "go after the enemy worth the most gold".
 VOCABULARIES (`vocab.py`, `docs/vocabulary-spec.md`): `TARGET_SELECTORS` is vocab-1's list. vocab-2
 adds `VOCAB2_SELECTORS` (own towers, tower divers, the nearest enemy bearbot or minion, the nearest
@@ -69,7 +73,7 @@ from dataclasses import dataclass, field
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ground_truth import _ollama_generate, resolve_ollama_url  # noqa: E402
-from economy_rules import NOTE_PREFIX, items_prompt_block, normalize_build  # noqa: E402
+from economy_rules import NOTE_PREFIX, format_build, items, items_prompt_block, normalize_build  # noqa: E402
 from number_normalize import normalize_numbers_for_trace  # noqa: E402
 from scenarios import ABILITIES  # noqa: E402
 from vocab import VOCAB_1, VOCAB_2, facts_for, resolve_vocab  # noqa: E402
@@ -482,6 +486,9 @@ def _validate_action(action: dict, context: str, vocab: str = VOCAB_1) -> tuple[
     selector is invalid, exactly as any unknown selector always was."""
     kind = action.get("kind")
     if kind not in ACTION_KINDS:
+        if vocab == VOCAB_2 and kind in _SHOPPING_KINDS:
+            raise ValueError(f"{context}: invalid action kind {kind!r} -- a shopping list is not a rule; put its items in the "
+                             'top-level "build" list and write no rule for it')
         raise ValueError(f"{context}: invalid action kind {kind!r}")
     ability = action.get("ability")
     if ability is not None and not isinstance(ability, str):
@@ -838,6 +845,126 @@ def _promote(schema: TranslatedSchema, root_nodes: list, matched_indices: set[in
     )
 
 
+# --- a shopping list is the build, never a rule (vocab-2 only) --------------------------------------
+#
+# "Drums: Road Case, then Bass Strings, then Metronome" belongs in `build`. The 9B translator sometimes
+# also wrote it as rules: "is this bot at its base? -> go home" once per item, or "does it have a
+# Metronome and no Amp? -> go home". A move home that fires because the bot is at its base holds it at
+# its fountain all match: 3 of 35 instrument compiles in #84 and in #85
+# (runs/vocab2-shopping-not-rules-2026-10-02.md). Under vocab-2 a rule that only restates a pure
+# shopping sentence is dropped with a `build:` note; if `build` is missing too, the reply is rejected and
+# the retry quotes the line. A real "go home when ..." rule asks about something else and is never one.
+# vocab-1 is unchanged.
+
+_SHOPPING_KINDS = frozenset({"build", "buy", "shop", "purchase"})
+# What a pure shopping sentence may say besides item names (after `_tokenize`'s stopwords).
+_SHOPPING_FILLER = frozenset(
+    "buy buys buying bought get grab pick up purchase shop shopping list lists order first next after afterwards "
+    "finally last later item items build start starting rush our my we i m at home base fountain keytar violin drums drum".split()
+)
+_PLACE = frozenset({"base", "home", "fountain"})
+_AT_BASE_FILLER = _PLACE | frozenset({"bot", "bearbot", "s", "currently", "now", "right", "standing", "located"})
+_SHOPPING_ID = re.compile(r"shop|buy|purchase|item|build|order", re.IGNORECASE)
+_BASE_STATED = re.compile(r"\b(?:base|fountain)\b|\b(?:at|in|stay|stays|wait|waits|sit|sits)\s+(?:my\s+|our\s+|the\s+)?home\b", re.IGNORECASE)
+
+
+def _item_patterns(economy: str | None) -> dict[str, re.Pattern]:
+    pats = {}
+    for key, it in items(economy).items():
+        alts = {it["name"], key}
+        body = "|".join(r"[\s_-]+".join(map(re.escape, re.split(r"[\s_-]+", a))) for a in sorted(alts, key=len, reverse=True))
+        pats[key] = re.compile(rf"\b(?:{body})s?\b", re.IGNORECASE)
+    return pats
+
+
+def _items_named(text: str, pats: dict[str, re.Pattern]) -> set[str]:
+    return {k for k, p in pats.items() if p.search(text)}
+
+
+def _is_shopping_sentence(sentence: str, pats: dict[str, re.Pattern]) -> bool:
+    """Item names and ordering words only: "Drums: Road Case, then Bass Strings, then Metronome.", "buy
+    an amp first, then a road case", "Our shopping lists, in order:". "I buy an Amp when I can afford
+    it" is a rule, not a list."""
+    rest = sentence
+    for p in pats.values():
+        rest = p.sub(" ", rest)
+    named = rest != sentence or bool(re.search(r"\bshopping\b|\bbuild\b", sentence, re.IGNORECASE))
+    return named and not (_tokenize(rest) - _SHOPPING_FILLER)
+
+
+def _shopping_rule(rule: TranslatedRule, pats: dict[str, re.Pattern], claimed_items: set[str], base_stated: bool) -> set[str] | None:
+    """The items a rule restates from the shopping list (empty for an "at its base" rule), or None when
+    it isn't one. It is one when it asks about an item no other sentence of the prose names ("can this
+    bot afford the Amp?", "does it have a Metronome and no Amp?"), unless it asks about the "next item"
+    (that is "when I can afford my next item ...", which may list the items in passing). It is one too
+    when it asks only whether the bot is at its base, moves home or holds, its id says shop or buy, and
+    no other sentence speaks of the base."""
+    text = f"{rule.condition} {rule.criteria_true}"
+    named = _items_named(text, pats)
+    if named - claimed_items and not re.search(r"\bnext\s+item", text, re.IGNORECASE):
+        return named
+    tokens = _tokenize(text)
+    at_base_only = bool(tokens & _PLACE) and not (tokens - _AT_BASE_FILLER)
+    parks = rule.action_kind == "hold" or (rule.action_kind == "move" and rule.action_target_selector == "home")
+    if at_base_only and parks and not base_stated and (_SHOPPING_ID.search(rule.id) or _items_named(rule.id, pats)):
+        return set()
+    return None
+
+
+def enforce_shopping_list(schema: TranslatedSchema, pilot_text: str) -> TranslatedSchema:
+    """vocab-2 only (vocab-1 gets `schema` back): drops every rule, anywhere in the tree, that restates
+    a pure shopping sentence of `pilot_text` (`_shopping_rule`), with a `build:` note the entrant sees.
+    Raises `SchemaValidationError`, which `translate_pilot` retries, quoting the shopping line, when such
+    a rule is there but `build` is not, or when nothing would be left at the root."""
+    if schema.vocab != VOCAB_2:
+        return schema
+    pats = _item_patterns(schema.economy)
+    sentences = _prose_sentences(pilot_text)
+    shopping = [s for s in sentences if _is_shopping_sentence(s, pats)]
+    if not shopping:
+        return schema
+    others = [s for s in sentences if s not in shopping]
+    claimed = set().union(*(_items_named(s, pats) for s in others))
+    base_stated = any(_BASE_STATED.search(s) for s in others)
+    found: list[tuple[TranslatedRule, set[str]]] = []
+
+    def walk(cascade: Cascade) -> Cascade:
+        nodes: list[Node] = []
+        for node in cascade.nodes:
+            if isinstance(node, GuardNode):
+                nodes.append(dataclasses.replace(node, then=walk(node.then), else_=walk(node.else_)))
+                continue
+            named = _shopping_rule(node, pats, claimed, base_stated)
+            if named is None:
+                nodes.append(node)
+            else:
+                found.append((node, named))
+        return Cascade(nodes=tuple(nodes), default=cascade.default)
+
+    new_root = walk(schema.root)
+    if not found:
+        return schema
+
+    def quote(named: set[str]) -> str:
+        lines = [s for s in shopping if _items_named(s, pats) & named] or [s for s in shopping if _items_named(s, pats)] or shopping
+        return " / ".join(" ".join(s.split()) for s in lines)[:200]
+
+    if schema.build is None or not new_root.nodes:
+        rule, named = found[0]
+        raise SchemaValidationError(
+            f"rule {rule.id} restates the shopping list, and a shopping list is not a rule -- put its items in the top-level "
+            f'"build" list and write no rule for it: {quote(named)!r}'
+        )
+    notes = tuple(
+        f"{NOTE_PREFIX} removed rule {rule.id} (\"{rule.condition}\") -- it restates your shopping list "
+        f"({quote(named)!r}), which is the build ({format_build(schema.build, schema.economy)}), not a rule. "
+        "As a rule it would have " + ("sent the bot home and held it at its base whenever it fired." if not named
+                                      else "fired on what the bot owns or can buy, not on anything your rules say.")
+        for rule, named in found
+    )
+    return dataclasses.replace(schema, root=new_root, rules=(), validation_notes=schema.validation_notes + notes)
+
+
 # --- instrument scope (spec §10) --------------------------------------------------------------------
 
 _INST = r"(?:drums?|keytar|violin)"
@@ -1095,6 +1222,7 @@ def translate_pilot(
             if scope_notes:
                 schema = dataclasses.replace(schema, validation_notes=schema.validation_notes + scope_notes)
             schema = enforce_instrument_scope(schema, instrument, primary_ability, ultimate_ability)
+            schema = enforce_shopping_list(schema, scoped.text)
             return enforce_absolute_priority(schema, scoped.text)
         except (ValueError, json.JSONDecodeError) as err:
             last_err = err
