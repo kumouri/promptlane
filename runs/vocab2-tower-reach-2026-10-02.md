@@ -1,6 +1,6 @@
 # vocab-2 tower reach: "attack their tower" reaches the tower Jev was told about — 2026-10-02
 
-**Question.** PR #81 ([`runs/jev-recheck-vocab2-2026-10-02.md`](https://github.com/kumouri/promptlane/blob/runs/jev-recheck-vocab2-2026-10-02/runs/jev-recheck-vocab2-2026-10-02.md)
+**Question.** PR #81 ([`runs/jev-recheck-vocab2-2026-10-02.md`](jev-recheck-vocab2-2026-10-02.md)
 §2.2) found that 40.7 % of the vocab-2 sample entrant's decisions on Jev were "attack `nearest_tower`"
 with no target, so the bot stood still. vocab-2's description lists enemy towers out to `nearbyTowers`'
 radius (about 390), but the resolver only took towers from `visibleEnemies` (260). The bot parked 260 to
@@ -206,9 +206,10 @@ because entrant2 now comes to it.
 
 - **This page.** The fix is in `tools/jev/target_resolve.py`, with tests in `tools/jev/test_vocab.py`
   and `tools/match/test_vocab.mjs`. Docs are `docs/vocabulary-spec.md` §8.2.
-- **entrant2** isn't in this branch. It is PR #81's
-  `runs/jev-recheck-vocab2-2026-10-02-sample-entrant-eco-vocab2.schemas.json`, and every log records
-  it whole. So this branch doesn't need #81's `test_vocab.py` registration.
+- **entrant2** is PR #81's
+  [`jev-recheck-vocab2-2026-10-02-sample-entrant-eco-vocab2.schemas.json`](jev-recheck-vocab2-2026-10-02-sample-entrant-eco-vocab2.schemas.json),
+  which is in `develop` since #81 merged; the copy played is byte-identical, and every log records it
+  whole. This branch adds no schema, so `test_vocab.py` needs no registration.
 - **The 6 logs and 2 stub smokes aren't in git.** They are on the
   [`data-vocab2-tower-reach-2026-10-02`](https://github.com/kumouri/promptlane/releases/tag/data-vocab2-tower-reach-2026-10-02)
   prerelease as `vocab2-tower-reach-2026-10-02-match-logs.zip`: 0.6 MB, sha256
