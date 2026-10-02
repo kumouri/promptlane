@@ -93,10 +93,11 @@ export const PVP_2_MAP: MapVariant = {
 
 /**
  * pvp-1 with the towers' hp cut (opt-in, 2026-10-02): outer towers 400, inner 600, nexus unchanged
- * at 2200. On pvp-1 at 900 no tower fell before the Final Chorus's 8:00 in any recorded Jev match.
- * The weakest outer tower had lost a median of about 430 by 7:59, and no inner tower or nexus had
- * been touched. Outer 400 is the knee: the cut that puts the first tower down before 8:00 in about
- * half the matches. Inner 600 keeps an inner tower tougher than the outer one in front of it.
+ * at 2200. On pvp-1 at 900 no tower fell before the Final Chorus's 8:00 in any of 44 recorded Jev
+ * matches. By 7:59 the weakest outer tower had lost a median of 472, an inner tower at most 26, and
+ * no nexus had been touched. Outer 400 is the knee: with today's bots it puts the first tower down
+ * before 8:00 in about half the matches, and a deeper cut adds almost nothing. Inner 600 keeps an
+ * inner tower tougher than the outer one in front of it.
  * See runs/tower-hp-2026-10-02.md.
  */
 export const PVP_TOWER_HP_MAP: MapVariant = { ...PVP_MAP, name: 'pvp-1-hp400', towerHp: [600, 400] };
