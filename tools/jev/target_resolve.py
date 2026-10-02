@@ -25,7 +25,13 @@ match log and an evolution campaign can pin the one they played:
   candidate floating-point noise put a hair ahead. At its own fountain a bot sees all three
   lanes' minions 42.5 units away, and that noise sent green's bots up the top lane 135 times of
   136 (runs/bandstand-4-2026-10-01.md). Kept so a campaign cached under it plays on under it, and
-  so a request that names no rule (a runner older than the field) gets what it always got."""
+  so a request that names no rule (a runner older than the field) gets what it always got.
+
+Vocabularies (`vocab.py`). The twelve selectors above are vocab-1's, and resolve as they always have
+under every vocabulary. vocab-2 adds six (`VOCAB2_SELECTORS`, `docs/vocabulary-spec.md` §4.1 A4),
+which read `nearbyTowers` and the map's tower placement; a vocab-1 schema naming one is a
+`ValueError`, as any unknown selector always was. Each picks through `_pick`, so a mirrored state
+gives the mirrored choice under `own-lane-1`."""
 from __future__ import annotations
 
 import sys
@@ -33,6 +39,7 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from scenarios import HOME_POS  # noqa: E402
+from vocab import TOWER_STAND_OFF, VOCAB_1, MapSpec, map_spec, resolve_vocab  # noqa: E402
 
 TARGETING_FIRST_MIN = "first-min"
 TARGETING_OWN_LANE_1 = "own-lane-1"
@@ -141,15 +148,96 @@ def _pick(pool: list, score, self_: dict, targeting: str, best=min):
     return min(tied, key=tie_key)
 
 
-def resolve_target(selector: str | None, obs: dict, targeting: str = DEFAULT_TARGETING) -> object | None:
+# vocab-2's selectors (translator.VOCAB2_SELECTORS describes them to the translator).
+VOCAB2_SELECTORS = ("own_tower", "own_front_tower", "nearest_enemy_bearbot", "nearest_enemy_minion", "tower_diver", "nearest_ally")
+
+
+def tower_spot(spec: MapSpec, lane: str, team: str, tier: int) -> dict:
+    """src/mapVariant.ts towerPos: where `team`'s tier-`tier` tower (1 inner, 2 outer) of `lane` stands."""
+    frac = spec.tower_fractions[tier - 1]
+    return _point_along_path(LANE_PATHS[lane], frac if team == "violet" else 1 - frac)
+
+
+def stand_by(tower_pos: dict, team: str) -> dict:
+    """`TOWER_STAND_OFF` units from a tower toward this team's base: inside its range, behind it."""
+    home = HOME_POS[team]
+    d = _dist(tower_pos, home)
+    if d <= TOWER_STAND_OFF:
+        return dict(home)
+    f = TOWER_STAND_OFF / d
+    return {"x": tower_pos["x"] + (home["x"] - tower_pos["x"]) * f, "y": tower_pos["y"] + (home["y"] - tower_pos["y"]) * f}
+
+
+def _seen_at(obs: dict, spot: dict, team: str) -> dict | None:
+    """The tower of `team` the observation lists at `spot` (alive or dead), or None when it is
+    beyond the 390 units towers are listed within, so whether it stands is unknown."""
+    for t in obs.get("nearbyTowers") or ():
+        if t.get("team") == team and _dist(t["pos"], spot) <= 1.0:
+            return t
+    return None
+
+
+def _lane_tower(obs: dict, spec: MapSpec, tiers: tuple) -> dict:
+    """The first of this bot's own-lane tower spots, in `tiers` order, whose tower stands or isn't
+    listed (so may stand: a dead tower beyond 390 can't be known before stage B); else home."""
+    self_ = obs["self"]
+    team, lane = self_["team"], self_.get("lane")
+    if lane in LANE_PATHS:
+        for tier in tiers:
+            spot = tower_spot(spec, lane, team, tier)
+            seen = _seen_at(obs, spot, team)
+            if seen is None or seen.get("alive", True):
+                return stand_by(spot, team)
+    return dict(HOME_POS[team])
+
+
+def _resolve_vocab2(selector: str, obs: dict, targeting: str, spec: MapSpec) -> object | None:
+    self_ = obs["self"]
+    team = self_["team"]
+    enemies = obs.get("visibleEnemies", [])
+    bearbots = [e for e in enemies if e.get("kind") == "bearbot"]
+    own_alive = [t for t in obs.get("nearbyTowers") or () if t.get("team") == team and t.get("alive", True)]
+
+    def nearest(pool):
+        return _pick(pool, lambda e: _dist(self_["pos"], e["pos"]), self_, targeting)
+
+    if selector == "own_tower":
+        # the nearest of my towers listed alive, else my lane's spots, the inner one first
+        return stand_by(nearest(own_alive)["pos"], team) if own_alive else _lane_tower(obs, spec, (1, 2))
+    if selector == "own_front_tower":
+        return _lane_tower(obs, spec, (2, 1))
+    if selector == "nearest_enemy_bearbot":
+        return nearest(bearbots)["id"] if bearbots else None
+    if selector == "nearest_enemy_minion":
+        minions = [e for e in enemies if e.get("kind") == "minion"]
+        return nearest(minions)["id"] if minions else None
+    if selector == "tower_diver":
+        divers = [e for e in bearbots if any(_dist(e["pos"], t["pos"]) <= spec.tower_range for t in own_alive)]
+        return nearest(divers)["id"] if divers else None
+    if selector == "nearest_ally":
+        allies = obs.get("allies", [])
+        if allies:
+            a = nearest(allies)
+            return {"x": a["pos"]["x"], "y": a["pos"]["y"]}
+        near = resolve_target("nearby_minion", obs, targeting)
+        return near if near is not None else dict(HOME_POS[team])
+    raise ValueError(f"unknown target_selector {selector!r}")
+
+
+def resolve_target(selector: str | None, obs: dict, targeting: str = DEFAULT_TARGETING, vocab: str = VOCAB_1,
+                   map_: str | dict | None = None) -> object | None:
     """`None` means either `selector` needs no target, or the selector's candidate pool is empty
     for this Observation (e.g. `lowest_hp_enemy` with no visible enemies) -- both are legitimate,
     distinguished by the caller only caring whether a target was actually produced. `targeting` is
-    one of `TARGETING_RULES` (module docstring)."""
+    one of `TARGETING_RULES` (module docstring); `vocab` is the schema's vocabulary (`vocab.py`),
+    and `map_` the match's map variant, which only vocab-2's tower selectors read."""
     if targeting not in TARGETING_RULES:
         raise ValueError(f"unknown targeting {targeting!r} (known: {', '.join(TARGETING_RULES)})")
+    vocab = resolve_vocab(vocab)
     if selector in (None, "none"):
         return None
+    if vocab != VOCAB_1 and selector in VOCAB2_SELECTORS:
+        return _resolve_vocab2(selector, obs, targeting, map_spec(map_))
     self_ = obs["self"]
     team = self_["team"]
     enemy_team = "green" if team == "violet" else "violet"
@@ -230,9 +318,9 @@ def resolve_target(selector: str | None, obs: dict, targeting: str = DEFAULT_TAR
 
 def main() -> int:
     """`python tools/jev/target_resolve.py`: one JSON request a line on stdin, `{"selector",
-    "observation", "targeting"?}` (absent = first-min, as at the schema server), one `{"target"}` or
-    `{"error"}` line back. It lets a test drive this resolver from the real sim's observations
-    (tools/match/test_targeting.mjs)."""
+    "observation", "targeting"?, "vocab"?, "map"?}` (absent targeting = first-min, as at the schema
+    server; absent vocab = vocab-1), one `{"target"}` or `{"error"}` line back. It lets a test drive
+    this resolver from the real sim's observations (tools/match/test_targeting.mjs, test_vocab.mjs)."""
     import json
 
     for line in sys.stdin:
@@ -240,7 +328,8 @@ def main() -> int:
             continue
         try:
             req = json.loads(line)
-            out = {"target": resolve_target(req["selector"], req["observation"], req.get("targeting", TARGETING_FIRST_MIN))}
+            out = {"target": resolve_target(req["selector"], req["observation"], req.get("targeting", TARGETING_FIRST_MIN),
+                                            req.get("vocab", VOCAB_1), req.get("map"))}
         except Exception as exc:  # noqa: BLE001 -- reported to the caller, line by line
             out = {"error": f"{type(exc).__name__}: {exc}"}
         sys.stdout.write(json.dumps(out) + "\n")

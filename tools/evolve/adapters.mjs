@@ -41,12 +41,22 @@ function run(cmd, args, { input = null, timeoutMs = 0, cwd = ROOT } = {}) {
   });
 }
 
+/**
+ * The vocabulary a campaign compiles under (tools/jev/vocab.py): `shape.vocab` when it names one. A
+ * campaign created before vocabularies existed (campaign 2 among them) compiled every genome under
+ * vocab-1 and stays there, so its later generations play the same game (vocabulary spec §7 D7).
+ */
+export function campaignVocab(campaign) {
+  return campaign.shape?.vocab ?? 'vocab-1';
+}
+
 export function makeCompile(campaign) {
   const cfg = {
     ...COMPILE_DEFAULTS,
     backend: campaign.compile.backend,
     model: campaign.compile.model,
     maxTokensPerCompile: campaign.compile.maxTokensPerCompile,
+    vocab: campaignVocab(campaign),
   };
   const runner = spawnCompile({ root: ROOT, cfg });
   return async (text) => (await runner(text)).data;

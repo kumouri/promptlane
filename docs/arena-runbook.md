@@ -222,6 +222,7 @@ node -e "import('./tools/arena/ledger.mjs').then(({Ledger, jevSpentToday}) => co
 | `/matches`: *Backend `jev-schema` is not starting matches: Jev schema server not reachable* | `schema_server.py` is down | start it; the worker retries every 30 s |
 | … *is not a Jev schema server (… backend="ollama")* | the endpoint points at a text-model server | fix `backends.jev-schema.endpoint` |
 | … *the schema server resolves targets under first-min only, not own-lane-1* | `schema_server.py` is older than the arena's code | restart it from the arena's checkout |
+| … *the schema server plays vocab-1 only, not vocab-2* | `schema_server.py` is older than the vocabulary entrants now compile under (`tools/jev/vocab.py`) | restart it from the arena's checkout |
 | … *daily Jev budget reached* / *the schema server's own --budget-usd … is spent* | a cap did its job | wait for the Central day to turn, or raise the cap and restart |
 | a match `failed — compile failed — violin: …` | that instrument's prose got no valid schema | it re-runs once by itself; if the retry fails too, the entrant's prose needs work. `/compile` shows them why |
 | a match `failed — Jev stopped answering …` / `Jev left too many decisions unanswered …` | Jev outage mid-match | it re-runs once; read the server's `/health` (`jev_fallback_last_error`) and §6 *5.3* step 3 |

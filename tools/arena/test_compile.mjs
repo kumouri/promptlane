@@ -139,6 +139,13 @@ test('spawnCompile: runs tools/jev/compile.py for real and parses its JSON (fake
     assert.ok(p.instruments.keytar.markdown.includes('use **chord** targeting'));
     assert.ok(p.instruments.drums.markdown.includes('> Be loud.'), 'voice line quoted under Dropped');
     assert.deepEqual(calls.sort(), ['drums', 'keytar', 'violin']);
+    // entrants compile under the default vocabulary; a pinned one (an evolution campaign) is passed through
+    assert.equal(p.vocab, 'vocab-2');
+    assert.equal(p.instruments.drums.schema.vocab, 'vocab-2');
+    assert.ok(data.prompts[0].markdown.includes('Vocabulary: `vocab-2`'));
+    const pinned = await spawnCompile({ root: ROOT, cfg: { ...COMPILE_DEFAULTS, backend: 'ollama', vocab: 'vocab-1' } })('Recall when you are below a quarter health.\n');
+    assert.equal(pinned.data.prompts[0].vocab, 'vocab-1');
+    assert.equal('vocab' in pinned.data.prompts[0].instruments.drums.schema, false, 'a vocab-1 schema is written exactly as before');
   } finally {
     if (prevHost === undefined) delete process.env.OLLAMA_HOST;
     else process.env.OLLAMA_HOST = prevHost;

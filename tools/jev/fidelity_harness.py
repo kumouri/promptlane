@@ -51,6 +51,7 @@ from economy_rules import item_name  # noqa: E402
 from ground_truth import ground_truth_action  # noqa: E402
 from scenarios import all_scenarios, build_observation, river_rules, ABILITIES  # noqa: E402
 from target_resolve import DEFAULT_TARGETING, resolve_target  # noqa: E402
+from vocab import ATTACK_RANGE, VOCAB_1, MapSpec, dist, fight, map_spec, resolve_vocab, tower_facts  # noqa: E402
 from translator import (  # noqa: E402
     GuardNode,
     TranslatedSchema,
@@ -168,7 +169,17 @@ def _economy_other_sentence(role: str, e: dict) -> str | None:
     return f"{head}." if facts else None
 
 
-def describe_observation(obs: dict) -> str:
+def describe_observation(obs: dict, vocab: str = VOCAB_1, map_: str | dict | None = None) -> str:
+    """The paragraph Jev reads, in the schema's vocabulary (`vocab.py`). vocab-1 is
+    `_describe_vocab1`, byte for byte what every schema saw before vocab-2 existed (golden-tested,
+    `test_vocab.py`); vocab-2 is `_describe_vocab2`, which also needs the match's `map_` for tower
+    range."""
+    if resolve_vocab(vocab) == VOCAB_1:
+        return _describe_vocab1(obs)
+    return _describe_vocab2(obs, map_spec(map_))
+
+
+def _describe_vocab1(obs: dict) -> str:
     """A short, dense, detailed paragraph (TypeSafe's own guidance, quoted in `serializer.py`),
     generic over any `Observation` -- not tied to one pilot's worksheet the way `serializer.
     state_paragraph` is. No precomputed distance/range: only raw positions, same as the real
@@ -185,7 +196,7 @@ def describe_observation(obs: dict) -> str:
     exception to "no precomputed distance" is the Bandstand's distance from this bot, which the
     stakes need to read as a decision.
 
-    This is also what `schema_server.py` shows Jev live (via `run_prediction`)."""
+    This is also what `schema_server.py` shows Jev live (via `run_prediction`) for a vocab-1 schema."""
     self_ = obs["self"]
     parts = [
         f"This is a {self_['team']}-team bearbot playing {self_['instrument']}, "
@@ -239,6 +250,128 @@ def describe_observation(obs: dict) -> str:
         parts.append("No minions nearby.")
     for r in obs.get("respawning") or ():
         parts.append(f"{'Ally' if r['team'] == self_['team'] else 'Enemy'} {r['id']} respawns in {_seconds(r['inSec'])} s.")
+    if obs.get("shop"):
+        parts.append("The base shop sells: " + ", ".join(f"{item_name(i['item'])} ({i['cost']} gold)" for i in obs["shop"]) + ".")
+    parts.extend(_bandstand_lines(obs))
+    return " ".join(parts)
+
+
+def _xy(pos: dict) -> str:
+    return f"({pos['x']:.0f},{pos['y']:.0f})"
+
+
+def _units(d: float) -> str:
+    return f"{d:.0f} units away"
+
+
+def _names(ids) -> str:
+    ids = list(ids)
+    return ids[0] if len(ids) == 1 else ", ".join(ids[:-1]) + " and " + ids[-1]
+
+
+def _tower_lines(obs: dict, spec: MapSpec) -> list[str]:
+    """Spec A1. One sentence per alive tower within 390, then three summary sentences that are
+    always present, so "am I under my own tower?", "will an enemy tower shoot me?" and "is an enemy
+    bearbot under my tower?" each get a definite answer (§3 rule 5)."""
+    facts = sorted(tower_facts(obs, spec), key=lambda f: (f.distance, f.tower["id"]))
+    alive = [f for f in facts if f.tower.get("alive", True)]
+    rng = f"{spec.tower_range:g}"
+    lines: list[str] = []
+    for f in alive:
+        t = f.tower
+        head = f"{'Your' if f.own else 'Enemy'} tower {t['id']} ({t['lane']}, {t['hp']:.0f}/{t['maxHp']:.0f} hp) is {_units(f.distance)}"
+        if not f.in_range:
+            text = f"{head}; you are outside its {rng}-unit range"
+        elif f.own:
+            text = f"{head}; you are inside its {rng}-unit range"
+        elif f.my_minions_in_range:
+            n = f.my_minions_in_range
+            text = f"{head}; you are inside its {rng}-unit range, but it has {n} of your minions in range to shoot first, so it will not shoot you yet"
+        else:
+            text = f"{head}; you are inside its {rng}-unit range, and it has no minion of yours to shoot first, so it will shoot you"
+        if f.own and f.divers:
+            text += f"; enemy bearbot {_names(f.divers)} {'is' if len(f.divers) == 1 else 'are'} inside its range"
+        lines.append(text + ".")
+    under = [f.tower["id"] for f in alive if f.own and f.in_range]
+    shooting = [f.tower["id"] for f in alive if f.will_shoot_me]
+    divers = sorted({d for f in alive for d in f.divers})
+    if not any(f.own for f in alive):
+        lines.append("No tower of yours is within 390 units.")
+    if not any(not f.own for f in alive):
+        lines.append("No enemy tower is within 390 units.")
+    lines.append(f"You are under your own tower ({_names(under)})." if under else "You are not under your own tower.")
+    lines.append(f"An enemy tower will shoot you ({_names(shooting)})." if shooting else "No enemy tower will shoot you.")
+    lines.append(f"Enemy bearbot under your tower: {_names(divers)}." if divers else "No enemy bearbot is under your tower.")
+    dead = [f for f in facts if not f.tower.get("alive", True)]
+    if dead:
+        lines.append("Dead towers within 390 units: " + ", ".join(f"{f.tower['id']} ({'yours' if f.own else 'enemy'})" for f in dead) + ".")
+    return lines
+
+
+def _fight_line(obs: dict, spec: MapSpec) -> str:
+    """Spec A3: the counts behind the verdict, then the verdict, so a rule can ask about either."""
+    fb = fight(obs, spec)
+    if fb.verdict == "none":
+        return "Fight near you: none, no enemy bearbot is within 260 units."
+
+    def side(s, who):
+        bits = [f"{s.bearbots} bearbot{'' if s.bearbots == 1 else 's'} ({s.hp:.0f} hp)",
+                f"{s.minions} minion{'' if s.minions == 1 else 's'}",
+                f"{s.towers or 'no'} tower{'' if s.towers == 1 else 's'} in range"]
+        return f"{who} side " + ", ".join(bits)
+
+    verdict = {"stronger": "Your side is stronger here.", "weaker": "Your side is weaker here.",
+               "even": "The fight is even here."}[fb.verdict]
+    return f"Fight near you (within 260 units): {side(fb.mine, 'your')}; {side(fb.theirs, 'their')}. {verdict}"
+
+
+def _describe_vocab2(obs: dict, spec: MapSpec) -> str:
+    """vocab-2 (`docs/vocabulary-spec.md` §4.1, stage A): vocab-1's facts, plus the bot's lane and
+    attack range, every listed entity's distance (and a minion's hp), which enemies are in its
+    attack range, tower facts by team (A1) and the fight line (A3). Third person for the bot's own
+    stats, "you" for where it stands, as vocab-1's Bandstand lines already do. The facts it states
+    are the list the vocab-2 translator prompt names (`vocab.FACTS_V2`)."""
+    self_ = obs["self"]
+    me, team = self_["pos"], self_["team"]
+    lane = f" in the {self_['lane']} lane" if self_.get("lane") else ""
+    parts = [
+        f"This is a {team}-team bearbot playing {self_['instrument']}{lane}, "
+        f"{obs['clockSec']:.1f} sim-seconds into the match, at position {_xy(me)}.",
+        f"Its own hp is {self_['hp']:.0f} out of {self_['maxHp']:.0f} "
+        f"({100*self_['hp']/self_['maxHp']:.0f}%).",
+    ]
+    reach = ATTACK_RANGE.get(self_["instrument"])
+    if reach is not None:
+        parts.append(f"Its attack range is {reach} units.")
+    parts.append("Cooldowns: " + ", ".join(
+        f"{name} cooldown {secs:.1f}s ({'ready' if secs == 0 else 'not ready'})" for name, secs in self_["cooldowns"].items()) + ".")
+    parts += _economy_self_sentences(self_)
+    if obs["allies"]:
+        parts.append("Allied bearbots (every living ally, anywhere on the map): " + "; ".join(
+            f"{a['id']} at {_xy(a['pos'])}, {_units(dist(me, a['pos']))}, with {a['hp']:.0f}/{a['maxHp']:.0f} hp" for a in obs["allies"]) + ".")
+    else:
+        parts.append("Allied bearbots: none alive right now.")
+    parts += [t for t in (_economy_other_sentence("Ally", a) for a in obs["allies"]) if t]
+    if obs["visibleEnemies"]:
+        parts.append("Enemies within 260 units: " + "; ".join(
+            f"{e['id']} ({e['kind']}) at {_xy(e['pos'])}, {_units(dist(me, e['pos']))}, with {e['hp']:.0f}/{e['maxHp']:.0f} hp"
+            for e in obs["visibleEnemies"]) + ".")
+    else:
+        parts.append("Enemies within 260 units: none.")
+    if reach is not None:
+        hit = [e["id"] for e in obs["visibleEnemies"] if dist(me, e["pos"]) <= reach]
+        parts.append(f"Enemies in your attack range: {', '.join(hit)}." if hit else "No enemy is in your attack range.")
+    parts += [t for t in (_economy_other_sentence("Enemy", e) for e in obs["visibleEnemies"] if e.get("kind") == "bearbot") if t]
+    if obs["nearbyMinions"]:
+        parts.append("Minions within 260 units: " + "; ".join(
+            f"{m['id']} ({'yours' if m['team'] == team else 'enemy'}) at {_xy(m['pos'])}, {_units(dist(me, m['pos']))}, "
+            f"with {m['hp']:.0f}/{m['maxHp']:.0f} hp" for m in obs["nearbyMinions"]) + ".")
+    else:
+        parts.append("Minions within 260 units: none.")
+    parts += _tower_lines(obs, spec)
+    parts.append(_fight_line(obs, spec))
+    for r in obs.get("respawning") or ():
+        parts.append(f"{'Ally' if r['team'] == team else 'Enemy'} {r['id']} respawns in {_seconds(r['inSec'])} s.")
     if obs.get("shop"):
         parts.append("The base shop sells: " + ", ".join(f"{item_name(i['item'])} ({i['cost']} gold)" for i in obs["shop"]) + ".")
     parts.extend(_bandstand_lines(obs))
@@ -313,17 +446,18 @@ def _bandstand_lines(obs: dict) -> list[str]:
     return lines
 
 
-def run_prediction(client, schema: TranslatedSchema, obs: dict, targeting: str = DEFAULT_TARGETING) -> dict:
+def run_prediction(client, schema: TranslatedSchema, obs: dict, targeting: str = DEFAULT_TARGETING, map_: str | dict | None = None) -> dict:
     """One systemone call, EVERY node's condition anywhere in the tree batched together (spec §2.2:
     "evaluation stays one systemone call per decision" no matter how deep the tree gets --
     `translator.collect_nodes`), then the tree-walk in Python (`translator.evaluate_schema`) --
     same posture as `rules.first_match` and as house-violet.md's own prose ("Take the FIRST rule
     that matches"), generalized to guards. For a schema with zero guards this is exactly the old
     flat first-match behavior; `all_nodes == schema.rules` in that case. The winning rule's target
-    resolves under `targeting` (`target_resolve.TARGETING_RULES`)."""
+    resolves under `targeting` (`target_resolve.TARGETING_RULES`). The description and the target
+    are both in the schema's own vocabulary (`schema.vocab`, `vocab.py`), on the match's `map_`."""
     all_nodes = collect_nodes(schema.root)
     questions = [BoundQuestion(n.id, n.condition, {"true": n.criteria_true, "false": n.criteria_false}) for n in all_nodes]
-    state = describe_observation(obs)
+    state = describe_observation(obs, schema.vocab, map_)
     start = time.perf_counter()
     # Which Jev door answered: `FallbackJevClient` says per call; any other client is one door.
     if hasattr(client, "ask_with_door"):
@@ -351,7 +485,7 @@ def run_prediction(client, schema: TranslatedSchema, obs: dict, targeting: str =
     fired_id = next((t["fired_id"] for t in guard_trace if "fired_id" in t), None)
     guard_answers = [t for t in guard_trace if "guard_id" in t]
 
-    target = resolve_target(selector, obs, targeting)
+    target = resolve_target(selector, obs, targeting, schema.vocab, map_)
     action = {"kind": kind}
     if ability:
         action["ability"] = ability

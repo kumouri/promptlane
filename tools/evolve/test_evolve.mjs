@@ -212,6 +212,25 @@ test('matchKey covers the ruleset: map and economy change the key; a pre-ruleset
   assert.notEqual(k({ ...resolved, targeting: 'own-lane-1' }), k(resolved));
   assert.notEqual(k({ ...resolved, targeting: 'own-lane-1' }), k({ ...resolved, targeting: 'first-min' }));
   assert.equal(DEFAULT_CAMPAIGN.shape.targeting, headless.DEFAULT_TARGETING, 'the campaign default follows DEFAULT_TARGETING');
+  // The vocabulary likewise: hashed when named, and a shape without it (campaign 2) keeps its key.
+  const targeted = { ...resolved, targeting: 'own-lane-1' };
+  assert.equal(k({ ...targeted, vocab: undefined }), k(targeted));
+  assert.notEqual(k({ ...targeted, vocab: 'vocab-2' }), k(targeted));
+  assert.notEqual(k({ ...targeted, vocab: 'vocab-2' }), k({ ...targeted, vocab: 'vocab-1' }));
+  assert.equal(DEFAULT_CAMPAIGN.shape.vocab, headless.DEFAULT_VOCAB, 'the campaign default follows DEFAULT_VOCAB');
+});
+
+test('vocabulary pin: keys recorded before vocab-2 existed are unchanged, and a campaign without shape.vocab compiles vocab-1', async () => {
+  const at = (shape) => matchKey({ violet: 'aaaa', green: 'bbbb', seed: 7, shape });
+  // recorded from develop at eaf1b45: the default shape of the day, and campaign 2's own shape
+  const before = { cadenceSec: 2, maxSimSec: 600, map: 'pvp-1', economy: 'none', objective: 'none', resolution: 'simultaneous-1', targeting: 'own-lane-1' };
+  assert.equal(at(before), '2c99c3f7cee86c68');
+  assert.equal(at({ ...before, economy: 'eco-2' }), '1d42e2b418a889d4');
+  const campaign2 = { cadenceSec: 2, maxSimSec: 600, map: 'pvp-1', economy: 'eco-2', objective: 'none', resolution: 'simultaneous-1', recall: 'none' };
+  assert.equal(at(campaign2), 'd830281b2b7c5359');
+  const { campaignVocab } = await import('./adapters.mjs');
+  assert.equal(campaignVocab({ shape: campaign2 }), 'vocab-1', 'campaign 2 stays on the words it was compiled in');
+  assert.equal(campaignVocab({ shape: DEFAULT_CAMPAIGN.shape }), 'vocab-2', 'a new campaign compiles what entrants compile');
 });
 
 test('sentences: split on sentence ends and blank lines', () => {

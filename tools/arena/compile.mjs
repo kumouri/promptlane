@@ -111,6 +111,8 @@ export function spawnCompile({ root, cfg }) {
         '--backend', cfg.backend, '--max-total-tokens', String(cfg.maxTokensPerCompile),
       ];
       if (cfg.model) args.push('--model', cfg.model);
+      // a pinned vocabulary (an evolution campaign); unset = compile.py's default, the entrants' one
+      if (cfg.vocab) args.push('--vocab', cfg.vocab);
       const child = spawn(cfg.python, args, { cwd: root, env: process.env, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true });
       const out = [];
       const err = [];
