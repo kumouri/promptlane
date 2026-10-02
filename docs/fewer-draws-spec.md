@@ -570,6 +570,8 @@ near a nexus).
 - **The oracle is a stand-in.** It is 97.4 % action-faithful on 90k logged decisions, and it
   reproduces the logged arms' levels. But closed-loop, small decision differences compound. The
   Jev measurement is the test.
+  *Correction, 2026-10-02: on the Jam stack's eco tiers it misread three conditions, and that, not
+  compounding, put hard above medium in the sims (`runs/house-hard-2026-10-02.md` §2).*
 - **Prose entrants were not simulated beyond the sample entrant.** The two logged configurations
   are the proxy for "towers fall on both sides".
 - **Team fights, PvP damage and first blood weren't scored on the sims.** The metrics tool replays
