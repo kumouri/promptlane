@@ -18,6 +18,45 @@ first. Paid Jev runs only on the blocks in §1.4, and that plan is committed bef
 - the translator guards: `fix/vocab2-clause-coverage` and `fix/vocab2-identity-rules-and-null-action`;
 - the live arena and its backend (`:8790`, `:8797`).
 
+## Verdict
+
+*Written after the run. §0 and §1 were committed (`cc88a8a`, 15:48 CT) before any medium compile was
+read and before the first paid call (about 15:50 CT).*
+
+- **A, the siege line: done, and kept.** Lines R1, R2 and T1 PASS.
+  - **Jev wasn't under-answering.** On #88's own logs it already answered the siege question to match
+    the stated fact (§0.1). #88's "a fifth as often" was its stand-in misreading the question.
+  - **With the line,** the siege answer matched the fact on all 358 re-asked states where it holds
+    (352 without it) and all 600 where it doesn't. In every live match after it, it matched on 100 %
+    of decisions, for every side.
+  - **Nothing else moved:** the fired rule agreed with the old description's re-ask on 98.8–99.7 % of
+    states, within Jev's own re-ask noise.
+  - **The entrant's tower damage is unchanged:** 916 a match against #88's 910 on the same seeds. All
+    four matches ended on #88's ticks, and three gave the entrant #88's exact numbers.
+- **B, medium on vocab-2 prose: half done.** L1, L2 PASS; **L3 FAIL**.
+
+| | old medium (#88, Jev) | new medium (Jev) |
+|---|---|---|
+| medium vs easy | 0 of 2 decided | **medium 4–0** |
+| hard vs medium | hard 6–0 | **hard 3–1** |
+| sample entrant vs medium | entrant 5–1 | **entrant 4–0** |
+| medium's weakest tower, hp lost by 7:59 (vs entrant / vs hard) | 388 / 308 | **130 / 105** |
+| medium's pressure on the entrant's weakest tower by 7:59 | 306 | 114 |
+
+  - The ladder now orders **easy < medium < hard** on Jev.
+  - **Medium is not yet a bar a plain entrant has to beat.** The siege entrant won all four, every one
+    in sudden death, at 8:54–9:11. Before 8:00 the two were level (130 against 114 hp off the weakest
+    tower).
+  - **After 8:00 the entrant spent 31 % of its time on the 480 s tower rule, and medium 19 %.**
+    Medium's idle rule is "wait for the wave at your own tower" (10 % of its time). That keeps it out
+    of sight of the enemy towers the rush needs to see. That is a reading, not a test (§2.3).
+- **C, the entrants template: done**, kumouri/jamobair-entrants#12 (docs only).
+- **Spend: $2.102** of the $2.50 stop, by the two servers' ledgers: 26,521 requests, 0 errors, and 5
+  calls failed over to Workers AI. Every compile, the stand-in and the smokes were free.
+- **What Ceryce may want to decide** (§3): whether this medium ships as the bar (it orders the ladder
+  but sits below the plain entrant), or medium's idle rule changes to "push down your lane". That
+  would cost another small Jev block.
+
 ## 0. Diagnosis, at $0
 
 ### 0.1 Jev already answers the siege question right
@@ -215,4 +254,169 @@ matches a pairing, a line is a direction, not a rate.
 
 ## 2. Result
 
-*Written after the run.*
+### 2.1 The run
+
+- **Timeline (CT):**
+  - plan committed 15:48:17 (`cc88a8a`);
+  - compiles m1–m3 started 15:48:28, read from 15:55;
+  - block R about 15:50–15:52;
+  - block T 15:52–15:54;
+  - medium's schemas committed 16:02:39 (`c8c36ee`);
+  - block L 16:03–16:15.
+- **Compiles** (§1.2, free):
+  - The clause-coverage job was compiling on the same host Ollama. m1's drums call timed out, so m1
+    has no drums schema.
+  - The picks, each the first sample to pass all ten points: **drums m2, keytar m1, violin m2.**
+    m1's violin failed (i): its idle rule asked "is this bot at its own outermost standing tower?",
+    and its root default was `push_lane`.
+  - m3 was stopped unread once every instrument had a pass.
+  - The screen script's first draft rejected "can this *bearbot* afford…" for containing "bearbot".
+    That was a bug in the script, not in a compile. It was fixed to the criterion as written ("no
+    enemy in sight", not "no enemy bearbot") before any pick was taken.
+- **The stand-in check (§1.3)** of the compiled medium (seeds 1–3, both sides) played like MF: easy
+  6–0, the entrant 4–2 over it, hard 5–1 over it.
+- **Stub smokes:** T's two pairings and L's six, 120 s each, 0 errors.
+- **The spend guard cut L early by mistake.** After 8 of L's 12 matches it stopped before medium–easy.
+  It estimated a match at $0.20: it divided all spend, including the three matches still running, by
+  the finished ones. The plan's guard is the mean of *finished* matches, $1.04 / 8 = $0.13, and
+  $1.53 + 4 × $0.13 = $2.05 doesn't pass $2.25. So the four medium–easy matches were run as
+  planned. They were launched at 16:12, after the first eight results had been seen; nothing else was
+  added.
+- **Every paid match finished first time** (no retries). All 16 replay-verify, with 0 parse errors on
+  either side.
+- **The two servers:** 26,521 requests, 0 errors, 5 failovers to Workers AI. $1.9982 on "new" and
+  $0.1038 on "base".
+
+| line | result | pass line | |
+|---|---|---|---|
+| R1 siege read (new description) | P(yes \| holds) **358/358 = 1.000**; P(yes \| doesn't) **0/600** | ≥ 0.95; ≤ 0.01 | **PASS** |
+| R2 nothing else moves | fired rule = base re-ask on **99.7 %** (easy), **99.3 %** (entrant3), **98.8 %** (hard) | ≥ 97 % each | **PASS** |
+| T1 the entrant's tower damage | **916** a match, #88's same four: 910 | ≥ 80 % of #88's | **PASS** |
+| L1 medium above easy | medium **4–0** | medium ≥ 2, easy 0 | **PASS** |
+| L2 hard above medium | hard **3–1** | hard ≥ 2, medium ≤ 1 | **PASS** |
+| L3 medium is a real bar | entrant3 **4–0** | entrant3 ≤ 2 | **FAIL** |
+| L4 clean | 16 of 16 verify; 0 server errors; 0 parse errors | all | **PASS** |
+| L5 spend | **$2.102** | ≤ $2.50 | **PASS** |
+
+### 2.2 The siege line (A)
+
+| reading of the same 1,258 states | entrant3: P(yes \| holds), P(yes \| doesn't) | hard: P(yes \| holds), P(yes \| doesn't) |
+|---|---|---|
+| recorded in #88 | 247/247, 0/300 | 106/111, 0/300 |
+| re-asked, without the line | 247/247, 0/300 | 105/111, 0/300 |
+| re-asked, with the line | 247/247, 0/300 | **111/111**, 0/300 |
+
+- **Where the line helps:** hard's keytar siege question (four flips) and drums question (two).
+  Keytar's wording is "…this *bearbot's* own minions in its range to shoot first". Without the line
+  Jev missed five or six of them; with it, none.
+- **Which answers flipped between the two re-asks:** the most was entrant3's catch-all "is there no
+  other rule matching?" (37 of 373). Six were hard's siege questions, all toward the fact, and four
+  were hard's finish-kill question. Each of the rest flipped once or not at all. Easy's "is this
+  bearbot inside an enemy tower's range?" never flipped (0 of 300), and that is the question the new
+  line's wording comes closest to.
+- **In the live matches after it** (T and L, 18,029 decisions by entrant3, hard and medium, the
+  three sides that ask the siege question), the siege answer matched the fact on every decision. So
+  did "will an enemy tower shoot this bot". The siege held on 0.9–3.3 % of decisions.
+- **Block T replayed #88.** entrant3–easy and easy–entrant3 at seeds 3 and 7 ended on #88's ticks
+  (508.35 s and 493.35 s). In three of the four, the entrant's structure damage, deaths, towers and
+  result matched #88's to the decimal. In the fourth (entrant3–easy, seed 7) it dealt 951 against
+  929.
+
+### 2.3 Medium (B)
+
+| side (block L) | W–L | structure damage a match | deaths a match | gold spent a match (side) | enemy half | towers taken a match |
+|---|---|---:|---:|---:|---:|---:|
+| medium vs easy | 4–0 | 1,397 | 1.0 | 1,525 | 20.2 % | 1.00 |
+| entrant3 vs medium | 4–0 | 1,183 | 2.5 | 1,588 | 20.8 % | 1.00 |
+| medium vs entrant3 | 0–4 | 1,044 | 1.2 | 2,275 | 13.0 % | 0 |
+| hard vs medium | 3–1 | 997 | 1.5 | 3,162 | 19.8 % | 0.75 |
+| medium vs hard | 1–3 | 584 | 3.8 | 1,525 | 18.3 % | 0.25 |
+
+- **Every L match was decided in sudden death.** The first tower fell at 8:08–9:11, a tier-2
+  tower every time.
+- **The opponent's most-damaged tower, hp lost by 7:59:**
+
+| pressure | #88 (old medium) | now |
+|---|---:|---:|
+| entrant3 on medium | 388 | 130 |
+| medium on entrant3 | 306 | 114 |
+| hard on medium | 308 | 105 |
+| medium on hard | 419 | 308 |
+| medium on easy | 100 (draws) | 568 |
+
+  The new medium is a much harder tower to chip: it is in its lane, at its tower, and it sieges back.
+- **Why the entrant still wins.** After 8:00, by share of time:
+
+| | 480 s tower rule | low-hp pair | idle rule |
+|---|---:|---:|---:|
+| entrant3 | 31 % | 22 % | push down the lane, 6 % |
+| medium | 19 % | 24 % | wait at its own tower, 10 % |
+
+  The rush fires only with an enemy tower in sight. Waiting at its own tower, medium doesn't see
+  one, so the entrant reaches a tower first. The stand-in had MF 9–9 with the entrant, and MA (the
+  same cascade, pushing the lane when idle) 10–8. It ranked MF over MA because hard's margin over MA
+  was thinner (11–7). On Jev the idle rule looks like the difference. This is a reading of four
+  matches, not a test.
+- **The stand-in was wrong about this pairing in the same direction as #88 warned:** it overstates
+  how evenly two siege cascades trade, and it had no way to know that Jev's medium would see fewer
+  towers after 8:00.
+
+### 2.4 Caveats
+
+- **Four matches a pairing, two seeds.** Seeds 3 and 7 are near-replays on Jev (the medium–easy pairs
+  ended on the same tick both times), so L is closer to six distinct matches than twelve.
+- **Untested on Jev:** easy vs hard, entrant3 vs hard, and medium with a lane-push idle rule.
+
+## 3. What Ceryce may want to decide
+
+1. **Ship this medium as the bar, or change its idle rule first.**
+   - **As it is:** the ladder orders easy < medium < hard on Jev. Medium beat easy 4–0, which old
+     medium never did. But the plain siege entrant beats it 4–0, so a sample-quality entrant still
+     places above the bar.
+   - **Change the idle sentence to "push down your lane toward the enemy base"** (MA). One sentence,
+     one recompile, and a 4–8 match Jev block (about $0.50–1.05 at this run's $0.13 a match) to check
+     that the entrant no longer clears it and hard still beats it.
+   - **Make the new hard the bar.** Hard beat this medium 3–1, but hard vs the siege entrant has
+     never been played on Jev.
+2. **The siege line is in vocab-2** (spec §8.7). It changes what Jev reads for every vocab-2 schema,
+   entrants' included, from the next server restart. On #88's states it changed no decision outside
+   noise. Restarting the arena also picks up the new medium: the `house` ledger row records the new
+   medium hash (below). Nothing in the arena was touched.
+3. **The entrants repo's pin** (`PROMPTLANE_REF`) needs a bump after this merges, so the compile
+   preview's translator prompt names the siege fact. That is optional: the description, not the
+   pin, is what Jev reads at play.
+4. **The clause-coverage job** owns easy's shopping sentence (#88's easy shopping rule). Nothing of
+   easy's changed here.
+
+## Files
+
+- **A:** `tools/jev/vocab.py` (`TowerFact.shooting_my_minions`, `FACTS_V2`),
+  `tools/jev/fidelity_harness.py` (the summary line), `tools/jev/test_vocab.py`,
+  `docs/vocabulary-spec.md` §8.7.
+- **B:**
+  - `prompts/pilots/house-medium-eco.prose.md` (new);
+  - `prompts/pilots/house-medium-eco.schemas.json`;
+  - `prompts/pilots/house-medium-eco-worksheet.schemas.json` (the old compile, byte for byte);
+  - `tools/arena/house.mjs`, `tools/arena/test_house.mjs`;
+  - `tools/match/measure_economy.mjs` and its test;
+  - `prompts/pilots/README.md`, `docs/economy-spec.md` §4.4 and the closing notes,
+    `docs/prompt-evolution-spec.md`.
+
+| file (sha256, as `tools/arena/house.mjs` hashes it) | before | after |
+|---|---|---|
+| `house-medium-eco.schemas.json` | `91083d42…` (the worksheet medium; now `house-medium-eco-worksheet.schemas.json`) | `600602f7c415354ac8fb5f5355443ed3db4fe3d71c1fbd02c2e0fc405a8e2283` |
+
+- **C:** kumouri/jamobair-entrants#12 (`README.md` "Three habits that decide matches", and
+  `entrants/_template/pilot.md`).
+- **Logs and kit, not in git:** on the
+  [`data-siege-fact-medium-bar-2026-10-02`](https://github.com/kumouri/promptlane/releases/tag/data-siege-fact-medium-bar-2026-10-02)
+  prerelease as `siege-fact-medium-bar-2026-10-02-data.zip`, with `SHA256SUMS` inside:
+  - the 16 paid logs, `runs/siege-fact-medium-bar-2026-10-02-<violet>-<green>-seed<N>.json`, and the
+    8 stub smokes;
+  - block R's sample and both re-asks (`sample-R.jsonl`, `R-new.jsonl`, `R-base.jsonl`);
+  - the compiles m1–m2 and their logs;
+  - the scratch kit: #88's stand-in with the siege atom fixed, `sf_*.py` (sample, replay, score,
+    screen, assemble) and the runner;
+  - every stand-in screen's probe output, the run logs, and both servers' final `/health`.
+
+  To check a log, unzip at the repo root and run `npm run match -- --verify <log>`.

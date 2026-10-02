@@ -301,6 +301,15 @@ It has no Bandstand rule. On the stand-in, putting the Bandstand where old mediu
 the low-hp pair) cost hard most of its margin over medium. `house-medium-eco.schemas.json` is one
 whole compile per instrument, picked by a pre-registered ten-point screen (the run file §1.2).
 
+On Jev (pre-registered, 12 matches):
+- medium beat easy 4–0, where the worksheet medium only drew;
+- hard beat medium 3–1;
+- **the plain siege entrant still beat it 4–0**, so the bar is still below a plain entrant;
+- its own towers lost far less before 8:00 (105–130 hp off the weakest, against 308–388).
+
+The entrant won the sudden-death race: it spent 31 % of its time after 8:00 on the 480 s tower
+rule, against medium's 19 %. Medium waits at its own tower when idle, out of sight of enemy towers.
+
 ## Sample entrants for the economy measurement: `sample-entrant*.prose.md`
 
 Two entrant-shaped prose files for §6's "house medium vs a sample entrant" pairing, compiled the
@@ -335,7 +344,8 @@ eco-3-late --backend ollama`). Each instrument comes from the first of six sampl
 pre-registered ten-point screen: drums e4, keytar e2, violin e1.
 
 On Jev it decided all 12 of its matches:
-- against medium (the placement bar), 5–1;
+- against medium (the placement bar, then the worksheet medium), 5–1. Against the prose medium
+  that replaced it, 4–0;
 - against easy, 6–0;
 - it died 0.5 times a match against easy (the PR #82 vocab-2 entrant died 19.8 times);
 - it dealt about 900 structure damage a match (that entrant dealt 195).
