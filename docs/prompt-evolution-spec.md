@@ -564,6 +564,8 @@ npm run evolve -- init --name campaign-2-hard \
   (`prompts/pilots/README.md`). It is campaign 1's opponent with the economy rules added.
   **Its phenotype is the house's checked-in compile, not a fresh one.**
   `compiled/91083d425da8.json` in the store wraps `prompts/pilots/house-medium-eco.schemas.json`
+  (since 2026-10-02 `house-medium-eco-worksheet.schemas.json`, byte for byte: the arena's medium moved
+  to vocab-2 prose, `runs/siege-fact-medium-bar-2026-10-02.md`, and the store's copy didn't change)
   in compile.py's shape and was written before the first `step`. In the dry run, a fresh sampled
   compile of this prose failed on keytar (`unknown target_selector 'nearest_minion'`). The harness
   records a failed compile for the rest of the generation and never retries it, so the step

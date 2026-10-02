@@ -205,7 +205,7 @@ gives each tier. With no economy nothing changes, so the placement bar above doe
 | tier | files | shopping list (declared in the prose) | economy rules, after the low-hp pair |
 |---|---|---|---|
 | easy | `house-easy-eco.prose.md` (both sides) | Road Case → Metronome → Amp → Tour Bus → Bass Strings → Headliner → Fuzz Pedal → Feedback | can afford the next item and no enemy in sight: recall to shop (never walks home to shop) |
-| medium | `house-eco-violet.md` / `house-eco-green.md` | each instrument's default ladder | can afford the next item, no enemy bearbot or minion in sight: with an enemy tower in sight walk home, with no enemy in sight recall to shop |
+| medium | `house-medium-eco.prose.md` (both sides; until 2026-10-02 the worksheet pair `house-eco-violet.md` / `house-eco-green.md`) | each instrument's default ladder | can afford the next item and no enemy bearbot in sight: with an enemy minion or tower in sight walk home, with none recall to shop |
 | hard | `house-hard-eco.prose.md` (both sides) | drums Road Case → Bass Strings → Amp → Backline → Metronome → Wall of Sound → Click Track → Arpeggiator; keytar and violin their default ladders | can afford the next item and no enemy bearbot in sight: with an enemy minion or tower in sight walk home, with none recall to shop; carrying ≥ 300 gold while its side is weaker in the fight near it → walk home to spend it; attack the enemy bearbot **worth the most gold** (`highest_bounty_enemy`) instead of the lowest-hp one |
 
 **The shopping lists are full late-game ladders** (2026-10-02,
@@ -253,10 +253,12 @@ as above, and only the changed rules were spliced in. Every other rule object is
     about 50 and ended with 550.
   - **Easy against medium:** both matches were still draws.
 
-- **Medium keeps its worksheet.** It adds three keys after `hp`: `"gold": self.gold`,
+- **Medium kept its worksheet until 2026-10-02** ("Medium, the placement bar, moves to prose" below). It added three keys after `hp`: `"gold": self.gold`,
   `"next": self.nextItem.cost` (null when the list is done) and `"home": self.atShop`; the rest,
   `stand` included, are the plain medium's. The green file is the violet file with the team
-  literals swapped (`test_house.mjs` checks it).
+  literals swapped (`test_house.mjs` checks it). The pair and its compile, now
+  `house-medium-eco-worksheet.schemas.json` (byte for byte), stay as the medium of the economy
+  measurement (`tools/match/measure_economy.mjs`).
 - **Easy and hard are prose,** one file for both sides, because they have no team literals. They
   have no qwen worksheet render: the Jam plays the compiled schemas on Jev.
 - **`house-<tier>-eco.schemas.json`** are the checked-in compiles, made with `compile.py --backend
@@ -278,6 +280,43 @@ as above, and only the changed rules were spliced in. Every other rule object is
 - **The worksheet keys reach only the worksheet prompt and its compile.** The Jev worksheet house
   bot (`tools/jev/rules.py`, `house_server.py`, `jevPilot.ts`, shadow only) still mirrors the plain
   medium cascade from before the recall split; see `docs/economy-spec.md` §13.2.
+
+**Medium, the placement bar, moves to prose** (2026-10-02,
+[`runs/siege-fact-medium-bar-2026-10-02.md`](../../runs/siege-fact-medium-bar-2026-10-02.md)). The plain
+siege entrant beat the worksheet medium 5–1, so the bar sat below a plain entrant.
+`house-medium-eco.prose.md` is medium's wave-rider in vocab-2 prose, with the habits that decided #88.
+Its rules, in order:
+- the low-hp pair at half its max hp;
+- the shopping pair (walk out of reach, then recall);
+- after 480 s, attack any enemy tower it can see;
+- step back to its own tower whenever an enemy tower will shoot it;
+- siege while that tower has its own minions to shoot first;
+- its ability: keytar chords the nearest enemy bearbot whenever it can (old medium's rule 7), and drums
+  and violin finish a bearbot under 100 hp;
+- fight bearbots, then minions;
+- walk with the wave;
+- otherwise push down its lane toward the enemy base (hard-eco's fallback sentence). Until the
+  run file's §4 it waited for the next wave at its own outer tower.
+
+It has no Bandstand rule. On the stand-in, putting the Bandstand where old medium had it (right after
+the low-hp pair) cost hard most of its margin over medium. `house-medium-eco.schemas.json` is one
+whole compile per instrument, picked by a pre-registered ten-point screen (the run file §1.2).
+
+On Jev (pre-registered, 12 matches):
+- medium beat easy 4–0, where the worksheet medium only drew;
+- hard beat medium 3–1;
+- **the plain siege entrant still beat it 4–0**, so the bar is still below a plain entrant;
+- its own towers lost far less before 8:00 (105–130 hp off the weakest, against 308–388).
+
+The entrant won the sudden-death race: it spent 31 % of its time after 8:00 on the 480 s tower
+rule, against medium's 19 %. Medium waited at its own tower when idle, out of sight of enemy towers.
+
+**Medium pushes its lane when idle** (2026-10-02, Ceryce's call; the run file's §4). The fallback is
+now hard-eco's sentence, "push down your lane toward the enemy base". The recompile was taken whole,
+and every sentence maps to its rule. On Jev (pre-registered, 8 matches):
+- medium beat the plain siege entrant 4–0 and easy 2–0;
+- **it also beat hard 2–0**, so hard no longer sits above the bar.
+- Whether to keep it, revert to the wait-at-tower medium, or retune hard is Ceryce's call (§4.4).
 
 ## Sample entrants for the economy measurement: `sample-entrant*.prose.md`
 
@@ -313,7 +352,8 @@ eco-3-late --backend ollama`). Each instrument comes from the first of six sampl
 pre-registered ten-point screen: drums e4, keytar e2, violin e1.
 
 On Jev it decided all 12 of its matches:
-- against medium (the placement bar), 5–1;
+- against medium (the placement bar, then the worksheet medium), 5–1. Against the prose medium
+  that replaced it, 4–0;
 - against easy, 6–0;
 - it died 0.5 times a match against easy (the PR #82 vocab-2 entrant died 19.8 times);
 - it dealt about 900 structure damage a match (that entrant dealt 195).

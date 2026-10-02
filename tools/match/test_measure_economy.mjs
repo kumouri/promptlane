@@ -26,7 +26,7 @@ test('each condition plays its ruleset and its prompts; every file it names exis
   const by = (c, p) => jobs.find((j) => j.condition === c && j.pairing === p);
   assert.deepEqual(['A', 'R', 'B0', 'B1'].map((c) => arg(by(c, 'hard'), '--economy')), ['none', 'respawn-1', 'eco-2', 'eco-2']);
   for (const c of ['A', 'R', 'B0']) assert.equal(arg(by(c, 'hard'), '--b-schemas'), 'prompts/pilots/house-hard.schemas.json', c);
-  assert.equal(arg(by('B1', 'hard'), '--a-schemas'), 'prompts/pilots/house-medium-eco.schemas.json');
+  assert.equal(arg(by('B1', 'hard'), '--a-schemas'), 'prompts/pilots/house-medium-eco-worksheet.schemas.json');
   assert.equal(arg(by('B1', 'hard'), '--b-schemas'), 'prompts/pilots/house-hard-eco.schemas.json');
   assert.equal(arg(by('B1', 'entrant'), '--b-schemas'), 'prompts/pilots/sample-entrant-eco.schemas.json');
   assert.equal(arg(by('A', 'entrant'), '--b-schemas'), 'prompts/pilots/sample-entrant.schemas.json');
@@ -85,7 +85,7 @@ test('--economy re-prices B0 and B1 only (§13.6: B1 alone on eco-3), and a run 
   assert.deepEqual(eco3.map((j) => j.args.filter((a) => a !== 'eco-3')), plain.map((j) => j.args.filter((a) => a !== 'eco-2')), 'nothing else changes');
   const b1 = planMeasurement({ date: '2026-10-01', conditions: ['B1'], economy: 'eco-3' });
   assert.equal(b1.length, 24);
-  assert.ok(b1.every((j) => j.economy === 'eco-3' && arg(j, '--a-schemas') === 'prompts/pilots/house-medium-eco.schemas.json'));
+  assert.ok(b1.every((j) => j.economy === 'eco-3' && arg(j, '--a-schemas') === 'prompts/pilots/house-medium-eco-worksheet.schemas.json'));
   assert.deepEqual(metricsCommands('2026-10-01', ['B1']), ['npm run metrics -- --group B1 runs/economy-measure-2026-10-01-B1-*.json --json runs/economy-measure-2026-10-01-metrics.json --md runs/economy-measure-2026-10-01-metrics.md']);
   const readLog = (economy) => (out) => (out === b1[0].out ? { economy: economy && { ruleset: { name: economy } } } : null);
   assert.throws(() => checkEconomy(b1, readLog('eco-2')), /played under economy eco-2, not eco-3: use a new --date/);
@@ -117,7 +117,7 @@ test('--both-sides adds each match with the sides swapped: medium green on its g
   assert.equal(arg(swapped, '--a-schemas'), 'prompts/pilots/house-hard-eco.schemas.json');
   assert.equal(arg(swapped, '--name-b'), 'medium');
   assert.equal(arg(swapped, '--b'), 'prompts/pilots/house-eco-green.md');
-  assert.equal(arg(swapped, '--b-schemas'), 'prompts/pilots/house-medium-eco.schemas.json');
+  assert.equal(arg(swapped, '--b-schemas'), 'prompts/pilots/house-medium-eco-worksheet.schemas.json');
   const all = planMeasurement({ date: '2026-10-03', bothSides: true });
   assert.equal(new Set(all.map((j) => j.out)).size, 192);
   for (const j of all) for (const flag of ['--a', '--b']) assert.ok(existsSync(path.join(ROOT, arg(j, flag))), `${j.out} ${flag}`);

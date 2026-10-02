@@ -318,8 +318,9 @@ def _names(ids) -> str:
 
 
 def _tower_lines(obs: dict, spec: MapSpec) -> list[str]:
-    """Spec A1. One sentence per alive tower within 390, then three summary sentences that are
-    always present, so "am I under my own tower?", "will an enemy tower shoot me?" and "is an enemy
+    """Spec A1. One sentence per alive tower within 390, then four summary sentences that are
+    always present, so "am I under my own tower?", "will an enemy tower shoot me?", "am I inside an
+    enemy tower's range while it has my minions to shoot?" (the siege, §8.8) and "is an enemy
     bearbot under my tower?" each get a definite answer (§3 rule 5)."""
     facts = sorted(tower_facts(obs, spec), key=lambda f: (f.distance, f.tower["id"]))
     alive = [f for f in facts if f.tower.get("alive", True)]
@@ -342,6 +343,7 @@ def _tower_lines(obs: dict, spec: MapSpec) -> list[str]:
         lines.append(text + ".")
     under = [f.tower["id"] for f in alive if f.own and f.in_range]
     shooting = [f.tower["id"] for f in alive if f.will_shoot_me]
+    siege = [f.tower["id"] for f in alive if f.shooting_my_minions]
     divers = sorted({d for f in alive for d in f.divers})
     if not any(f.own for f in alive):
         lines.append("No tower of yours is within 390 units.")
@@ -349,6 +351,8 @@ def _tower_lines(obs: dict, spec: MapSpec) -> list[str]:
         lines.append("No enemy tower is within 390 units.")
     lines.append(f"You are under your own tower ({_names(under)})." if under else "You are not under your own tower.")
     lines.append(f"An enemy tower will shoot you ({_names(shooting)})." if shooting else "No enemy tower will shoot you.")
+    lines.append(f"You are inside an enemy tower's range while it has your own minions in its range, so it is shooting your minions, not you "
+                 f"({_names(siege)})." if siege else "You are not inside the range of an enemy tower that has your own minions in its range.")
     lines.append(f"Enemy bearbot under your tower: {_names(divers)}." if divers else "No enemy bearbot is under your tower.")
     dead = [f for f in facts if not f.tower.get("alive", True)]
     if dead:

@@ -639,7 +639,32 @@ completed guards that shipped in a trial cut off recall and every fight. Instead
 The prompt is unchanged, and vocab-1 is unchanged. The evidence and the free recompiles are in
 `runs/vocab2-identity-rules-2026-10-02.md`.
 
-### 8.8 pvp-2: the speed boost and the teleport
+### 8.8 The siege gets its own summary line
+
+"Siege with your wave" asks a two-part question: "is this bot inside an enemy tower's range, and does
+that tower have this bot's own minions in its range?" A1 already stated each tower's half of it ("…
+but it has 2 of your minions in range to shoot first, so it will not shoot you yet"). Under `vocab-2`
+the description now also closes the tower lines with a fourth always-present summary sentence, after
+"An enemy tower will shoot you":
+
+- "You are inside an enemy tower's range while it has your own minions in its range, so it is
+  shooting your minions, not you (tw-9)." or
+- "You are not inside the range of an enemy tower that has your own minions in its range."
+
+It names exactly the towers `vocab.TowerFact.shooting_my_minions` holds for: alive, enemy, this bot
+inside its range, and at least one of this bot's listed minions inside its range. Among the enemy
+towers this bot stands inside the range of, that is the complement of `will_shoot_me`, judged from the
+same minions (so stage A's 260-unit blind spot applies to both). The facts list the translator prompt
+names (`FACTS_V2`, `enemy_towers`) says so too. Vocab-1 is unchanged byte for byte.
+
+The line was asked for because PR #88 read Jev as answering the siege question about a fifth as
+often as the fact held. That reading was the screening stand-in's, not Jev's: its pattern for the
+question's second half didn't match the compiled wording, so it answered "inside an enemy tower's
+range" alone. On the per-tower fact the description states, Jev's recorded answers already agreed on
+99.6–100 % of #88's decisions. The measurement, and what the line did, are in
+`runs/siege-fact-medium-bar-2026-10-02.md`.
+
+### 8.9 pvp-2: the speed boost and the teleport
 
 The opt-in `pvp-2` map (`src/mapVariant.ts`; [`runs/pvp-2-2026-10-02.md`](../runs/pvp-2-2026-10-02.md))
 adds three things to the observation, and vocab-2 states each only when the observation carries it, so
