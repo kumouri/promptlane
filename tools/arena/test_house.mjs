@@ -11,6 +11,8 @@ import { readFileSync } from 'node:fs';
 import { loadHeadless } from '../match/load.mjs';
 
 const PAIR = { violet: 'prompts/pilots/house-violet.md', green: 'prompts/pilots/house-green.md' };
+// The economy-aware medium's worksheet pair: the house's medium until 2026-10-02, kept for measure_economy.mjs.
+const ECO_WORKSHEET = { violet: 'prompts/pilots/house-eco-violet.md', green: 'prompts/pilots/house-eco-green.md' };
 
 test('candidates: a file or a {violet, green} pair, nothing else', () => {
   assert.deepEqual(candidateFiles('a.md'), ['a.md']);
@@ -127,16 +129,16 @@ test('economy: a tier (or the default) plays its economy-aware version; no econo
   assert.deepEqual(houseCandidates({ files: ['prompts/pilots/drums.md'] }, 'eco-2'), ['prompts/pilots/drums.md'], 'an explicit list is taken as written');
   // the match CLI's shorthand
   assert.equal(houseSpecFile('house', 'violet'), PAIR.violet);
-  assert.equal(houseSpecFile('house', 'green', 'eco-2'), 'prompts/pilots/house-eco-green.md');
+  assert.equal(houseSpecFile('house', 'green', 'eco-2'), 'prompts/pilots/house-medium-eco.prose.md', 'medium is prose since 2026-10-02: one file for both sides');
   assert.equal(houseSpecFile('house:hard', 'violet', 'eco-2'), 'prompts/pilots/house-hard-eco.prose.md');
   assert.equal(houseSpecFile('house:hard', 'green', 'eco-2'), 'prompts/pilots/house-hard-eco.prose.md', 'prose has no team literals: one file for both sides');
   assert.equal(houseSpecFile('house:easy', 'green', null), 'prompts/pilots/house-easy-green.md');
-  assertMirroredPair(HOUSE_TIERS_ECO.medium, root, 'medium eco');
+  assertMirroredPair(ECO_WORKSHEET, root, 'the worksheet medium (measure_economy.mjs)');
 });
 
-test('economy: the eco medium worksheet declares gold, next and home before the original five keys', () => {
+test('economy: the worksheet eco medium declares gold, next and home before the original five keys', () => {
   const root = path.resolve(import.meta.dirname, '..', '..');
-  const violet = houseTextForSide(bundleHouse(HOUSE_TIERS_ECO.medium, root), 'violet');
+  const violet = houseTextForSide(bundleHouse(ECO_WORKSHEET, root), 'violet');
   assert.match(violet, /"gold": self\.gold/);
   assert.match(violet, /"next": self\.nextItem\.cost, or null when self\.nextItem is null/);
   assert.match(violet, /"home": self\.atShop/);
@@ -151,9 +153,14 @@ test('economy: the eco medium worksheet declares gold, next and home before the 
   assert.equal(standRule(violet), standRule(plain));
 });
 
-test('economy: the eco tiers play exactly the plain tiers\' Bandstand rules; medium right after the low-hp recall, hard last', () => {
+test('economy: the eco tiers play exactly the plain tiers\' Bandstand rules; hard last; medium none', () => {
   const root = path.resolve(import.meta.dirname, '..', '..');
-  for (const tier of ['easy', 'medium', 'hard']) {
+  // runs/siege-fact-medium-bar-2026-10-02.md: medium stays with its wave; on the stand-in, the Bandstand
+  // right after the low-hp pair (old medium's place) cost hard its margin over medium
+  for (const s of Object.values(loadHouseSchemas(HOUSE_TIER_ECO_SCHEMAS.medium, root).schemas)) {
+    assert.ok(!s.rules.some((r) => r.action_target_selector === 'bandstand'), `medium ${s.instrument}: no Bandstand rule`);
+  }
+  for (const tier of ['easy', 'hard']) {
     const plain = loadHouseSchemas(HOUSE_TIER_SCHEMAS[tier], root).schemas;
     const eco = loadHouseSchemas(HOUSE_TIER_ECO_SCHEMAS[tier], root).schemas;
     for (const inst of ['drums', 'keytar', 'violin']) {
@@ -194,7 +201,13 @@ test('economy: each eco tier has checked-in compiled schemas that buy deliberate
       assert.equal(recalls.length, { easy: 2, medium: 2, hard: 2 }[tier], `${label}: recall rules`);
       // the first rule after the low-hp pair that isn't a Bandstand rule
       const afterStand = 2 + s.rules.slice(2).findIndex((r) => r.action_target_selector !== 'bandstand');
-      if (tier === 'easy') {
+      if (tier === 'medium') {
+        // the shopping walk out of reach, then the shopping recall; the pair may come before the low-hp pair
+        const walk = s.rules.findIndex((r) => /afford/.test(r.condition) && r.action_target_selector === 'home' && r.action_kind === 'move');
+        assert.ok(walk >= 0, `${label}: the shopping trip first leaves reach`);
+        assert.equal(s.rules[walk + 1].action_kind, 'recall', `${label}: then the shopping recall`);
+        assert.match(s.rules[walk + 1].condition, /afford/, label);
+      } else if (tier === 'easy') {
         assert.equal(s.rules[afterStand].action_kind, 'recall', `${label}: the shopping recall, right after the low-hp pair`);
         assert.match(s.rules[afterStand].condition, /afford the next item/, label);
         assert.match(s.rules[afterStand].condition, /no enem(y|ies)/, `${label}: only with no enemy in reach of the channel`);
@@ -332,7 +345,7 @@ test('recall-2: every tier\'s compiled cascade steps out of reach before each re
 });
 
 test('recall-2: the side files leave reach before each recall, and no example recalls with an enemy in sight', () => {
-  for (const pair of [...Object.values(HOUSE_TIERS), HOUSE_TIERS_ECO.medium]) {
+  for (const pair of [...Object.values(HOUSE_TIERS), ECO_WORKSHEET]) {
     for (const side of ['violet', 'green']) {
       const lines = ruleLines(sideText(pair[side]));
       const home = side === 'violet' ? '{"x":100,"y":900}' : '{"x":900,"y":100}';
@@ -431,6 +444,43 @@ test('hard (eco, vocab-2): judges fights by the tower-counting verdict, fights u
     assert.equal(sel(s.rules[wave + 1]), 'move own_tower', label);
     assert.equal(sel(s.rules[wave + 2]), 'attack highest_bounty_enemy', label);
     assert.equal(s.rules.filter((r) => r.action_target_selector === 'home').length, 4, `${label}: home only for low hp, shopping and the fortune`);
+  }
+});
+
+// runs/siege-fact-medium-bar-2026-10-02.md: the placement bar moved to vocab-2 prose with the habits that
+// decided runs/better-bots-2026-10-02.md, so a plain siege entrant no longer clears it 5-1. Each instrument's
+// cascade is one compile, taken whole (§1.2's screen); this pins what the screen checked.
+test('medium (eco, vocab-2): the placement bar shops, closes out at 480 s, steps out of tower fire, sieges with its wave', () => {
+  const prose = sideText(HOUSE_TIERS_ECO.medium).replace(/\s+/g, ' ');
+  assert.match(prose, /so if it is more than 480 seconds into the match and you can see an enemy tower, attack the nearest enemy tower\./);
+  assert.match(prose, /If an enemy tower will shoot you, fall back to your own tower\./);
+  assert.match(prose, /Siege with your wave\. If you are inside an enemy tower's range and that tower has your own minions in its range to shoot first, attack the nearest enemy tower\./);
+  assert.match(prose, /keytar only: If your ability is ready and an enemy bearbot is in sight, use your primary ability on the nearest enemy bearbot\./);
+  assert.match(prose, /move to the outermost standing tower of your own lane and wait there\./);
+  assert.doesNotMatch(prose, /Bandstand/);
+  const sel = (r) => `${r.action_kind} ${r.action_target_selector}`;
+  const PRIMARY = { drums: 'kick', keytar: 'chord', violin: 'staccato' };
+  for (const [inst, s] of Object.entries(loadHouseSchemas(HOUSE_TIER_ECO_SCHEMAS.medium, ROOT).schemas)) {
+    const label = `medium-eco ${inst}`;
+    assert.equal(s.vocab, 'vocab-2', label);
+    const at = (pred, what) => {
+      const i = s.rules.findIndex(pred);
+      assert.ok(i >= 0, `${label}: ${what}`);
+      return i;
+    };
+    const late = at((r) => /480/.test(r.condition) && sel(r) === 'attack nearest_tower', 'the 480-second rule');
+    const shoot = at((r) => /enemy tower shoot/.test(r.condition) && sel(r) === 'move own_tower', 'out of a tower\'s fire');
+    const siege = at((r) => /inside an enemy tower's range/.test(r.condition) && /own minions/.test(r.condition) && sel(r) === 'attack nearest_tower', 'the siege rule');
+    const ability = at((r) => r.action_kind === 'ability' && r.action_ability === PRIMARY[inst], 'its own ability');
+    const fight = at((r) => sel(r) === 'attack nearest_enemy_bearbot' && r.action_kind === 'attack', 'fight the nearest bearbot');
+    const minion = at((r) => sel(r) === 'attack nearest_enemy_minion', 'then the nearest minion');
+    const wave = at((r) => sel(r) === 'move nearby_minion', 'walk with the wave');
+    assert.deepEqual([late, shoot, siege, ability, fight, minion, wave], [late, shoot, siege, ability, fight, minion, wave].slice().sort((a, b) => a - b), `${label}: in the prose's order`);
+    assert.equal(s.rules[ability].action_target_selector, inst === 'keytar' ? 'nearest_enemy_bearbot' : 'lowest_hp_enemy', label);
+    assert.ok(!s.rules.some((r) => r.action_target_selector === 'nearest_ally'), `${label}: the wave, never an ally`);
+    assert.equal(s.rules.filter((r) => r.action_target_selector === 'home' || r.action_kind === 'recall').length, 4, `${label}: home only for low hp and shopping`);
+    const last = s.rules[s.rules.length - 1];
+    assert.ok(s.default_action.target_selector === 'own_front_tower' || last.action_target_selector === 'own_front_tower', `${label}: waits at its own front tower`);
   }
 });
 

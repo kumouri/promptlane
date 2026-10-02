@@ -1,115 +1,126 @@
 {
  "drums": {
-  "pilot_file": "prompts/pilots/house-eco-violet.md",
+  "pilot_file": "prompts/pilots/house-medium-eco.prose.md",
   "instrument": "drums",
   "rules": [
    {
-    "id": "low_hp_enemy_sight",
-    "condition": "is this bot's hp below 75 and is an enemy bearbot, minion or tower in sight?",
-    "criteria_true": "hp < 75 and enemy present",
-    "criteria_false": "hp >= 75 or no enemy present",
+    "id": "hurt_retreat",
+    "condition": "is this bearbot's hp below half of its max hp AND is an enemy minion, enemy tower, or enemy bearbot in sight?",
+    "criteria_true": "hp < 50% max and at least one enemy (minion/tower/bearbot) is visible",
+    "criteria_false": "hp >= 50% max OR no enemies are visible",
     "action_kind": "move",
     "action_ability": null,
     "action_target_selector": "home"
    },
    {
-    "id": "low_hp_no_enemy",
-    "condition": "is this bot's hp below 75 and is no enemy in sight?",
-    "criteria_true": "hp < 75 and no enemy",
-    "criteria_false": "hp >= 75 or enemy present",
+    "id": "hurt_recall",
+    "condition": "is this bearbot's hp below half of its max hp AND are no enemies in sight?",
+    "criteria_true": "hp < 50% max and no enemies are visible",
+    "criteria_false": "hp >= 50% max OR at least one enemy is visible",
     "action_kind": "recall",
     "action_ability": null,
     "action_target_selector": "none"
    },
    {
-    "id": "bandstand_open_take_it",
-    "condition": "is the Bandstand open AND is no enemy bearbot visible AND is this bot's hp above half of its max hp?",
-    "criteria_true": "Bandstand open, no enemy bearbot in sight, hp above half of max",
-    "criteria_false": "Bandstand not open OR an enemy bearbot is in sight OR hp at or below half of max",
-    "action_kind": "move",
-    "action_ability": null,
-    "action_target_selector": "bandstand"
-   },
-   {
-    "id": "afford_shop_tower_sight",
-    "condition": "can this bot afford its next item and is there no enemy bearbot or minion in sight and is an enemy tower in sight?",
-    "criteria_true": "gold>=next and foe=null/minion and tower!=null",
-    "criteria_false": "other",
+    "id": "shop_home",
+    "condition": "can this bearbot afford the next item on its shopping list AND is no enemy bearbot in sight AND is an enemy minion or enemy tower in sight?",
+    "criteria_true": "affordable, no enemy bearbots, but at least one enemy minion/tower visible",
+    "criteria_false": "not affordable OR enemy bearbot visible OR no enemy minions/towers visible",
     "action_kind": "move",
     "action_ability": null,
     "action_target_selector": "home"
    },
    {
-    "id": "afford_shop_no_enemy",
-    "condition": "can this bot afford its next item and is there no enemy in sight?",
-    "criteria_true": "gold>=next and foe=null",
-    "criteria_false": "other",
+    "id": "shop_recall",
+    "condition": "can this bearbot afford the next item on its shopping list AND is no enemy in sight?",
+    "criteria_true": "affordable and no enemies visible",
+    "criteria_false": "not affordable OR at least one enemy visible",
     "action_kind": "recall",
     "action_ability": null,
     "action_target_selector": "none"
    },
    {
-    "id": "tower_no_wave",
-    "condition": "is an enemy tower visible and there are no allied minions?",
-    "criteria_true": "tower is not null and wave is 0",
-    "criteria_false": "tower is null or wave > 0",
-    "action_kind": "move",
-    "action_ability": null,
-    "action_target_selector": "home"
-   },
-   {
-    "id": "drums_kick_soft",
-    "condition": "are drums ready (cd=0) and a soft target available?",
-    "criteria_true": "cd is 0 and foe is a bearbot with hp < 100",
-    "criteria_false": "cd > 0 or foe is not a low-hp bearbot",
-    "action_kind": "ability",
-    "action_ability": "kick",
-    "action_target_selector": "lowest_hp_enemy"
-   },
-   {
-    "id": "attack_foe",
-    "condition": "is there an enemy bearbot to attack?",
-    "criteria_true": "foe is not null",
-    "criteria_false": "foe is null",
-    "action_kind": "attack",
-    "action_ability": null,
-    "action_target_selector": "lowest_hp_enemy"
-   },
-   {
-    "id": "attack_tower",
-    "condition": "is an enemy tower visible?",
-    "criteria_true": "tower is not null",
-    "criteria_false": "tower is null",
+    "id": "late_game_push",
+    "condition": "is the match time greater than 480 seconds AND is an enemy tower visible?",
+    "criteria_true": "match > 480s and at least one enemy tower visible",
+    "criteria_false": "match <= 480s OR no enemy towers visible",
     "action_kind": "attack",
     "action_ability": null,
     "action_target_selector": "nearest_tower"
    },
    {
+    "id": "tower_dive_fall_back",
+    "condition": "will an enemy tower shoot this bearbot?",
+    "criteria_true": "enemy tower will shoot this bearbot",
+    "criteria_false": "enemy tower will not shoot this bearbot",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "own_tower"
+   },
+   {
+    "id": "siege_attack",
+    "condition": "is this bearbot inside an enemy tower's range AND does that tower have this bearbot's own minions in its range?",
+    "criteria_true": "inside enemy tower range and own minions are also in that tower's range",
+    "criteria_false": "not inside enemy tower range OR own minions not in that tower's range",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_tower"
+   },
+   {
+    "id": "ability_use",
+    "condition": "is this bearbot's primary ability ready AND is an enemy bearbot in sight with less than 100 hp?",
+    "criteria_true": "ability ready and at least one low-hp enemy bearbot visible",
+    "criteria_false": "ability not ready OR no low-hp enemy bearbots visible",
+    "action_kind": "ability",
+    "action_ability": "kick",
+    "action_target_selector": "lowest_hp_enemy"
+   },
+   {
+    "id": "attack_bearbot",
+    "condition": "is an enemy bearbot in sight?",
+    "criteria_true": "at least one enemy bearbot visible",
+    "criteria_false": "no enemy bearbots visible",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_enemy_bearbot"
+   },
+   {
+    "id": "attack_minion",
+    "condition": "is an enemy minion in sight?",
+    "criteria_true": "at least one enemy minion visible",
+    "criteria_false": "no enemy minions visible",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_enemy_minion"
+   },
+   {
     "id": "ride_wave",
-    "condition": "are there allied minions to ride with?",
-    "criteria_true": "wave is 1 or more",
-    "criteria_false": "wave is 0",
+    "condition": "is one of this bearbot's own minions near it?",
+    "criteria_true": "at least one allied minion nearby",
+    "criteria_false": "no allied minions nearby",
     "action_kind": "move",
     "action_ability": null,
     "action_target_selector": "nearby_minion"
    },
    {
-    "id": "wait_home",
-    "condition": "none",
-    "criteria_true": "default fallback",
-    "criteria_false": "default fallback",
+    "id": "fallback_wait",
+    "condition": "is this bearbot not matching any of the above conditions?",
+    "criteria_true": "no other rule matches",
+    "criteria_false": "another rule matches",
     "action_kind": "move",
     "action_ability": null,
-    "action_target_selector": "home"
+    "action_target_selector": "own_front_tower"
    }
   ],
   "default_action": {
    "kind": "move",
    "ability": null,
-   "target_selector": "home"
+   "target_selector": "own_front_tower"
   },
   "validation_notes": [
-   "instrument scope: 4 clause(s) your prose marks for another instrument were left out of the drums schema (each is compiled only for the instrument it names): \"keytar only: Metronome, then Amp, then Road Case.\"; \"violin only: Amp, then Bass Strings, then Road Case.\"; \"4. keytar only: cd is 0 and foe is not null -> \"kind\":\"ability\",\"ability\":\"chord…\"; \"violin only: cd is 0 and foe is a bearbot with hp less than 100 -> \"kind\":\"abili…\""
+   "target: rule late_game_push named 'nearest_enemy_tower', which is not a target; it targets 'nearest_tower' (the nearest visible enemy tower or nexus).",
+   "target: rule siege_attack named 'nearest_enemy_tower', which is not a target; it targets 'nearest_tower' (the nearest visible enemy tower or nexus).",
+   "instrument scope: 3 clause(s) your prose marks for another instrument were left out of the drums schema (each is compiled only for the instrument it names): \"keytar only: Metronome, then Amp, then Road Case, then Click Track, then Bass St…\"; \"violin only: Amp, then Bass Strings, then Road Case, then Fuzz Pedal, then Metro…\"; \"keytar only: If your ability is ready and an enemy bearbot is in sight, use your…\""
   ],
   "build": [
    "road-case",
@@ -121,119 +132,131 @@
    "click-track",
    "arpeggiator"
   ],
-  "economy": "eco-3-late"
+  "economy": "eco-3-late",
+  "vocab": "vocab-2"
  },
  "keytar": {
-  "pilot_file": "prompts/pilots/house-eco-violet.md",
+  "pilot_file": "prompts/pilots/house-medium-eco.prose.md",
   "instrument": "keytar",
   "rules": [
    {
-    "id": "low_hp_reach",
-    "condition": "is this bot's hp below 75 and is an enemy bearbot, minion or tower in sight?",
-    "criteria_true": "hp < 75 with threat in range",
-    "criteria_false": "hp >= 75 or no threat in range",
+    "id": "hurt_retreat",
+    "condition": "is this bot's hp below half of its max hp AND is an enemy minion, enemy tower, or enemy bearbot in sight?",
+    "criteria_true": "this bot's hp is below 50% and at least one enemy unit (minion/tower/bearbot) is visible",
+    "criteria_false": "this bot's hp is above 50% OR no enemy units are visible",
     "action_kind": "move",
     "action_ability": null,
     "action_target_selector": "home"
    },
    {
-    "id": "low_hp_safe",
-    "condition": "is this bot's hp below 75 and is no enemy in sight?",
-    "criteria_true": "hp < 75 with no threats",
-    "criteria_false": "hp >= 75 or threats present",
+    "id": "hurt_recall",
+    "condition": "is this bot's hp below half of its max hp AND are no enemy units in sight?",
+    "criteria_true": "this bot's hp is below 50% and no enemies are visible",
+    "criteria_false": "this bot's hp is above 50% OR at least one enemy unit is visible",
     "action_kind": "recall",
     "action_ability": null,
     "action_target_selector": "none"
    },
    {
-    "id": "bandstand_open_take_it",
-    "condition": "is the Bandstand open AND is no enemy bearbot visible AND is this bot's hp above half of its max hp?",
-    "criteria_true": "Bandstand open, no enemy bearbot in sight, hp above half of max",
-    "criteria_false": "Bandstand not open OR an enemy bearbot is in sight OR hp at or below half of max",
-    "action_kind": "move",
-    "action_ability": null,
-    "action_target_selector": "bandstand"
-   },
-   {
-    "id": "afford_shop_reach",
-    "condition": "can this bot afford its next item and is there no enemy bearbot or minion in sight and is an enemy tower in sight?",
-    "criteria_true": "affordable, safe from mobs, tower threat present",
-    "criteria_false": "unaffordable, unsafe, or no tower threat",
+    "id": "shop_move_home",
+    "condition": "can this bot afford the next item on its shopping list AND is no enemy bearbot in sight AND is an enemy minion or enemy tower in sight?",
+    "criteria_true": "next item affordable, no enemy bearbots visible, but enemy minions/towers visible",
+    "criteria_false": "next item unaffordable OR at least one enemy bearbot visible OR no enemy minions/towers visible",
     "action_kind": "move",
     "action_ability": null,
     "action_target_selector": "home"
    },
    {
-    "id": "afford_shop_home",
-    "condition": "can this bot afford its next item and is there no enemy in sight?",
-    "criteria_true": "affordable and safe from all enemies",
-    "criteria_false": "unaffordable or unsafe",
+    "id": "shop_recall",
+    "condition": "can this bot afford the next item on its shopping list AND is no enemy unit in sight?",
+    "criteria_true": "next item affordable and no enemies visible at all",
+    "criteria_false": "next item unaffordable OR at least one enemy unit visible",
     "action_kind": "recall",
     "action_ability": null,
     "action_target_selector": "none"
    },
    {
-    "id": "tower_threat",
-    "condition": "is an enemy tower visible and no minion wave present?",
-    "criteria_true": "tower exists and wave count is 0",
-    "criteria_false": "no immediate tower threat or wave present",
-    "action_kind": "move",
-    "action_ability": null,
-    "action_target_selector": "home"
-   },
-   {
-    "id": "ability_ready",
-    "condition": "is the chord ability cooldown finished and an enemy bearbot exists?",
-    "criteria_true": "cd is 0 and foe is not null",
-    "criteria_false": "ability on cooldown or no target",
-    "action_kind": "ability",
-    "action_ability": "chord",
-    "action_target_selector": "lowest_hp_enemy"
-   },
-   {
-    "id": "attack_target",
-    "condition": "is an enemy bearbot present?",
-    "criteria_true": "foe is not null",
-    "criteria_false": "no enemy bearbot present",
-    "action_kind": "attack",
-    "action_ability": null,
-    "action_target_selector": "lowest_hp_enemy"
-   },
-   {
-    "id": "tower_attack",
-    "condition": "is an enemy tower visible?",
-    "criteria_true": "tower is not null",
-    "criteria_false": "no enemy tower visible",
+    "id": "late_game_tower_push",
+    "condition": "is the match time greater than 480 seconds AND is an enemy tower visible?",
+    "criteria_true": "match time > 480s and at least one enemy tower is visible",
+    "criteria_false": "match time <= 480s OR no enemy towers are visible",
     "action_kind": "attack",
     "action_ability": null,
     "action_target_selector": "nearest_tower"
    },
    {
+    "id": "tower_dodge",
+    "condition": "will an enemy tower shoot this bot?",
+    "criteria_true": "an enemy tower is targeting this bot",
+    "criteria_false": "no enemy tower is targeting this bot",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "own_tower"
+   },
+   {
+    "id": "siege_attack",
+    "condition": "is this bot inside an enemy tower's range AND does that tower have this bot's own minions in its range?",
+    "criteria_true": "bot is under enemy tower fire but protected by own minions",
+    "criteria_false": "bot is not under enemy tower fire OR no own minions are under the enemy tower's fire",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_tower"
+   },
+   {
+    "id": "ability_use",
+    "condition": "is this bot's primary ability ready AND is an enemy bearbot in sight?",
+    "criteria_true": "primary ability cooldown <= 0 and at least one enemy bearbot visible",
+    "criteria_false": "primary ability on cooldown OR no enemy bearbots visible",
+    "action_kind": "ability",
+    "action_ability": "chord",
+    "action_target_selector": "nearest_enemy_bearbot"
+   },
+   {
+    "id": "attack_bearbot",
+    "condition": "is an enemy bearbot in sight?",
+    "criteria_true": "at least one enemy bearbot is visible",
+    "criteria_false": "no enemy bearbots are visible",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_enemy_bearbot"
+   },
+   {
+    "id": "attack_minion",
+    "condition": "is an enemy minion in sight?",
+    "criteria_true": "at least one enemy minion is visible",
+    "criteria_false": "no enemy minions are visible",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_enemy_minion"
+   },
+   {
     "id": "ride_wave",
-    "condition": "are there allied minions in the wave?",
-    "criteria_true": "wave count is 1 or more",
-    "criteria_false": "no allied minions present",
+    "condition": "is one of this bot's own minions near it?",
+    "criteria_true": "at least one allied minion is within 260 units",
+    "criteria_false": "no allied minions are within 260 units",
     "action_kind": "move",
     "action_ability": null,
     "action_target_selector": "nearby_minion"
    },
    {
-    "id": "wait_home",
-    "condition": "is the bot at home and no immediate action required?",
-    "criteria_true": "bot is waiting for next wave",
-    "criteria_false": "other conditions apply",
+    "id": "fallback_wait",
+    "condition": "does none of the above rules apply?",
+    "criteria_true": "no other conditions matched (implicit fallback)",
+    "criteria_false": "another rule matched",
     "action_kind": "move",
     "action_ability": null,
-    "action_target_selector": "home"
+    "action_target_selector": "own_front_tower"
    }
   ],
   "default_action": {
    "kind": "move",
    "ability": null,
-   "target_selector": "home"
+   "target_selector": "own_front_tower"
   },
   "validation_notes": [
-   "instrument scope: 4 clause(s) your prose marks for another instrument were left out of the keytar schema (each is compiled only for the instrument it names): \"drums only: Road Case, then Bass Strings, then Metronome.\"; \"violin only: Amp, then Bass Strings, then Road Case.\"; \"violin only: cd is 0 and foe is a bearbot with hp less than 100 -> \"kind\":\"abili…\"; \"drums only: cd is 0 and foe is a bearbot with hp less than 100 -> \"kind\":\"abilit…\""
+   "target: rule late_game_tower_push named 'nearest_enemy_tower', which is not a target; it targets 'nearest_tower' (the nearest visible enemy tower or nexus).",
+   "target: rule siege_attack named 'nearest_enemy_tower', which is not a target; it targets 'nearest_tower' (the nearest visible enemy tower or nexus).",
+   "instrument scope: 3 clause(s) your prose marks for another instrument were left out of the keytar schema (each is compiled only for the instrument it names): \"drums only: Road Case, then Bass Strings, then Metronome, then Backline, then Am…\"; \"violin only: Amp, then Bass Strings, then Road Case, then Fuzz Pedal, then Metro…\"; \"drums and violin only: If your ability is ready and an enemy bearbot in sight ha…\""
   ],
   "build": [
    "metronome",
@@ -245,119 +268,131 @@
    "backline",
    "wall-of-sound"
   ],
-  "economy": "eco-3-late"
+  "economy": "eco-3-late",
+  "vocab": "vocab-2"
  },
  "violin": {
-  "pilot_file": "prompts/pilots/house-eco-violet.md",
+  "pilot_file": "prompts/pilots/house-medium-eco.prose.md",
   "instrument": "violin",
   "rules": [
    {
-    "id": "low_hp_reach",
-    "condition": "is this bot's hp below 75 and is an enemy bearbot, minion or tower in sight?",
-    "criteria_true": "hp < 75 and enemy present",
-    "criteria_false": "hp >= 75 or no enemy present",
+    "id": "hurt_enemy_sight",
+    "condition": "is this bot's hp below half of its max AND is an enemy minion OR enemy tower OR enemy bearbot in sight?",
+    "criteria_true": "hp < 50% and at least one enemy unit (minion, tower, or bearbot) is visible",
+    "criteria_false": "hp >= 50% OR no enemy units are visible",
     "action_kind": "move",
     "action_ability": null,
     "action_target_selector": "home"
    },
    {
-    "id": "low_hp_safe",
-    "condition": "is this bot's hp below 75 and is no enemy in sight?",
-    "criteria_true": "hp < 75 and no enemy",
-    "criteria_false": "hp >= 75 or enemy present",
+    "id": "hurt_no_enemy_sight",
+    "condition": "is this bot's hp below half of its max AND are no enemies in sight?",
+    "criteria_true": "hp < 50% and no enemy units are visible",
+    "criteria_false": "hp >= 50% OR at least one enemy unit is visible",
     "action_kind": "recall",
     "action_ability": null,
-    "action_target_selector": "none"
+    "action_target_selector": "home"
    },
    {
-    "id": "bandstand_open_take_it",
-    "condition": "is the Bandstand open AND is no enemy bearbot visible AND is this bot's hp above half of its max hp?",
-    "criteria_true": "Bandstand open, no enemy bearbot in sight, hp above half of max",
-    "criteria_false": "Bandstand not open OR an enemy bearbot is in sight OR hp at or below half of max",
-    "action_kind": "move",
-    "action_ability": null,
-    "action_target_selector": "bandstand"
-   },
-   {
-    "id": "afford_shop_reach",
-    "condition": "can this bot afford its next item and is there no enemy bearbot or minion but an enemy tower is in sight?",
-    "criteria_true": "gold>=nextItem.cost, no bearbot/minion foe, tower present",
-    "criteria_false": "otherwise",
+    "id": "can_afford_item_enemy_minion_tower_sight",
+    "condition": "can this bot afford the next item on its shopping list AND is no enemy bearbot in sight AND is an enemy minion OR enemy tower in sight?",
+    "criteria_true": "affordable, no enemy bearbots visible, but enemy minions or towers are visible",
+    "criteria_false": "not affordable OR at least one enemy bearbot visible OR no enemy minions/towers visible",
     "action_kind": "move",
     "action_ability": null,
     "action_target_selector": "home"
    },
    {
-    "id": "afford_shop_home",
-    "condition": "can this bot afford its next item and is there no enemy in sight?",
-    "criteria_true": "gold>=nextItem.cost, no enemies",
-    "criteria_false": "otherwise",
+    "id": "can_afford_item_no_enemy_sight",
+    "condition": "can this bot afford the next item on its shopping list AND are no enemies in sight?",
+    "criteria_true": "affordable and no enemy units visible",
+    "criteria_false": "not affordable OR at least one enemy unit visible",
     "action_kind": "recall",
     "action_ability": null,
-    "action_target_selector": "none"
-   },
-   {
-    "id": "tower_no_wave_retreat",
-    "condition": "is an enemy tower present and no allied minions nearby?",
-    "criteria_true": "tower is not null AND wave is 0",
-    "criteria_false": "tower is null OR wave > 0",
-    "action_kind": "move",
-    "action_ability": null,
     "action_target_selector": "home"
    },
    {
-    "id": "violin_staccato_opener",
-    "condition": "is the violin ability ready and a low-hp enemy bearbot present?",
-    "criteria_true": "cd is 0 AND foe is a bearbot with hp < 100",
-    "criteria_false": "cd > 0 OR foe is not a bearbot or foe hp >= 100",
-    "action_kind": "ability",
-    "action_ability": "staccato",
-    "action_target_selector": "lowest_hp_enemy"
-   },
-   {
-    "id": "attack_lowest_hp",
-    "condition": "is there an enemy bearbot present?",
-    "criteria_true": "foe is not null",
-    "criteria_false": "foe is null",
-    "action_kind": "attack",
-    "action_ability": null,
-    "action_target_selector": "lowest_hp_enemy"
-   },
-   {
-    "id": "attack_tower",
-    "condition": "is an enemy tower present?",
-    "criteria_true": "tower is not null",
-    "criteria_false": "tower is null",
+    "id": "late_game_tower_attack",
+    "condition": "is the match time greater than 480 seconds AND is an enemy tower visible?",
+    "criteria_true": "match > 480s and at least one enemy tower is visible",
+    "criteria_false": "match <= 480s OR no enemy towers are visible",
     "action_kind": "attack",
     "action_ability": null,
     "action_target_selector": "nearest_tower"
    },
    {
-    "id": "ride_wave",
-    "condition": "are allied minions present to ride with?",
-    "criteria_true": "wave is 1 or more",
-    "criteria_false": "wave is 0",
+    "id": "enemy_tower_shoots_me",
+    "condition": "will an enemy tower shoot this bot?",
+    "criteria_true": "an enemy tower is within range and will target this bot (no minions shielding it)",
+    "criteria_false": "no enemy tower will shoot this bot",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "own_tower"
+   },
+   {
+    "id": "inside_enemy_tower_shooting_minions",
+    "condition": "is this bot inside an enemy tower's range AND does that tower have this bot's own minions in its range?",
+    "criteria_true": "bot is in enemy tower range and friendly minions are also in that tower's range (shielding the bot)",
+    "criteria_false": "bot is not in enemy tower range OR no friendly minions are in that tower's range",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_tower"
+   },
+   {
+    "id": "ability_ready_low_hp_bearbot",
+    "condition": "is this bot's primary ability ready AND is an enemy bearbot in sight with less than 100 hp?",
+    "criteria_true": "primary ability is ready and at least one visible enemy bearbot has < 100 hp",
+    "criteria_false": "primary ability not ready OR no visible enemy bearbots have < 100 hp",
+    "action_kind": "ability",
+    "action_ability": "staccato",
+    "action_target_selector": "lowest_hp_enemy"
+   },
+   {
+    "id": "enemy_bearbot_in_sight",
+    "condition": "is an enemy bearbot in sight?",
+    "criteria_true": "at least one enemy bearbot is visible",
+    "criteria_false": "no enemy bearbots are visible",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_enemy_bearbot"
+   },
+   {
+    "id": "enemy_minion_in_sight",
+    "condition": "is an enemy minion in sight?",
+    "criteria_true": "at least one enemy minion is visible",
+    "criteria_false": "no enemy minions are visible",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_enemy_minion"
+   },
+   {
+    "id": "own_minion_nearby",
+    "condition": "is one of this bot's own minions near it?",
+    "criteria_true": "at least one allied minion is nearby",
+    "criteria_false": "no allied minions are nearby",
     "action_kind": "move",
     "action_ability": null,
     "action_target_selector": "nearby_minion"
    },
    {
-    "id": "wait_home",
-    "condition": "none",
-    "criteria_true": "all other conditions failed",
-    "criteria_false": "some condition matched",
+    "id": "fallback_wait_wave",
+    "condition": "does none of the above rules apply?",
+    "criteria_true": "no other conditions matched (fallback state)",
+    "criteria_false": "another rule matched",
     "action_kind": "move",
     "action_ability": null,
-    "action_target_selector": "home"
+    "action_target_selector": "own_front_tower"
    }
   ],
   "default_action": {
    "kind": "move",
    "ability": null,
-   "target_selector": "home"
+   "target_selector": "own_front_tower"
   },
   "validation_notes": [
-   "instrument scope: 4 clause(s) your prose marks for another instrument were left out of the violin schema (each is compiled only for the instrument it names): \"drums only: Road Case, then Bass Strings, then Metronome.\"; \"keytar only: Metronome, then Amp, then Road Case.\"; \"4. keytar only: cd is 0 and foe is not null -> \"kind\":\"ability\",\"ability\":\"chord…\"; \"drums only: cd is 0 and foe is a bearbot with hp less than 100 -> \"kind\":\"abilit…\""
+   "target: rule late_game_tower_attack named 'nearest_enemy_tower', which is not a target; it targets 'nearest_tower' (the nearest visible enemy tower or nexus).",
+   "target: rule inside_enemy_tower_shooting_minions named 'nearest_enemy_tower', which is not a target; it targets 'nearest_tower' (the nearest visible enemy tower or nexus).",
+   "instrument scope: 3 clause(s) your prose marks for another instrument were left out of the violin schema (each is compiled only for the instrument it names): \"drums only: Road Case, then Bass Strings, then Metronome, then Backline, then Am…\"; \"keytar only: Metronome, then Amp, then Road Case, then Click Track, then Bass St…\"; \"keytar only: If your ability is ready and an enemy bearbot is in sight, use your…\""
   ],
   "build": [
    "amp",
@@ -369,6 +404,7 @@
    "tour-bus",
    "headliner"
   ],
-  "economy": "eco-3-late"
+  "economy": "eco-3-late",
+  "vocab": "vocab-2"
  }
 }
