@@ -445,7 +445,11 @@ def _map_rule_lines(obs: dict) -> list[str]:
     if tp is not None:
         if tp.get("channel"):
             c = tp["channel"]
-            lines.append(f"Its teleport is channelling to its tower {c['tower']}, landing in {_seconds(c['leftSec'])} s.")
+            # "ready" stays stated while it channels (the cooldown starts at the landing): a rule asking "is the
+            # teleport ready?" must keep firing, or the next decision's other action cancels the channel. Stated
+            # "channelling" alone, Jev answered that question yes 6 % of the time mid-channel (runs/pvp-2-2026-10-02.md §2.4).
+            lines.append(f"Its teleport is ready and in use: it is channelling to its tower {c['tower']}, landing in "
+                         f"{_seconds(c['leftSec'])} s, and choosing any other action cancels it.")
         elif tp.get("ready"):
             lines.append("Its teleport is ready: it can teleport to any of its team's standing towers (5 s standing still, then it lands there).")
         else:

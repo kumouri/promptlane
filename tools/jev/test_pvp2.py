@@ -129,7 +129,8 @@ class Description(unittest.TestCase):
         self.assertIn("Its teleport is on cooldown for 41.5 more s.", text2)
         self.assertIn("speed boost is off", text2)
         o3 = obs(teleport=tp_block(channel={"tower": "tw-7", "leftSec": 3}))
-        self.assertIn("Its teleport is channelling to its tower tw-7, landing in 3 s.", describe_observation(o3, VOCAB_2, "pvp-2"))
+        self.assertIn("Its teleport is ready and in use: it is channelling to its tower tw-7, landing in 3 s, and choosing any "
+                      "other action cancels it.", describe_observation(o3, VOCAB_2, "pvp-2"))
 
     def test_vocab1_never_states_them(self):
         o = obs(teleport=tp_block())
