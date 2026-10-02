@@ -59,6 +59,9 @@ const ROOT = path.resolve(HERE, '..', '..');
 export const SEEDS = [7, 11, 42, 101, 3, 5, 13, 17, 23, 29, 31, 37];
 
 const P = 'prompts/pilots/';
+// The eco medium here is the worksheet medium this measurement was planned with: the arena's medium moved
+// to vocab-2 prose on 2026-10-02 (runs/siege-fact-medium-bar-2026-10-02.md), and its old compile was kept,
+// byte for byte, as `house-medium-eco-worksheet.schemas.json` so the measurement doesn't change under it.
 const SIDE_FILES = {
   plain: {
     medium: { prompt: `${P}house-violet.md`, green: `${P}house-green.md`, schemas: `${P}house-medium.schemas.json` },
@@ -66,7 +69,7 @@ const SIDE_FILES = {
     entrant: { prompt: `${P}sample-entrant.prose.md`, schemas: `${P}sample-entrant.schemas.json` },
   },
   eco: {
-    medium: { prompt: `${P}house-eco-violet.md`, green: `${P}house-eco-green.md`, schemas: `${P}house-medium-eco.schemas.json` },
+    medium: { prompt: `${P}house-eco-violet.md`, green: `${P}house-eco-green.md`, schemas: `${P}house-medium-eco-worksheet.schemas.json` },
     hard: { prompt: `${P}house-hard-eco.prose.md`, schemas: `${P}house-hard-eco.schemas.json` },
     entrant: { prompt: `${P}sample-entrant-eco.prose.md`, schemas: `${P}sample-entrant-eco.schemas.json` },
   },

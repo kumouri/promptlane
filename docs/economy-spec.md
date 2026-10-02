@@ -610,7 +610,7 @@ House tiers come in two kinds:
 | Tier | Shopping rule | PvP rule | Build |
 |---|---|---|---|
 | easy | none at first: it bought only when it happened to be at base (low-hp recall, respawn). On Jev that left it 550 gold unspent, so since 2026-10-02 it recalls to shop when it can afford its next item and no enemy is in sight, and never walks home to shop ([`runs/better-bots-2026-10-02.md`](../runs/better-bots-2026-10-02.md)). | none | default |
-| medium | `next` is not null **and** `gold ≥ next` **and** `foe` is null → recall | — | default |
+| medium | `next` is not null **and** `gold ≥ next` **and** `foe` is null → recall. Since 2026-10-02 it is prose: can afford the next item and no enemy bearbot in sight, with an enemy minion or tower in sight walk home, with no enemy in sight recall ([`runs/siege-fact-medium-bar-2026-10-02.md`](../runs/siege-fact-medium-bar-2026-10-02.md)). | — | default |
 | hard | the medium rule, **plus** `gold ≥ 300` **and** foe is a bearbot with more hp than you → go home | `foe` = highest-bounty visible bearbot, not lowest-hp | per instrument, tuned in §7 P4 |
 
 **Code changes that go with it:**
@@ -1820,9 +1820,11 @@ confirmed the late first item, and §13.6 pairs this knob with a smaller kill bo
   `tournament.economy`). With no economy nothing changes, so the placement bar doesn't move. The
   table and the files are in `prompts/pilots/README.md`.
   - easy declares Road Case → Metronome → Amp, and never goes home only to shop.
-  - medium keeps its worksheet. It adds keys `gold`, `next` and `home`, and the rule "next item
-    affordable and no foe in sight → recall to shop" right after the low-hp recall and the
-    Bandstand rule.
+  - medium kept its worksheet until 2026-10-02. It added keys `gold`, `next` and `home`, and the
+    rule "next item affordable and no foe in sight → recall to shop" right after the low-hp recall
+    and the Bandstand rule. Since then medium is vocab-2 prose, `house-medium-eco.prose.md`
+    (`runs/siege-fact-medium-bar-2026-10-02.md`). The worksheet pair stays as §6's medium
+    (`measure_economy.mjs`).
   - hard has the same rule. It adds "carrying ≥ 300 with a stronger enemy bearbot in sight → recall
     to spend it", and it attacks the enemy worth the most gold instead of the lowest-hp one.
   - Since 2026-10-01 every recall in these tiers first leaves reach for `recall-2` (§9.10): the

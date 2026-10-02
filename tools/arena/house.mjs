@@ -25,10 +25,12 @@
  * Under an economy (`tournament.economy`, `npm run match --economy`) each tier plays its
  * ECONOMY-AWARE version instead (docs/economy-spec.md §4.4, §13.2): the same strategy plus a declared
  * shopping list and, for medium and hard, a recall-to-shop rule (hard also spends before a losing
- * fight and hunts the enemy worth the most gold). Medium stays a worksheet pair
- * (`house-eco-{violet,green}.md`, worksheet keys `gold`/`next`/`home` added); easy and hard are prose
- * (`house-<tier>-eco.prose.md`), one file for both sides. Their compiles are
- * `house-<tier>-eco.schemas.json`. With no economy, nothing here changes.
+ * fight and hunts the enemy worth the most gold). All three are prose (`house-<tier>-eco.prose.md`),
+ * one file for both sides, and their compiles are `house-<tier>-eco.schemas.json`. Medium moved from its
+ * worksheet pair (`house-eco-{violet,green}.md`) to vocab-2 prose on 2026-10-02, so the placement bar
+ * plays the siege habits a plain entrant does (runs/siege-fact-medium-bar-2026-10-02.md); the worksheet
+ * pair and its compile (`house-medium-eco-worksheet.schemas.json`) stay for `measure_economy.mjs`.
+ * With no economy, nothing here changes.
  */
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
@@ -41,7 +43,7 @@ export const DEFAULT_HOUSE_TIER = 'medium';
 /** The economy-aware tiers: a {violet, green} pair or one prose file for both sides. */
 export const HOUSE_TIERS_ECO = {
   easy: 'prompts/pilots/house-easy-eco.prose.md',
-  medium: pair('house-eco'),
+  medium: 'prompts/pilots/house-medium-eco.prose.md',
   hard: 'prompts/pilots/house-hard-eco.prose.md',
 };
 /** Each tier's prose compiled for Jev ({drums, keytar, violin}; `npm run match --a-schemas` shape). */
