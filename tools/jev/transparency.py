@@ -151,7 +151,7 @@ def _describe_jev_ask_guard(guard: GuardNode) -> str:
 
 
 def _describe_action(kind: str, ability: str | None, selector: str | None) -> str:
-    from translator import BANDSTAND_MOVE_TEXT, TARGET_SELECTORS
+    from translator import BANDSTAND_MOVE_TEXT, SELECTOR_DESCRIPTIONS
 
     if kind == "move" and selector == "bandstand":
         return BANDSTAND_MOVE_TEXT  # "move to the Bandstand", with its push_lane fallback named
@@ -164,7 +164,7 @@ def _describe_action(kind: str, ability: str | None, selector: str | None) -> st
     else:
         base = f"**{kind}**"
     if selector and selector != "none":
-        base += f" targeting: {TARGET_SELECTORS[selector]}"
+        base += f" targeting: {SELECTOR_DESCRIPTIONS[selector]}"
     return base
 
 

@@ -90,6 +90,9 @@ stack, why the free stand-in said otherwise, the economy-aware hard's fix, and i
 check; the kept compile's report is `house-hard-eco-compile-2026-10-02.md` beside it, and the logs are
 on the
 [`data-house-hard-2026-10-02`](https://github.com/kumouri/promptlane/releases/tag/data-house-hard-2026-10-02)
-release).
+release), and
+[vocab-fight-calibration-2026-10-02.md](vocab-fight-calibration-2026-10-02.md) (vocab-2's fight
+verdict scored on 64,290 decisions replayed from 219 recorded `pvp-1` matches, $0; the logs are the
+earlier runs' own).
 The bulky captures those documents hash live under ignored `artifacts/<run>-evidence/` and
 `artifacts/<run>-reviewed/`.

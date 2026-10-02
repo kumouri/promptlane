@@ -16,8 +16,15 @@
  * (`tools/jev/target_resolve.py` TARGETING_RULES), and a reply resolved under any other rule is a
  * failed call. A server from before the rule existed resolves everything under `first-min` and
  * says nothing, so it can't silently play a match meant for `own-lane-1`.
+ *
+ * A schema plays under the vocabulary it was compiled under (`tools/jev/vocab.py`): its own `vocab`
+ * key, or vocab-1 when it has none. Each ask names it and the match's map (vocab-2's tower facts read
+ * tower range from it), and a reply that doesn't echo the schema's vocabulary is a failed call. A
+ * server from before vocabularies existed echoes nothing, which reads as vocab-1, so a vocab-1 schema
+ * plays on it exactly as before and a vocab-2 schema holds instead of playing under the wrong words.
  */
 import type { Action, ActionKind, Instrument, Observation } from '../../src/types';
+import { DEFAULT_MAP, resolveMap, type MapVariant } from '../../src/mapVariant';
 import { transportErrorMessage, type TracingDecision, type TracingPilot } from './jevPilot';
 
 /** The plain min() over float distances every schema match played before 2026-10-01. */
@@ -42,6 +49,34 @@ export function targetingUnsupported(health: { targeting?: unknown } | null | un
     : `the schema server resolves targets under ${known.join(', ')} only, not ${targeting}; restart tools/jev/schema_server.py from this checkout`;
 }
 
+/** The vocabulary every schema compiled before 2026-10-02 is in; a schema with no `vocab` key. */
+export const VOCAB_1 = 'vocab-1';
+/** Stage A of docs/vocabulary-spec.md: tower facts, distances, the fight line, six more targets. */
+export const VOCAB_2 = 'vocab-2';
+export const VOCABS: readonly string[] = [VOCAB_1, VOCAB_2];
+/** What an entrant compile writes (tools/jev/vocab.py DEFAULT_VOCAB; a test holds them equal). */
+export const DEFAULT_VOCAB = VOCAB_2;
+
+/** The vocabulary a compile.py schema plays under: its own `vocab` key, else vocab-1. */
+export function schemaVocab(schema: unknown): string {
+  const v = (schema as { vocab?: unknown } | null | undefined)?.vocab;
+  return typeof v === 'string' ? v : VOCAB_1;
+}
+
+/** Every vocabulary a side's schemas need, sorted. */
+export function vocabsOf(schemas: Partial<Record<Instrument, unknown>> | undefined | null): string[] {
+  return [...new Set(Object.values(schemas ?? {}).map(schemaVocab))].sort();
+}
+
+/** Why a schema server's /health says it can't play `vocabs`, or null when it can. */
+export function vocabUnsupported(health: { vocabs?: unknown } | null | undefined, vocabs: readonly string[]): string | null {
+  const known = Array.isArray(health?.vocabs) ? (health.vocabs as string[]) : [VOCAB_1];
+  const missing = vocabs.filter((v) => !known.includes(v));
+  return missing.length
+    ? `the schema server plays ${known.join(', ')} only, not ${missing.join(', ')}; restart tools/jev/schema_server.py from this checkout`
+    : null;
+}
+
 export interface JevSchemaPilotConfig {
   /** The schema-server endpoint, e.g. http://127.0.0.1:8797/ */
   endpoint: string;
@@ -50,6 +85,8 @@ export interface JevSchemaPilotConfig {
   schemas: Partial<Record<Instrument, unknown>>;
   /** The targeting rule (`TARGETINGS`). Default: `DEFAULT_TARGETING`. */
   targeting?: string;
+  /** The match's map variant, sent with every ask (vocab-2 reads tower range from it). Default: `DEFAULT_MAP`, as `runMatch`. */
+  map?: string | MapVariant;
 }
 
 interface SchemaDecideResponse {
@@ -63,6 +100,8 @@ interface SchemaDecideResponse {
   cost_usd?: number;
   /** The targeting rule the target resolved under; absent from servers older than the field (= first-min). */
   targeting?: string;
+  /** The vocabulary the schema played under; absent from servers older than the field (= vocab-1). */
+  vocab?: string;
 }
 
 const KINDS: ReadonlySet<ActionKind> = new Set(['move', 'attack', 'ability', 'recall', 'hold']);
@@ -70,15 +109,18 @@ const KINDS: ReadonlySet<ActionKind> = new Set(['move', 'attack', 'ability', 're
 export function jevSchemaTracingPilot(config: JevSchemaPilotConfig): TracingPilot {
   const timeoutMs = (config.timeoutSec ?? 30) * 1000;
   const targeting = config.targeting === undefined ? DEFAULT_TARGETING : resolveTargeting(config.targeting);
+  const { name, towerRange, towerFractions } = config.map === undefined ? DEFAULT_MAP : resolveMap(config.map);
+  const map = { name, towerRange, towerFractions };
   return {
     async decide(obs: Observation): Promise<TracingDecision> {
       const schema = config.schemas[obs.self.instrument];
       if (!schema) return { action: null, reply: `[pilot error: no compiled schema for ${obs.self.instrument}]` };
+      const vocab = schemaVocab(schema);
       try {
         const res = await fetch(config.endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ schema, observation: obs, targeting }),
+          body: JSON.stringify({ schema, observation: obs, targeting, vocab, map }),
           signal: AbortSignal.timeout(timeoutMs),
         });
         if (!res.ok) {
@@ -89,6 +131,8 @@ export function jevSchemaTracingPilot(config: JevSchemaPilotConfig): TracingPilo
         if (!data.action || !KINDS.has(data.action.kind)) throw new Error(`bad action from jev-schema: ${JSON.stringify(data.action)}`);
         const resolvedUnder = data.targeting ?? FIRST_MIN;
         if (resolvedUnder !== targeting) throw new Error(`jev-schema resolved the target under ${resolvedUnder}, not ${targeting}; restart tools/jev/schema_server.py from this checkout`);
+        const playedUnder = data.vocab ?? VOCAB_1;
+        if (playedUnder !== vocab) throw new Error(`jev-schema played the schema under ${playedUnder}, not its own ${vocab}; restart tools/jev/schema_server.py from this checkout`);
         const door = data.door ?? 'unknown';
         return {
           action: data.action,

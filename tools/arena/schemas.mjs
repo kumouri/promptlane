@@ -23,14 +23,23 @@ import path from 'node:path';
 import { COMPILE_DEFAULTS, spawnCompile } from './compile.mjs';
 import { hashPrompt } from './prompts.mjs';
 
-/** The files whose content decides what a prose prompt compiles to (compile.py and what it imports). */
-export const COMPILER_FILES = ['compile.py', 'translator.py', 'scenarios.py', 'number_normalize.py', 'ground_truth.py', 'llm_backends.py'];
+/**
+ * The files whose content decides what a prose prompt compiles to (compile.py and what it imports).
+ * `vocab.py` holds the default vocabulary and the facts list the prompt carries, and
+ * `economy_rules.py` the item lines; `fidelity_harness.py` and `target_resolve.py` decide what a
+ * vocab-2 schema's words mean when it plays (docs/vocabulary-spec.md §5.2).
+ */
+export const COMPILER_FILES = [
+  'compile.py', 'translator.py', 'scenarios.py', 'number_normalize.py', 'ground_truth.py', 'llm_backends.py',
+  'vocab.py', 'economy_rules.py', 'fidelity_harness.py', 'target_resolve.py',
+];
 
 export class CompileFailed extends Error {}
 
 /**
- * 12 hex chars over the compiler's source files, backend and model. Line endings are normalised, so a
- * CRLF checkout (core.autocrlf) and an LF one agree.
+ * 12 hex chars over the compiler's source files, backend, model and vocabulary (`cfg.vocab`, or
+ * compile.py's default, which `vocab.py` holds). Line endings are normalised, so a CRLF checkout
+ * (core.autocrlf) and an LF one agree.
  */
 export function compilerVersion(root, cfg, read = (f) => readFileSync(f)) {
   const h = createHash('sha256');
@@ -39,7 +48,7 @@ export function compilerVersion(root, cfg, read = (f) => readFileSync(f)) {
     h.update(read(path.join(root, 'tools', 'jev', f)).toString('utf8').replace(/\r\n/g, '\n'));
     h.update('\0');
   }
-  h.update(`${cfg.backend}\0${cfg.model ?? ''}`);
+  h.update(`${cfg.backend}\0${cfg.model ?? ''}\0vocab=${cfg.vocab ?? 'default'}`);
   return h.digest('hex').slice(0, 12);
 }
 

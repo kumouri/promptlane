@@ -159,8 +159,12 @@ the translator's fixed selector vocabulary: `nearest_enemy` becomes easy's `foe`
 `creep` key, `lowest_hp_enemy` becomes hard's `foe` key, `nearest_tower` the `tower` key,
 `nearby_minion` a friendly minion's position (from your own fountain, the start of your own lane:
 `target_resolve.py` `own-lane-1`), and `home` your own corner. So the house can only
-say what an entrant's prose can compile to. There is no "hold at my own tower" selector, for
-example, so easy leashes itself by leaving whenever an enemy tower comes into view.
+say what an entrant's prose can compile to. Every house schema here was compiled under `vocab-1`
+(no `vocab` key; [`docs/vocabulary-spec.md`](../../docs/vocabulary-spec.md)), which has no "hold at my
+own tower" selector, so easy leashes itself by leaving whenever an enemy tower comes into view.
+Entrants now compile under `vocab-2`, which has `own_tower` and `tower_diver`; no tier has been
+recompiled under it, and these side files stay vocab-1 renderings (a vocab-2 selector has no
+worksheet key: spec §4.4 C2).
 
 The rendering is by hand: the translator emits a Jev schema, not a qwen prompt. The mapping is in
 the evidence file. One rendering choice differs from medium. Easy and hard read `tower` from

@@ -201,11 +201,14 @@ async function main() {
   if (schemaTeams.length && !args.jevSchema) throw new Error('--a-schemas/--b-schemas need --jev-schema <schema_server URL>');
   if (args.jevSchema && !schemaTeams.length) throw new Error('--jev-schema needs --a-schemas and/or --b-schemas');
   const jevBackend = args.jevSchema ? await probeBackend(args.jevSchema) : null;
-  const unsupported = jevBackend ? headless.targetingUnsupported(jevBackend.health, targeting) : null;
+  const vocabs = [...new Set(schemaTeams.flatMap((team) => headless.vocabsOf(schemas[team])))].sort();
+  const unsupported = jevBackend
+    ? headless.targetingUnsupported(jevBackend.health, targeting) ?? headless.vocabUnsupported(jevBackend.health, vocabs)
+    : null;
   if (unsupported) throw new Error(`${args.jevSchema}: ${unsupported}`);
   const decisionPilotFor = jevBackend
     ? (_i, team) =>
-        schemas[team] ? headless.jevSchemaTracingPilot({ endpoint: args.jevSchema, timeoutSec: args.timeout, schemas: schemas[team], targeting }) : undefined
+        schemas[team] ? headless.jevSchemaTracingPilot({ endpoint: args.jevSchema, timeoutSec: args.timeout, schemas: schemas[team], targeting, map }) : undefined
     : undefined;
 
   let backend;

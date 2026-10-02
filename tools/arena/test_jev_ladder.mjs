@@ -44,22 +44,25 @@ function compileOutput({ failInstrument = null } = {}) {
 /**
  * A fake schema_server.py. `answer(n, body)` → undefined (a normal 200), or `{status, error}`.
  * Every reply names a door: every 4th answered call is "workers-ai", the rest "typesafe", and echoes
- * the targeting rule the request named, as the real server does.
+ * the targeting rule the request named and the schema's own vocabulary, as the real server does.
  */
 async function fakeJev({ answer = () => undefined, costUsd = 0.00002, health = {} } = {}) {
-  const seen = { posts: 0, pilotFiles: new Set(), instruments: new Set(), targeting: new Set() };
+  const seen = { posts: 0, pilotFiles: new Set(), instruments: new Set(), targeting: new Set(), vocab: new Set(), maps: new Set() };
   const srv = createServer((req, res) => {
     let body = '';
     req.on('data', (c) => (body += c));
     req.on('end', () => {
       res.setHeader('content-type', 'application/json');
       if (req.method === 'GET') {
-        res.end(JSON.stringify({ ok: true, backend: 'jev-schema', model: 'fake-jev', jev_backend: 'typesafe', cost_usd: 0, budget_usd: 3, targeting: ['first-min', 'own-lane-1'], ...health }));
+        res.end(JSON.stringify({ ok: true, backend: 'jev-schema', model: 'fake-jev', jev_backend: 'typesafe', cost_usd: 0, budget_usd: 3, targeting: ['first-min', 'own-lane-1'], vocabs: ['vocab-1', 'vocab-2'], ...health }));
         return;
       }
       seen.posts += 1;
-      const { schema, observation, targeting } = JSON.parse(body);
+      const { schema, observation, targeting, vocab, map } = JSON.parse(body);
       seen.targeting.add(targeting);
+      assert.equal(vocab, schema.vocab ?? 'vocab-1', 'every ask names the schema its own vocabulary');
+      seen.vocab.add(vocab);
+      seen.maps.add(JSON.stringify(map));
       seen.pilotFiles.add(schema.pilot_file);
       seen.instruments.add(schema.instrument);
       assert.equal(schema.instrument, observation.self.instrument);
@@ -70,7 +73,7 @@ async function fakeJev({ answer = () => undefined, costUsd = 0.00002, health = {
         return;
       }
       const door = seen.posts % 4 === 0 ? 'workers-ai' : 'typesafe';
-      res.end(JSON.stringify({ action: { kind: 'move', target: { x: 500, y: 500 } }, rule: null, answers: { enemy_close: 0.2 }, ms: 1, door, tokens_in: 500, cost_usd: costUsd, targeting: targeting ?? 'first-min' }));
+      res.end(JSON.stringify({ action: { kind: 'move', target: { x: 500, y: 500 } }, rule: null, answers: { enemy_close: 0.2 }, ms: 1, door, tokens_in: 500, cost_usd: costUsd, targeting: targeting ?? 'first-min', vocab: schema.vocab ?? 'vocab-1' }));
     });
   });
   await new Promise((r) => srv.listen(0, '127.0.0.1', r));
@@ -189,6 +192,8 @@ test('Jev ladder: placements compile the prose once, both sides play schemas on 
     assert.deepEqual([...jev.seen.pilotFiles].sort(), ['entrants/x/pilot.md', 'prompts/pilots/house-violet.md'], 'the entrant plays its compile, the house plays house-medium.schemas.json');
     assert.deepEqual(qwen.hits, [], 'nothing ever asked the text-model server');
     assert.deepEqual([...jev.seen.targeting], ['own-lane-1'], 'every ask names the default targeting rule');
+    assert.deepEqual([...jev.seen.maps], [JSON.stringify({ name: 'pvp-1', towerRange: 160, towerFractions: [0.16, 0.3] })], 'every ask names the match map');
+    assert.deepEqual([...jev.seen.vocab], ['vocab-1'], 'the house file and this fake compile carry no vocab key: vocab-1');
 
     const j = placed[0];
     assert.ok(j.jev.calls > 0);
@@ -361,6 +366,19 @@ test('Jev ladder: an unreachable server, or a text-model server on the Jev port,
   } finally {
     await o.cleanup();
     await old.close();
+  }
+  // one from before vocabularies (no `vocabs` in /health) plays vocab-1 only, and entrants compile vocab-2
+  const preVocab = await fakeJev({ health: { vocabs: undefined } });
+  const v = await jevArena({ endpoint: preVocab.endpoint });
+  try {
+    await json(`${v.base}api/tests`, { method: 'POST', body: JSON.stringify({ handle: 'zed', prompt: 'Zed rules.', kind: 'quick' }) });
+    const deadline = Date.now() + 10000;
+    while (!v.arena.queue.holds.has('jev-schema') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50));
+    assert.match(v.arena.queue.holds.get('jev-schema').reason, /plays vocab-1 only, not vocab-2; restart tools\/jev\/schema_server\.py/);
+    assert.equal(preVocab.seen.posts, 0, 'no entrant schema is played under the old words');
+  } finally {
+    await v.cleanup();
+    await preVocab.close();
   }
 });
 
