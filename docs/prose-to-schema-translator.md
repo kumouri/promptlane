@@ -218,6 +218,12 @@ clause the prose marks for another instrument (`keytar only: …`) is set aside 
 the prose, and any rule that still fires another instrument's ability is removed at schema assembly.
 See [`translator-guards-and-defaults-spec.md` §10](translator-guards-and-defaults-spec.md#10-instrument-scope--the-schema-assembly-guard-against-cross-instrument-leaks-2026-09-30).
 
+**Negation guard, vocab-2 only, added 2026-10-02.** `translator.enforce_negation` rejects a reply
+when a rule's question asks only whether a thing IS there ("is there any enemy within 260 units?"),
+but the rule's own id or its prose sentence says it is NOT ("no enemy is in sight"). The retry quotes
+the sentence. On the last attempt the rule is dropped with a `negation:` note instead. A question that
+keeps its "no" or "not" is never touched. See `docs/vocabulary-spec.md` §8.6.
+
 **Shopping list (`build`), added with the economy.** The schema also carries `build`: an ordered
 tuple of at most `shop.slots` unique item keys, or `None` for "the prose names no items" (the
 economy layer then buys the instrument's default build). Everything about items comes from the

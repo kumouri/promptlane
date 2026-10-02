@@ -575,3 +575,31 @@ guard:
 The prompt says nothing new. A line that forbade the "at its base" rule, quoting it, made the
 translator write it in 6 of 12 compiles. vocab-1 is unchanged. The evidence and the free recompiles
 are in `runs/vocab2-shopping-not-rules-2026-10-02.md`.
+
+### 8.6 A negated clause keeps its "no"
+
+"When I can afford my next item and no enemy is in sight, I head home to shop." The translator
+sometimes split that sentence into two rules, and the second dropped its "no": "is there any enemy
+within 260 units? → go home". That rule sends the bot home *because* it sees an enemy. The model's
+own id for it still says so (`shop_no_enemy`). The criteria follow the question as written, so they
+agree with it. Under `vocab-2`, `translator.enforce_negation` runs after the shopping-list guard and
+before the priority guard:
+
+- For each rule, it finds what the question asks about (an enemy, an enemy tower, my own tower, an
+  enemy minion, my minions, a teammate), and whether it asks that the thing is there or is not.
+- The question is wrong when it asks only that a thing **is** there, but the prose says it is
+  **not**. "The prose says" means either of two things:
+  - The sentence the rule states says so. That is the sentence sharing the most words with the rule,
+    and no other sentence ties it.
+  - The rule's own id says so ("no_enemy"), and a sentence of the prose says so too.
+- Such a reply is rejected. The retry quotes the prose's negated clause ("no enemy is in sight") and
+  its sentence, and asks for one rule for the whole sentence. It never quotes the wrong question:
+  a first version did, and the translator copied that question back word for word.
+- On the last attempt the rule is dropped instead, with a `negation:` note the entrant sees under
+  "Negations — what was removed", so the instrument still compiles.
+- A question that keeps its "no", "not", "none", "zero" or "out of sight" is never touched.
+- A sentence that names the thing both ways ("walk with my nearest minion, and if I have no minions
+  near me …") decides nothing.
+
+The prompt is unchanged, and vocab-1 is unchanged. The evidence and the free recompiles are in
+`runs/vocab2-negation-polarity-2026-10-02.md`.

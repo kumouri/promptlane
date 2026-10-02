@@ -909,5 +909,181 @@ def _late_obs(**self_over):
     obs["self"].update(self_over)
     return obs
 
+
+NEGATION = json.loads(open(os.path.join(os.path.dirname(__file__), "testdata", "negation_rules.json"), encoding="utf-8").read())
+
+
+def _negation_reply(index: int) -> dict:
+    """A saved schema of `negation_rules.json` as the translator reply it was parsed from."""
+    saved = NEGATION["schemas"][index]["schema"]
+    rules = [{"id": r["id"], "condition": r["condition"], "criteria": {"true": r["criteria_true"], "false": r["criteria_false"]},
+              "action": {"kind": r["action_kind"], "ability": r["action_ability"], "target_selector": r["action_target_selector"]}}
+             for r in saved["rules"]]
+    reply = {"rules": rules, "default_action": saved["default_action"]}
+    if saved.get("build") is not None:
+        reply["build"] = saved["build"]
+    return reply
+
+
+def _negation(index: int) -> tuple[T.TranslatedSchema, str]:
+    case = NEGATION["schemas"][index]
+    schema = T.parse_schema(_negation_reply(index), "pilot.md", case["instrument"], "raw", "vocab-2", economy="eco-3-late")
+    return schema, T.scope_to_instrument(NEGATION["prose"], case["instrument"]).text
+
+
+AFFORD_SENTENCE = "When I can afford my next item and no enemy is in sight, I head home to shop."
+
+
+def _one_rule(rid: str, condition: str, action: dict, true: str = "yes", false: str = "no") -> T.TranslatedSchema:
+    return T.parse_schema({"rules": [{"id": rid, "condition": condition, "criteria": {"true": true, "false": false}, "action": action}],
+                           "default_action": {"kind": "move", "ability": None, "target_selector": "push_lane"}}, "p.md", "drums", "raw", "vocab-2")
+
+
+class NegatedClauseKeepsItsNoTests(unittest.TestCase):
+    """vocab-2: "no enemy is in sight" never compiles as "is there any enemy within 260 units?" (#85's and #86's
+    sample-entrant compiles, runs/vocab2-negation-polarity-2026-10-02.md)."""
+
+    def test_the_inverted_rules_are_rejected_and_the_sentence_quoted(self):
+        for i, case in enumerate(NEGATION["schemas"]):
+            if not case["rejects"]:
+                continue
+            schema, prose = _negation(i)
+            with self.subTest(case["pr"] + " " + case["sample"] + " " + case["instrument"]):
+                with self.assertRaises(T.SchemaValidationError) as err:
+                    T.enforce_negation(schema, prose)
+                msg = str(err.exception)
+                self.assertTrue(msg.startswith(f'rule {case["rejects"]} lost a "no" the prose states: the prose says "no enemy is in sight"'), msg)
+                self.assertIn(AFFORD_SENTENCE, msg)
+                # never the wrong question: the 9B copied it back when the first message quoted it
+                wrong = next(r.condition for r in schema.rules if r.id == case["rejects"])
+                self.assertNotIn(wrong, msg)
+
+    def test_on_the_last_attempt_the_rule_is_dropped_with_a_note(self):
+        for i, case in enumerate(NEGATION["schemas"]):
+            if not case["rejects"]:
+                continue
+            schema, prose = _negation(i)
+            with self.subTest(case["pr"] + " " + case["sample"] + " " + case["instrument"]):
+                fixed = T.enforce_negation(schema, prose, drop=True)
+                self.assertEqual([r.id for r in fixed.rules], [r.id for r in schema.rules if r.id != case["rejects"]])
+                notes = fixed.validation_notes[len(schema.validation_notes):]
+                self.assertEqual(len(notes), 1)
+                self.assertTrue(notes[0].startswith(f"negation: removed rule {case['rejects']} "), notes[0])
+                self.assertIn('your prose says "no enemy is in sight"', notes[0])
+                self.assertEqual(fixed.build, schema.build)
+                self.assertEqual(fixed.root.default, schema.root.default)
+
+    def test_drop_still_raises_when_nothing_would_be_left(self):
+        schema = _one_rule("shop_no_enemy", "is there any enemy within 260 units?", {"kind": "move", "ability": None, "target_selector": "home"})
+        with self.assertRaises(T.SchemaValidationError):
+            T.enforce_negation(schema, AFFORD_SENTENCE, drop=True)
+
+    def test_every_other_compile_is_returned_untouched(self):
+        for i, case in enumerate(NEGATION["schemas"]):
+            if case["rejects"]:
+                continue
+            schema, prose = _negation(i)
+            with self.subTest(case["pr"] + " " + case["sample"] + " " + case["instrument"]):
+                self.assertIs(T.enforce_negation(schema, prose), schema)
+
+    def test_correctly_negated_questions_are_never_touched(self):
+        for condition in ("is no enemy bearbot in sight?", "are there no enemies within 260 units?", "is there no enemy bearbot in sight?",
+                          "are all enemies out of sight?", "is the count of visible enemies zero?", "can this bot not see any enemy?"):
+            schema = _one_rule("shop_no_enemy", condition, {"kind": "move", "ability": None, "target_selector": "home"})
+            self.assertIs(T.enforce_negation(schema, AFFORD_SENTENCE), schema, condition)
+
+    def test_a_split_recall_that_lost_its_not_is_rejected(self):
+        # No id help: the rule's own sentence is the only one it shares words with, and that sentence says "not inside".
+        prose = ("If I can see an enemy tower and none of my minions are near me, I back off home.\n\n"
+                 "When my hp drops below a third of my max and I'm not inside an enemy tower's range, I recall home to heal.")
+        schema = _one_rule("recall_heal", "is this bot inside an enemy tower's range?", {"kind": "recall", "ability": None, "target_selector": None})
+        with self.assertRaises(T.SchemaValidationError) as err:
+            T.enforce_negation(schema, prose)
+        self.assertIn("the prose says \"I'm not inside an enemy tower's range\"", str(err.exception))
+        kept = _one_rule("recall_heal", "is this bot's hp below a third and is it not inside an enemy tower's range?",
+                         {"kind": "recall", "ability": None, "target_selector": None})
+        self.assertIs(T.enforce_negation(kept, prose), kept)
+
+    def test_none_of_my_minions_keeps_its_none(self):
+        prose = "If I can see an enemy tower and none of my minions are near me, I back off home instead of tanking the tower alone."
+        lost = _one_rule("tower_no_minions", "is an enemy tower visible and are my minions near this bot?", {"kind": "move", "ability": None, "target_selector": "home"})
+        with self.assertRaises(T.SchemaValidationError) as err:
+            T.enforce_negation(lost, prose)
+        self.assertIn('the prose says "none of my minions are near me"', str(err.exception))
+        kept = _one_rule("tower_no_minions", "is an enemy tower visible and are none of this bot's minions near it?",
+                         {"kind": "move", "ability": None, "target_selector": "home"})
+        self.assertIs(T.enforce_negation(kept, prose), kept)
+
+    def test_a_sentence_naming_the_thing_both_ways_decides_nothing(self):
+        prose = "Otherwise I walk with my nearest minion, and if I have no minions near me I go home and wait for the next wave."
+        schema = _one_rule("walk_with_minion", "is an allied minion near this bot?", {"kind": "move", "ability": None, "target_selector": "nearby_minion"})
+        self.assertIs(T.enforce_negation(schema, prose), schema)
+
+    def test_an_id_saying_no_needs_a_prose_sentence_saying_no(self):
+        schema = _one_rule("go_no_enemy", "is an enemy bearbot in sight?", {"kind": "attack", "ability": None, "target_selector": "nearest_enemy"})
+        self.assertIs(T.enforce_negation(schema, "If an enemy bearbot is in sight, I attack the nearest enemy."), schema)
+
+    def test_translate_pilot_retries_with_the_sentence_and_keeps_the_fixed_reply(self):
+        bad = _negation_reply(0)  # #85 s1 violin
+        good = json.loads(json.dumps(bad))
+        for r in good["rules"]:
+            if r["id"] == "shop_no_enemy":
+                r["condition"] = "is no enemy within 260 units?"
+                r["criteria"] = {"true": "no enemy is visible", "false": "an enemy is visible"}
+        replies, prompts = [json.dumps(bad), json.dumps(good)], []
+
+        def generate(prompt):
+            prompts.append(prompt)
+            return replies[len(prompts) - 1]
+
+        schema = T.translate_pilot(NEGATION["prose"], "pilot.md", "violin", "staccato", "glissando", generate=generate, vocab="vocab-2",
+                                   economy="eco-3-late")
+        self.assertEqual(len(prompts), 2)
+        retry = prompts[1].split("Your previous attempt was invalid:")[1]
+        self.assertIn(AFFORD_SENTENCE, retry)
+        self.assertNotIn("is there any enemy within 260 units?", retry)
+        self.assertIn("is no enemy within 260 units?", [r.condition for r in schema.rules])
+        self.assertFalse([n for n in schema.validation_notes if n.startswith("negation:")])
+
+    def test_translate_pilot_drops_the_rule_on_its_last_attempt_instead_of_failing(self):
+        prompts = []
+
+        def generate(prompt):
+            prompts.append(prompt)
+            return json.dumps(_negation_reply(0))  # #85 s1 violin, every time
+
+        schema = T.translate_pilot(NEGATION["prose"], "pilot.md", "violin", "staccato", "glissando", generate=generate, vocab="vocab-2",
+                                   economy="eco-3-late")
+        self.assertEqual(len(prompts), 3)
+        self.assertNotIn("shop_no_enemy", [r.id for r in schema.rules])
+        self.assertIn("shop_first", [r.id for r in schema.rules])
+        md = T.render_markdown(schema)
+        self.assertIn("**Negations -- what was removed:**", md)
+        self.assertIn("removed rule shop_no_enemy", md)
+        self.assertNotIn("Automatic priority fixes", md)
+
+    def test_vocab1_is_unchanged(self):
+        schema, prose = _negation(0)
+        schema = dataclasses.replace(schema, vocab="vocab-1")
+        self.assertIs(T.enforce_negation(schema, prose), schema)
+
+    def test_what_a_text_says_is_there_or_not(self):
+        cases = {
+            "no enemy is in sight": {"enemy": {True}},
+            "is there any enemy within 260 units?": {"enemy": {False}},
+            "none of my minions are near me": {"minion": {True}},
+            "I'm not inside an enemy tower's range": {"enemy tower": {True}},
+            "is it under its own tower?": {"own tower": {False}},
+            "an allied minion and a teammate": {"minion": {False}, "ally": {False}},
+            "if an enemy minion is in sight": {"enemy minion": {False}},
+            "walk with my nearest minion, and if I have no minions near me": {"minion": {False, True}},
+            "an enemy bearbot is in sight, I don't start the fight": {"enemy": {False}},
+        }
+        for text, want in cases.items():
+            self.assertEqual(T._polarities(text), want, text)
+        self.assertEqual(T._polarities("push_wave_dead_enemy", after=False), {"minion": {False}, "enemy": {False}})
+        self.assertEqual(T._polarities("shop_no_enemy", after=False), {"enemy": {True}})
+
+
 if __name__ == "__main__":
     unittest.main()

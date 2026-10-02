@@ -49,6 +49,10 @@ in the prose's order and the notes say which parts the match will fill in. Under
 is `build` only, never a rule: `enforce_shopping_list` drops a rule that only restates the list (or
 rejects the reply when `build` is missing, so the retry quotes the line). The prompt does not say so:
 a line that did, quoting the rule it forbids, made the translator write that rule more often.
+NEGATION (vocab-2 only): `enforce_negation` rejects a reply in which a rule asks whether a thing IS
+there while the rule's id or its prose sentence says it is NOT ("no enemy is in sight"), and the
+retry quotes the sentence; on the last attempt it drops the rule with a `negation:` note instead.
+The prompt is unchanged here too.
 Economy P2 added one target selector,
 `highest_bounty_enemy` (`docs/economy-spec.md` §4.2): "go after the enemy worth the most gold".
 VOCABULARIES (`vocab.py`, `docs/vocabulary-spec.md`): `TARGET_SELECTORS` is vocab-1's list. vocab-2
@@ -1174,6 +1178,169 @@ def enforce_instrument_scope(schema: TranslatedSchema, instrument: str, primary_
     )
 
 
+# --- a negated clause keeps its "no" (vocab-2 only) --------------------------------------------------
+#
+# "When I can afford my next item and no enemy is in sight, I head home to shop." The 9B translator
+# sometimes split that sentence into two rules and lost the "no" in the second: "is there any enemy
+# within 260 units? -> go home" (id `shop_no_enemy`), which sends the bot home BECAUSE it sees an
+# enemy. That was 7 of #85's 35 compiles and 1 of #86's 36 (runs/vocab2-negation-polarity-2026-10-02.md).
+# The criteria follow the question the model wrote, so they agree with it, and no step after the model
+# reads the prose's "no". Under vocab-2, a rule whose question asks only whether a thing IS there, while
+# the rule's own id or the prose sentence it comes from says it is NOT, is rejected, and the retry quotes
+# the prose's negated clause and its sentence (the same shape as the priority and shopping guards), never
+# the wrong question: a first retry message that quoted it got it copied back word for word. On the last
+# attempt the rule is dropped instead, with a `negation:` note, so the instrument still compiles. A
+# question that keeps a "no" or "not" on the thing is never touched. vocab-1 is unchanged.
+
+NEGATION_NOTE_PREFIX = "negation:"
+
+_NEG_BEFORE = frozenset("no not none never without zero nobody nothing fewer neither nor isn't aren't can't cannot don't doesn't".split())
+_NEG_AFTER = frozenset({"absent", "gone", "missing", "dead", "zero", "out"})  # "out" as in "out of sight / out of range"
+_CLAUSE_BREAK = frozenset("and or but then while when if unless because so , ; : . ? !".split())
+_ENEMY_WORDS = frozenset({"enemy", "enemies", "opponent", "opponents", "foe", "foes"})
+_TOWER_WORDS = frozenset({"tower", "towers", "nexus"})
+_OWN_WORDS = frozenset({"own", "my", "our", "allied", "friendly"})
+
+
+def _polar_words(text: str) -> list[str]:
+    words = re.findall(r"[a-z']+|[,;:.?!]", text.lower().replace("_", " ").replace("’", "'"))
+    return [w[:-2] if w.endswith("'s") else w.rstrip("'") for w in words]
+
+
+def _negated(words: list[str], start: int, end: int, after: bool = True) -> bool:
+    """A "no"/"not"/"none" up to four words before the mention, or (`after`) "absent"/"gone"/"out" up
+    to three after it, inside the same clause ("and", "or", "if" and punctuation end one)."""
+    for w in reversed(words[max(0, start - 4):start]):
+        if w in _CLAUSE_BREAK:
+            break
+        if w in _NEG_BEFORE:
+            return True
+    for w in words[end + 1:end + 4] if after else ():
+        if w in _CLAUSE_BREAK:
+            break
+        if w in _NEG_AFTER:
+            return True
+    return False
+
+
+def _polarities(text: str, after: bool = True) -> dict[str, set[bool]]:
+    """What `text` asks or says about each thing it names -- "enemy" (an enemy bearbot, or any enemy),
+    "enemy tower", "own tower", "enemy minion", "minion" (mine, or my wave), "ally" -- mapped to the
+    set of its polarities: False for "is there" ("an enemy is in sight"), True for "is not there" ("no
+    enemy is in sight", "none of my minions", "not inside an enemy tower's range"). A thing named both
+    ways has both. `after=False` counts only a negation before the thing (for a rule id, where
+    "push_wave_dead_enemy" is a dead enemy, not a dead wave)."""
+    words = _polar_words(text)
+    out: dict[str, set[bool]] = {}
+    i = 0
+    while i < len(words):
+        w, nxt = words[i], words[i + 1] if i + 1 < len(words) else ""
+        before = set(words[max(0, i - 2):i])
+        end = i
+        if w in _ENEMY_WORDS:
+            thing = "enemy tower" if nxt in _TOWER_WORDS else "enemy minion" if nxt in _MINION_WORDS else "enemy"
+            end = i + 1 if thing != "enemy" else i
+        elif w in _TOWER_WORDS:
+            thing = "own tower" if _OWN_WORDS & before else "enemy tower"
+        elif w in _MINION_WORDS:
+            thing = "enemy minion" if {"their", "theirs"} & before else "minion"
+        elif w in _TEAMMATE_WORDS or (w in _ALLY_WORDS and nxt not in _MINION_WORDS | _TOWER_WORDS):
+            thing = "ally"
+        else:
+            i += 1
+            continue
+        out.setdefault(thing, set()).add(_negated(words, i, end, after))
+        i = end + 1
+    return out
+
+
+def _negation_lost(rule: TranslatedRule, sentences: list[str], sentence_polarities: list[dict[str, set[bool]]]) -> tuple[str, str] | None:
+    """(the thing, the prose sentence) when `rule`'s question asks only whether the thing IS there, but
+    the sentence the rule states says it is NOT, or the rule's own id does ("shop_no_enemy") and a
+    sentence of the prose says so. The sentence the rule states is the one sharing the most words with
+    it (id and target included), at least two, and no other sentence as many; one that names the thing
+    both ways ("walk with my nearest minion, and if I have no minions ...") decides nothing, and neither
+    does it when another sentence names the thing as there and gives the rule words of its own (a rule
+    merging "afford my next item" with "300 gold and an enemy in sight" took its enemy from the second).
+    None when the question keeps the negation, or nothing says there was one."""
+    affirmed = [thing for thing, pols in _polarities(rule.condition).items() if pols == {False}]
+    if not affirmed:
+        return None
+    tokens = _rule_tokens_v2(rule) | _tokenize(rule.id.replace("_", " "))
+    sentence_tokens = [_tokenize(s) for s in sentences]
+    scores = [len(tokens & t) for t in sentence_tokens]
+    top = max(scores, default=0)
+    own = scores.index(top) if top >= 2 and scores.count(top) == 1 else None
+    id_polarities = _polarities(rule.id, after=False)
+    for thing in affirmed:
+        if own is not None and sentence_polarities[own].get(thing) == {True} and not any(
+            False in pols.get(thing, ()) and (tokens & sentence_tokens[j]) - sentence_tokens[own]
+            for j, pols in enumerate(sentence_polarities) if j != own
+        ):
+            return thing, sentences[own]
+        if id_polarities.get(thing) == {True}:
+            saying = [i for i, pols in enumerate(sentence_polarities) if True in pols.get(thing, ()) and scores[i] >= 2]
+            if saying:
+                return thing, sentences[max(saying, key=lambda i: scores[i])]
+    return None
+
+
+_CLAUSE_SPLIT = re.compile(r"[,;:.?!]|\b(?:and|or|but|then|while|when|if|unless|because|so)\b", re.IGNORECASE)
+
+
+def _negated_clause(sentence: str, thing: str) -> str:
+    """The clause of `sentence` that says `thing` is not there ("no enemy is in sight"), or the whole
+    sentence when no single clause does."""
+    for clause in _CLAUSE_SPLIT.split(sentence):
+        if True in _polarities(clause).get(thing, ()):
+            return " ".join(clause.split())
+    return " ".join(sentence.split())
+
+
+def enforce_negation(schema: TranslatedSchema, pilot_text: str, drop: bool = False) -> TranslatedSchema:
+    """vocab-2 only (vocab-1 gets `schema` back). For a rule anywhere in the tree whose question dropped
+    a negation its prose states (`_negation_lost`), raises `SchemaValidationError`, which `translate_pilot`
+    retries; the message quotes the prose's negated clause and its sentence, not the rule's question. With
+    `drop` (`translate_pilot`'s last attempt) every such rule is removed instead, each with a `negation:`
+    note the entrant sees, and it raises only if nothing would be left at the root. A schema with no
+    such rule is returned as it came."""
+    if schema.vocab != VOCAB_2:
+        return schema
+    sentences = _prose_sentences(pilot_text)
+    polarities = [_polarities(s) for s in sentences]
+    found: list[tuple[TranslatedRule, str, str]] = []
+
+    def walk(cascade: Cascade) -> Cascade:
+        nodes: list[Node] = []
+        for node in cascade.nodes:
+            if isinstance(node, GuardNode):
+                nodes.append(dataclasses.replace(node, then=walk(node.then), else_=walk(node.else_)))
+                continue
+            lost = _negation_lost(node, sentences, polarities)
+            if lost:
+                found.append((node, _negated_clause(lost[1], lost[0]), " ".join(lost[1].split())))
+            else:
+                nodes.append(node)
+        return Cascade(nodes=tuple(nodes), default=cascade.default)
+
+    new_root = walk(schema.root)
+    if not found:
+        return schema
+    if not drop or not new_root.nodes:
+        rule, clause, sentence = found[0]
+        raise SchemaValidationError(
+            f'rule {rule.id} lost a "no" the prose states: the prose says "{clause}", and the rule must fire only then. '
+            f'Keep its no/not/none in the question, and write one rule for the whole sentence: "{sentence[:200]}"'
+        )
+    notes = tuple(
+        f'{NEGATION_NOTE_PREFIX} removed rule {rule.id} ("{rule.condition}") -- your prose says "{clause}" '
+        f'("{sentence[:200]}"), but this question asks the opposite, so it would have fired exactly when your prose says not to. '
+        "Every translation of it lost that \"no\"; rewording the sentence may help."
+        for rule, clause, sentence in found
+    )
+    return dataclasses.replace(schema, root=new_root, rules=(), validation_notes=schema.validation_notes + notes)
+
+
 def translate_pilot(
     pilot_text: str,
     pilot_file: str,
@@ -1223,6 +1390,7 @@ def translate_pilot(
                 schema = dataclasses.replace(schema, validation_notes=schema.validation_notes + scope_notes)
             schema = enforce_instrument_scope(schema, instrument, primary_ability, ultimate_ability)
             schema = enforce_shopping_list(schema, scoped.text)
+            schema = enforce_negation(schema, scoped.text, drop=attempt == max_attempts - 1)
             return enforce_absolute_priority(schema, scoped.text)
         except (ValueError, json.JSONDecodeError) as err:
             last_err = err
@@ -1350,10 +1518,15 @@ def render_markdown(schema: TranslatedSchema) -> str:
     scope_notes = [n for n in schema.validation_notes if n.startswith("instrument scope:")]
     build_notes = [n for n in schema.validation_notes if n.startswith(NOTE_PREFIX)]
     target_notes = [n for n in schema.validation_notes if n.startswith(TARGET_NOTE_PREFIX)]
-    priority_notes = [n for n in schema.validation_notes if n not in scope_notes and n not in build_notes and n not in target_notes]
+    negation_notes = [n for n in schema.validation_notes if n.startswith(NEGATION_NOTE_PREFIX)]
+    priority_notes = [n for n in schema.validation_notes
+                      if n not in scope_notes and n not in build_notes and n not in target_notes and n not in negation_notes]
     if priority_notes:
         lines += ["", "**Automatic priority fixes applied to this schema:**", ""]
         lines += [f"- {note}" for note in priority_notes]
+    if negation_notes:
+        lines += ["", "**Negations -- what was removed:**", ""]
+        lines += [f"- {note}" for note in negation_notes]
     if target_notes:
         lines += ["", "**Targets -- what was corrected:**", ""]
         lines += [f"- {note}" for note in target_notes]
