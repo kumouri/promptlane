@@ -84,6 +84,12 @@ release), and
 amended before the run, and the recommendation for the 10-04 gate; metrics
 `final-chorus-2026-10-01-metrics.md` beside it, logs on the
 [`data-final-chorus-2026-10-01`](https://github.com/kumouri/promptlane/releases/tag/data-final-chorus-2026-10-01)
+release), and
+[house-hard-2026-10-02.md](house-hard-2026-10-02.md) (why house hard won no decided match on the Jam
+stack, why the free stand-in said otherwise, the economy-aware hard's fix, and its pre-registered Jev
+check; the kept compile's report is `house-hard-eco-compile-2026-10-02.md` beside it, and the logs are
+on the
+[`data-house-hard-2026-10-02`](https://github.com/kumouri/promptlane/releases/tag/data-house-hard-2026-10-02)
 release).
 The bulky captures those documents hash live under ignored `artifacts/<run>-evidence/` and
 `artifacts/<run>-reviewed/`.

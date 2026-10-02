@@ -79,6 +79,7 @@ side fairness, tier order or §9.8's lines?
        it) would read upside down on results.
      - That's a house-tier question, not a rule question, and this run doesn't establish why hard
        loses the races. It's worth a look before the ladder opens, whichever way the rule goes.
+     - *Why, and the fix (2026-10-02): [`house-hard-2026-10-02.md`](house-hard-2026-10-02.md).*
   2. **About a third still draw.**
      - 22 of 60 reached 10:00 level, and so did both hard–hard mirrors. That's 2 of 2 for each arm;
        the sims had 1 decided in 20.
@@ -307,6 +308,10 @@ slot (C1 − C0, 95 % CI), 8:00 to the end:
 - **What that means:** the oracle's 97 % per-decision fidelity didn't carry the tier ranking through
   closed loop. Any later pre-screen of house-tier balance on the oracle should be read with that in
   mind.
+- *Correction, 2026-10-02 ([`house-hard-2026-10-02.md`](house-hard-2026-10-02.md) §2): it wasn't
+  compounding. The oracle misread three conditions in the eco tiers' wording, medium's low-hp walk
+  among them, so in the sims medium stood at its fountain 86–90 % of the time and hard beat an idle
+  medium. Read as Jev reads them, the oracle has medium winning, as Jev does.*
 
 ## Before 8:00 the arms are the same game
 

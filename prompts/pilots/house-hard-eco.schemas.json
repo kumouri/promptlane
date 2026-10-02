@@ -5,18 +5,18 @@
   "rules": [
    {
     "id": "recall_low_hp_threat",
-    "condition": "is this bot's hp below 65% of its max hp AND is an enemy minion, enemy tower, or enemy bearbot in sight?",
-    "criteria_true": "low hp with threat present",
-    "criteria_false": "safe or high hp",
+    "condition": "is this bot's hp below 50% of its max hp and is an enemy minion, enemy tower, or enemy bearbot in sight?",
+    "criteria_true": "low hp with threat in sight",
+    "criteria_false": "not low hp or no threat in sight",
     "action_kind": "move",
     "action_ability": null,
     "action_target_selector": "home"
    },
    {
     "id": "recall_low_hp_safe",
-    "condition": "is this bot's hp below 65% of its max hp AND is no enemy in sight?",
-    "criteria_true": "low hp with no threat",
-    "criteria_false": "safe or high hp",
+    "condition": "is this bot's hp below 50% of its max hp and is no enemy in sight?",
+    "criteria_true": "low hp with no threat in sight",
+    "criteria_false": "not low hp or threat present",
     "action_kind": "recall",
     "action_ability": null,
     "action_target_selector": "home"
@@ -76,6 +76,15 @@
     "action_target_selector": "home"
    },
    {
+    "id": "attack_tower_late_game",
+    "condition": "is it more than 480 seconds into the match and is an enemy tower in sight?",
+    "criteria_true": "late game with tower visible",
+    "criteria_false": "early game or no tower visible",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_tower"
+   },
+   {
     "id": "retreat_from_tower",
     "condition": "can this bot see an enemy tower and are there no allied minions nearby?",
     "criteria_true": "enemy tower is visible and lane is empty of allies",
@@ -103,10 +112,10 @@
     "action_target_selector": "lowest_hp_enemy"
    },
    {
-    "id": "attack_tower",
-    "condition": "can this bot see an enemy tower and are at least two allied minions nearby?",
-    "criteria_true": "tower is visible and wave support is sufficient (>=2 minions)",
-    "criteria_false": "tower not visible or insufficient minion support",
+    "id": "attack_tower_with_minion",
+    "condition": "is an enemy tower in sight and is an allied minion near this bot?",
+    "criteria_true": "tower visible with ally nearby",
+    "criteria_false": "no tower or no ally nearby",
     "action_kind": "attack",
     "action_ability": null,
     "action_target_selector": "nearest_tower"
@@ -142,7 +151,7 @@
   "default_action": {
    "kind": "move",
    "ability": null,
-   "target_selector": "home"
+   "target_selector": "push_lane"
   },
   "validation_notes": [
    "instrument scope: 2 clause(s) your prose marks for another instrument were left out of the drums schema (each is compiled only for the instrument it names): \"keytar only: Metronome, then Amp, then Road Case.\"; \"violin only: Amp, then Bass Strings, then Road Case.\""
@@ -159,8 +168,8 @@
   "rules": [
    {
     "id": "recall_low_hp_threat",
-    "condition": "is this bot's hp below 65% of its max hp AND is an enemy minion, enemy tower, or enemy bearbot in sight?",
-    "criteria_true": "low hp with threat present",
+    "condition": "is this bot's hp below 50% of its max hp and is an enemy minion, enemy tower, or enemy bearbot in sight?",
+    "criteria_true": "low hp with threat in sight",
     "criteria_false": "safe or high hp",
     "action_kind": "move",
     "action_ability": null,
@@ -168,7 +177,7 @@
    },
    {
     "id": "recall_low_hp_safe",
-    "condition": "is this bot's hp below 65% of its max hp AND are no enemies in sight?",
+    "condition": "is this bot's hp below 50% of its max hp and are no enemies in sight?",
     "criteria_true": "low hp with no threat",
     "criteria_false": "safe or high hp",
     "action_kind": "recall",
@@ -230,6 +239,15 @@
     "action_target_selector": "home"
    },
    {
+    "id": "attack_tower_late",
+    "condition": "is it more than 480 seconds into the match and is an enemy tower visible?",
+    "criteria_true": "late game with tower sight",
+    "criteria_false": "early game or no tower sight",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_tower"
+   },
+   {
     "id": "retreat_from_tower",
     "condition": "can this bot see an enemy tower and is there no allied minion near it?",
     "criteria_true": "enemy tower visible and no nearby allied minion",
@@ -257,10 +275,10 @@
     "action_target_selector": "lowest_hp_enemy"
    },
    {
-    "id": "attack_tower",
-    "condition": "can this bot see an enemy tower and are at least two allied minions near it?",
-    "criteria_true": "enemy tower visible and >= 2 allied minions nearby",
-    "criteria_false": "no enemy tower visible or < 2 allied minions nearby",
+    "id": "attack_tower_with_minion",
+    "condition": "is an enemy tower visible and is an allied minion near this bot?",
+    "criteria_true": "tower sight, with minion",
+    "criteria_false": "no tower or no minion",
     "action_kind": "attack",
     "action_ability": null,
     "action_target_selector": "nearest_tower"
@@ -296,7 +314,7 @@
   "default_action": {
    "kind": "move",
    "ability": null,
-   "target_selector": "home"
+   "target_selector": "push_lane"
   },
   "validation_notes": [
    "instrument scope: 2 clause(s) your prose marks for another instrument were left out of the keytar schema (each is compiled only for the instrument it names): \"drums only: Road Case, then Bass Strings, then Amp.\"; \"violin only: Amp, then Bass Strings, then Road Case.\""
@@ -312,22 +330,22 @@
   "instrument": "violin",
   "rules": [
    {
-    "id": "recall_low_hp_threat",
-    "condition": "is this bot's hp below 65% of its max hp and is an enemy minion, enemy tower, or enemy bearbot in sight?",
-    "criteria_true": "low hp with threat present",
-    "criteria_false": "safe to stay or fight",
+    "id": "low_hp_enemy_present",
+    "condition": "is this bot's hp below 50% of its max hp and is an enemy minion, enemy tower or enemy bearbot in sight?",
+    "criteria_true": "hp < 50% and enemy unit visible",
+    "criteria_false": "hp >= 50% or no enemy unit visible",
     "action_kind": "move",
     "action_ability": null,
     "action_target_selector": "home"
    },
    {
-    "id": "recall_low_hp_safe",
-    "condition": "is this bot's hp below 65% of its max hp and are no enemies in sight?",
-    "criteria_true": "low hp with no threat",
-    "criteria_false": "hp above threshold or threat present",
+    "id": "low_hp_no_enemy_present",
+    "condition": "is this bot's hp below 50% of its max hp and is no enemy in sight?",
+    "criteria_true": "hp < 50% and no enemy visible",
+    "criteria_false": "hp >= 50% or enemy visible",
     "action_kind": "recall",
     "action_ability": null,
-    "action_target_selector": "home"
+    "action_target_selector": "none"
    },
    {
     "id": "bandstand_open_take_it",
@@ -384,6 +402,15 @@
     "action_target_selector": "home"
    },
    {
+    "id": "late_game_tower_attack",
+    "condition": "is it more than 480 seconds into the match and can this bot see an enemy tower?",
+    "criteria_true": "time > 480s and enemy tower visible",
+    "criteria_false": "time <= 480s or no enemy tower visible",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_tower"
+   },
+   {
     "id": "retreat_from_tower",
     "condition": "is an enemy tower visible AND is there no allied minion near this bot?",
     "criteria_true": "tower seen, alone (no minions)",
@@ -411,10 +438,10 @@
     "action_target_selector": "lowest_hp_enemy"
    },
    {
-    "id": "attack_tower",
-    "condition": "is an enemy tower visible AND are at least two allied minions near this bot?",
-    "criteria_true": "tower seen with 2+ minions",
-    "criteria_false": "no tower or fewer than 2 minions",
+    "id": "attack_tower_with_minion",
+    "condition": "can this bot see an enemy tower and is an allied minion near it?",
+    "criteria_true": "enemy tower visible and nearby ally minion present",
+    "criteria_false": "no enemy tower or no nearby ally minion",
     "action_kind": "attack",
     "action_ability": null,
     "action_target_selector": "nearest_tower"
@@ -450,7 +477,7 @@
   "default_action": {
    "kind": "move",
    "ability": null,
-   "target_selector": "home"
+   "target_selector": "push_lane"
   },
   "validation_notes": [
    "instrument scope: 2 clause(s) your prose marks for another instrument were left out of the violin schema (each is compiled only for the instrument it names): \"drums only: Road Case, then Bass Strings, then Amp.\"; \"keytar only: Metronome, then Amp, then Road Case.\""

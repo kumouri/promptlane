@@ -91,7 +91,32 @@ walks is in [`runs/bandstand-4-2026-10-01.md`](../../runs/bandstand-4-2026-10-01
 - **The schemas were spliced the same way as above.** `compile.py --backend ollama` was run three
   times per source, and only the low-hp pair was taken (each instrument's first sample, s1).
   Every other rule object is byte for byte.
-- `test_house.mjs` pins the 65 % in the prose, both cascades and both side files.
+- `test_house.mjs` pins the 65 % in the plain prose, its cascade and both side files. The
+  economy-aware hard has left at 50 % since 2026-10-02 (next section).
+
+**The economy-aware hard takes the tower race** (2026-10-02,
+[`runs/house-hard-2026-10-02.md`](../../runs/house-hard-2026-10-02.md)). On the Jam stack with the
+Final Chorus, hard won no decided match on Jev (0 of 24). It walked out at 65 % of max hp, stood at
+home when no rule applied, and dealt a third of medium's structure damage. Only
+`house-hard-eco.prose.md` and its schemas changed, in four places:
+- **The low-hp pair fires at 50 % of max hp** (drums 110, keytar 70, violin 75), not 65 %.
+- **A tower needs one allied minion near**, not two.
+- **A new rule, right after the spend-gold rule:** "If it is more than 480 seconds into the match
+  and you can see an enemy tower, attack the nearest enemy tower." Jev's description states the
+  clock ("N sim-seconds into the match").
+- **The fallback pushes the lane** (`push_lane`) instead of going home.
+- **How the schemas changed.** The edited prose was compiled three times with `compile.py --backend
+  ollama`, with the Bandstand paragraph left out. Those rules are the plain tier's, spliced byte for
+  byte, and with them the cascade overruns the translator's 1,800-token reply. From the first
+  sample, the low-hp pair, the 480-second rule, the one-minion tower rule and the root default were
+  taken. Every other rule object is byte for byte. All three samples compiled the same rules.
+- **On Jev, pre-registered (Final Chorus on): hard won all 14 decided medium–hard matches of 18**,
+  and 5 of 5 decided against easy. The sample entrant still beat it, 6 of 6, as it beats medium.
+  Hard's bearbots now deal 934 structure damage a match against medium's 266, and hard dies 5.2
+  times a match (medium 3.7).
+- **The plain hard is unchanged** (65 %, two minions, home). The Jam plays with an economy, so it
+  plays the eco file.
+- `test_house.mjs` pins all four changes in the prose and the cascade.
 
 **The Bandstand** (the river objective, [`docs/economy-spec.md` §9.7](../../docs/economy-spec.md)).
 Medium and hard go to `bandstand.pos` by rules placed right after the low-hp pair. Easy has no
@@ -110,7 +135,7 @@ none can match and the tier plays as before. The code twin of medium's rule is `
 `tools/match/jevPilot.ts`; both send and ask it only when the observation has the block. The
 spec's `encore` key is not added: no tier's rule reads it.
 
-> **Hard is not yet harder than medium.** On Jev, the Jam's backend, each tier's prose was compiled and played as an entrant's is (`runs/house-tiers-2026-09-30.md`). There, hard and medium are level: 3-3-16 over 22 matches, with 25 towers taken each. Both beat easy 10-0. Hard never hits its own towers on Jev. But it loses more bearbots at enemy towers than medium does (28 to 15 in 32 matches each), because it recalls too late. The timeout tiebreak doesn't count bearbots. On the qwen side files below it was weaker than medium: medium went 1-0-2 against it, and 32 of its 87 tower attacks hit its own towers. Ceryce's ruling 2026-09-30: ship it labelled, and let the prompt-evolution campaign's hard lineage (`docs/prompt-evolution-spec.md`) start from it.
+> **Hard is not yet harder than medium.** On Jev, the Jam's backend, each tier's prose was compiled and played as an entrant's is (`runs/house-tiers-2026-09-30.md`). There, hard and medium are level: 3-3-16 over 22 matches, with 25 towers taken each. Both beat easy 10-0. Hard never hits its own towers on Jev. But it loses more bearbots at enemy towers than medium does (28 to 15 in 32 matches each), because it recalls too late. The timeout tiebreak doesn't count bearbots. On the qwen side files below it was weaker than medium: medium went 1-0-2 against it, and 32 of its 87 tower attacks hit its own towers. Ceryce's ruling 2026-09-30: ship it labelled, and let the prompt-evolution campaign's hard lineage (`docs/prompt-evolution-spec.md`) start from it. On the Jam stack (eco-3, the Final Chorus) the economy-aware hard then won no decided match against medium; it was changed on 2026-10-02 ("The economy-aware hard takes the tower race" above).
 
 **How easy and hard were written: through the Jev translator, as an entrant writes.** Each tier
 is authored as an entrant-style prose rulebook, `house-<tier>.prose.md`. That prose is compiled
@@ -195,8 +220,9 @@ gives each tier. With no economy nothing changes, so the placement bar above doe
 - **The Bandstand rules are the plain tiers' own.** The eco tiers were compiled before the Bandstand
   merged (PR #53). Its rules were then added the way #53 added them to the plain tiers: the same
   worksheet key and sentences in the prose, and the plain schemas' identical rule objects spliced in
-  right after each instrument's low-hp recall, with every other rule unchanged. So medium-eco and
-  hard-eco differ from medium and hard only by the economy (`test_house.mjs` checks it). The
+  right after each instrument's low-hp recall, with every other rule unchanged. So medium-eco
+  differs from medium only by the economy, and hard-eco from hard by the economy and the 2026-10-02
+  tower-race changes above (`test_house.mjs` checks the Bandstand rules are the same). The
   transparency reports above predate the splice. Without the objective the Bandstand rules can't
   match, so the order is the low-hp pair → (Bandstand) → the shopping pair → the rest. The recall
   pairs were spliced the same way ("Recall: out of reach first" above).

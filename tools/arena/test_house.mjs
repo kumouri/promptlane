@@ -308,18 +308,15 @@ test('recall-2: the side files leave reach before each recall, and no example re
 
 // Hard leaves at 65 % of its max hp (drums 143, keytar 91, violin 97.5), not a flat 90: walking out under
 // recall-2, 90 hp left hard drums dying in the lane (runs/bandstand-4-2026-10-01.md derives the number).
-test('hard: the low-hp trigger is 65 % of max hp in the prose, both compiled cascades and both side files', () => {
-  for (const file of ['prompts/pilots/house-hard.prose.md', 'prompts/pilots/house-hard-eco.prose.md']) {
-    const prose = sideText(file).replace(/\s+/g, ' ');
-    assert.match(prose, /When your hp is below 65% of your max hp and an enemy minion, enemy tower or enemy bearbot is in sight, move back home\. When your hp is below 65% of your max hp and no enemy is in sight, recall home to heal\./, file);
-    assert.doesNotMatch(prose, /below 90/, file);
-  }
-  for (const file of [HOUSE_TIER_SCHEMAS.hard, HOUSE_TIER_ECO_SCHEMAS.hard]) {
-    for (const [inst, s] of Object.entries(loadHouseSchemas(file, ROOT).schemas)) {
-      for (const r of s.rules.slice(0, 2)) {
-        assert.match(r.condition, /\bhp below 65% of its max hp\b/, `${file} ${inst}: ${r.condition}`);
-        assert.doesNotMatch(r.condition, /\b90\b/, `${file} ${inst}: ${r.condition}`);
-      }
+// The economy-aware hard, the one the Jam plays, leaves at 50 % since 2026-10-02 (the next test).
+test('hard: the low-hp trigger is 65 % of max hp in the plain prose, its compiled cascade and both side files', () => {
+  const prose = sideText('prompts/pilots/house-hard.prose.md').replace(/\s+/g, ' ');
+  assert.match(prose, /When your hp is below 65% of your max hp and an enemy minion, enemy tower or enemy bearbot is in sight, move back home\. When your hp is below 65% of your max hp and no enemy is in sight, recall home to heal\./);
+  assert.doesNotMatch(prose, /below 90/);
+  for (const [inst, s] of Object.entries(loadHouseSchemas(HOUSE_TIER_SCHEMAS.hard, ROOT).schemas)) {
+    for (const r of s.rules.slice(0, 2)) {
+      assert.match(r.condition, /\bhp below 65% of its max hp\b/, `${inst}: ${r.condition}`);
+      assert.doesNotMatch(r.condition, /\b90\b/, `${inst}: ${r.condition}`);
     }
   }
   for (const side of ['violet', 'green']) {
@@ -330,6 +327,34 @@ test('hard: the low-hp trigger is 65 % of max hp in the prose, both compiled cas
       if (ws.kind === 'recall' || (ws.kind === 'move' && JSON.stringify(ws.target) === home)) continue;
       assert.ok(ws.hp >= 0.65 * 220, `${side}: ${ex}`);
     }
+  }
+});
+
+// The economy-aware hard takes the tower race (2026-10-02, runs/house-hard-2026-10-02.md): on Jev it won
+// no decided match against medium, because it walked out at 65 % and stayed home. It now leaves at 50 %
+// of max hp, hits a tower with one allied minion near, attacks any enemy tower it sees after 480 s, and
+// pushes its lane when nothing else applies. Every other rule object is the one compiled before.
+test('hard (eco): 50 % trigger, a tower with one minion, the 480-second tower rule, and a lane push', () => {
+  const prose = sideText(HOUSE_TIERS_ECO.hard).replace(/\s+/g, ' ');
+  assert.match(prose, /When your hp is below 50% of your max hp and an enemy minion, enemy tower or enemy bearbot is in sight, move back home\. When your hp is below 50% of your max hp and no enemy is in sight, recall home to heal\./);
+  assert.match(prose, /If it is more than 480 seconds into the match and you can see an enemy tower, attack the nearest enemy tower\./);
+  assert.match(prose, /If you can see an enemy tower and an allied minion is near you, attack the nearest enemy tower\./);
+  assert.match(prose, /Your fallback, when none of the above applies, is to push down your lane toward the enemy base\./);
+  assert.doesNotMatch(prose, /below 65%|at least two allied minions|go home and wait/);
+  for (const [inst, s] of Object.entries(loadHouseSchemas(HOUSE_TIER_ECO_SCHEMAS.hard, ROOT).schemas)) {
+    const label = `hard-eco ${inst}`;
+    for (const r of s.rules.slice(0, 2)) assert.match(r.condition, /\bhp below 50% of its max hp\b/, `${label}: ${r.condition}`);
+    const spend = s.rules.findIndex((r) => /300 gold/.test(r.condition));
+    const late = s.rules[spend + 1];
+    assert.match(late.condition, /more than 480 seconds into the match/, `${label}: the 480-second rule follows the spend-gold rule`);
+    assert.deepEqual([late.action_kind, late.action_target_selector], ['attack', 'nearest_tower'], label);
+    assert.match(s.rules[spend + 2].condition, /enemy tower/, `${label}: then "never stand at an enemy tower alone"`);
+    assert.equal(s.rules[spend + 2].action_target_selector, 'home', label);
+    const towers = s.rules.filter((r) => r.action_target_selector === 'nearest_tower');
+    assert.equal(towers.length, 2, `${label}: the 480-second rule and the wave rule`);
+    assert.match(towers[1].condition, /an allied minion near/, label);
+    assert.doesNotMatch(towers[1].condition, /two/, label);
+    assert.deepEqual(s.default_action, { kind: 'move', ability: null, target_selector: 'push_lane' }, label);
   }
 });
 
