@@ -52,7 +52,7 @@ options:
                       v1 (the specimen map) or pvp-1r; recorded in the log, applied on --verify
   --economy NAME      economy ruleset (src/economy.ts): eco-2 (the tuned one), eco-3 (§13.6's
                       pass on it), eco-3-late (eco-3 plus recipes, tier-3 upgrades and levels to 8;
-                      docs/late-game-economy-spec.md), eco-1 (P1's starting values), respawn-1, or none (the default until the Sun 10-04 go/no-go). Respawn, gold, levels, items; each schema side buys the
+                      docs/late-game-economy-spec.md), eco-1 (P1's starting values), respawn-1, or none (the default until the go/no-go gate, docs/arena-runbook.md §6). Respawn, gold, levels, items; each schema side buys the
                       \`build\` its prose compiled to, else its instrument's default. Recorded in the
                       log with every bot's shopping list, applied on --verify
   --objective NAME    river objective (src/objective.ts): river-1 (the Bandstand), river-2 (its
