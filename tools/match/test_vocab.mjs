@@ -176,6 +176,83 @@ test('a schema pilot holds rather than play a vocab-2 schema on a server too old
   assert.deepEqual(h.vocabsOf({ ...vocab1Schemas(), keytar: vocab2Schemas().keytar }), ['vocab-1', 'vocab-2']);
 });
 
+/** One `python tools/jev/target_resolve.py` process: one JSON request a line, one reply a line. */
+function resolver() {
+  const child = spawn(PYTHON, [path.join(ROOT, 'tools', 'jev', 'target_resolve.py')], { cwd: ROOT, stdio: ['pipe', 'pipe', 'inherit'] });
+  after(() => child.stdin.end());
+  const replies = [];
+  createInterface({ input: child.stdout }).on('line', (line) => replies.shift()(JSON.parse(line)));
+  return (req) => new Promise((res, rej) => {
+    replies.push((r) => (r.error ? rej(new Error(r.error)) : res(r.target)));
+    child.stdin.write(JSON.stringify(req) + '\n');
+  });
+}
+
+/**
+ * The tower-reach gap (runs/jev-recheck-vocab2-2026-10-02.md §2.2): violet's top drums stands `gap`
+ * units in front of green's top outer tower and plays "attack the nearest enemy tower" every
+ * decision, its target resolved by the Python resolver under `vocab`. Everyone else holds.
+ */
+async function towerAttack(vocab, gap, seconds = 8) {
+  const resolve = resolver();
+  const map = h.resolveMap('pvp-1');
+  const targets = [];
+  let asking = null;
+  const hold = () => ({ decide: async () => ({ kind: 'hold' }) });
+  const attacker = () => ({
+    decide: async (obs) => {
+      asking = resolve({ selector: 'nearest_tower', observation: obs, targeting: 'own-lane-1', vocab, map });
+      const target = await asking;
+      targets.push(target);
+      return target ? { kind: 'attack', target } : { kind: 'hold' };
+    },
+  });
+  const roster = ['violet', 'green'].flatMap((team) => [['top', 'drums'], ['mid', 'keytar'], ['bottom', 'violin']].map(([lane, instrument]) => ({
+    team, lane, instrument, pilotKind: 'scripted', makePilot: team === 'violet' && lane === 'top' ? attacker : hold,
+  })));
+  const match = new h.Match(1, roster);
+  h.applyMapVariant(match, map);
+  const bot = match.bearbots.find((b) => b.team === 'violet' && b.lane === 'top');
+  const tower = match.towers.filter((t) => t.team === 'green' && t.lane === 'top').sort((a, b) => a.pos.x - b.pos.x)[0];
+  bot.pos = { x: tower.pos.x - gap, y: tower.pos.y };
+  const start = { ...bot.pos };
+  for (let t = 1; t <= seconds / h.TICK_DT && !match.ended; t++) {
+    match.tick(h.TICK_DT);
+    // the asked target lands before the next tick, so both vocabularies decide on the same ticks
+    while (asking) {
+      const was = asking;
+      await was;
+      if (asking === was) asking = null;
+    }
+    await flush();
+  }
+  const d = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  return { tower, targets, moved: d(bot.pos, start), left: d(bot.pos, tower.pos), towerDamage: tower.maxHp - tower.hp, reach: bot.attackRange };
+}
+
+test('vocab-2 "attack the enemy tower" reaches the towers its description lists: from 300 units out the bot walks up and hits it', async () => {
+  const v2 = await towerAttack('vocab-2', 300);
+  assert.ok(v2.targets.length > 0);
+  assert.deepEqual([...new Set(v2.targets)], [v2.tower.id], 'every decision targets the tower');
+  assert.ok(v2.left <= v2.reach, `ends in attack range (${v2.left.toFixed(1)} from the tower)`);
+  assert.ok(v2.towerDamage > 0, 'and hits it');
+  // vocab-1 never described that tower, so its rule never fires there; the resolver gives no target
+  const v1 = await towerAttack('vocab-1', 300);
+  assert.deepEqual([...new Set(v1.targets)], [null]);
+  assert.ok(v1.moved < 1, 'with no target the bot stands still');
+});
+
+test('vocab-2 "attack the enemy tower" under 260 units resolves as vocab-1 does', async () => {
+  const [v2, v1] = [await towerAttack('vocab-2', 200, 2), await towerAttack('vocab-1', 200, 2)];
+  // entity ids count on across matches, so each is checked against its own match's tower
+  assert.deepEqual([...new Set(v2.targets)], [v2.tower.id]);
+  assert.deepEqual([...new Set(v1.targets)], [v1.tower.id]);
+  assert.equal(v2.targets.length, v1.targets.length);
+  assert.ok(v2.moved > 1);
+  assert.equal(v2.moved, v1.moved);
+  assert.equal(v2.towerDamage, v1.towerDamage);
+});
+
 test('fight_samples: every bearbot in a sampled fight has its hp read back 5 s later', async () => {
   const { log } = checkedInLogs().find(({ f }) => f.includes('economy-p1-smoke') && f.includes('m3'));
   const rows = await samplesFromLog(h, log, { everySec: 2, horizonSec: 5 });

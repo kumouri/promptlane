@@ -31,7 +31,13 @@ Vocabularies (`vocab.py`). The twelve selectors above are vocab-1's, and resolve
 under every vocabulary. vocab-2 adds six (`VOCAB2_SELECTORS`, `docs/vocabulary-spec.md` §4.1 A4),
 which read `nearbyTowers` and the map's tower placement; a vocab-1 schema naming one is a
 `ValueError`, as any unknown selector always was. Each picks through `_pick`, so a mirrored state
-gives the mirrored choice under `own-lane-1`."""
+gives the mirrored choice under `own-lane-1`.
+
+One vocab-1 selector reads more under vocab-2 (`VOCAB2_WIDER`): `nearest_tower` picks from the enemy
+towers vocab-2's description lists (`vocab.tower_facts`, out to `nearbyTowers`' 390), not only those in
+`visibleEnemies` (260). Jev is told a tower is there, so "attack their tower" gets it as a target, and
+the sim's `attack` walks to a target that is out of reach (src/sim/match.ts approachAndAttack).
+Under vocab-1 it reads `visibleEnemies` as it always has."""
 from __future__ import annotations
 
 import sys
@@ -39,7 +45,7 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from scenarios import HOME_POS  # noqa: E402
-from vocab import TOWER_STAND_OFF, VOCAB_1, MapSpec, map_spec, resolve_vocab  # noqa: E402
+from vocab import TOWER_STAND_OFF, VOCAB_1, MapSpec, map_spec, resolve_vocab, tower_facts  # noqa: E402
 
 TARGETING_FIRST_MIN = "first-min"
 TARGETING_OWN_LANE_1 = "own-lane-1"
@@ -150,6 +156,8 @@ def _pick(pool: list, score, self_: dict, targeting: str, best=min):
 
 # vocab-2's selectors (translator.VOCAB2_SELECTORS describes them to the translator).
 VOCAB2_SELECTORS = ("own_tower", "own_front_tower", "nearest_enemy_bearbot", "nearest_enemy_minion", "tower_diver", "nearest_ally")
+# vocab-1 selectors that vocab-2 resolves from what its description states (module docstring).
+VOCAB2_WIDER = ("nearest_tower",)
 
 
 def tower_spot(spec: MapSpec, lane: str, team: str, tier: int) -> dict:
@@ -214,6 +222,13 @@ def _resolve_vocab2(selector: str, obs: dict, targeting: str, spec: MapSpec) -> 
     if selector == "tower_diver":
         divers = [e for e in bearbots if any(_dist(e["pos"], t["pos"]) <= spec.tower_range for t in own_alive)]
         return nearest(divers)["id"] if divers else None
+    if selector == "nearest_tower":
+        # every enemy tower or nexus the description lists: vocab-1's pool (`visibleEnemies`), plus
+        # the alive enemy towers of its tower lines, from the same list they read
+        towers = [e for e in enemies if e.get("kind") in ("tower", "nexus")]
+        seen = {e["id"] for e in towers}
+        towers += [f.tower for f in tower_facts(obs, spec) if not f.own and f.tower.get("alive", True) and f.tower["id"] not in seen]
+        return nearest(towers)["id"] if towers else None
     if selector == "nearest_ally":
         allies = obs.get("allies", [])
         if allies:
@@ -236,7 +251,7 @@ def resolve_target(selector: str | None, obs: dict, targeting: str = DEFAULT_TAR
     vocab = resolve_vocab(vocab)
     if selector in (None, "none"):
         return None
-    if vocab != VOCAB_1 and selector in VOCAB2_SELECTORS:
+    if vocab != VOCAB_1 and (selector in VOCAB2_SELECTORS or selector in VOCAB2_WIDER):
         return _resolve_vocab2(selector, obs, targeting, map_spec(map_))
     self_ = obs["self"]
     team = self_["team"]
