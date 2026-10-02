@@ -21,13 +21,19 @@ cut at a token count and a run is never refused for its token total: the old 1,8
 cut every reply of a 16-rule cascade before any check ran (`runs/remove-token-caps-2026-10-02.md`).
 `max_tokens=None`, the default, sends no completion cap at all. The one exception is vocab-1, the
 frozen research vocabulary: a caller compiling under it passes `VOCAB1_MAX_COMPLETION_TOKENS`, so its
-request body stays byte-identical to the one its recorded runs used. What bounds an uncapped Ollama
-reply instead is the model's own context window: the request sets `"shift": false`, so a reply that
-fills the window ends there (`done_reason: "length"`) rather than Ollama's default of discarding the
-head of the prompt and generating forever, and `"truncate": false`, so a prompt bigger than the
-window is an error rather than silently losing the start of the prose. `CALL_TIMEOUT_SEC` covers a
-hung server; it is long enough to fill the whole window. OpenRouter's provider stops at the model's
-context window the same way.
+request body stays byte-identical to the one its recorded runs used.
+
+What guards an uncapped reply instead, measured on the host (`runs/remove-token-caps-2026-10-02.md`):
+- A reply that never ends (a loop) is stopped by `CALL_TIMEOUT_SEC` of wall clock, not by a token
+  count. Ollama cancels the generation when the client hangs up. The timeout is long enough for the
+  model to fill its whole context window, so it never cuts a reply that could be valid.
+- An uncapped Ollama request sets `"truncate": false`. A prompt bigger than the context window is
+  then an error, where Ollama's default silently drops the start of the prompt (the instructions and
+  the head of the prose).
+- It does NOT set `"shift": false`, though that would end a reply at a full window. In Ollama 0.35
+  that option is a llama-server startup flag, so each request that flips it restarts the shared
+  model for every other caller (5-30 s each time, measured).
+OpenRouter's provider stops at the model's context window.
 
 Standard library only for Ollama/OpenRouter, so the PR bot's runner needs nothing but Python;
 `ClaudeCliBackend` additionally needs the `claude` CLI on PATH.
@@ -58,9 +64,9 @@ TEMPERATURE = 0.2
 # vocab-1 only: the reply cap its recorded runs were made with, kept so its request is byte-identical.
 # No other vocabulary sends a cap (see NO TOKEN CAPS above).
 VOCAB1_MAX_COMPLETION_TOKENS = 1800
-# Seconds per model call. Not a length limit: at the 85 tokens/s measured on the host's qwen3.5:9b,
-# filling its whole 32,768-token window takes about 6.4 minutes, so 15 leaves room to wait behind
-# another caller first (Ollama serves one request at a time). Measured in
+# Seconds per model call: the runaway guard, not a length limit. At the 85 tokens/s measured on the
+# host's qwen3.5:9b, filling its whole 32,768-token window takes about 6.4 minutes. 15 minutes leaves
+# room to wait behind another caller first, since Ollama serves one request at a time. Measured in
 # runs/remove-token-caps-2026-10-02.md.
 CALL_TIMEOUT_SEC = 900.0
 
@@ -150,14 +156,14 @@ def resolve_ollama_url(explicit: str | None = None) -> str:
 def ollama_body(model: str, prompt: str, max_tokens: int | None) -> dict:
     """The `/api/generate` body the translator sends (thinking off, temperature 0.2). With a
     `max_tokens` (vocab-1 only) it is byte-for-byte the body its recorded runs used. Without one there
-    is no `num_predict`, and `shift`/`truncate` false make the context window a loud ceiling instead
-    of a silent one (see NO TOKEN CAPS above)."""
+    is no `num_predict`, and `truncate` false makes a prompt over the context window an error instead
+    of a silently cut prompt (see NO TOKEN CAPS above)."""
     options = {"temperature": TEMPERATURE}
     if max_tokens is not None:
         options["num_predict"] = max_tokens
     body = {"model": model, "prompt": prompt, "stream": False, "keep_alive": "30m", "options": options, "think": False}
     if max_tokens is None:
-        body.update(shift=False, truncate=False)
+        body["truncate"] = False
     return body
 
 

@@ -104,7 +104,7 @@ class OllamaTests(unittest.TestCase):
             self.assertEqual(body["model"], "qwen3.5:9b")
             self.assertFalse(body["think"])
             self.assertEqual(body["options"], {"temperature": 0.2})
-            self.assertIs(body["shift"], False)
+            self.assertNotIn("shift", body)  # a startup flag in Ollama 0.35: flipping it restarts the shared runner
             self.assertIs(body["truncate"], False)
             self.assertEqual((b.usage.prompt_tokens, b.usage.completion_tokens, b.usage.cost_usd), (900, 300, 0.0))
         finally:
@@ -112,7 +112,7 @@ class OllamaTests(unittest.TestCase):
 
     def test_vocab1_body_is_byte_identical_to_the_recorded_one(self):
         """With vocab-1's cap the body is exactly what the translator sent before the caps went: same keys,
-        same order, num_predict 1800, no shift/truncate."""
+        same order, num_predict 1800, no truncate."""
         fake = _Fake({"response": "{}", "prompt_eval_count": 1, "eval_count": 1})
         try:
             L.OllamaBackend(url=fake.url, max_tokens=L.VOCAB1_MAX_COMPLETION_TOKENS).generate("hi")

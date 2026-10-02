@@ -146,9 +146,9 @@ test('spawnCompile: runs tools/jev/compile.py for real and parses its JSON (fake
     assert.equal(data.usage.total_tokens, 3 * 1150);
     assert.equal('cap_tokens' in data, false);
     for (const b of bodies) {
-      // no reply cap; the context window bounds the reply, loudly (tools/jev/llm_backends.py)
+      // no reply cap; a prompt over the context window is an error, not cut (tools/jev/llm_backends.py)
       assert.deepEqual(b.options, { temperature: 0.2 });
-      assert.equal(b.shift, false);
+      assert.equal('shift' in b, false);
       assert.equal(b.truncate, false);
     }
     const p = data.prompts[0];
