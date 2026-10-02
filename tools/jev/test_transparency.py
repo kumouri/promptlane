@@ -228,5 +228,49 @@ class ShoppingListLineTests(unittest.TestCase):
         self.assertNotIn("Automatic priority fixes", text)
 
 
+
+class RecipeShoppingListLineTests(unittest.TestCase):
+    """Under a ruleset with recipes the line is the plan the match will buy, parts filled in, with
+    tier-2/3 items in bold (docs/late-game-economy-spec.md §7.4)."""
+
+    def _schema(self, instrument, build=None, economy="eco-3-late"):
+        return TranslatedSchema(
+            pilot_file="pilot.md", instrument=instrument, raw_model_output="",
+            rules=(_rule("r1", "is an enemy near?"),), default_kind="move", default_ability=None, default_target_selector="push_lane",
+            build=build, economy=economy,
+        )
+
+    def test_a_target_shows_the_expanded_plan(self):
+        self.assertEqual(
+            X.shopping_list_line(self._schema("drums", ("wall-of-sound", "arpeggiator"))),
+            "Shopping list: Road Case → Bass Strings → **Backline** → **Wall of Sound** → Metronome → Amp → **Click Track** → "
+            "**Arpeggiator** (from your prose; parts filled in)",
+        )
+
+    def test_explicit_steps_need_no_filling_in(self):
+        self.assertEqual(
+            X.shopping_list_line(self._schema("violin", ("amp", "bass-strings", "road-case", "fuzz-pedal"))),
+            "Shopping list: Amp → Bass Strings → Road Case → **Fuzz Pedal** (from your prose)",
+        )
+
+    def test_the_default_ladder(self):
+        self.assertEqual(
+            X.shopping_list_line(self._schema("drums")),
+            "Shopping list: Road Case → Bass Strings → Metronome → **Backline** → Amp → **Wall of Sound** → **Click Track** → "
+            "**Arpeggiator** (default for drums — your prose names no items)",
+        )
+
+    def test_rulesets_without_recipes_are_unchanged(self):
+        for build in (None, ("amp", "bass-strings")):
+            for inst in ("drums", "violin"):
+                self.assertEqual(X.shopping_list_line(self._schema(inst, build, "eco-2")), X.shopping_list_line(self._schema(inst, build, None)))
+        self.assertEqual(X.shopping_list_line(self._schema("violin", ("amp", "bass-strings"), None)),
+                         "Shopping list: Amp → Bass Strings (from your prose)")
+
+    def test_the_report_carries_the_line(self):
+        md = X.render_report_markdown(X.build_report(self._schema("drums", ("backline",)), "pilot.md",
+                                                     segments=[("rule", "Engage.")], labels="auto"))
+        self.assertIn("Shopping list: Road Case → Bass Strings → **Backline** (from your prose; parts filled in)", md)
+
 if __name__ == "__main__":
     unittest.main()
