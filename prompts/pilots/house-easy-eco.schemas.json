@@ -22,6 +22,15 @@
     "action_target_selector": "home"
    },
    {
+    "id": "buy_item_safe",
+    "condition": "can this bearbot afford the next item on its shopping list AND are no enemies in sight?",
+    "criteria_true": "affordable next item and no enemies visible",
+    "criteria_false": "cannot afford next item OR at least one enemy is visible",
+    "action_kind": "recall",
+    "action_ability": null,
+    "action_target_selector": "none"
+   },
+   {
     "id": "avoid_enemy_tower_range",
     "condition": "is this bearbot inside an enemy tower's range?",
     "criteria_true": "the bot is within the attack range of a standing enemy tower",
@@ -91,6 +100,15 @@
     "action_target_selector": "home"
    },
    {
+    "id": "buy_item_safe",
+    "condition": "can this bearbot afford the next item on its shopping list AND are there no enemies within 260 units?",
+    "criteria_true": "affordable and safe (no enemies)",
+    "criteria_false": "cannot afford or unsafe",
+    "action_kind": "recall",
+    "action_ability": null,
+    "action_target_selector": "none"
+   },
+   {
     "id": "avoid_enemy_tower_range",
     "condition": "is this bearbot inside an enemy tower's range?",
     "criteria_true": "the bot is within the attack range of a standing enemy tower",
@@ -155,6 +173,15 @@
     "condition": "is this bearbot's hp below 100 and are no enemies in sight?",
     "criteria_true": "hp < 100 AND no enemy units are visible",
     "criteria_false": "hp >= 100 OR at least one enemy unit is visible",
+    "action_kind": "recall",
+    "action_ability": null,
+    "action_target_selector": "none"
+   },
+   {
+    "id": "buy_item_safe",
+    "condition": "can this bot afford the next item on its shopping list AND is no enemy in sight?",
+    "criteria_true": "bot can afford next item and no enemy is visible",
+    "criteria_false": "bot cannot afford next item OR an enemy is visible",
     "action_kind": "recall",
     "action_ability": null,
     "action_target_selector": "none"

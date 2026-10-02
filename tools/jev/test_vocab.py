@@ -128,8 +128,9 @@ class Vocab1IsByteIdentical(unittest.TestCase):
         self.assertGreater(widened, 0, "the corpus has a tower listed beyond 260")
 
     # Recompiled under vocab-2 on purpose (vocabulary spec §7 D3, runs/vocab-house-tiers-2026-10-02.md,
-    # runs/jev-recheck-vocab2-2026-10-02.md).
+    # runs/jev-recheck-vocab2-2026-10-02.md, runs/better-bots-2026-10-02.md).
     VOCAB2_ON_PURPOSE = frozenset({"house-easy-eco.schemas.json", "house-hard-eco.schemas.json",
+                                   "sample-entrant-siege.schemas.json",
                                    "vocab-house-tiers-2026-10-02-sample-entrant-eco-vocab2.schemas.json",
                                    "jev-recheck-vocab2-2026-10-02-sample-entrant-eco-vocab2.schemas.json"})
 

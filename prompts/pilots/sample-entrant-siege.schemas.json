@@ -1,0 +1,344 @@
+{
+ "drums": {
+  "pilot_file": "prompts/pilots/sample-entrant-siege.prose.md",
+  "instrument": "drums",
+  "rules": [
+   {
+    "id": "shop_if_affordable",
+    "condition": "can this bot afford its next item and is no enemy in sight?",
+    "criteria_true": "bot has enough gold for next item and no enemies visible",
+    "criteria_false": "bot lacks gold or at least one enemy is visible",
+    "action_kind": "recall",
+    "action_ability": null,
+    "action_target_selector": "none"
+   },
+   {
+    "id": "retreat_if_low_hp_with_threat",
+    "condition": "is this bot's hp below half of its max and is an enemy minion, tower, or bearbot in sight?",
+    "criteria_true": "hp < 50% max AND at least one enemy (minion/tower/bearbot) is visible",
+    "criteria_false": "hp >= 50% max OR no enemies are visible",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "retreat_if_low_hp_no_threat",
+    "condition": "is this bot's hp below half of its max and are no enemies in sight?",
+    "criteria_true": "hp < 50% max AND no enemies visible",
+    "criteria_false": "hp >= 50% max OR at least one enemy is visible",
+    "action_kind": "recall",
+    "action_ability": null,
+    "action_target_selector": "none"
+   },
+   {
+    "id": "attack_tower_if_time_and_visible",
+    "condition": "is the match time greater than 480 seconds and is an enemy tower visible?",
+    "criteria_true": "match time > 480s AND at least one enemy tower is visible",
+    "criteria_false": "match time <= 480s OR no enemy towers are visible",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_tower"
+   },
+   {
+    "id": "fall_back_if_shot_at",
+    "condition": "will an enemy tower shoot this bot?",
+    "criteria_true": "enemy tower is targeting this bot",
+    "criteria_false": "no enemy tower is targeting this bot",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "own_tower"
+   },
+   {
+    "id": "attack_tower_if_diver_present",
+    "condition": "is this bot inside an enemy tower's range and does that tower have this bot's own minions in its range?",
+    "criteria_true": "bot is under enemy tower AND enemy tower has friendly minions in range",
+    "criteria_false": "bot is not under enemy tower OR enemy tower has no friendly minions in range",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_tower"
+   },
+   {
+    "id": "attack_bearbot_if_visible",
+    "condition": "is an enemy bearbot in sight?",
+    "criteria_true": "at least one enemy bearbot is visible",
+    "criteria_false": "no enemy bearbots are visible",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_enemy_bearbot"
+   },
+   {
+    "id": "attack_minion_if_visible",
+    "condition": "is an enemy minion in sight?",
+    "criteria_true": "at least one enemy minion is visible",
+    "criteria_false": "no enemy minions are visible",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_enemy_minion"
+   },
+   {
+    "id": "walk_with_minion_if_near",
+    "condition": "is one of this bot's own minions near it?",
+    "criteria_true": "at least one friendly minion is within 260 units",
+    "criteria_false": "no friendly minions are within 260 units",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "nearby_minion"
+   },
+   {
+    "id": "push_lane_default",
+    "condition": "is there no other rule matching?",
+    "criteria_true": "no previous conditions matched",
+    "criteria_false": "a previous condition matched",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "push_lane"
+   }
+  ],
+  "default_action": {
+   "kind": "move",
+   "ability": null,
+   "target_selector": "push_lane"
+  },
+  "validation_notes": [
+   "target: rule attack_tower_if_time_and_visible named 'nearest_enemy_tower', which is not a target; it targets 'nearest_tower' (the nearest visible enemy tower or nexus).",
+   "target: rule attack_tower_if_diver_present named 'nearest_enemy_tower', which is not a target; it targets 'nearest_tower' (the nearest visible enemy tower or nexus).",
+   "instrument scope: 2 clause(s) your prose marks for another instrument were left out of the drums schema (each is compiled only for the instrument it names): \"Keytar: Metronome, then Amp, then Road Case, then Click Track.\"; \"Violin: Amp, then Bass Strings, then Road Case, then Fuzz Pedal.\""
+  ],
+  "build": [
+   "road-case",
+   "bass-strings",
+   "amp",
+   "backline"
+  ],
+  "economy": "eco-3-late",
+  "vocab": "vocab-2"
+ },
+ "keytar": {
+  "pilot_file": "prompts/pilots/sample-entrant-siege.prose.md",
+  "instrument": "keytar",
+  "rules": [
+   {
+    "id": "shop_if_affordable",
+    "condition": "can this bot afford its next item and is no enemy in sight?",
+    "criteria_true": "bot has enough gold for next item and no enemies visible",
+    "criteria_false": "bot lacks gold or an enemy is visible",
+    "action_kind": "recall",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "retreat_low_hp_enemy_present",
+    "condition": "is this bot's hp below half of its max and is an enemy minion, enemy tower or enemy bearbot in sight?",
+    "criteria_true": "hp < 50% max AND (enemy minion OR enemy tower OR enemy bearbot visible)",
+    "criteria_false": "hp >= 50% max OR no enemies visible",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "retreat_low_hp_no_enemy",
+    "condition": "is this bot's hp below half of its max and no enemy is in sight?",
+    "criteria_true": "hp < 50% max AND no enemies visible",
+    "criteria_false": "hp >= 50% max OR enemies visible",
+    "action_kind": "recall",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "attack_enemy_tower_late_game",
+    "condition": "is it more than 480 seconds into the match and is an enemy tower visible?",
+    "criteria_true": "time > 480s AND enemy tower visible",
+    "criteria_false": "time <= 480s OR no enemy tower visible",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_tower"
+   },
+   {
+    "id": "fall_back_to_own_tower_threatened",
+    "condition": "will an enemy tower shoot this bot?",
+    "criteria_true": "enemy tower will shoot this bot",
+    "criteria_false": "enemy tower will not shoot this bot",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "own_tower"
+   },
+   {
+    "id": "attack_enemy_tower_diver_scenario",
+    "condition": "is this bot inside an enemy tower's range and does that tower have this bot's own minions in its range?",
+    "criteria_true": "bot inside enemy tower range AND enemy tower has bot's minions in range",
+    "criteria_false": "bot not inside enemy tower range OR enemy tower has no bot's minions in range",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_tower"
+   },
+   {
+    "id": "attack_nearest_enemy_bearbot",
+    "condition": "is an enemy bearbot in sight?",
+    "criteria_true": "enemy bearbot visible",
+    "criteria_false": "no enemy bearbot visible",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_enemy_bearbot"
+   },
+   {
+    "id": "attack_nearest_enemy_minion",
+    "condition": "is an enemy minion in sight?",
+    "criteria_true": "enemy minion visible",
+    "criteria_false": "no enemy minion visible",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_enemy_minion"
+   },
+   {
+    "id": "walk_with_nearest_minion",
+    "condition": "is one of this bot's minions near it?",
+    "criteria_true": "ally minion within 260 units",
+    "criteria_false": "no ally minion within 260 units",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "nearby_minion"
+   },
+   {
+    "id": "push_lane_default",
+    "condition": "is this bot not already executing a higher priority action?",
+    "criteria_true": "no other rule matched yet",
+    "criteria_false": "another rule matched",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "push_lane"
+   }
+  ],
+  "default_action": {
+   "kind": "move",
+   "ability": null,
+   "target_selector": "push_lane"
+  },
+  "validation_notes": [
+   "target: rule attack_enemy_tower_late_game named 'nearest_enemy_tower', which is not a target; it targets 'nearest_tower' (the nearest visible enemy tower or nexus).",
+   "target: rule attack_enemy_tower_diver_scenario named 'nearest_enemy_tower', which is not a target; it targets 'nearest_tower' (the nearest visible enemy tower or nexus).",
+   "instrument scope: 2 clause(s) your prose marks for another instrument were left out of the keytar schema (each is compiled only for the instrument it names): \"Violin: Amp, then Bass Strings, then Road Case, then Fuzz Pedal.\"; \"Drums: Road Case, then Bass Strings, then Amp, then Backline.\""
+  ],
+  "build": [
+   "metronome",
+   "amp",
+   "road-case",
+   "click-track"
+  ],
+  "economy": "eco-3-late",
+  "vocab": "vocab-2"
+ },
+ "violin": {
+  "pilot_file": "prompts/pilots/sample-entrant-siege.prose.md",
+  "instrument": "violin",
+  "rules": [
+   {
+    "id": "shop_if_affordable",
+    "condition": "can this bot afford its next item and is no enemy in sight?",
+    "criteria_true": "bot has gold for next item and no enemies visible",
+    "criteria_false": "bot lacks gold for next item or at least one enemy is visible",
+    "action_kind": "recall",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "retreat_low_hp_enemy_present",
+    "condition": "is this bot's hp below half of its max and is an enemy minion, enemy tower, or enemy bearbot in sight?",
+    "criteria_true": "bot hp < 50% max AND (enemy minion OR enemy tower OR enemy bearbot visible)",
+    "criteria_false": "bot hp >= 50% max OR no enemies visible",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "retreat_low_hp_no_enemy",
+    "condition": "is this bot's hp below half of its max and are no enemies in sight?",
+    "criteria_true": "bot hp < 50% max AND no enemies visible",
+    "criteria_false": "bot hp >= 50% max OR at least one enemy visible",
+    "action_kind": "recall",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "attack_enemy_tower_late_game",
+    "condition": "is it more than 480 seconds into the match and is an enemy tower visible?",
+    "criteria_true": "match time > 480s AND at least one enemy tower visible",
+    "criteria_false": "match time <= 480s OR no enemy towers visible",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_tower"
+   },
+   {
+    "id": "fall_back_to_own_tower_shootable",
+    "condition": "will an enemy tower shoot this bot?",
+    "criteria_true": "enemy tower is targeting this bot",
+    "criteria_false": "no enemy tower is targeting this bot",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "own_tower"
+   },
+   {
+    "id": "attack_tower_diver_scenario",
+    "condition": "is this bot inside an enemy tower's range and does that tower have this bot's own minions in its range?",
+    "criteria_true": "bot inside enemy tower range AND enemy tower has allied minions in range",
+    "criteria_false": "bot not inside enemy tower range OR enemy tower has no allied minions in range",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_tower"
+   },
+   {
+    "id": "attack_nearest_enemy_bearbot",
+    "condition": "is an enemy bearbot in sight?",
+    "criteria_true": "at least one enemy bearbot visible",
+    "criteria_false": "no enemy bearbots visible",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_enemy_bearbot"
+   },
+   {
+    "id": "attack_nearest_enemy_minion",
+    "condition": "is an enemy minion in sight?",
+    "criteria_true": "at least one enemy minion visible",
+    "criteria_false": "no enemy minions visible",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_enemy_minion"
+   },
+   {
+    "id": "walk_with_nearest_minion",
+    "condition": "is one of this bot's minions near it?",
+    "criteria_true": "at least one allied minion within 260 units",
+    "criteria_false": "no allied minions within 260 units",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "nearby_minion"
+   },
+   {
+    "id": "push_lane_default",
+    "condition": "is there no other rule matching?",
+    "criteria_true": "no other conditions met",
+    "criteria_false": "some other condition met",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "push_lane"
+   }
+  ],
+  "default_action": {
+   "kind": "move",
+   "ability": null,
+   "target_selector": "push_lane"
+  },
+  "validation_notes": [
+   "target: rule attack_enemy_tower_late_game named 'nearest_enemy_tower', which is not a target; it targets 'nearest_tower' (the nearest visible enemy tower or nexus).",
+   "target: rule attack_tower_diver_scenario named 'nearest_enemy_tower', which is not a target; it targets 'nearest_tower' (the nearest visible enemy tower or nexus).",
+   "instrument scope: 2 clause(s) your prose marks for another instrument were left out of the violin schema (each is compiled only for the instrument it names): \"Keytar: Metronome, then Amp, then Road Case, then Click Track.\"; \"Drums: Road Case, then Bass Strings, then Amp, then Backline.\""
+  ],
+  "build": [
+   "amp",
+   "bass-strings",
+   "road-case",
+   "fuzz-pedal"
+  ],
+  "economy": "eco-3-late",
+  "vocab": "vocab-2"
+ }
+}
