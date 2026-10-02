@@ -75,7 +75,9 @@ docs/                current design notes and historical recordings; not implici
                      fewer-draws-spec.md: why matches draw at 10:00, and candidate rules that decide
                      them within the 600 s; presentation-spec.md: what a spectator or entrant can't
                      read from the viewer and site today, and a ranked plan for a better presentation
-                     layer, with screenshots and a GPT visual critique under docs/presentation/)
+                     layer, with screenshots and a GPT visual critique under docs/presentation/;
+                     vocabulary-spec.md: what a compiled rule can see, ask and target, the gaps,
+                     and ranked, versioned additions such as own towers and fight balance)
 assets/logo/         Jamobair, the mascot (PNG on black, on near-black, and transparent)
 assets/favicon/      the bearbot tab icon (SVG, PNG, ICO) and make_favicon.mjs, which draws them
 ```
