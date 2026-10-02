@@ -440,6 +440,12 @@ Ceryce ruled D1 and D2 yes (Telegram, Fri 2026-10-02 02:35 CT: "Build it now"). 
 recommended: campaign 2 stays on vocab-1. D3 and D6 are open, so no house tier was recompiled and no
 model was called. The build is A1–A5, the §5.2 plumbing and the D4 calibration, at $0.
 
+**D3 and D6, done later the same day** (Ceryce, 02:45 CT: "Move the house tiers and I auth the jev
+check after."). Easy-eco and hard-eco were recompiled under `vocab-2`, against the late-game economy,
+and checked on Jev. The results and two `vocab-2` translator findings for entrants (`nearest_ally`
+captures "my minions"; an invented `nearest_enemy_tower`) are in
+[`runs/vocab-house-tiers-2026-10-02.md`](../runs/vocab-house-tiers-2026-10-02.md).
+
 **Where it lives.** `tools/jev/vocab.py` holds the names, the facts table (A5), the tower and fight
 arithmetic, and the mirrors of `src/mapVariant.ts` and the attack ranges. `fidelity_harness.
 describe_observation(obs, vocab, map)` keeps vocab-1's function as `_describe_vocab1`, unchanged, and

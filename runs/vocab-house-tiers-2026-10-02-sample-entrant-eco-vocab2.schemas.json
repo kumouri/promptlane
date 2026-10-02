@@ -1,0 +1,335 @@
+{
+ "drums": {
+  "pilot_file": "prompts/pilots/sample-entrant-eco.prose.md",
+  "instrument": "drums",
+  "rules": [
+   {
+    "id": "recall_low_hp",
+    "condition": "is this bot's hp below a third of its max?",
+    "criteria_true": "hp is less than 33% of max hp",
+    "criteria_false": "hp is 33% or more of max hp",
+    "action_kind": "recall",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "shop_afford_no_enemy",
+    "condition": "can this bot afford its next item and is no enemy in sight?",
+    "criteria_true": "next item cost <= current gold AND no enemies within 260 units",
+    "criteria_false": "cannot afford next item OR at least one enemy within 260 units",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "avoid_fight_carry",
+    "condition": "is this bot carrying more than 300 gold AND is an enemy bearbot in sight?",
+    "criteria_true": "gold > 300 AND at least one enemy bearbot within 260 units",
+    "criteria_false": "gold <= 300 OR no enemy bearbot within 260 units",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "back_off_tower_no_minions",
+    "condition": "is an enemy tower visible AND are none of my minions near me?",
+    "criteria_true": "at least one enemy tower within 390 units AND zero allied minions within 260 units",
+    "criteria_false": "no enemy tower visible OR at least one allied minion within 260 units",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "kick_ready_nearby",
+    "condition": "is kick ready AND is an enemy bearbot right next to me?",
+    "criteria_true": "kick cooldown <= 0 AND at least one enemy bearbot within attack range (or very close)",
+    "criteria_false": "kick not ready OR no enemy bearbot nearby",
+    "action_kind": "ability",
+    "action_ability": "kick",
+    "action_target_selector": "nearest_enemy_bearbot"
+   },
+   {
+    "id": "attack_highest_bounty",
+    "condition": "is an enemy bearbot in sight?",
+    "criteria_true": "at least one enemy bearbot within 260 units",
+    "criteria_false": "no enemy bearbot within 260 units",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "highest_bounty_enemy"
+   },
+   {
+    "id": "push_tower_one_minion",
+    "condition": "is one of their bearbots dead AND are my minions near me?",
+    "criteria_true": "at least one enemy bearbot is dead (respawning or killed) AND at least one allied minion within 260 units",
+    "criteria_false": "no enemy bearbot dead OR no allied minion within 260 units",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "push_lane"
+   },
+   {
+    "id": "attack_tower_two_minions",
+    "condition": "can I see an enemy tower AND are at least two of my minions near me?",
+    "criteria_true": "at least one enemy tower within 390 units AND at least two allied minions within 260 units",
+    "criteria_false": "no enemy tower visible OR fewer than two allied minions within 260 units",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_tower"
+   },
+   {
+    "id": "attack_enemy_minion",
+    "condition": "is an enemy minion in sight?",
+    "criteria_true": "at least one enemy minion within 260 units",
+    "criteria_false": "no enemy minion within 260 units",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_enemy_minion"
+   },
+   {
+    "id": "walk_with_minion_or_home",
+    "condition": "is there a minion near me?",
+    "criteria_true": "at least one allied minion within 260 units",
+    "criteria_false": "no allied minion within 260 units",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "nearest_ally"
+   }
+  ],
+  "default_action": {
+   "kind": "move",
+   "ability": null,
+   "target_selector": "push_lane"
+  },
+  "validation_notes": [
+   "instrument scope: 4 clause(s) your prose marks for another instrument were left out of the drums schema (each is compiled only for the instrument it names): \"Keytar: Metronome, then Amp, then Road Case.\"; \"Violin: Amp, then Bass Strings, then Road Case.\"; \"Keytar: when chord is ready and an enemy bearbot is in sight, I play chord on th…\"; \"Violin: when staccato is ready and an enemy bearbot has less than half its hp, I…\""
+  ],
+  "build": [
+   "road-case",
+   "bass-strings",
+   "metronome"
+  ],
+  "economy": "eco-3-late",
+  "vocab": "vocab-2"
+ },
+ "keytar": {
+  "pilot_file": "prompts/pilots/sample-entrant-eco.prose.md",
+  "instrument": "keytar",
+  "rules": [
+   {
+    "id": "recall_low_hp",
+    "condition": "is this bot's hp below a third of its max?",
+    "criteria_true": "this bot's hp is less than one-third of its max hp",
+    "criteria_false": "this bot's hp is greater than or equal to one-third of its max hp",
+    "action_kind": "recall",
+    "action_ability": null,
+    "action_target_selector": "none"
+   },
+   {
+    "id": "shop_afford_no_enemy",
+    "condition": "can this bot afford its next item and are no enemies in sight?",
+    "criteria_true": "this bot can afford its next item and there are no visible enemies",
+    "criteria_false": "this bot cannot afford its next item or there is at least one visible enemy",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "avoid_fight_high_gold",
+    "condition": "is this bot carrying more than 300 gold and is an enemy bearbot in sight?",
+    "criteria_true": "this bot has more than 300 gold and an enemy bearbot is visible",
+    "criteria_false": "this bot has 300 or less gold or no enemy bearbot is visible",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "avoid_tower_alone",
+    "condition": "can this bot see an enemy tower and are none of its minions near it?",
+    "criteria_true": "an enemy tower is visible and no allied minion is within 260 units",
+    "criteria_false": "no enemy tower is visible or at least one allied minion is within 260 units",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "chord_lowest_hp",
+    "condition": "is the chord ability ready and is an enemy bearbot in sight?",
+    "criteria_true": "the chord ability is ready and at least one enemy bearbot is visible",
+    "criteria_false": "the chord ability is not ready or no enemy bearbot is visible",
+    "action_kind": "ability",
+    "action_ability": "chord",
+    "action_target_selector": "lowest_hp_enemy"
+   },
+   {
+    "id": "attack_highest_bounty",
+    "condition": "is an enemy bearbot in sight?",
+    "criteria_true": "at least one enemy bearbot is visible",
+    "criteria_false": "no enemy bearbot is visible",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "highest_bounty_enemy"
+   },
+   {
+    "id": "push_tower_wave_near",
+    "condition": "is an enemy bearbot dead and are minions near this bot?",
+    "criteria_true": "at least one enemy bearbot is dead and at least one minion is within 260 units",
+    "criteria_false": "no enemy bearbot is dead or no minion is within 260 units",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "push_lane"
+   },
+   {
+    "id": "attack_tower_minions_near",
+    "condition": "can this bot see an enemy tower and are at least two of its minions near it?",
+    "criteria_true": "an enemy tower is visible and at least two allied minions are within 260 units",
+    "criteria_false": "no enemy tower is visible or fewer than two allied minions are within 260 units",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_tower"
+   },
+   {
+    "id": "attack_enemy_minion",
+    "condition": "is an enemy minion in sight?",
+    "criteria_true": "at least one enemy minion is visible",
+    "criteria_false": "no enemy minion is visible",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_enemy_minion"
+   },
+   {
+    "id": "walk_with_minion_or_home",
+    "condition": "is there a minion near this bot?",
+    "criteria_true": "at least one allied minion is within 260 units",
+    "criteria_false": "no allied minion is within 260 units",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "nearest_ally"
+   }
+  ],
+  "default_action": {
+   "kind": "move",
+   "ability": null,
+   "target_selector": "push_lane"
+  },
+  "validation_notes": [
+   "instrument scope: 4 clause(s) your prose marks for another instrument were left out of the keytar schema (each is compiled only for the instrument it names): \"Violin: Amp, then Bass Strings, then Road Case.\"; \"Drums: Road Case, then Bass Strings, then Metronome.\"; \"Violin: when staccato is ready and an enemy bearbot has less than half its hp, I…\"; \"Drums: when kick is ready and an enemy bearbot is right next to me, I kick the n…\""
+  ],
+  "build": [
+   "metronome",
+   "amp",
+   "road-case"
+  ],
+  "economy": "eco-3-late",
+  "vocab": "vocab-2"
+ },
+ "violin": {
+  "pilot_file": "prompts/pilots/sample-entrant-eco.prose.md",
+  "instrument": "violin",
+  "rules": [
+   {
+    "id": "recall_low_hp",
+    "condition": "is this bot's hp below a third of its max?",
+    "criteria_true": "this bot's hp is below a third of its max",
+    "criteria_false": "this bot's hp is at or above a third of its max",
+    "action_kind": "recall",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "shop_afford_no_enemy",
+    "condition": "can this bot afford its next item and is no enemy in sight?",
+    "criteria_true": "this bot can afford its next item and no enemy is in sight",
+    "criteria_false": "this bot cannot afford its next item or an enemy is in sight",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "spend_gold_no_fight",
+    "condition": "is this bot carrying more than 300 gold and is an enemy bearbot in sight?",
+    "criteria_true": "this bot carries more than 300 gold and an enemy bearbot is in sight",
+    "criteria_false": "this bot carries 300 or less gold or no enemy bearbot is in sight",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "back_off_tower_no_minions",
+    "condition": "can this bot see an enemy tower and are none of its minions near it?",
+    "criteria_true": "this bot sees an enemy tower and has no minions nearby",
+    "criteria_false": "this bot does not see an enemy tower or has at least one minion nearby",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "home"
+   },
+   {
+    "id": "staccato_ready_low_hp_enemy",
+    "condition": "is staccato ready and is an enemy bearbot visible with less than half its max hp?",
+    "criteria_true": "staccato is ready and an enemy bearbot has less than half its max hp",
+    "criteria_false": "staccato is not ready or no enemy bearbot has less than half its max hp",
+    "action_kind": "ability",
+    "action_ability": "staccato",
+    "action_target_selector": "lowest_hp_enemy"
+   },
+   {
+    "id": "attack_highest_bounty",
+    "condition": "is an enemy bearbot in sight?",
+    "criteria_true": "an enemy bearbot is in sight",
+    "criteria_false": "no enemy bearbot is in sight",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "highest_bounty_enemy"
+   },
+   {
+    "id": "push_tower_wave_near",
+    "condition": "is one of the enemy bearbots dead and are minions near this bot?",
+    "criteria_true": "an enemy bearbot is dead and minions are near this bot",
+    "criteria_false": "no enemy bearbot is dead or no minions are near this bot",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "push_lane"
+   },
+   {
+    "id": "attack_tower_two_minions",
+    "condition": "can this bot see an enemy tower and are at least two of its minions near it?",
+    "criteria_true": "this bot sees an enemy tower and has at least two minions nearby",
+    "criteria_false": "this bot does not see an enemy tower or has fewer than two minions nearby",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_tower"
+   },
+   {
+    "id": "attack_enemy_minion",
+    "condition": "is an enemy minion in sight?",
+    "criteria_true": "an enemy minion is in sight",
+    "criteria_false": "no enemy minion is in sight",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_enemy_minion"
+   },
+   {
+    "id": "walk_or_home_wait",
+    "condition": "is there a minion near this bot?",
+    "criteria_true": "there is a minion near this bot",
+    "criteria_false": "there are no minions near this bot",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "nearest_ally"
+   }
+  ],
+  "default_action": {
+   "kind": "move",
+   "ability": null,
+   "target_selector": "push_lane"
+  },
+  "validation_notes": [
+   "instrument scope: 4 clause(s) your prose marks for another instrument were left out of the violin schema (each is compiled only for the instrument it names): \"Keytar: Metronome, then Amp, then Road Case.\"; \"Drums: Road Case, then Bass Strings, then Metronome.\"; \"Keytar: when chord is ready and an enemy bearbot is in sight, I play chord on th…\"; \"Drums: when kick is ready and an enemy bearbot is right next to me, I kick the n…\""
+  ],
+  "build": [
+   "amp",
+   "bass-strings",
+   "road-case"
+  ],
+  "economy": "eco-3-late",
+  "vocab": "vocab-2"
+ }
+}

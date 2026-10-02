@@ -743,7 +743,9 @@ D1 (which version ships) and D6 (the Jev measurement) are hers. The build is the
   entrant alike, declares three tier-1 items. Under `eco-3-late` those bots buy exactly those three
   and never a recipe. Only a bot that declares nothing gets the default ladder. So the gold sink
   reaches the house only after §7.6's ladders and recompile, and an entrant only once their prose
-  names more.
+  names more. *(The house ladders landed on 2026-10-02: every eco tier now names a full ladder,
+  explicitly, not by appending the default. See
+  [`runs/vocab-house-tiers-2026-10-02.md`](../runs/vocab-house-tiers-2026-10-02.md) §1 and §5.3.)*
 - **"Append the default ladder" (§2.5 house builds) falls short for hard drums and all of easy.**
   Their first three items aren't the instrument default. The appended ladder then tries a fourth
   tier-1 item before combining, so that item is dropped and the second recipe with it. For example,

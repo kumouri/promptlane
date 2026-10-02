@@ -175,8 +175,9 @@ test('economy: each eco tier has checked-in compiled schemas that buy deliberate
     for (const [inst, s] of Object.entries(schemas)) {
       const label = `${tier} ${inst}`;
       assert.equal(s.instrument, inst, label);
-      // every tier declares a shopping list in its prose, and it compiled
-      assert.ok(Array.isArray(s.build) && s.build.length === 3, `${label}: a declared three-item build`);
+      // every tier declares a shopping list in its prose, and it compiled: the full late-game ladder
+      assert.ok(Array.isArray(s.build) && s.build.length === 8, `${label}: a declared eight-step ladder`);
+      assert.equal(s.economy, 'eco-3-late', `${label}: the build is checked against the late-game ruleset`);
       const recalls = s.rules.filter((r) => r.action_kind === 'recall');
       // easy shops only when it is home anyway (low-hp recall, respawn); medium and hard also recall to shop.
       // Hard's "carrying 300 with a stronger enemy in sight" leaves on foot: an enemy in sight would break a recall-2 channel.
@@ -193,6 +194,31 @@ test('economy: each eco tier has checked-in compiled schemas that buy deliberate
   }
   // the non-economy tiers are untouched: still no build, still their own files
   for (const tier of Object.keys(HOUSE_TIERS)) assert.equal(houseSchemasFile({ tier }, HOUSE_TIERS[tier]), HOUSE_TIER_SCHEMAS[tier]);
+});
+
+test('late game: every eco tier climbs a full ladder under eco-3-late and plays its old three items under eco-3', async () => {
+  const h = await loadHeadless();
+  const late = h.resolveEconomy('eco-3-late');
+  const eco3 = h.resolveEconomy('eco-3');
+  const OLD_THREE = {
+    easy: { drums: ['road-case', 'metronome', 'amp'], keytar: ['road-case', 'metronome', 'amp'], violin: ['road-case', 'metronome', 'amp'] },
+    medium: { drums: ['road-case', 'bass-strings', 'metronome'], keytar: ['metronome', 'amp', 'road-case'], violin: ['amp', 'bass-strings', 'road-case'] },
+    hard: { drums: ['road-case', 'bass-strings', 'amp'], keytar: ['metronome', 'amp', 'road-case'], violin: ['amp', 'bass-strings', 'road-case'] },
+  };
+  for (const tier of Object.keys(HOUSE_TIERS_ECO)) {
+    for (const [inst, s] of Object.entries(loadHouseSchemas(HOUSE_TIER_ECO_SCHEMAS[tier], ROOT).schemas)) {
+      const label = `${tier} ${inst}`;
+      const { plan, notes } = h.expandBuild(late, inst, s.build);
+      assert.deepEqual(plan, s.build, `${label}: the ladder is a plan as written`);
+      assert.deepEqual(notes, [], label);
+      assert.deepEqual(s.build.map((k) => h.itemTier(late, k)), [1, 1, 1, 2, 1, 3, 2, 3], `${label}: three items, a recipe, the fourth item, its upgrade, the second recipe and its upgrade`);
+      assert.deepEqual(h.resolveBuild(eco3, inst, s.build), OLD_THREE[tier][inst], `${label}: under eco-3 the old three items, as before`);
+      // Feedback + Wall of Sound heals 110 % of PvP damage (late-game spec §11); no house ladder holds both
+      assert.ok(!(s.build.includes('feedback') && s.build.includes('wall-of-sound')), `${label}: not the uncapped lifesteal stack`);
+    }
+  }
+  // medium is the default ladder, byte for byte
+  for (const [inst, s] of Object.entries(loadHouseSchemas(HOUSE_TIER_ECO_SCHEMAS.medium, ROOT).schemas)) assert.deepEqual(s.build, late.defaultBuilds[inst], `medium ${inst}`);
 });
 
 test('Jev: each tier has checked-in compiled schemas, found from the tier, the picked pair, or house.schemas', () => {
@@ -345,17 +371,58 @@ test('hard (eco): 50 % trigger, a tower with one minion, the 480-second tower ru
     const label = `hard-eco ${inst}`;
     for (const r of s.rules.slice(0, 2)) assert.match(r.condition, /\bhp below 50% of its max hp\b/, `${label}: ${r.condition}`);
     const spend = s.rules.findIndex((r) => /300 gold/.test(r.condition));
-    const late = s.rules[spend + 1];
-    assert.match(late.condition, /more than 480 seconds into the match/, `${label}: the 480-second rule follows the spend-gold rule`);
+    const late = s.rules[spend + 2];
+    assert.match(late.condition, /more than 480 seconds into the match/, `${label}: the 480-second rule follows the spend-gold and tower-diver rules`);
     assert.deepEqual([late.action_kind, late.action_target_selector], ['attack', 'nearest_tower'], label);
-    assert.match(s.rules[spend + 2].condition, /enemy tower/, `${label}: then "never stand at an enemy tower alone"`);
-    assert.equal(s.rules[spend + 2].action_target_selector, 'home', label);
     const towers = s.rules.filter((r) => r.action_target_selector === 'nearest_tower');
     assert.equal(towers.length, 2, `${label}: the 480-second rule and the wave rule`);
     assert.match(towers[1].condition, /an allied minion near/, label);
     assert.doesNotMatch(towers[1].condition, /two/, label);
     assert.deepEqual(s.default_action, { kind: 'move', ability: null, target_selector: 'push_lane' }, label);
   }
+});
+
+test('hard (eco, vocab-2): judges fights by the tower-counting verdict, fights under its own tower, punishes divers', () => {
+  const prose = sideText(HOUSE_TIERS_ECO.hard).replace(/\s+/g, ' ');
+  assert.match(prose, /If you carry at least 300 gold and your side is weaker in the fight near you, move back home to spend it\./);
+  assert.match(prose, /If an enemy bearbot is under your tower, attack the enemy bearbot under your tower\./);
+  assert.match(prose, /If an enemy tower will shoot you, fall back to your own tower\./);
+  assert.match(prose, /If your side is weaker in the fight near you, fall back to your own tower\./);
+  assert.doesNotMatch(prose, /has more hp than you|no allied minion near you, move back home/);
+  const sel = (r) => `${r.action_kind} ${r.action_target_selector}`;
+  for (const [inst, s] of Object.entries(loadHouseSchemas(HOUSE_TIER_ECO_SCHEMAS.hard, ROOT).schemas)) {
+    const label = `hard-eco ${inst}`;
+    assert.equal(s.vocab, 'vocab-2', label);
+    const spend = s.rules.findIndex((r) => /300 gold/.test(r.condition));
+    assert.match(s.rules[spend].condition, /side weaker in the fight near it/, `${label}: the fight verdict, not "an enemy has more hp"`);
+    assert.equal(sel(s.rules[spend]), 'move home', label);
+    assert.equal(sel(s.rules[spend + 1]), 'attack tower_diver', `${label}: then punish the diver`);
+    assert.match(s.rules[spend + 3].condition, /enemy tower shoot/, `${label}: after the 480-second rule, out of a tower's fire`);
+    assert.equal(sel(s.rules[spend + 3]), 'move own_tower', label);
+    const wave = s.rules.findIndex((r) => r.action_target_selector === 'nearest_tower' && /minion/.test(r.condition));
+    assert.match(s.rules[wave + 1].condition, /side weaker in the fight near it/, `${label}: fight under your own tower, before hunting the carrier`);
+    assert.equal(sel(s.rules[wave + 1]), 'move own_tower', label);
+    assert.equal(sel(s.rules[wave + 2]), 'attack highest_bounty_enemy', label);
+    assert.equal(s.rules.filter((r) => r.action_target_selector === 'home').length, 4, `${label}: home only for low hp, shopping and the fortune`);
+  }
+});
+
+test('easy (eco, vocab-2): holds its lane at its own tower instead of leaving at the sight of an enemy tower', () => {
+  const prose = sideText(HOUSE_TIERS_ECO.easy).replace(/\s+/g, ' ');
+  assert.match(prose, /If you are inside an enemy tower's range, fall back to your own tower\./);
+  assert.match(prose, /Your fallback, when none of the above applies, is to hold your lane at your own tower/);
+  assert.doesNotMatch(prose, /If you can see an enemy tower or the enemy nexus, move back home/);
+  for (const [inst, s] of Object.entries(loadHouseSchemas(HOUSE_TIER_ECO_SCHEMAS.easy, ROOT).schemas)) {
+    const label = `easy-eco ${inst}`;
+    assert.equal(s.vocab, 'vocab-2', label);
+    assert.deepEqual(s.rules.slice(2).map((r) => `${r.action_kind} ${r.action_target_selector}`),
+      ['move own_tower', 'attack nearest_enemy_bearbot', 'attack nearest_enemy_minion'], label);
+    assert.match(s.rules[2].condition, /inside an enemy tower's range/, label);
+    assert.deepEqual(s.default_action, { kind: 'move', ability: null, target_selector: 'own_front_tower' }, `${label}: holds at its outer tower`);
+    assert.ok(!s.rules.some((r) => r.action_kind === 'ability'), `${label}: still no abilities`);
+  }
+  // the plain easy (no economy, qwen side files) is still the vocab-1 tier
+  for (const s of Object.values(loadHouseSchemas(HOUSE_TIER_SCHEMAS.easy, ROOT).schemas)) assert.equal(s.vocab, undefined);
 });
 
 // The Jev house pilot (tools/match/jevPilot.ts) against a local stub of house_server.py.

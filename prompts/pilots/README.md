@@ -159,12 +159,11 @@ the translator's fixed selector vocabulary: `nearest_enemy` becomes easy's `foe`
 `creep` key, `lowest_hp_enemy` becomes hard's `foe` key, `nearest_tower` the `tower` key,
 `nearby_minion` a friendly minion's position (from your own fountain, the start of your own lane:
 `target_resolve.py` `own-lane-1`), and `home` your own corner. So the house can only
-say what an entrant's prose can compile to. Every house schema here was compiled under `vocab-1`
+say what an entrant's prose can compile to. Every plain house schema here was compiled under `vocab-1`
 (no `vocab` key; [`docs/vocabulary-spec.md`](../../docs/vocabulary-spec.md)), which has no "hold at my
-own tower" selector, so easy leashes itself by leaving whenever an enemy tower comes into view.
-Entrants now compile under `vocab-2`, which has `own_tower` and `tower_diver`; no tier has been
-recompiled under it, and these side files stay vocab-1 renderings (a vocab-2 selector has no
-worksheet key: spec §4.4 C2).
+own tower" selector, so the plain easy leashes itself by leaving whenever an enemy tower comes into
+view. These side files stay vocab-1 renderings (a vocab-2 selector has no worksheet key: spec §4.4
+C2). The economy-aware easy and hard, which the Jam plays, are `vocab-2` (next section).
 
 The rendering is by hand: the translator emits a Jev schema, not a qwen prompt. The mapping is in
 the evidence file. One rendering choice differs from medium. Easy and hard read `tower` from
@@ -204,9 +203,38 @@ gives each tier. With no economy nothing changes, so the placement bar above doe
 
 | tier | files | shopping list (declared in the prose) | economy rules, after the low-hp pair |
 |---|---|---|---|
-| easy | `house-easy-eco.prose.md` (both sides) | Road Case → Metronome → Amp | none: it buys only when retreating or waiting takes it home |
-| medium | `house-eco-violet.md` / `house-eco-green.md` | each instrument's default | can afford the next item, no enemy bearbot or minion in sight: with an enemy tower in sight walk home, with no enemy in sight recall to shop |
-| hard | `house-hard-eco.prose.md` (both sides) | drums Road Case → Bass Strings → Amp; keytar and violin their defaults | can afford the next item and no enemy bearbot in sight: with an enemy minion or tower in sight walk home, with none recall to shop; carrying ≥ 300 gold with a stronger enemy bearbot in sight → walk home to spend it; attack the enemy bearbot **worth the most gold** (`highest_bounty_enemy`) instead of the lowest-hp one |
+| easy | `house-easy-eco.prose.md` (both sides) | Road Case → Metronome → Amp → Tour Bus → Bass Strings → Headliner → Fuzz Pedal → Feedback | none: it buys only when retreating or waiting takes it home |
+| medium | `house-eco-violet.md` / `house-eco-green.md` | each instrument's default ladder | can afford the next item, no enemy bearbot or minion in sight: with an enemy tower in sight walk home, with no enemy in sight recall to shop |
+| hard | `house-hard-eco.prose.md` (both sides) | drums Road Case → Bass Strings → Amp → Backline → Metronome → Wall of Sound → Click Track → Arpeggiator; keytar and violin their default ladders | can afford the next item and no enemy bearbot in sight: with an enemy minion or tower in sight walk home, with none recall to shop; carrying ≥ 300 gold while its side is weaker in the fight near it → walk home to spend it; attack the enemy bearbot **worth the most gold** (`highest_bounty_enemy`) instead of the lowest-hp one |
+
+**The shopping lists are full late-game ladders** (2026-10-02,
+[`runs/vocab-house-tiers-2026-10-02.md`](../../runs/vocab-house-tiers-2026-10-02.md)): three tier-1 items, a
+recipe, the fourth item, the first upgrade, the second recipe and its upgrade
+([`docs/late-game-economy-spec.md`](../../docs/late-game-economy-spec.md) §2.5). Under `eco-3-late` a list is
+bought as written, so a three-item list would never reach a recipe. Under a ruleset without recipes
+the engine drops the recipe names and keeps the first three, which are each tier's old list. Medium's
+change is its `build` lists only (and their `economy` key); its rules and vocabulary are unchanged,
+but the file hash, and so the placement bar under `eco-3-late`, moved. No house ladder holds both
+Feedback and Wall of Sound (the uncapped 110 % lifesteal stack). `test_house.mjs` checks all of it.
+
+**Easy and hard are `vocab-2`** (same date and write-up; vocabulary spec §7 D3). The changed rules were
+compiled with `compile.py --vocab vocab-2 --economy eco-3-late --backend ollama`, three samples, and
+spliced in. Every other rule object is byte for byte.
+- **Easy holds at its own tower** instead of leaving at the first sight of an enemy tower: inside an
+  enemy tower's range → `own_tower`; the nearest enemy bearbot, then the nearest enemy minion;
+  otherwise hold at its outer tower (`own_front_tower`, the root default, set by hand because every
+  sample compiled the stated fallback as a catch-all rule over `push_lane`).
+- **Hard fights under its own tower:** the 300-gold rule asks the tower-counting fight verdict; an
+  enemy bearbot under its tower → attack it (`tower_diver`); an enemy tower that will shoot it →
+  `own_tower` (it used to walk home whenever an enemy tower was in sight without an allied minion);
+  its side weaker in the fight near it → `own_tower`, before hunting the carrier. PR #71's tower-race
+  changes ("The economy-aware hard takes the tower race", above) all stay.
+- **On Jev, pre-registered (`eco-3-late`, Final Chorus on), 40 matches:**
+  - **Hard punishes the dive:** 68 % of the sample entrant's deaths credit a defender (46 % before),
+    and the entrant won 2 of 4 decided (6 of 6 before).
+  - **Against medium, hard is unproven:** only 4 of 18 matches were decided (hard won 3), so the
+    primary line is INCONCLUSIVE.
+  - **Easy holds at its tower** 99.7 % of the time and lost no bearbot. It also never shops.
 
 - **Medium keeps its worksheet.** It adds three keys after `hp`: `"gold": self.gold`,
   `"next": self.nextItem.cost` (null when the list is done) and `"home": self.atShop`; the rest,

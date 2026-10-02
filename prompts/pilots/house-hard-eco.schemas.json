@@ -67,13 +67,22 @@
     "action_target_selector": "none"
    },
    {
-    "id": "spend_gold_low_hp_enemy",
-    "condition": "carry >= 300 gold and enemy bearbot in sight has more hp than this bot?",
-    "criteria_true": "Rich but weak vs enemy",
-    "criteria_false": "Poor or strong enough",
+    "id": "spend_gold_weak_fight",
+    "condition": "does this bot carry at least 300 gold AND is its side weaker in the fight near it?",
+    "criteria_true": "gold >= 300 and side is weaker in nearby fight",
+    "criteria_false": "gold < 300 or side is not weaker",
     "action_kind": "move",
     "action_ability": null,
     "action_target_selector": "home"
+   },
+   {
+    "id": "attack_tower_diver",
+    "condition": "is an enemy bearbot under this bot's own tower?",
+    "criteria_true": "enemy bearbot inside own tower range",
+    "criteria_false": "no enemy bearbot inside own tower range",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "tower_diver"
    },
    {
     "id": "attack_tower_late_game",
@@ -85,13 +94,13 @@
     "action_target_selector": "nearest_tower"
    },
    {
-    "id": "retreat_from_tower",
-    "condition": "can this bot see an enemy tower and are there no allied minions nearby?",
-    "criteria_true": "enemy tower is visible and lane is empty of allies",
-    "criteria_false": "enemy tower is not visible or allies are present",
+    "id": "fall_back_enemy_tower_shoots",
+    "condition": "will an enemy tower shoot this bot?",
+    "criteria_true": "enemy tower will shoot this bot",
+    "criteria_false": "enemy tower will not shoot this bot",
     "action_kind": "move",
     "action_ability": null,
-    "action_target_selector": "home"
+    "action_target_selector": "own_tower"
    },
    {
     "id": "finish_kill_ability",
@@ -119,6 +128,15 @@
     "action_kind": "attack",
     "action_ability": null,
     "action_target_selector": "nearest_tower"
+   },
+   {
+    "id": "fall_back_weak_fight",
+    "condition": "is this bot's side weaker in the fight near it?",
+    "criteria_true": "side is weaker in nearby fight",
+    "criteria_false": "side is not weaker",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "own_tower"
    },
    {
     "id": "hunt_carrier",
@@ -159,8 +177,15 @@
   "build": [
    "road-case",
    "bass-strings",
-   "amp"
-  ]
+   "amp",
+   "backline",
+   "metronome",
+   "wall-of-sound",
+   "click-track",
+   "arpeggiator"
+  ],
+  "economy": "eco-3-late",
+  "vocab": "vocab-2"
  },
  "keytar": {
   "pilot_file": "prompts/pilots/house-hard-eco.prose.md",
@@ -230,13 +255,22 @@
     "action_target_selector": "none"
    },
    {
-    "id": "spend_gold_hp_low",
-    "condition": "carry >= 300 gold and enemy bearbot in sight has more hp than this bot?",
-    "criteria_true": "Rich and vulnerable to bear",
-    "criteria_false": "Poor or safe from bears",
+    "id": "spend_gold_weak_fight",
+    "condition": "does this bot carry at least 300 gold AND is its side weaker in the fight near it?",
+    "criteria_true": "gold >= 300 and side is weaker in nearby fight",
+    "criteria_false": "gold < 300 or side is not weaker",
     "action_kind": "move",
     "action_ability": null,
     "action_target_selector": "home"
+   },
+   {
+    "id": "attack_tower_diver",
+    "condition": "is an enemy bearbot under this bot's own tower?",
+    "criteria_true": "enemy bearbot inside own tower range",
+    "criteria_false": "no enemy bearbot inside own tower range",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "tower_diver"
    },
    {
     "id": "attack_tower_late",
@@ -248,13 +282,13 @@
     "action_target_selector": "nearest_tower"
    },
    {
-    "id": "retreat_from_tower",
-    "condition": "can this bot see an enemy tower and is there no allied minion near it?",
-    "criteria_true": "enemy tower visible and no nearby allied minion",
-    "criteria_false": "no enemy tower visible or at least one allied minion nearby",
+    "id": "fall_back_enemy_tower_shoots",
+    "condition": "will an enemy tower shoot this bot?",
+    "criteria_true": "enemy tower will shoot this bot",
+    "criteria_false": "enemy tower will not shoot this bot",
     "action_kind": "move",
     "action_ability": null,
-    "action_target_selector": "home"
+    "action_target_selector": "own_tower"
    },
    {
     "id": "finish_kill_ability",
@@ -282,6 +316,15 @@
     "action_kind": "attack",
     "action_ability": null,
     "action_target_selector": "nearest_tower"
+   },
+   {
+    "id": "fall_back_weak_fight",
+    "condition": "is this bot's side weaker in the fight near it?",
+    "criteria_true": "side is weaker in nearby fight",
+    "criteria_false": "side is not weaker",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "own_tower"
    },
    {
     "id": "hunt_carrier",
@@ -322,8 +365,15 @@
   "build": [
    "metronome",
    "amp",
-   "road-case"
-  ]
+   "road-case",
+   "click-track",
+   "bass-strings",
+   "arpeggiator",
+   "backline",
+   "wall-of-sound"
+  ],
+  "economy": "eco-3-late",
+  "vocab": "vocab-2"
  },
  "violin": {
   "pilot_file": "prompts/pilots/house-hard-eco.prose.md",
@@ -393,13 +443,22 @@
     "action_target_selector": "home"
    },
    {
-    "id": "spend_gold_low_hp_enemy",
-    "condition": "carry >= 300 gold and enemy bearbot in sight has more hp than this bot?",
-    "criteria_true": "Rich, low HP relative to enemy",
-    "criteria_false": "Poor or HP advantage",
+    "id": "spend_gold_weak_fight",
+    "condition": "does this bot carry at least 300 gold AND is its side weaker in the fight near it?",
+    "criteria_true": "gold >= 300 and side is weaker in nearby fight",
+    "criteria_false": "gold < 300 or side is not weaker",
     "action_kind": "move",
     "action_ability": null,
     "action_target_selector": "home"
+   },
+   {
+    "id": "attack_tower_diver",
+    "condition": "is an enemy bearbot under this bot's own tower?",
+    "criteria_true": "enemy bearbot inside own tower range",
+    "criteria_false": "no enemy bearbot inside own tower range",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "tower_diver"
    },
    {
     "id": "late_game_tower_attack",
@@ -411,13 +470,13 @@
     "action_target_selector": "nearest_tower"
    },
    {
-    "id": "retreat_from_tower",
-    "condition": "is an enemy tower visible AND is there no allied minion near this bot?",
-    "criteria_true": "tower seen, alone (no minions)",
-    "criteria_false": "no tower or has minions nearby",
+    "id": "fall_back_enemy_tower_shoots",
+    "condition": "will an enemy tower shoot this bot?",
+    "criteria_true": "enemy tower will shoot this bot",
+    "criteria_false": "enemy tower will not shoot this bot",
     "action_kind": "move",
     "action_ability": null,
-    "action_target_selector": "home"
+    "action_target_selector": "own_tower"
    },
    {
     "id": "finish_kill_ability",
@@ -445,6 +504,15 @@
     "action_kind": "attack",
     "action_ability": null,
     "action_target_selector": "nearest_tower"
+   },
+   {
+    "id": "fall_back_weak_fight",
+    "condition": "is this bot's side weaker in the fight near it?",
+    "criteria_true": "side is weaker in nearby fight",
+    "criteria_false": "side is not weaker",
+    "action_kind": "move",
+    "action_ability": null,
+    "action_target_selector": "own_tower"
    },
    {
     "id": "hunt_carrier",
@@ -485,7 +553,14 @@
   "build": [
    "amp",
    "bass-strings",
-   "road-case"
-  ]
+   "road-case",
+   "fuzz-pedal",
+   "metronome",
+   "feedback",
+   "tour-bus",
+   "headliner"
+  ],
+  "economy": "eco-3-late",
+  "vocab": "vocab-2"
  }
 }

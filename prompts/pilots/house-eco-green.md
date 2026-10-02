@@ -8,9 +8,9 @@ can break it, so you recall only when no enemy is in sight. Enemy towers hit har
 shoot minions before bearbots, so you touch a tower only while your wave is there.
 
 Your shopping list, bought in this order at your base:
-drums only: Road Case, then Bass Strings, then Metronome.
-keytar only: Metronome, then Amp, then Road Case.
-violin only: Amp, then Bass Strings, then Road Case.
+drums only: Road Case, then Bass Strings, then Metronome, then Backline, then Amp, then Wall of Sound, then Click Track, then Arpeggiator.
+keytar only: Metronome, then Amp, then Road Case, then Click Track, then Bass Strings, then Arpeggiator, then Backline, then Wall of Sound.
+violin only: Amp, then Bass Strings, then Road Case, then Fuzz Pedal, then Metronome, then Feedback, then Tour Bus, then Headliner.
 
 Your reply is one JSON object that ALWAYS starts with nine worksheet keys you fill from the
 observation, then "kind" and the rest. The game ignores the worksheet; you write it so you look
