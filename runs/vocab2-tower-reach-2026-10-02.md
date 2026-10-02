@@ -11,6 +11,32 @@ radius (about 390), but the resolver only took towers from `visibleEnemies` (260
   describes. vocab-1 stays byte-identical. Say whether the house tiers change, with numbers.
 - **Budget:** $1.50 hard stop on Jev (PR #81's identical block cost $0.722).
 
+## Verdict
+
+*§1 was committed before the first real match (`b490448`). The verdict, §2 and §3 came after.*
+
+- **The fix does what was ruled. The entrant still doesn't take a tower, and the next blocker is its
+  own prose.**
+  1. **Parked tower attacks: 40.6 % of decisions → 0 %.** All 388 of entrant2's "attack
+     `nearest_tower`" decisions had a target. Standing still from one decision to the next fell from
+     47.6 % to 19.2 %, and none of that 19.2 % follows a tower attack (it was 2,105).
+  2. **It pushes now, but it doesn't take a tower.** Structure damage rose from 17 to **195 a match**
+     (a tower has 900 hp). Time on the opponent's half went from 5.1 % to 24.4 %, and inside an enemy
+     tower's range from 1.1 % to 12.0 %. No tower fell, and all 6 matches were draws at 10:00.
+  3. **The new cost: entrant2 dies 19.8 times a match (was 1.5).** 95 of the 119 deaths were tower
+     shots, and 113 happened under an enemy tower while entrant2 was playing its own "recall when
+     low" rule. The wave dies to the tower first, the bot takes fire, starts the recall-2 channel
+     where it stands, and dies there. That is the entrant's prose doing what it says (§3.1), not the
+     resolver.
+  4. **D6 line 8: FAIL, on the same sub-line as PR #79 and PR #81.** 6 of 6 finish and replay-verify,
+     with 0 server errors and 0 parse errors. Easy's `own_tower` was chosen 0 times, because easy still
+     never stands in an enemy tower's range.
+  5. **Spend: $0.690** of the $1.50 stop. That's 9,840 requests, 0 errors and 0 failovers.
+- **House tiers: only hard-eco changes** (§1, at $0). In PR #79's 30 matches, 2,625 of its 24,190
+  decisions (10.9 %) were tower attacks with no target. The fix now walks every one of them to the
+  tower. Easy, medium and hard (both rulesets) and easy-eco can't change. How the hard-eco change plays
+  out in matches isn't measured (§3.2).
+
 ## 1. Method (written and committed before the first real match)
 
 **The fix** (`tools/jev/target_resolve.py`, this branch). Under `vocab-2`, `nearest_tower` picks the
@@ -88,3 +114,108 @@ fixed resolver targets all 2,111 (median 370 units away).
 
 Jev is not deterministic (PR #37), so a seed doesn't replay PR #81's match. The comparison is over the
 6 matches as a block.
+
+## 2. Result
+
+**The run** went as written. The block started at 14:54:53 UTC and the last match finished at 15:03:23.
+All 6 played in plan order. The spend guard never fired, and nothing was retried, added or dropped.
+TypeSafe answered every call: 9,840 requests, 0 errors, 0 failovers. All 6 logs replay-verify.
+
+| | PR #81 | now |
+|---|---:|---:|
+| matches, decided | 6, 0 | 6, 0 (all level at 10:00) |
+| enemy towers fallen | 0 | 0 |
+| entrant2 structure damage a match | 17 | **195** |
+| entrant2 deaths a match | 1.50 | **19.83** |
+| entrant2 alive time in own towers' range | 82.7 % | 60.3 % |
+| entrant2 alive time in an enemy tower's range | 1.1 % | 12.0 % |
+| entrant2 alive time on the opponent's half | 5.1 % | **24.4 %** |
+| entrant2 alive time at its fountain | 3.9 % | 13.0 % |
+| easy deaths | 0 | 0 |
+| spend | $0.722 | **$0.690** |
+
+### 2.1 What entrant2 chose
+
+| (6 matches) | PR #81 | now |
+|---|---:|---:|
+| decisions | 5,198 | 4,584 |
+| attack `nearest_tower` | 40.7 % | 8.5 % |
+| … with no target | **40.6 %** (2,111) | **0 %** |
+| stood still to its next decision (< 5 units, alive both times) | 47.6 % | **19.2 %** |
+| … right after a tower attack | 2,105 | 0 |
+| home | 20.1 % | 27.5 % |
+| walk with the wave (`nearby_minion`) | 26.1 % | 26.1 % |
+| recall | 0.3 % | 7.0 % |
+
+The tower rule now fires for a few seconds and the bot walks in. Before, it fired again and again
+from the same spot. The remaining 19.2 % of standing still (878 decisions) breaks down like this:
+- 44 % were ability casts at `lowest_hp_enemy` (keytar's chord, violin's staccato).
+- 35 % were violin's `go_home_wait`, already at home.
+- 17 % were the recall-2 channel.
+- 4 % were attacks on a minion in range.
+
+The ability casts are close to the old gap's shape. The sim's `ability` never walks: with its target
+out of range (chord 180, staccato 50) or on cooldown, it does nothing (`src/sim/match.ts`
+`tryUseAbility`). That isn't part of this fix (§3.5).
+
+### 2.2 Why it dies
+
+| entrant2's deaths (6 matches) | PR #81 | now |
+|---|---:|---:|
+| total | 9 | 119 |
+| killing blow: tower / minion / bearbot | 4 / 5 / 0 | **95** / 19 / 5 |
+| under an enemy tower | 8 | 113 |
+| playing `recall_low_hp` at the time | 9 | 113 |
+
+The entrant attacks the tower "with at least two minions near". The tower shoots the minions first,
+then the bot. Below a third of its hp the bot recalls, and recall-2 is a 4 s channel where it stands,
+inside the tower's range. Its back-off rule ("an enemy tower is visible and none of my minions are
+near → home") comes later in the order than the recall, so it never gets to walk out. Easy didn't
+kill it. Easy stays at its own tower (99.7 % of its alive time) and never died.
+
+### 2.3 D6 line 8
+
+(a) 6 of 6 finish and replay-verify. (b) 0 server errors, 0 parse errors. (c) Easy chose
+`nearest_enemy_bearbot` 110 times, `nearest_enemy_minion` 65 and the `own_front_tower` default 4,984,
+but `own_tower` 0 times. **FAIL**, on the same sub-line as before: easy spent 0.0 % of its time in an
+enemy tower's range. Easy's schema is unchanged and names no `nearest_tower`. Its other choices moved
+because entrant2 now comes to it.
+
+## 3. What Ceryce may want to decide
+
+1. **The entrant's next blocker is in its prose, not the code.** "Recall when below a third" fires
+   under the enemy tower and kills it. This is the kind of lesson an entrant is meant to learn from a
+   match, and it isn't a resolver bug. Two possible responses: none (it's the entrant's to fix), or a
+   line in the entrants README about recall-2's channel under towers. The sample entrant could also
+   move "back off from the tower" above "recall". That's a prose edit and a fresh compile.
+2. **Hard-eco's change is unmeasured in play.** The fix gives a target to the 10.9 % of hard-eco's
+   decisions that used to park (§1). A hard-eco vs medium block on Jev would show whether that breaks
+   the stall PR #79 saw, or feeds medium deaths the way entrant2 just did. At about $0.12 a match, 6
+   matches cost about $0.75. Not run, because it's outside this brief.
+3. **D6 line 8's `own_tower` sub-line** still can't pass against easy, as PR #81 §3.2 said.
+4. **Before the arena's vocab-2 switch:** this changes `target_resolve.py`, which is in
+   `tools/arena/schemas.mjs` `COMPILER_FILES`. So the compiler version (the compile cache key) changes
+   when this merges, and a running `schema_server.py` must be restarted to play it.
+5. **Abilities stand still when their target is out of range.** 316 of entrant2's stand-still
+   decisions were keytar's "chord the lowest-hp enemy". The target can be any enemy within 260, and
+   the sim's `ability` doesn't approach it. How many of those were out of range rather than on
+   cooldown isn't split here, and nothing is changed. The pilot side (as in `nearest_tower`, without touching `src/sim`) is where a fix
+   would go if wanted.
+
+## Files
+
+- **This page.** The fix is in `tools/jev/target_resolve.py`, with tests in `tools/jev/test_vocab.py`
+  and `tools/match/test_vocab.mjs`. Docs are `docs/vocabulary-spec.md` §8.2.
+- **entrant2** isn't in this branch. It is PR #81's
+  `runs/jev-recheck-vocab2-2026-10-02-sample-entrant-eco-vocab2.schemas.json`, and every log records
+  it whole. So this branch doesn't need #81's `test_vocab.py` registration.
+- **The 6 logs and 2 stub smokes aren't in git.** They are on the
+  [`data-vocab2-tower-reach-2026-10-02`](https://github.com/kumouri/promptlane/releases/tag/data-vocab2-tower-reach-2026-10-02)
+  prerelease as `vocab2-tower-reach-2026-10-02-match-logs.zip`: 0.6 MB, sha256
+  `1fdbb23c632547c02bda5b9e597acbf70e9acc072b443297a3cd48cdd0795158`.
+  - The zip has `runs/vocab2-tower-reach-2026-10-02-SHA256SUMS`.
+  - `runs/vocab2-tower-reach-2026-10-02-analysis/` holds PR #81's runner, probe and scorer
+    (repointed), the summary, death, stand-still and re-resolve scripts, all their output (`analysis-output.txt`),
+    the run log, the entrant schema, and the server's final `/health`.
+- **Log names:** `runs/vocab2-tower-reach-2026-10-02-<violet>-<green>-seed<N>.json`. To check one,
+  unzip at the repo root and run `npm run match -- --verify runs/vocab2-tower-reach-2026-10-02-easy-entrant2-seed7.json`.
