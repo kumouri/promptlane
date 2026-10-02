@@ -55,7 +55,6 @@ export function makeCompile(campaign) {
     ...COMPILE_DEFAULTS,
     backend: campaign.compile.backend,
     model: campaign.compile.model,
-    maxTokensPerCompile: campaign.compile.maxTokensPerCompile,
     vocab: campaignVocab(campaign),
   };
   const runner = spawnCompile({ root: ROOT, cfg });
@@ -122,7 +121,7 @@ export function makeMutate(campaign) {
   const m = campaign.mutation;
   return async ({ parentText, focus, diagnostics, avoid }) => {
     const args = [path.join(ROOT, 'tools', 'evolve', 'mutate.py'), '--backend', m.backend, '--attempts', String(m.attempts),
-      '--max-sentence-changes', String(m.maxSentenceChanges), '--max-total-tokens', String(m.maxTotalTokens)];
+      '--max-sentence-changes', String(m.maxSentenceChanges)];
     if (m.model) args.push('--model', m.model);
     const input = JSON.stringify({ parent: parentText, focus, diagnostics, avoid });
     const r = await run(PYTHON, args, { input, timeoutMs: 15 * 60_000 });

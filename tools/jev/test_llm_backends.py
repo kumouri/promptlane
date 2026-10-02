@@ -54,6 +54,7 @@ class OpenRouterTests(unittest.TestCase):
             self.assertEqual(body["model"], "qwen/qwen3.5-9b")
             self.assertEqual(body["reasoning"], {"enabled": False})
             self.assertEqual(body["temperature"], 0.2)
+            self.assertNotIn("max_tokens", body)  # no reply cap: the provider stops at the context window
             self.assertEqual(b.usage.total_tokens, 1200)
             self.assertAlmostEqual(b.usage.cost_usd, 0.00013)
         finally:
@@ -83,6 +84,14 @@ class OpenRouterTests(unittest.TestCase):
         with self.assertRaises(L.BackendError):
             L.OpenRouterBackend("")
 
+    def test_vocab1_cap_is_still_sent(self):
+        fake = _Fake({"choices": [{"message": {"content": "x"}}], "usage": {"prompt_tokens": 1, "completion_tokens": 1}})
+        try:
+            L.OpenRouterBackend("k", base_url=fake.url, max_tokens=L.VOCAB1_MAX_COMPLETION_TOKENS).generate("p")
+            self.assertEqual(fake.requests[0][2]["max_tokens"], 1800)
+        finally:
+            fake.close()
+
 
 class OllamaTests(unittest.TestCase):
     def test_body_and_token_counts(self):
@@ -94,10 +103,29 @@ class OllamaTests(unittest.TestCase):
             self.assertEqual(path, "/api/generate")
             self.assertEqual(body["model"], "qwen3.5:9b")
             self.assertFalse(body["think"])
-            self.assertEqual(body["options"], {"temperature": 0.2, "num_predict": 1800})
+            self.assertEqual(body["options"], {"temperature": 0.2})
+            self.assertIs(body["shift"], False)
+            self.assertIs(body["truncate"], False)
             self.assertEqual((b.usage.prompt_tokens, b.usage.completion_tokens, b.usage.cost_usd), (900, 300, 0.0))
         finally:
             fake.close()
+
+    def test_vocab1_body_is_byte_identical_to_the_recorded_one(self):
+        """With vocab-1's cap the body is exactly what the translator sent before the caps went: same keys,
+        same order, num_predict 1800, no shift/truncate."""
+        fake = _Fake({"response": "{}", "prompt_eval_count": 1, "eval_count": 1})
+        try:
+            L.OllamaBackend(url=fake.url, max_tokens=L.VOCAB1_MAX_COMPLETION_TOKENS).generate("hi")
+            body = fake.requests[0][2]
+            old = {"model": "qwen3.5:9b", "prompt": "hi", "stream": False, "keep_alive": "30m",
+                   "options": {"temperature": 0.2, "num_predict": 1800}, "think": False}
+            self.assertEqual(json.dumps(body), json.dumps(old))
+        finally:
+            fake.close()
+
+    def test_default_timeout_fills_the_window(self):
+        self.assertEqual(L.OllamaBackend().timeout, L.CALL_TIMEOUT_SEC)
+        self.assertGreaterEqual(L.CALL_TIMEOUT_SEC, 32_768 / 85)  # the host's whole window at its measured speed
 
     def test_host_without_scheme(self):
         self.assertEqual(L.resolve_ollama_url("127.0.0.1:11999"), "http://127.0.0.1:11999")
@@ -164,25 +192,19 @@ class ClaudeCliTests(unittest.TestCase):
                 b.generate("p")
 
 
-class BudgetTests(unittest.TestCase):
-    def test_refuses_before_calling_and_counts_actual_usage(self):
-        budget = L.TokenBudget(5000)
-        b = L.ScriptedBackend(["x" * 400], budget=budget, max_tokens=1000)
-        b.generate("p" * 400)  # worst case 100 + 1000 fits; actual 100 + 100
-        self.assertEqual(budget.spent, 200)
-        for _ in range(3):
-            b.generate("p" * 400)
-        self.assertEqual(budget.spent, 800)
-        big = L.ScriptedBackend(["x"], budget=budget, max_tokens=4500)
-        with self.assertRaises(L.BudgetExceeded):
-            big.generate("p")
-        self.assertEqual(big.usage.calls, 0)
-
-    def test_uncapped(self):
-        b = L.ScriptedBackend(["x"], budget=L.TokenBudget(None))
+class NoCapTests(unittest.TestCase):
+    def test_no_run_level_token_budget(self):
+        self.assertFalse(hasattr(L, "TokenBudget"))
+        self.assertFalse(hasattr(L, "BudgetExceeded"))
+        b = L.ScriptedBackend(["x" * 400_000])
         for _ in range(5):
-            b.generate("p" * 10_000)
+            b.generate("p" * 400_000)  # 1M tokens a call: nothing refuses it
         self.assertEqual(b.usage.calls, 5)
+        self.assertEqual(b.usage.total_tokens, 5 * 200_000)
+
+    def test_make_backend_sends_no_cap_unless_asked(self):
+        self.assertIsNone(L.make_backend("ollama").max_tokens)
+        self.assertEqual(L.make_backend("ollama", max_tokens=L.VOCAB1_MAX_COMPLETION_TOKENS).max_tokens, 1800)
 
 
 if __name__ == "__main__":

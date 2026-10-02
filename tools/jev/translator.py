@@ -92,6 +92,7 @@ from dataclasses import dataclass, field
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ground_truth import _ollama_generate, resolve_ollama_url  # noqa: E402
+from llm_backends import CALL_TIMEOUT_SEC, VOCAB1_MAX_COMPLETION_TOKENS  # noqa: E402
 from economy_rules import NOTE_PREFIX, format_build, items, items_prompt_block, normalize_build  # noqa: E402
 from number_normalize import normalize_numbers_for_trace  # noqa: E402
 from scenarios import ABILITIES  # noqa: E402
@@ -1783,8 +1784,9 @@ def translate_pilot(
 ) -> TranslatedSchema:
     """`generate`, when given, is a `prompt -> reply text` callable that replaces the host-Ollama
     call (`llm_backends.Backend.generate` -- how `compile.py` runs the same translation on
-    OpenRouter, or under a token cap). The prompt, parsing, retries and guards are the same
-    either way. `economy` names the ruleset whose items the prompt lists and `build` is checked
+    OpenRouter). The prompt, parsing, retries and guards are the same either way. The host-Ollama
+    call sends no reply cap (`llm_backends`, NO TOKEN CAPS), except under vocab-1, which keeps the
+    1,800-token cap and 90 s timeout its recorded runs used. `economy` names the ruleset whose items the prompt lists and `build` is checked
     against (None = `economy_rules.DEFAULT_ECONOMY`); every backend gets the same prompt.
 
     `map_` (a map name, `compile.py --map`): pvp-2 offers vocab-2 compiles its teleport (`TELEPORT_ABILITY`,
@@ -1797,9 +1799,13 @@ def translate_pilot(
     The model only ever sees `scope_to_instrument(pilot_text, instrument).text`, and the priority
     guard reads the same scoped text -- another instrument's "no exceptions" clause must not demand a
     rule in this schema."""
+    vocab = resolve_vocab(vocab)
     if generate is None:
         url = resolve_ollama_url(ollama_url)
-        generate = lambda p: _ollama_generate(url, model, p, timeout=90.0, max_tokens=1800)  # noqa: E731
+        if vocab == VOCAB_1:
+            generate = lambda p: _ollama_generate(url, model, p, timeout=90.0, max_tokens=VOCAB1_MAX_COMPLETION_TOKENS)  # noqa: E731
+        else:
+            generate = lambda p: _ollama_generate(url, model, p, timeout=CALL_TIMEOUT_SEC, max_tokens=None)  # noqa: E731
     scoped = scope_to_instrument(pilot_text, instrument)
     scope_notes = ()
     if scoped.set_aside:
@@ -1808,7 +1814,6 @@ def translate_pilot(
             f"instrument scope: {len(scoped.set_aside)} clause(s) your prose marks for another instrument were left out "
             f"of the {instrument} schema (each is compiled only for the instrument it names): {quoted}",
         )
-    vocab = resolve_vocab(vocab)
     prompt = _translation_prompt(scoped.text, instrument, primary_ability, ultimate_ability, vocab, economy=economy, map_=map_)
     teleport = vocab == VOCAB_2 and map_has_teleport(map_)
     last_err: Exception | None = None

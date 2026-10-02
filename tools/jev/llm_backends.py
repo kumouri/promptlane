@@ -12,14 +12,22 @@ translator step only, never the game/arena model path (`tools/model_server.py`'s
 
 Each backend exposes one call, `generate(prompt) -> str`, which is exactly the shape
 `translator.translate_pilot(generate=...)` takes, and keeps a running `Usage` (calls, prompt and
-completion tokens, USD) so a caller can report real spend, not an estimate.
+completion tokens, USD) so a caller can report real spend, not an estimate. `ClaudeCliBackend`
+reports `total_cost_usd` (what the call would have billed on the metered API) for comparability,
+even though it is drawn from a subscription's usage window, not real API dollars.
 
-SPEND CAP. `TokenBudget` is checked *before* every call: a call is refused (`BudgetExceeded`) unless
-the tokens already spent plus this call's worst case (its estimated prompt tokens plus `max_tokens`
-of completion) fit under the cap. So a run can never overshoot its cap by more than zero -- the cap
-is the ceiling the PR bot and the Elysium panel promise, not a target they drift past. `ClaudeCliBackend`
-reports `total_cost_usd` the same way (what the call would have billed on the metered API) for
-comparability, even though it is drawn from a subscription's usage window, not real API dollars.
+NO TOKEN CAPS (Ceryce, 2026-10-02 17:59 CT: "Get rid of any fucking token caps."). A reply is never
+cut at a token count and a run is never refused for its token total: the old 1,800-token reply cap
+cut every reply of a 16-rule cascade before any check ran (`runs/remove-token-caps-2026-10-02.md`).
+`max_tokens=None`, the default, sends no completion cap at all. The one exception is vocab-1, the
+frozen research vocabulary: a caller compiling under it passes `VOCAB1_MAX_COMPLETION_TOKENS`, so its
+request body stays byte-identical to the one its recorded runs used. What bounds an uncapped Ollama
+reply instead is the model's own context window: the request sets `"shift": false`, so a reply that
+fills the window ends there (`done_reason: "length"`) rather than Ollama's default of discarding the
+head of the prompt and generating forever, and `"truncate": false`, so a prompt bigger than the
+window is an error rather than silently losing the start of the prose. `CALL_TIMEOUT_SEC` covers a
+hung server; it is long enough to fill the whole window. OpenRouter's provider stops at the model's
+context window the same way.
 
 Standard library only for Ollama/OpenRouter, so the PR bot's runner needs nothing but Python;
 `ClaudeCliBackend` additionally needs the `claude` CLI on PATH.
@@ -47,11 +55,14 @@ OPENROUTER_PRICES = {DEFAULT_OPENROUTER_MODEL: (0.10, 0.15)}
 
 # Same sampling the translator was measured with (`ground_truth._ollama_generate`).
 TEMPERATURE = 0.2
-MAX_COMPLETION_TOKENS = 1800
-
-
-class BudgetExceeded(RuntimeError):
-    """A call was refused because it could push the run past its token cap."""
+# vocab-1 only: the reply cap its recorded runs were made with, kept so its request is byte-identical.
+# No other vocabulary sends a cap (see NO TOKEN CAPS above).
+VOCAB1_MAX_COMPLETION_TOKENS = 1800
+# Seconds per model call. Not a length limit: at the 85 tokens/s measured on the host's qwen3.5:9b,
+# filling its whole 32,768-token window takes about 6.4 minutes, so 15 leaves room to wait behind
+# another caller first (Ollama serves one request at a time). Measured in
+# runs/remove-token-caps-2026-10-02.md.
+CALL_TIMEOUT_SEC = 900.0
 
 
 class BackendError(RuntimeError):
@@ -59,8 +70,8 @@ class BackendError(RuntimeError):
 
 
 def estimate_tokens(text: str) -> int:
-    """~4 chars/token, the same rough rule `client.estimate_tokens` uses -- only for the pre-call
-    budget check; real usage comes back from the backend."""
+    """~4 chars/token, the same rough rule `client.estimate_tokens` uses -- only when a backend's
+    reply carries no usage; real usage comes back from the backend."""
     return max(1, len(text) // 4)
 
 
@@ -87,40 +98,13 @@ class Usage:
         }
 
 
-class TokenBudget:
-    """Shared, thread-safe cap on total (prompt + completion) tokens across every call in a run.
-    `None` means uncapped."""
-
-    def __init__(self, max_total_tokens: int | None):
-        self.max_total_tokens = max_total_tokens
-        self.spent = 0
-        self.reserved = 0
-        self.lock = threading.Lock()
-
-    def reserve(self, worst_case: int) -> None:
-        with self.lock:
-            if self.max_total_tokens is None:
-                self.reserved += worst_case
-                return
-            if self.spent + self.reserved + worst_case > self.max_total_tokens:
-                raise BudgetExceeded(
-                    f"token cap reached: {self.spent} spent + {self.reserved} in flight + up to {worst_case} "
-                    f"for this call would exceed the cap of {self.max_total_tokens}"
-                )
-            self.reserved += worst_case
-
-    def settle(self, worst_case: int, actual: int) -> None:
-        with self.lock:
-            self.reserved -= worst_case
-            self.spent += actual
-
-
 class Backend:
+    """`max_tokens` None (the default) sends no completion cap; only a vocab-1 compile passes one."""
+
     kind = "base"
 
-    def __init__(self, model: str, budget: TokenBudget | None = None, max_tokens: int = MAX_COMPLETION_TOKENS, timeout: float = 120.0):
+    def __init__(self, model: str, max_tokens: int | None = None, timeout: float = CALL_TIMEOUT_SEC):
         self.model = model
-        self.budget = budget or TokenBudget(None)
         self.max_tokens = max_tokens
         self.timeout = timeout
         self.usage = Usage()
@@ -130,14 +114,8 @@ class Backend:
         return f"{self.kind}:{self.model}"
 
     def generate(self, prompt: str) -> str:
-        worst = estimate_tokens(prompt) + self.max_tokens
-        self.budget.reserve(worst)
         start = time.perf_counter()
-        prompt_tokens = completion_tokens = 0
-        try:
-            text, prompt_tokens, completion_tokens, cost = self._call(prompt)
-        finally:
-            self.budget.settle(worst, prompt_tokens + completion_tokens)
+        text, prompt_tokens, completion_tokens, cost = self._call(prompt)
         with self._lock:
             self.usage.calls += 1
             self.usage.prompt_tokens += prompt_tokens
@@ -169,9 +147,23 @@ def resolve_ollama_url(explicit: str | None = None) -> str:
     return raw.rstrip("/")
 
 
+def ollama_body(model: str, prompt: str, max_tokens: int | None) -> dict:
+    """The `/api/generate` body the translator sends (thinking off, temperature 0.2). With a
+    `max_tokens` (vocab-1 only) it is byte-for-byte the body its recorded runs used. Without one there
+    is no `num_predict`, and `shift`/`truncate` false make the context window a loud ceiling instead
+    of a silent one (see NO TOKEN CAPS above)."""
+    options = {"temperature": TEMPERATURE}
+    if max_tokens is not None:
+        options["num_predict"] = max_tokens
+    body = {"model": model, "prompt": prompt, "stream": False, "keep_alive": "30m", "options": options, "think": False}
+    if max_tokens is None:
+        body.update(shift=False, truncate=False)
+    return body
+
+
 class OllamaBackend(Backend):
-    """Host Ollama's `/api/generate`, with the body `ground_truth._ollama_generate` sends (thinking
-    off, temperature 0.2) -- the translator's measured configuration. Free: cost is always 0."""
+    """Host Ollama's `/api/generate`, with the body `ground_truth._ollama_generate` sends
+    (`ollama_body`) -- the translator's measured configuration. Free: cost is always 0."""
 
     kind = "ollama"
 
@@ -180,14 +172,7 @@ class OllamaBackend(Backend):
         self.url = resolve_ollama_url(url)
 
     def _call(self, prompt: str) -> tuple[str, int, int, float]:
-        body = {
-            "model": self.model,
-            "prompt": prompt,
-            "stream": False,
-            "keep_alive": "30m",
-            "options": {"temperature": TEMPERATURE, "num_predict": self.max_tokens},
-            "think": False,
-        }
+        body = ollama_body(self.model, prompt, self.max_tokens)
         try:
             data = _post_json(self.url + "/api/generate", body, {}, self.timeout)
         except BackendError as err:
@@ -225,6 +210,8 @@ class OpenRouterBackend(Backend):
             "reasoning": {"enabled": False},
             "usage": {"include": True},
         }
+        if self.max_tokens is None:
+            del body["max_tokens"]  # no cap: the provider stops at the model's context window
         headers = {"Authorization": f"Bearer {self.api_key}", "X-Title": "promptlane entrant compile preview"}
         data = _post_json(self.base_url + "/chat/completions", body, headers, self.timeout)
         if data.get("error"):
@@ -275,13 +262,13 @@ class ClaudeCliBackend(Backend):
     def __init__(
         self,
         model: str = DEFAULT_CLAUDE_MODEL,
-        budget: TokenBudget | None = None,
-        max_tokens: int = MAX_COMPLETION_TOKENS,
-        timeout: float = 180.0,
+        max_tokens: int | None = None,
+        timeout: float = CALL_TIMEOUT_SEC,
         executable: str | None = None,
         effort: str | None = "low",
     ):
-        super().__init__(model, budget=budget, max_tokens=max_tokens, timeout=timeout)
+        # The CLI has no completion-cap flag, so `max_tokens` is accepted for a uniform signature only.
+        super().__init__(model, max_tokens=max_tokens, timeout=timeout)
         self.executable = executable or shutil.which("claude") or "claude"
         self.effort = effort
 
@@ -341,13 +328,14 @@ class ScriptedBackend(Backend):
         return text, estimate_tokens(prompt), estimate_tokens(text), 0.0
 
 
-def make_backend(kind: str, model: str | None = None, budget: TokenBudget | None = None, *, ollama_url: str | None = None,
-                 api_key_env: str = "OPENROUTER_API_KEY", timeout: float = 120.0, executable: str | None = None,
+def make_backend(kind: str, model: str | None = None, *, max_tokens: int | None = None, ollama_url: str | None = None,
+                 api_key_env: str = "OPENROUTER_API_KEY", timeout: float = CALL_TIMEOUT_SEC, executable: str | None = None,
                  effort: str | None = "low") -> Backend:
+    """`max_tokens` None sends no completion cap; pass `VOCAB1_MAX_COMPLETION_TOKENS` only for a vocab-1 compile."""
     if kind == "ollama":
-        return OllamaBackend(model or DEFAULT_OLLAMA_MODEL, url=ollama_url, budget=budget, timeout=timeout)
+        return OllamaBackend(model or DEFAULT_OLLAMA_MODEL, url=ollama_url, max_tokens=max_tokens, timeout=timeout)
     if kind == "openrouter":
-        return OpenRouterBackend(os.environ.get(api_key_env, ""), model or DEFAULT_OPENROUTER_MODEL, budget=budget, timeout=timeout)
+        return OpenRouterBackend(os.environ.get(api_key_env, ""), model or DEFAULT_OPENROUTER_MODEL, max_tokens=max_tokens, timeout=timeout)
     if kind == "claude":
-        return ClaudeCliBackend(model or DEFAULT_CLAUDE_MODEL, budget=budget, timeout=timeout if timeout != 120.0 else 180.0, executable=executable, effort=effort)
+        return ClaudeCliBackend(model or DEFAULT_CLAUDE_MODEL, max_tokens=max_tokens, timeout=timeout, executable=executable, effort=effort)
     raise ValueError(f"unknown backend {kind!r} (ollama, openrouter, or claude)")

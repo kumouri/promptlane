@@ -70,7 +70,6 @@
     "enabled": true,
     "backend": "ollama",
     "model": null,
-    "maxTokensPerCompile": 20000,
     "perIpPerMinute": 3,
     "perIpPerDay": 20,
     "globalPerDay": 400,

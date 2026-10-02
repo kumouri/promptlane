@@ -9,7 +9,10 @@
  * is the same posture as the queue's `running` map, and fine while the arena binds 127.0.0.1:
  *   - per client IP: `perIpPerMinute` compiles in any rolling minute, `perIpPerDay` per Central day;
  *   - everyone: `globalPerDay` per Central day, `maxConcurrent` compiles at once (503 past that);
- *   - per compile: `maxTokensPerCompile`, passed to compile.py as its hard token cap.
+ *   - per compile: `timeoutSec` of wall clock.
+ * There is no token cap and no prose-size cap (Ceryce, 2026-10-02 17:59 CT: "Get rid of any fucking
+ * token caps."; the entry rules have had no byte cap since 2026-09-22). A compile is never cut at a
+ * token count; the request body is bounded only by the server's transport limit (`readBody`).
  * The client IP is the socket address unless `ipHeader` names a header set by a proxy you trust —
  * behind the Cloudflare Tunnel every request arrives from 127.0.0.1, so set `"cf-connecting-ip"`
  * there or every visitor shares one bucket.
@@ -29,8 +32,6 @@ export const COMPILE_DEFAULTS = {
   model: null,
   python: process.platform === 'win32' ? 'python' : 'python3',
   timeoutSec: 240,
-  maxTokensPerCompile: 20000,
-  maxPromptBytes: 16 * 1024,
   perIpPerMinute: 3,
   perIpPerDay: 20,
   globalPerDay: 400,
@@ -108,7 +109,7 @@ export function spawnCompile({ root, cfg }) {
       const args = [
         path.join(root, 'tools', 'jev', 'compile.py'),
         '--stdin', '--name', 'pilot.md', '--format', 'json',
-        '--backend', cfg.backend, '--max-total-tokens', String(cfg.maxTokensPerCompile),
+        '--backend', cfg.backend,
       ];
       if (cfg.model) args.push('--model', cfg.model);
       // a pinned vocabulary (an evolution campaign); unset = compile.py's default, the entrants' one
@@ -161,7 +162,6 @@ export function makeCompiler({ config = {}, root, run, now = () => Date.now() } 
       const text = String(rawText ?? '').replace(/\r\n/g, '\n');
       const problems = validatePromptText(text);
       if (problems.length) throw new CompileError(400, `prompt rejected: ${problems.join('; ')}`);
-      if (Buffer.byteLength(text, 'utf8') > cfg.maxPromptBytes) throw new CompileError(413, `prompt is over ${cfg.maxPromptBytes / 1024} KB`);
       if (inFlight >= cfg.maxConcurrent) throw new CompileError(503, 'the compiler is busy with someone else’s prose — try again in a few seconds', 10);
       limiter.take(ip);
       inFlight += 1;
@@ -169,7 +169,7 @@ export function makeCompiler({ config = {}, root, run, now = () => Date.now() } 
         const { exitCode, data } = await runner(text);
         const prompt = data.prompts?.[0];
         if (!prompt) throw new CompileError(502, 'compiler returned no result');
-        const result = { backend: data.backend, capTokens: data.cap_tokens, usage: data.usage, exitCode, ...prompt };
+        const result = { backend: data.backend, usage: data.usage, exitCode, ...prompt };
         const id = randomBytes(9).toString('base64url');
         prune();
         cache.set(id, { at: now(), text, result });

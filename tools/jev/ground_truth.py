@@ -27,6 +27,8 @@ import re
 import urllib.error
 import urllib.request
 
+from llm_backends import ollama_body
+
 DEFAULT_OLLAMA_MODEL = "qwen3.5:9b"
 VALID_KINDS = {"move", "attack", "ability", "recall", "hold"}
 
@@ -72,15 +74,20 @@ def parse_action(reply: str) -> dict | None:
     return parsed
 
 
-def _ollama_generate(url: str, model: str, prompt: str, timeout: float = 60.0, max_tokens: int = 120) -> str:
-    body = {
-        "model": model,
-        "prompt": prompt,
-        "stream": False,
-        "keep_alive": "30m",
-        "options": {"temperature": 0.2, "num_predict": max_tokens},
-        "think": False,
-    }
+def _ollama_generate(url: str, model: str, prompt: str, timeout: float = 60.0, max_tokens: int | None = 120) -> str:
+    """`max_tokens` None sends no reply cap, with the window-bounded body `llm_backends.ollama_body`
+    builds (the translator under any vocabulary after vocab-1); a number sends exactly the old body."""
+    if max_tokens is None:
+        body = ollama_body(model, prompt, None)
+    else:
+        body = {
+            "model": model,
+            "prompt": prompt,
+            "stream": False,
+            "keep_alive": "30m",
+            "options": {"temperature": 0.2, "num_predict": max_tokens},
+            "think": False,
+        }
     req = urllib.request.Request(
         url + "/api/generate",
         data=json.dumps(body).encode("utf-8"),
