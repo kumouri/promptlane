@@ -151,7 +151,7 @@ test('economy: the eco medium worksheet declares gold, next and home before the 
   assert.equal(standRule(violet), standRule(plain));
 });
 
-test('economy: the eco tiers play exactly the plain tiers\' Bandstand rules, right after the low-hp recall', () => {
+test('economy: the eco tiers play exactly the plain tiers\' Bandstand rules; medium right after the low-hp recall, hard last', () => {
   const root = path.resolve(import.meta.dirname, '..', '..');
   for (const tier of ['easy', 'medium', 'hard']) {
     const plain = loadHouseSchemas(HOUSE_TIER_SCHEMAS[tier], root).schemas;
@@ -159,8 +159,17 @@ test('economy: the eco tiers play exactly the plain tiers\' Bandstand rules, rig
     for (const inst of ['drums', 'keytar', 'violin']) {
       const stand = (s) => s[inst].rules.filter((r) => r.action_target_selector === 'bandstand');
       assert.deepEqual(stand(eco), stand(plain), `${tier} ${inst}`);
-      // rules 1-2 are the low-hp pair (out of reach, then recall)
-      assert.deepEqual(eco[inst].rules.slice(2, 2 + stand(plain).length), stand(plain), `${tier} ${inst}: right after the recall`);
+      const rules = eco[inst].rules;
+      const n = stand(plain).length;
+      if (tier === 'hard') {
+        // runs/better-bots-2026-10-02.md: hard goes to the Bandstand only when its lane gives it nothing
+        // to do, after the wave rule; first, it cost hard the siege (stand-in, §0.3)
+        assert.deepEqual(rules.slice(rules.length - n), stand(plain), `${tier} ${inst}: last, after the wave rule`);
+        assert.equal(rules[rules.length - n - 1].action_target_selector, 'nearby_minion', `${tier} ${inst}`);
+      } else {
+        // rules 1-2 are the low-hp pair (out of reach, then recall)
+        assert.deepEqual(rules.slice(2, 2 + n), stand(plain), `${tier} ${inst}: right after the recall`);
+      }
     }
   }
 });
@@ -179,11 +188,17 @@ test('economy: each eco tier has checked-in compiled schemas that buy deliberate
       assert.ok(Array.isArray(s.build) && s.build.length === 8, `${label}: a declared eight-step ladder`);
       assert.equal(s.economy, 'eco-3-late', `${label}: the build is checked against the late-game ruleset`);
       const recalls = s.rules.filter((r) => r.action_kind === 'recall');
-      // easy shops only when it is home anyway (low-hp recall, respawn); medium and hard also recall to shop.
+      // Every tier recalls to shop. Easy only out of every enemy's sight, and it never walks home to shop
+      // (runs/better-bots-2026-10-02.md); medium and hard first walk out of a tower's or minion's reach.
       // Hard's "carrying 300 with a stronger enemy in sight" leaves on foot: an enemy in sight would break a recall-2 channel.
-      assert.equal(recalls.length, { easy: 1, medium: 2, hard: 2 }[tier], `${label}: recall rules`);
-      const afterStand = 2 + s.rules.filter((r) => r.action_target_selector === 'bandstand').length;
-      if (tier !== 'easy') {
+      assert.equal(recalls.length, { easy: 2, medium: 2, hard: 2 }[tier], `${label}: recall rules`);
+      // the first rule after the low-hp pair that isn't a Bandstand rule
+      const afterStand = 2 + s.rules.slice(2).findIndex((r) => r.action_target_selector !== 'bandstand');
+      if (tier === 'easy') {
+        assert.equal(s.rules[afterStand].action_kind, 'recall', `${label}: the shopping recall, right after the low-hp pair`);
+        assert.match(s.rules[afterStand].condition, /afford the next item/, label);
+        assert.match(s.rules[afterStand].condition, /no enem(y|ies)/, `${label}: only with no enemy in reach of the channel`);
+      } else {
         assert.equal(s.rules[afterStand].action_target_selector, 'home', `${label}: the shopping trip first leaves reach, right after the low-hp pair and the Bandstand rules`);
         assert.equal(s.rules[afterStand + 1].action_kind, 'recall', `${label}: then the shopping recall`);
       }
@@ -306,7 +321,10 @@ test('recall-2: every tier\'s compiled cascade steps out of reach before each re
       assert.equal(s.rules[1].action_kind, 'recall', `${label}: rule 2 recalls on low hp`);
       s.rules.forEach((r, i) => {
         if (r.action_kind !== 'recall') return;
-        assert.ok(i > 0 && isMoveHome(s.rules[i - 1]), `${label}: recall rule ${i + 1} follows a move home`);
+        // Easy's shopping recall (runs/better-bots-2026-10-02.md) has no walk home in front: with an enemy
+        // in sight easy doesn't shop at all. Every other recall leaves reach first on the same trigger.
+        const easyShop = /house-easy-eco/.test(file) && /afford/.test(r.condition);
+        assert.ok(easyShop || (i > 0 && isMoveHome(s.rules[i - 1])), `${label}: recall rule ${i + 1} follows a move home`);
         assert.match(r.condition, /\bno\b/i, `${label}: recall rule ${i + 1} asks that no enemy is in sight`);
       });
     }
@@ -358,13 +376,15 @@ test('hard: the low-hp trigger is 65 % of max hp in the plain prose, its compile
 
 // The economy-aware hard takes the tower race (2026-10-02, runs/house-hard-2026-10-02.md): on Jev it won
 // no decided match against medium, because it walked out at 65 % and stayed home. It now leaves at 50 %
-// of max hp, hits a tower with one allied minion near, attacks any enemy tower it sees after 480 s, and
-// pushes its lane when nothing else applies. Every other rule object is the one compiled before.
-test('hard (eco): 50 % trigger, a tower with one minion, the 480-second tower rule, and a lane push', () => {
+// of max hp, attacks any enemy tower it sees after 480 s, and pushes its lane when nothing else applies.
+// Its wave tower rule ("one allied minion near") became the siege rule in runs/better-bots-2026-10-02.md.
+// Every other rule object is the one compiled before.
+test('hard (eco): 50 % trigger, the siege rule, the 480-second tower rule, and a lane push', () => {
   const prose = sideText(HOUSE_TIERS_ECO.hard).replace(/\s+/g, ' ');
   assert.match(prose, /When your hp is below 50% of your max hp and an enemy minion, enemy tower or enemy bearbot is in sight, move back home\. When your hp is below 50% of your max hp and no enemy is in sight, recall home to heal\./);
   assert.match(prose, /If it is more than 480 seconds into the match and you can see an enemy tower, attack the nearest enemy tower\./);
-  assert.match(prose, /If you can see an enemy tower and an allied minion is near you, attack the nearest enemy tower\./);
+  // the one-minion tower rule became the siege rule (runs/better-bots-2026-10-02.md, pinned below)
+  assert.match(prose, /that tower has your own minions in its range to shoot first, attack the nearest enemy tower\./);
   assert.match(prose, /Your fallback, when none of the above applies, is to push down your lane toward the enemy base\./);
   assert.doesNotMatch(prose, /below 65%|at least two allied minions|go home and wait/);
   for (const [inst, s] of Object.entries(loadHouseSchemas(HOUSE_TIER_ECO_SCHEMAS.hard, ROOT).schemas)) {
@@ -376,7 +396,7 @@ test('hard (eco): 50 % trigger, a tower with one minion, the 480-second tower ru
     assert.deepEqual([late.action_kind, late.action_target_selector], ['attack', 'nearest_tower'], label);
     const towers = s.rules.filter((r) => r.action_target_selector === 'nearest_tower');
     assert.equal(towers.length, 2, `${label}: the 480-second rule and the wave rule`);
-    assert.match(towers[1].condition, /an allied minion near/, label);
+    assert.match(towers[1].condition, /own minions in its range/, label);
     assert.doesNotMatch(towers[1].condition, /two/, label);
     assert.deepEqual(s.default_action, { kind: 'move', ability: null, target_selector: 'push_lane' }, label);
   }
@@ -389,6 +409,10 @@ test('hard (eco, vocab-2): judges fights by the tower-counting verdict, fights u
   assert.match(prose, /If an enemy tower will shoot you, fall back to your own tower\./);
   assert.match(prose, /If your side is weaker in the fight near you, fall back to your own tower\./);
   assert.doesNotMatch(prose, /has more hp than you|no allied minion near you, move back home/);
+  // runs/better-bots-2026-10-02.md: the tower only while its shots go to the wave
+  assert.match(prose, /Siege with your wave\. If you are inside an enemy tower's range and that tower has your own minions in its range to shoot first, attack the nearest enemy tower\./);
+  assert.doesNotMatch(prose, /Take the objective/);
+  assert.match(prose, /Play the Bandstand when your lane gives you nothing to do\..*Your fallback/);
   const sel = (r) => `${r.action_kind} ${r.action_target_selector}`;
   for (const [inst, s] of Object.entries(loadHouseSchemas(HOUSE_TIER_ECO_SCHEMAS.hard, ROOT).schemas)) {
     const label = `hard-eco ${inst}`;
@@ -400,6 +424,9 @@ test('hard (eco, vocab-2): judges fights by the tower-counting verdict, fights u
     assert.match(s.rules[spend + 3].condition, /enemy tower shoot/, `${label}: after the 480-second rule, out of a tower's fire`);
     assert.equal(sel(s.rules[spend + 3]), 'move own_tower', label);
     const wave = s.rules.findIndex((r) => r.action_target_selector === 'nearest_tower' && /minion/.test(r.condition));
+    assert.match(s.rules[wave].condition, /inside an enemy tower's range/, `${label}: the siege rule, inside the tower's range…`);
+    assert.match(s.rules[wave].condition, /this (bot|bearbot)'s own minions/, `${label}: …while it has this bot's own minions to shoot`);
+    assert.equal(sel(s.rules[wave]), 'attack nearest_tower', label);
     assert.match(s.rules[wave + 1].condition, /side weaker in the fight near it/, `${label}: fight under your own tower, before hunting the carrier`);
     assert.equal(sel(s.rules[wave + 1]), 'move own_tower', label);
     assert.equal(sel(s.rules[wave + 2]), 'attack highest_bounty_enemy', label);
@@ -412,12 +439,15 @@ test('easy (eco, vocab-2): holds its lane at its own tower instead of leaving at
   assert.match(prose, /If you are inside an enemy tower's range, fall back to your own tower\./);
   assert.match(prose, /Your fallback, when none of the above applies, is to hold your lane at your own tower/);
   assert.doesNotMatch(prose, /If you can see an enemy tower or the enemy nexus, move back home/);
+  // runs/better-bots-2026-10-02.md: easy spends its gold, out of every enemy's sight
+  assert.match(prose, /When you can afford the next item on your shopping list and no enemy is in sight, recall home to buy it\./);
+  assert.doesNotMatch(prose, /You never go home just to shop/);
   for (const [inst, s] of Object.entries(loadHouseSchemas(HOUSE_TIER_ECO_SCHEMAS.easy, ROOT).schemas)) {
     const label = `easy-eco ${inst}`;
     assert.equal(s.vocab, 'vocab-2', label);
     assert.deepEqual(s.rules.slice(2).map((r) => `${r.action_kind} ${r.action_target_selector}`),
-      ['move own_tower', 'attack nearest_enemy_bearbot', 'attack nearest_enemy_minion'], label);
-    assert.match(s.rules[2].condition, /inside an enemy tower's range/, label);
+      ['recall none', 'move own_tower', 'attack nearest_enemy_bearbot', 'attack nearest_enemy_minion'], label);
+    assert.match(s.rules[3].condition, /inside an enemy tower's range/, label);
     assert.deepEqual(s.default_action, { kind: 'move', ability: null, target_selector: 'own_front_tower' }, `${label}: holds at its outer tower`);
     assert.ok(!s.rules.some((r) => r.action_kind === 'ability'), `${label}: still no abilities`);
   }

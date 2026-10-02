@@ -120,7 +120,8 @@ home when no rule applied, and dealt a third of medium's structure damage. Only
 
 **The Bandstand** (the river objective, [`docs/economy-spec.md` §9.7](../../docs/economy-spec.md)).
 Medium and hard go to `bandstand.pos` by rules placed right after the low-hp pair. Easy has no
-Bandstand rule: easy stays easy.
+Bandstand rule: easy stays easy. The economy-aware hard plays the same three rules last, after its
+wave rule ("Siege with the wave" below).
 
 | tier | worksheet keys added | Bandstand rules |
 |---|---|---|
@@ -203,7 +204,7 @@ gives each tier. With no economy nothing changes, so the placement bar above doe
 
 | tier | files | shopping list (declared in the prose) | economy rules, after the low-hp pair |
 |---|---|---|---|
-| easy | `house-easy-eco.prose.md` (both sides) | Road Case → Metronome → Amp → Tour Bus → Bass Strings → Headliner → Fuzz Pedal → Feedback | none: it buys only when retreating or waiting takes it home |
+| easy | `house-easy-eco.prose.md` (both sides) | Road Case → Metronome → Amp → Tour Bus → Bass Strings → Headliner → Fuzz Pedal → Feedback | can afford the next item and no enemy in sight: recall to shop (never walks home to shop) |
 | medium | `house-eco-violet.md` / `house-eco-green.md` | each instrument's default ladder | can afford the next item, no enemy bearbot or minion in sight: with an enemy tower in sight walk home, with no enemy in sight recall to shop |
 | hard | `house-hard-eco.prose.md` (both sides) | drums Road Case → Bass Strings → Amp → Backline → Metronome → Wall of Sound → Click Track → Arpeggiator; keytar and violin their default ladders | can afford the next item and no enemy bearbot in sight: with an enemy minion or tower in sight walk home, with none recall to shop; carrying ≥ 300 gold while its side is weaker in the fight near it → walk home to spend it; attack the enemy bearbot **worth the most gold** (`highest_bounty_enemy`) instead of the lowest-hp one |
 
@@ -235,6 +236,22 @@ spliced in. Every other rule object is byte for byte.
   - **Against medium, hard is unproven:** only 4 of 18 matches were decided (hard won 3), so the
     primary line is INCONCLUSIVE.
   - **Easy holds at its tower** 99.7 % of the time and lost no bearbot. It also never shops.
+
+**Siege with the wave; easy shops** (2026-10-02,
+[`runs/better-bots-2026-10-02.md`](../../runs/better-bots-2026-10-02.md)). Each prose edit was compiled
+as above, and only the changed rules were spliced in. Every other rule object is byte for byte.
+- **Hard sieges with its wave.** "Take the objective" (a tower with one allied minion near) became
+  "Siege with your wave": inside an enemy tower's range while that tower has your own minions in range
+  to shoot first → `nearest_tower`.
+- **Hard's three Bandstand rules move to after its wave rule.** It goes to the river only when its lane
+  gives it nothing to do. First in the order, they had held hard away from the lane 20 % of the time.
+- **Easy recalls to shop** when it can afford its next item and no enemy is in sight. It still never
+  walks home to shop, never pushes, and holds at its tower.
+- **On Jev, pre-registered, 20 matches:**
+  - **Hard against medium:** 6 of 6 decided, all won by hard. Before, 4 of 18 were decided.
+  - **Easy:** spends a mean of 383 gold a bot and ends with a median of 181 unspent. Before, it spent
+    about 50 and ended with 550.
+  - **Easy against medium:** both matches were still draws.
 
 - **Medium keeps its worksheet.** It adds three keys after `hp`: `"gold": self.gold`,
   `"next": self.nextItem.cost` (null when the list is done) and `"home": self.atShop`; the rest,
@@ -276,3 +293,29 @@ sentence now comes before its recall. Its recall now fires only when the bot is 
 tower's range. The reason is that under `recall-2` the bot died channelling recall under enemy towers
 (`runs/sample-entrant-recall-order-2026-10-02.md`). `sample-entrant-eco.schemas.json` is vocab-1 and
 was compiled from the earlier prose. It is unchanged, so §6's measurement still plays what it played.
+
+## The siege sample entrant: `sample-entrant-siege.*`
+
+A vocab-2 entrant that plays to win, and a baseline an entrant can learn from
+([`runs/better-bots-2026-10-02.md`](../../runs/better-bots-2026-10-02.md)). Its rules, in order:
+- the low-hp pair at half its max hp;
+- a shopping recall with no enemy in sight;
+- after 480 s, attack any enemy tower it can see (sudden death: towers are at a third of their hp and
+  the first to fall wins);
+- step back to its own tower whenever an enemy tower will shoot it;
+- siege while that tower has its own minions to shoot first;
+- fight bearbots, then minions;
+- walk with the wave;
+- otherwise push.
+
+`sample-entrant-siege.schemas.json` is a whole compile (`compile.py --vocab vocab-2 --economy
+eco-3-late --backend ollama`). Each instrument comes from the first of six samples that passed a
+pre-registered ten-point screen: drums e4, keytar e2, violin e1.
+
+On Jev it decided all 12 of its matches:
+- against medium (the placement bar), 5–1;
+- against easy, 6–0;
+- it died 0.5 times a match against easy (the PR #82 vocab-2 entrant died 19.8 times);
+- it dealt about 900 structure damage a match (that entrant dealt 195).
+
+It isn't the economy measurement's entrant, which stays `sample-entrant-eco.*`.
