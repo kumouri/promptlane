@@ -5,15 +5,14 @@ Keytar: Metronome, then Amp, then Road Case.
 Violin: Amp, then Bass Strings, then Road Case.
 Drums: Road Case, then Bass Strings, then Metronome.
 
-When my hp drops below a third of my max, I recall home to heal. Nothing matters more than that.
+If I can see an enemy tower and none of my minions are near me, I back off home instead of
+tanking the tower alone. After that: when my hp drops below a third of my max and I'm not inside an
+enemy tower's range, I recall home to heal.
 
 When I can afford my next item and no enemy is in sight, I head home to shop.
 
 If I'm carrying more than 300 gold and an enemy bearbot is in sight, I don't start the fight: I go
 home and spend it.
-
-If I can see an enemy tower and none of my minions are near me, I back off home instead of
-tanking the tower alone.
 
 Keytar: when chord is ready and an enemy bearbot is in sight, I play chord on the enemy with the
 lowest hp.

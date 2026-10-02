@@ -270,3 +270,9 @@ same way (`sample-entrant*.schemas.json`, reports in `runs/sample-entrant*-compi
 `sample-entrant-eco.prose.md` is the same entrant plus the §4.5 sentences: a shopping list per
 instrument, go home to shop, don't fight while carrying more than 300, hunt the enemy worth the
 most, push while one of theirs is dead (condition B1).
+
+On 2026-10-02 `sample-entrant-eco.prose.md` changed in two ways. Its "back off from the tower"
+sentence now comes before its recall. Its recall now fires only when the bot is not inside an enemy
+tower's range. The reason is that under `recall-2` the bot died channelling recall under enemy towers
+(`runs/sample-entrant-recall-order-2026-10-02.md`). `sample-entrant-eco.schemas.json` is vocab-1 and
+was compiled from the earlier prose. It is unchanged, so §6's measurement still plays what it played.
