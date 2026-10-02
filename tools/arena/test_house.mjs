@@ -398,6 +398,7 @@ test('hard (eco): 50 % trigger, the siege rule, the 480-second tower rule, and a
   assert.match(prose, /If it is more than 480 seconds into the match and you can see an enemy tower, attack the nearest enemy tower\./);
   // the one-minion tower rule became the siege rule (runs/better-bots-2026-10-02.md, pinned below)
   assert.match(prose, /that tower has your own minions in its range to shoot first, attack the nearest enemy tower\./);
+  assert.match(prose, /Take a weakened tower\. If an enemy tower in sight has less than 150 hp, attack the nearest enemy tower\./);
   assert.match(prose, /Your fallback, when none of the above applies, is to push down your lane toward the enemy base\./);
   assert.doesNotMatch(prose, /below 65%|at least two allied minions|go home and wait/);
   for (const [inst, s] of Object.entries(loadHouseSchemas(HOUSE_TIER_ECO_SCHEMAS.hard, ROOT).schemas)) {
@@ -408,9 +409,16 @@ test('hard (eco): 50 % trigger, the siege rule, the 480-second tower rule, and a
     assert.match(late.condition, /more than 480 seconds into the match/, `${label}: the 480-second rule follows the spend-gold and tower-diver rules`);
     assert.deepEqual([late.action_kind, late.action_target_selector], ['attack', 'nearest_tower'], label);
     const towers = s.rules.filter((r) => r.action_target_selector === 'nearest_tower');
-    assert.equal(towers.length, 2, `${label}: the 480-second rule and the wave rule`);
-    assert.match(towers[1].condition, /own minions in its range/, label);
-    assert.doesNotMatch(towers[1].condition, /two/, label);
+    assert.equal(towers.length, 3, `${label}: the weakened-tower rule, the 480-second rule and the wave rule`);
+    // runs/hard-above-medium-2026-10-02.md: a tower under 150 hp is finished, right after the shopping
+    // recall and above every other tower rule (and above the "tower will shoot me" fallback)
+    assert.equal(s.rules.indexOf(towers[0]), 4, `${label}: right after the low-hp pair and the shopping pair`);
+    assert.equal(s.rules[3].action_kind, 'recall', `${label}: the shopping recall comes just before it`);
+    assert.match(towers[0].condition, /enemy tower in sight.*less than 150 hp/, label);
+    assert.equal(towers[0].action_kind, 'attack', label);
+    assert.equal(towers[1], late, label);
+    assert.match(towers[2].condition, /own minions in its range/, label);
+    assert.doesNotMatch(towers[2].condition, /two/, label);
     assert.deepEqual(s.default_action, { kind: 'move', ability: null, target_selector: 'push_lane' }, label);
   }
 });

@@ -17,6 +17,9 @@ Go shopping, out of reach. If you can afford the next item on your shopping list
 is in sight and an enemy minion or enemy tower is in sight, move back home. If you can afford the
 next item on your shopping list and no enemy is in sight, recall home to buy it.
 
+Take a weakened tower. If an enemy tower in sight has less than 150 hp, attack the nearest enemy
+tower.
+
 Never carry a fortune into a fight you can lose. If you carry at least 300 gold and your side is
 weaker in the fight near you, move back home to spend it.
 

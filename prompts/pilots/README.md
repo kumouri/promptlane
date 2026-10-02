@@ -206,7 +206,7 @@ gives each tier. With no economy nothing changes, so the placement bar above doe
 |---|---|---|---|
 | easy | `house-easy-eco.prose.md` (both sides) | Road Case → Metronome → Amp → Tour Bus → Bass Strings → Headliner → Fuzz Pedal → Feedback | can afford the next item and no enemy in sight: recall to shop (never walks home to shop) |
 | medium | `house-medium-eco.prose.md` (both sides; until 2026-10-02 the worksheet pair `house-eco-violet.md` / `house-eco-green.md`) | each instrument's default ladder | can afford the next item and no enemy bearbot in sight: with an enemy minion or tower in sight walk home, with none recall to shop |
-| hard | `house-hard-eco.prose.md` (both sides) | drums Road Case → Bass Strings → Amp → Backline → Metronome → Wall of Sound → Click Track → Arpeggiator; keytar and violin their default ladders | can afford the next item and no enemy bearbot in sight: with an enemy minion or tower in sight walk home, with none recall to shop; carrying ≥ 300 gold while its side is weaker in the fight near it → walk home to spend it; attack the enemy bearbot **worth the most gold** (`highest_bounty_enemy`) instead of the lowest-hp one |
+| hard | `house-hard-eco.prose.md` (both sides) | drums Road Case → Bass Strings → Amp → Backline → Metronome → Wall of Sound → Click Track → Arpeggiator; keytar and violin their default ladders | can afford the next item and no enemy bearbot in sight: with an enemy minion or tower in sight walk home, with none recall to shop; carrying ≥ 300 gold while its side is weaker in the fight near it → walk home to spend it; attack the enemy bearbot **worth the most gold** (`highest_bounty_enemy`) instead of the lowest-hp one; an enemy tower in sight under 150 hp → attack the nearest enemy tower, right after the shopping pair |
 
 **The shopping lists are full late-game ladders** (2026-10-02,
 [`runs/vocab-house-tiers-2026-10-02.md`](../../runs/vocab-house-tiers-2026-10-02.md)): three tier-1 items, a
@@ -317,6 +317,14 @@ and every sentence maps to its rule. On Jev (pre-registered, 8 matches):
 - medium beat the plain siege entrant 4–0 and easy 2–0;
 - **it also beat hard 2–0**, so hard no longer sits above the bar.
 - Whether to keep it, revert to the wait-at-tower medium, or retune hard is Ceryce's call (§4.4).
+
+**Hard takes a weakened tower** (2026-10-02, `runs/hard-above-medium-2026-10-02.md`). Ceryce kept
+the push-lane medium and asked for hard above it. Hard-eco gained one sentence, right after its
+shopping pair: "If an enemy tower in sight has less than 150 hp, attack the nearest enemy tower."
+It turns chip damage into a fallen tower: before 8:00 on the lower-hp map (`pvp-1-hp400`), and in
+sudden death on pvp-1, where every tower drops to a third. The rule was compiled from a shortened
+copy of the prose and spliced in. Every other rule object is byte for byte the old one, because the
+whole prose overruns the translator's 1,800-token reply. The Jev result is in the run file.
 
 ## Sample entrants for the economy measurement: `sample-entrant*.prose.md`
 

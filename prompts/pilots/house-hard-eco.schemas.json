@@ -40,6 +40,15 @@
     "action_target_selector": "none"
    },
    {
+    "id": "attack_weak_tower",
+    "condition": "is an enemy tower in sight AND does it have less than 150 hp?",
+    "criteria_true": "enemy tower visible with hp < 150",
+    "criteria_false": "no enemy tower visible OR enemy tower has hp >= 150",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_tower"
+   },
+   {
     "id": "spend_gold_weak_fight",
     "condition": "does this bot carry at least 300 gold AND is its side weaker in the fight near it?",
     "criteria_true": "gold >= 300 and side is weaker in nearby fight",
@@ -228,6 +237,15 @@
     "action_target_selector": "none"
    },
    {
+    "id": "attack_weak_tower",
+    "condition": "is an enemy tower in sight AND does it have less than 150 hp?",
+    "criteria_true": "an enemy tower is visible with hp < 150",
+    "criteria_false": "no weak enemy tower is visible",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_tower"
+   },
+   {
     "id": "spend_gold_weak_fight",
     "condition": "does this bot carry at least 300 gold AND is its side weaker in the fight near it?",
     "criteria_true": "gold >= 300 and side is weaker in nearby fight",
@@ -414,6 +432,15 @@
     "action_kind": "recall",
     "action_ability": null,
     "action_target_selector": "home"
+   },
+   {
+    "id": "weak_enemy_tower_in_sight",
+    "condition": "is an enemy tower in sight with less than 150 hp?",
+    "criteria_true": "at least one visible enemy tower has hp < 150",
+    "criteria_false": "no visible enemy tower has hp < 150",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "nearest_tower"
    },
    {
     "id": "spend_gold_weak_fight",
