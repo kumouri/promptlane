@@ -38,7 +38,7 @@ stream), [`entrant-compile-preview.md`](entrant-compile-preview.md) and
    window, bots are 11 px, economy labels are 9 px gold monospace, and operator buttons compete
    with the match. On a phone in portrait the map is about 320×180 px (F6, F7).
 
-**Recommended phase 1 before the Jam (Fri 10-16):** a truthful scoreboard, a match-end card that
+**Recommended phase 1 before the Jam** (its date is unsettled: [the Jam calendar](arena-runbook.md#the-jam-calendar)): a truthful scoreboard, a match-end card that
 says why, a decision card that replaces the raw JSON with the fired rule in words, pause, palette
 and type fixes, and a `?cast=1` presentation preset. All of it is viewer- and template-only, with
 no sim or replay-verification change (§6). Everything else is ranked in §5.
@@ -358,7 +358,7 @@ should own"). Its three ship-before-the-event picks match §6's core almost exac
 3. **"Projector layout" as given.** GPT assumed a room. The repo's standing viewing model says
    there isn't one (F13). I keep the layout, but as a **presentation preset** (`?cast=1`) that
    also serves screen-share and stream, and its phase-1 slice is CSS-only. Whether it gets more than
-   that before 10-16 depends on Q1.
+   that before the Jam depends on Q1.
 4. **"Gold/items only on the selected unit."** Mostly agreed: gold and items move to cards. I'd keep
    **level** as a small pip on every bot, because level decides fights under eco-3 and a spectator
    should see a level-4 bot diving a level-2 without selecting anything.
@@ -555,7 +555,7 @@ dramatic if the audience can see each boss is *harder in a specific way*. The ev
 already produces exactly that information. **Depends on:** the evolved generations' schemas
 (`tools/evolve/`, `docs/prompt-evolution-spec.md`), each boss's fire-share stats (from its campaign
 logs, $0), and a way to run a sequence of matches: either a new bracket kind, or the organizer
-queueing bouts by hand while a `/gauntlet/<id>` page reads the ledger. Not before 10-16 unless
+queueing bouts by hand while a `/gauntlet/<id>` page reads the ledger. Not before the Jam unless
 the finale itself is happening at this Jam (Q3).
 
 ### I13. Live-state honesty — S
@@ -569,7 +569,7 @@ button spoils the show. **Depends on:** nothing new.
 
 ---
 
-## 6. Phase 1 — before the Jam (Fri 10-16), without risking it
+## 6. Phase 1 — before the Jam, without risking it
 
 **Guardrails.**
 
@@ -578,9 +578,9 @@ button spoils the show. **Depends on:** nothing new.
 - Nothing that `verifyReplay`, the runner or the ledger reads.
 - Each item is its own small PR with `npm run test:arena` green and a before/after screenshot set
   re-taken with this document's method.
-- Everything lands by **Tue 10-13**, so there is rehearsal time on the real stack. Nothing lands
-  Thu 10-15 or later.
-- The HUD follows the Sun 10-04 go/no-go: if the economy, the Bandstand or the Final Chorus is off
+- Everything lands **at least three days before the Jam**, so there is rehearsal time on the real
+  stack. Nothing lands the day before the Jam or later.
+- The HUD follows the go/no-go gate: if the economy, the Bandstand or the Final Chorus is off
   for the Jam, its HUD element stays dormant (it already keys off the log's ruleset).
 
 **Phase 1:**
@@ -600,7 +600,7 @@ That is about 3–4 agent-days in total, made of independent PRs. If only three 
 and 3**: who's winning, why it ended, and why the bot did that. GPT's three picks were the same
 three.
 
-**Stretch, only if phase 1 is in by Mon 10-12:** I4 as a server-rendered SVG on the match page
+**Stretch, only if phase 1 is in four days before the Jam:** I4 as a server-rendered SVG on the match page
 only (no viewer change), using the validated chart tokens.
 
 **After the Jam:** I3's field glyphs and event captions, I4 in the viewer, I5 Pilot Inspector,
@@ -619,8 +619,9 @@ the boss rush is part of this Jam.
   `?cast=1` as a nice-to-have for a possible shared projector, not the main event.
 - **Q2 dates:** the Jam is **Fri 2026-10-16**; the cutoff is midnight Central going into the 16th
   (her ruling 2026-09-30, entrants README; `teams.mjs` `submissions.cutoff`). The home page's
-  "Fri 2 Oct / Thu 1 Oct" was stale copy, fixed in #68.
-- **Q3 boss rush:** "Boss rush at this jam, yes." I12 needs a minimal version for 10-16, not after.
+  "Fri 2 Oct / Thu 1 Oct" was stale copy, fixed in #68. *(As of 2026-10-02 03:05 CT the Jam's
+  dates are unsettled again: [the Jam calendar](arena-runbook.md#the-jam-calendar).)*
+- **Q3 boss rush:** "Boss rush at this jam, yes." I12 needs a minimal version for the Jam, not after.
 - **Q4 probabilities** (18:45 CT): "Probabilities yes" — spectators see the yes-probabilities, not
   only the rule in words.
 - **Q5 score wording** (18:45 CT): "towers taken" — the scoreboard counts towers taken, not towers

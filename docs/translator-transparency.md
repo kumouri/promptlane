@@ -189,7 +189,7 @@ doesn't exist?**
 | **Main risk** | The core lesson (disambiguate your grammar) stays optional and may not land for most entrants. | Adds a required step and deadline to event logistics; needs a rule that the revision may only tighten wording, not rewrite from scratch, or it stops being the same exercise. | Doesn't teach the lesson at all unless entrants proactively investigate; scoring ambiguity risks controversy. | Doesn't test Jev at jam stakes/scale — the technical question from the earlier memo (`docs/jev-decision-model-research.md` §6) goes unanswered again. |
 
 **Recommendation: B**, with **D as the fallback** if there isn't organizer bandwidth to build the
-two-phase submission flow before 2026-10-02. B is the only option whose core mechanic *is* the
+two-phase submission flow before the Jam. B is the only option whose core mechanic *is* the
 transferable skill Ceryce named — using Jev's rigidity as the thing that makes an ambiguous sentence's
 consequences visible and forces the fix, rather than as a cosmetic backend swap. It keeps the win
 condition simple (one final prose file per entrant, same downstream judging infra), keeps the entrant

@@ -63,8 +63,8 @@ The entrants poller shells out to `gh api` for `kumouri/jamobair-entrants` (`mai
 |---|---|
 | `tournament.backend` | which `backends` entry ranked matches and tests use — **the per-tournament model setting**; it is recorded in every match log (`backend.model`) and every `finished` ledger row. `jev-schema` (a `kind: "jev-schema-http"` entry) = both sides on Jev, §1c; `qwen9b` = the old text-model ladder |
 | `tournament.map` | the map variant every match plays (`pvp-1`); checked at startup. Unset = the runner's `DEFAULT_MAP`. Every match also plays the runner's `DEFAULT_RESOLUTION` (`simultaneous-1`, `src/resolution.ts`; no config key), recorded in its log. A Jev match's targets resolve under `DEFAULT_TARGETING` (`own-lane-1`, `tools/jev/target_resolve.py`; no config key), also recorded |
-| `tournament.economy` | the economy ruleset every match plays: `null`/unset (none) or a name such as `"eco-2"` (`src/economy.ts`, `docs/economy-spec.md`): respawn, gold, levels and items. Off until Ceryce's Sun 10-04 go/no-go; checked at startup. A side buys the shopping list (`build`) its compiled schema carries, else its instrument's default. Each log records the ruleset, so changing it never alters a match already played |
-| `tournament.objective` | the river objective every match plays (`river-1` = the Bandstand, `river-2` = its redesign, `none` = off; docs/economy-spec.md §9); checked at startup and recorded in every log. Unset = the runner's `DEFAULT_OBJECTIVE`, which is none until the Sun 10-04 gate |
+| `tournament.economy` | the economy ruleset every match plays: `null`/unset (none) or a name such as `"eco-2"` (`src/economy.ts`, `docs/economy-spec.md`): respawn, gold, levels and items. Off until Ceryce's go/no-go gate (§6, *The Jam calendar*); checked at startup. A side buys the shopping list (`build`) its compiled schema carries, else its instrument's default. Each log records the ruleset, so changing it never alters a match already played |
+| `tournament.objective` | the river objective every match plays (`river-1` = the Bandstand, `river-2` = its redesign, `none` = off; docs/economy-spec.md §9); checked at startup and recorded in every log. Unset = the runner's `DEFAULT_OBJECTIVE`, which is none until the go/no-go gate |
 | `tournament.recall` | the recall rule every match plays (`recall-2` = a 4 s channel then a teleport home, `none` = the specimen's 3× run; docs/economy-spec.md §9.10); checked at startup and recorded in every log. Unset = the runner's `DEFAULT_RECALL`, the specimen's recall |
 | `tournament.finale` | the finale every match plays (`final-chorus-1` = the Final Chorus: a tower lead at 8:00 wins, level towers start a ×3 sudden death the first tower wins; `none` = play to 10:00; docs/fewer-draws-spec.md §4.1); checked at startup and recorded in every log. Unset = the runner's `DEFAULT_FINALE`, none. The match list shows why each match ended |
 | `tournament.cadenceSec` / `maxSimSec` | ranked matches: cadence 2, full 600 s |
@@ -76,7 +76,7 @@ The entrants poller shells out to `gh api` for `kumouri/jamobair-entrants` (`mai
 | `house` | `{handle, tier}` (the example: `medium`) or `{handle, files}` — ordered candidates; a candidate is a `{violet, green}` pair (one prompt per side) or one file; the first whose files all exist wins: the `house-*.md` pair, then `house.md`, then `drums.md`. `schemas` (default `null` = the tier's `prompts/pilots/house-<tier>.schemas.json`) is what the house plays on a Jev ladder (§4). `backend` (default `null`, text-model ladders only) names a `kind: "jev-http"` entry to have Jev play the house side — §6, *5.3 Jam day with the Jev house bot* |
 | `organizerEmail` | the one organizer (Q19); refused if left as `CHANGE-ME` in Access mode; `ARENA_ORGANIZER_EMAIL` overrides |
 | `compile` | the `/compile` panel (§1b) **and the Jev ladder's own compiles** (§1c): `backend` (`ollama`/`openrouter`), `model`, per-IP and global limits (panel only), `ipHeader`, `practiceBackend` |
-| `submissions` | web teams and submissions (§1d): `enabled`, `cutoff` (ISO instant; default midnight Central ending Thu 15 Oct), `maxPromptBytes`, per-person and global rate limits. Absent = those defaults. Accepted submissions are committed to the `entrants` repo |
+| `submissions` | web teams and submissions (§1d): `enabled`, `cutoff` (ISO instant; the default is the entry cutoff as currently set, §1d, and moves with the Jam: §6, *The Jam calendar*), `maxPromptBytes`, per-person and global rate limits. Absent = those defaults. Accepted submissions are committed to the `entrants` repo |
 
 Changing the tournament block appends a new `tournament` row; nothing already played is altered.
 
@@ -303,7 +303,7 @@ and the organizer.
 | Only members edit | a team's members are emails in the ledger (`team`, `team-member` rows). A self-claimed handle is never enough, so a handle a GitHub entry already names cannot be taken on the web |
 | Team shape | the creator is the lead; one learner joins with the join code (10 characters, case-insensitive). A second learner (a team of three) and "Ceryce as lead" are the organizer's to assign, as the entrants README rules |
 | Validation | the entrants repo's own `tools/validate_entry.py`, run as itself on the exact bytes to be committed. Below: *one validator* |
-| Cutoff | `submissions.cutoff`, default `2026-10-16T05:00:00Z`: **midnight Central at the end of Thursday 15 October** (the entrants repo's ruling of 2026-09-30 05:40 CT, which replaced 17:00 CT). From that instant, create, join and submit answer 403. Pages stay readable |
+| Cutoff | `submissions.cutoff`, the entry cutoff. Its default, `2026-10-16T05:00:00Z` (midnight Central going into Fri 16 Oct, the entrants repo's ruling of 2026-09-30 05:40 CT, which replaced 17:00 CT), was set for the 2026-09-30 plan and moves with the Jam (§6, *The Jam calendar*). From that instant, create, join and submit answer 403. Pages stay readable |
 | Size | `maxPromptBytes` 32 KB, a web-form limit only. The validator has no cap, so a bigger entry can still go in by pull request |
 | Rate | per Access email: `perUserPerMinute` 2 and `perUserPerDay` 30 submissions; `globalPerDay` 300; joins and creates 5 a minute, 20 a day (so join codes can't be guessed). In memory, like the compile panel's limits; a restart resets them |
 | Cross-site posts | the team forms refuse a request whose `Origin` is not this host. **The tunnel must not rewrite `Host`** (cloudflared's default; no `httpHostHeader` on the `elysium.` ingress) |
@@ -573,6 +573,37 @@ The same rules can instead be played by Jev (shadow only unless Ceryce flips it)
 
 ## 6. Jam day
 
+### The Jam calendar
+
+**Unsettled as of 2026-10-02 03:05 CT.** The date depends on InRhythm's answer on work time.
+Ceryce fills in the dates in this table once she sets them. This is the one place the repo gives
+Jam dates. Every other doc names the milestone and points here. The dates written on 2026-09-30 for
+a Fri 10-16 Jam no longer hold.
+
+The milestones and their order stand:
+
+| Milestone | What it means | Date |
+|---|---|---|
+| Rulings for entrant-facing work | the vocabulary and late-game decisions are ruled, leaving a day to build and a day to review | not set |
+| **The go/no-go gate** (end of day) | economy and objective ship or move to after the Jam (`docs/economy-spec.md` §7, Q10, Q17) | not set |
+| **Entrant-facing changes land** | entrants README, template, compile preview, `PROMPTLANE_REF` bump, announcement | not set |
+| **Sign-ups close** | | not set |
+| **The numbers freeze** | rulesets final; bug fixes only after | not set |
+| **The entry cutoff** (midnight Central going into the Jam) | web submissions close (§1d); the training blackout starts | not set |
+| The night before the Jam | bracket rounds 1–2 pre-run and held (§5.1) | not set |
+| **The Jam** | | not set |
+
+**Current settings that move with the Jam.** These are Ceryce's explicit rulings, not planning
+dates. They stay as set until she changes them:
+
+- `submissions.cutoff`, default `2026-10-16T05:00:00Z` (`tools/arena/teams.mjs`,
+  `tools/arena/config.example.json`). The entrants repo's ruling of 2026-09-30 05:40 CT.
+- The training blackout in `tools/evolve/budget.mjs`, `2026-10-16T00:00:00-05:00` to
+  `2026-10-17T00:00:00-05:00`. Ceryce, 2026-10-01 18:44 CT: *"Training cutoff is
+  20261016T00:00.00-5"* (`docs/prompt-evolution-spec.md` §7).
+- The site copy that shows those dates: `tools/arena/pages/home.mjs` (the Jam on Fri 16 Oct, #68)
+  and `tools/arena/pages/teams.mjs` (the cutoff sentence).
+
 ### 5.1 The sequence (rulings Q6/Q8/Q9)
 
 Everything below is a button on `/bracket` or `/admin` as the organizer; every press is a ledger
@@ -580,19 +611,19 @@ row, so a wrong press is undone by the next one, never by editing history.
 
 | When | Do | What happens |
 |---|---|---|
-| **After the cutoff, Fri 10-16 00:00 CT (midnight Central)** — web submissions close by themselves at that instant (§1d) | `/admin` → *Sync now* (so the last merges are in), wait for the placements to finish (`/matches` shows an empty queue), then `/admin` → *Jam-day bracket* → **Create bracket from the ladder** (id `jam`, backend `qwen9b`, cadence **2**, 600 s, pre-run rounds **2**) | A `bracket` row pins every entrant's handle, merged hash and Elo in ladder order; byes go to the top seeds. Nothing runs yet. |
-| **Thu night** | `/bracket` → **Run round 1**. When its matches are finished (`done` on the page; ~25 min each, one at a time), **Run round 2** | Round-1/2 matches queue at `bracket` priority and are verified before they count. Both rounds are **held**: only you can see results, match pages, logs or streams; spectators see "held until jam day" and no pairings for later rounds. |
-| **Fri, before announcing** | `npm run build` if `src/` changed since the last build; `/matches` should be idle; open `/bracket` yourself in a second browser without the organizer identity (or a phone) to confirm what a remote spectator will actually see, before anyone is watching | — |
-| **Fri, opening** | `/bracket` → **Reveal results** on round 1, then on round 2 | Results, pairings and replays appear for everyone. |
-| **Fri, replays** | On each revealed slot press **Replay 4×** (`/play/?replay=/logs/<id>.json&speed=4`; the speed control in the top bar also has 1× and 16×) | A 10-minute match plays in 2½; the page re-checks every checkpoint and says `REPLAY DIVERGED` rather than lie. |
-| **Fri, semis** | `/bracket` → **Run semi-finals**. Press **Watch live** on the slot (or open `/matches`) — `/play/?live=<id>` | The page shows `QUEUED #n` until the match starts, then `LIVE · 2 s cadence`; the clock runs at the model's pace (~2.5× slower than real time on the 9b model). Any number of browsers can watch; a late joiner catches up in seconds. |
-| **Fri, final** | **Run final**, same | The champion line appears on `/bracket` when the final is verified. |
+| **After the entry cutoff (midnight Central going into the Jam; *The Jam calendar*)** — web submissions close by themselves at that instant (§1d) | `/admin` → *Sync now* (so the last merges are in), wait for the placements to finish (`/matches` shows an empty queue), then `/admin` → *Jam-day bracket* → **Create bracket from the ladder** (id `jam`, backend `qwen9b`, cadence **2**, 600 s, pre-run rounds **2**) | A `bracket` row pins every entrant's handle, merged hash and Elo in ladder order; byes go to the top seeds. Nothing runs yet. |
+| **The night before the Jam** | `/bracket` → **Run round 1**. When its matches are finished (`done` on the page; ~25 min each, one at a time), **Run round 2** | Round-1/2 matches queue at `bracket` priority and are verified before they count. Both rounds are **held**: only you can see results, match pages, logs or streams; spectators see "held until jam day" and no pairings for later rounds. |
+| **Jam day, before announcing** | `npm run build` if `src/` changed since the last build; `/matches` should be idle; open `/bracket` yourself in a second browser without the organizer identity (or a phone) to confirm what a remote spectator will actually see, before anyone is watching | — |
+| **Jam day, opening** | `/bracket` → **Reveal results** on round 1, then on round 2 | Results, pairings and replays appear for everyone. |
+| **Jam day, replays** | On each revealed slot press **Replay 4×** (`/play/?replay=/logs/<id>.json&speed=4`; the speed control in the top bar also has 1× and 16×) | A 10-minute match plays in 2½; the page re-checks every checkpoint and says `REPLAY DIVERGED` rather than lie. |
+| **Jam day, semis** | `/bracket` → **Run semi-finals**. Press **Watch live** on the slot (or open `/matches`) — `/play/?live=<id>` | The page shows `QUEUED #n` until the match starts, then `LIVE · 2 s cadence`; the clock runs at the model's pace (~2.5× slower than real time on the 9b model). Any number of browsers can watch; a late joiner catches up in seconds. |
+| **Jam day, final** | **Run final**, same | The champion line appears on `/bracket` when the final is verified. |
 | A full draw | nothing to press | deaths → tower hp → errors → higher seed decides (Q7); the slot says which. |
 | A match you do not trust | `/admin` → *Void* it, then the slot's **Re-run (new seed)**; or **Rule** the slot with a reason | Void, re-run and ruling are rows; the bracket re-derives. A re-run is a new match id on a new seed. |
 | The model server died mid-match | restart `model_server.py`; the runner holds through call errors and the log still verifies; if the result is silly, void + re-run | — |
-| **After** | stop the arena, move `runs/arena/` aside (`runs/jam-2026-10-02/`) — the ledger and logs are the record | The next start is a clean ladder (§5.2 *Reset*). |
+| **After** | stop the arena, move `runs/arena/` aside (`runs/jam-<the Jam's date>/`) — the ledger and logs are the record | The next start is a clean ladder (§5.2 *Reset*). |
 
-Rehearse this once on the mock before Thursday: `npm run arena -- --dev-user you@x --backend mock
+Rehearse this once on the mock before the bracket pre-run: `npm run arena -- --dev-user you@x --backend mock
 --entrants-dir <a tree with two or three entrants>` and click through it; a mock match takes
 seconds.
 
