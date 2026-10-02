@@ -604,7 +604,42 @@ before the priority guard:
 The prompt is unchanged, and vocab-1 is unchanged. The evidence and the free recompiles are in
 `runs/vocab2-negation-polarity-2026-10-02.md`.
 
-### 8.7 The siege gets its own summary line
+### 8.7 A rule never asks which bearbot this is, and an unfinished guard is retried
+
+**Identity rules.** "Violin: Amp, then Bass Strings, then Road Case." sometimes compiled with its
+label as a rule of its own: "is this bot's instrument 'Violin'? → hold", as rule 1. The facts list
+states this bearbot's instrument and team, and neither changes during a match. So the question has
+one answer all match, and the violin would hold on every decision. Under `vocab-2`,
+`translator.enforce_identity_rules` runs after the shopping-list guard and before the
+negation guard (§8.6):
+
+- A rule whose question asks about **nothing but** this bearbot's own instrument or team is rejected,
+  wherever it is in the tree. "Is an enemy violin in sight?", "is this bot's side stronger in the
+  fight near it?" and "is this bot's instrument the violin and can it afford an Amp?" all ask
+  something else as well, and are left alone.
+- The retry quotes the prose line the rule came from, never the question. If the line is a shopping
+  list, the retry says its items go in `build`.
+- On the last attempt the rule is dropped, with an `identity:` note the entrant sees under "Rules
+  about which bearbot this is — what was removed", so the instrument still compiles.
+
+**An unfinished guard.** The translator often writes a node with a condition and both a `then` and
+an `else` branch object, but no `"type"` and no action ("guard_spend_gold"). As a plain rule it fails
+`invalid action kind None`. Develop's retry then asks it to "finish the guard shape", which it already
+has, and one drums compile failed all three replies that way. Completing the type is not the fix. A
+guard sends every decision into one of its two branches, so no rule after it is ever checked. The
+completed guards that shipped in a trial cut off recall and every fight. Instead, under `vocab-2`,
+`translator.enforce_finished_guards` reads the raw reply before it is parsed:
+
+- Such a node, anywhere in the tree, is rejected. The retry asks for plain rules, each with its own
+  action, in the prose's order. It leaves out the generic "finish the guard shape" line.
+- On the last attempt the node is dropped, with its branches, with an `unfinished guard:` note the
+  entrant sees under "Unfinished guards — what was removed". The rest of the schema compiles.
+- A node with only one branch, a type of its own, or an action kind goes on to be parsed as before.
+
+The prompt is unchanged, and vocab-1 is unchanged. The evidence and the free recompiles are in
+`runs/vocab2-identity-rules-2026-10-02.md`.
+
+### 8.8 The siege gets its own summary line
 
 "Siege with your wave" asks a two-part question: "is this bot inside an enemy tower's range, and does
 that tower have this bot's own minions in its range?" A1 already stated each tower's half of it ("…

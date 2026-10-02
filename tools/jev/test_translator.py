@@ -1085,5 +1085,264 @@ class NegatedClauseKeepsItsNoTests(unittest.TestCase):
         self.assertEqual(T._polarities("shop_no_enemy", after=False), {"enemy": {True}})
 
 
+
+IDENTITY = json.loads(open(os.path.join(os.path.dirname(__file__), "testdata", "identity_rules.json"), encoding="utf-8").read())
+VIOLIN_LINE = "Our shopping lists, in order: Violin: Amp, then Bass Strings, then Road Case."
+
+
+def _identity_reply(index: int) -> dict:
+    """A saved schema of `identity_rules.json` as the translator reply it was parsed from."""
+    saved = IDENTITY["schemas"][index]["schema"]
+    rules = [{"id": r["id"], "condition": r["condition"], "criteria": {"true": r["criteria_true"], "false": r["criteria_false"]},
+              "action": {"kind": r["action_kind"], "ability": r["action_ability"], "target_selector": r["action_target_selector"]}}
+             for r in saved["rules"]]
+    reply = {"rules": rules, "default_action": saved["default_action"]}
+    if saved.get("build") is not None:
+        reply["build"] = saved["build"]
+    return reply
+
+
+def _identity(index: int) -> tuple[T.TranslatedSchema, str]:
+    case = IDENTITY["schemas"][index]
+    schema = T.parse_schema(_identity_reply(index), "pilot.md", case["instrument"], "raw", "vocab-2", economy="eco-3-late")
+    return schema, T.scope_to_instrument(IDENTITY["prose"], case["instrument"]).text
+
+
+def _rule_on(condition: str, rid: str = "r1", vocab: str = "vocab-2") -> T.TranslatedSchema:
+    rules = [{"id": rid, "condition": condition, "criteria": {"true": "yes", "false": "no"}, "action": {"kind": "hold", "ability": None, "target_selector": None}},
+             {"id": "fight", "condition": "is an enemy bearbot in sight?", "action": {"kind": "attack", "ability": None, "target_selector": "nearest_enemy"}}]
+    return T.parse_schema({"rules": rules, "default_action": {"kind": "move", "ability": None, "target_selector": "push_lane"}}, "p.md", "violin", "raw", vocab)
+
+
+class IdentityRuleTests(unittest.TestCase):
+    """vocab-2: "is this bot's instrument 'Violin'? -> hold" is never a rule (#87's s1, s4 and s12 violin compiles,
+    runs/vocab2-identity-rules-2026-10-02.md)."""
+
+    def test_the_identity_rules_are_rejected_and_the_line_quoted(self):
+        for i, case in enumerate(IDENTITY["schemas"]):
+            if not case["rejects"]:
+                continue
+            schema, prose = _identity(i)
+            with self.subTest(case["sample"] + " " + case["instrument"]):
+                with self.assertRaises(T.SchemaValidationError) as err:
+                    T.enforce_identity_rules(schema, prose)
+                msg = str(err.exception)
+                self.assertTrue(msg.startswith(f"rule {case['rejects']} asks only about this bearbot's own instrument"), msg)
+                self.assertIn(VIOLIN_LINE, msg)
+                self.assertIn('top-level "build" list', msg)
+                # never the wrong question: #87 found the 9B copies a quoted question back
+                wrong = next(r.condition for r in schema.rules if r.id == case["rejects"])
+                self.assertNotIn(wrong, msg)
+                self.assertNotIn("'Violin'?", msg)
+
+    def test_on_the_last_attempt_the_rule_is_dropped_with_a_note(self):
+        for i, case in enumerate(IDENTITY["schemas"]):
+            if not case["rejects"]:
+                continue
+            schema, prose = _identity(i)
+            with self.subTest(case["sample"] + " " + case["instrument"]):
+                fixed = T.enforce_identity_rules(schema, prose, drop=True)
+                self.assertEqual([r.id for r in fixed.rules], [r.id for r in schema.rules if r.id != case["rejects"]])
+                notes = fixed.validation_notes[len(schema.validation_notes):]
+                self.assertEqual(len(notes), 1)
+                self.assertTrue(notes[0].startswith(f"identity: removed rule {case['rejects']} "), notes[0])
+                self.assertIn(VIOLIN_LINE, notes[0])
+                self.assertEqual(fixed.build, schema.build)
+                self.assertEqual(fixed.root.default, schema.root.default)
+
+    def test_every_other_compile_is_returned_untouched(self):
+        for i, case in enumerate(IDENTITY["schemas"]):
+            if case["rejects"]:
+                continue
+            schema, prose = _identity(i)
+            with self.subTest(case["sample"] + " " + case["instrument"]):
+                self.assertIs(T.enforce_identity_rules(schema, prose), schema)
+                self.assertIs(T.enforce_identity_rules(schema, prose, drop=True), schema)
+
+    def test_questions_about_identity_alone(self):
+        for condition, what in (("is this bot's instrument 'Violin'?", "instrument"), ("is this bot the drums?", "instrument"),
+                                ("what instrument does this bot play?", "instrument"), ("is this bearbot on the violet team?", "team"),
+                                ("is this bot a violin on the green team?", "instrument and team")):
+            self.assertEqual(T._identity_only(condition), what, condition)
+
+    def test_a_question_that_asks_anything_else_is_a_real_rule(self):
+        for condition in ("is an enemy violin in sight?", "is this bot's instrument 'Violin' and can it afford an Amp?",
+                          "is this bot's side stronger in the fight near it?", "is this bot on its team's side?", "is the keytar ready?",
+                          "is a teammate near this bot?", "is this bot at its base?", "is my violin ally below half hp?"):
+            self.assertIsNone(T._identity_only(condition), condition)
+            schema = _rule_on(condition)
+            self.assertIs(T.enforce_identity_rules(schema, "Violin: Amp, then Road Case."), schema, condition)
+
+    def test_a_rule_nested_in_a_guard_branch_is_caught(self):
+        guard = {"type": "guard", "id": "can_win", "condition": "can this bot win the fight it is in?",
+                 "then": {"nodes": [{"id": "whoami", "condition": "is this bot the violin?", "action": {"kind": "hold", "ability": None, "target_selector": None}}],
+                          "default_action": None},
+                 "else": {"nodes": [], "default_action": {"kind": "move", "ability": None, "target_selector": "home"}}}
+        schema = T.parse_schema({"rules": [guard], "default_action": {"kind": "move", "ability": None, "target_selector": "push_lane"}},
+                                "p.md", "violin", "raw", "vocab-2")
+        with self.assertRaises(T.SchemaValidationError):
+            T.enforce_identity_rules(schema, "I only take fights I can win.")
+        fixed = T.enforce_identity_rules(schema, "I only take fights I can win.", drop=True)
+        self.assertEqual(fixed.root.nodes[0].then.nodes, ())
+
+    def test_drop_still_raises_when_nothing_would_be_left(self):
+        schema = T.parse_schema({"rules": [{"id": "me", "condition": "is this bot the violin?", "action": {"kind": "hold", "ability": None, "target_selector": None}}],
+                                 "default_action": {"kind": "move", "ability": None, "target_selector": "push_lane"}}, "p.md", "violin", "raw", "vocab-2")
+        with self.assertRaises(T.SchemaValidationError):
+            T.enforce_identity_rules(schema, "Violin: Amp.", drop=True)
+
+    def test_vocab_1_is_untouched(self):
+        schema = _rule_on("is this bot's instrument 'Violin'?", vocab="vocab-1")
+        self.assertIs(T.enforce_identity_rules(schema, VIOLIN_LINE), schema)
+
+    def test_translate_pilot_retries_and_keeps_the_fixed_reply(self):
+        bad = _identity_reply(0)  # #87 s1 violin
+        fixed = {**bad, "rules": [r for r in bad["rules"] if r["id"] != "shop_order_violin"]}
+        replies, prompts = [json.dumps(bad), json.dumps(fixed)], []
+
+        def generate(prompt):
+            prompts.append(prompt)
+            return replies[len(prompts) - 1]
+
+        schema = T.translate_pilot(IDENTITY["prose"], "pilot.md", "violin", "staccato", "glissando", generate=generate, vocab="vocab-2",
+                                   economy="eco-3-late")
+        self.assertEqual(len(prompts), 2)
+        retry = prompts[1].split("Your previous attempt was invalid:")[1]
+        self.assertIn(VIOLIN_LINE, retry)
+        self.assertNotIn("instrument 'Violin'?", retry)
+        self.assertEqual([r.id for r in schema.rules], [r["id"] for r in fixed["rules"]])
+        self.assertFalse([n for n in schema.validation_notes if n.startswith("identity:")])
+
+    def test_three_bad_replies_end_in_a_drop_not_a_failure(self):
+        prompts = []
+
+        def generate(prompt):
+            prompts.append(prompt)
+            return json.dumps(_identity_reply(1))  # #87 s4 violin, every time
+
+        schema = T.translate_pilot(IDENTITY["prose"], "pilot.md", "violin", "staccato", "glissando", generate=generate, vocab="vocab-2",
+                                   economy="eco-3-late")
+        self.assertEqual(len(prompts), 3)
+        self.assertNotIn("shop_order_violin", [r.id for r in schema.rules])
+        md = T.render_markdown(schema)
+        self.assertIn("**Rules about which bearbot this is -- what was removed:**", md)
+        self.assertIn("identity: removed rule shop_order_violin", md)
+        self.assertNotIn("**Automatic priority fixes applied to this schema:**", md)
+
+
+class UnfinishedGuardTests(unittest.TestCase):
+    """vocab-2: a node with both branches, no "type" and no action is rejected, never completed (#87's s1 drums failed all
+    three replies on `rule guard_spend_gold: invalid action kind None`; completed, such guards cut off every rule below
+    them; runs/vocab2-identity-rules-2026-10-02.md §2)."""
+
+    def _reply(self, index: int) -> dict:
+        return T._extract_json_object(IDENTITY["replies"][index]["reply"])
+
+    def test_develops_error_is_the_one_87_saw(self):
+        for i, case in enumerate(IDENTITY["replies"]):
+            with self.subTest(case["run"] + " " + str(case["reply_index"])):
+                with self.assertRaises(ValueError) as err:
+                    T.parse_schema(self._reply(i), "p.md", case["instrument"], "raw", "vocab-2", economy="eco-3-late")
+                self.assertRegex(str(err.exception), r"^rule guard_\w+: invalid action kind None$")
+
+    def test_the_reply_is_rejected_asking_for_plain_rules(self):
+        for i, case in enumerate(IDENTITY["replies"]):
+            raw = self._reply(i)
+            with self.subTest(case["run"] + " " + str(case["reply_index"])):
+                with self.assertRaises(T.UnfinishedGuardError) as err:
+                    T.enforce_finished_guards(raw, "vocab-2")
+                msg = str(err.exception)
+                self.assertTrue(msg.startswith(f'node {raw["rules"][0]["id"]} has "then" and "else" branches but no "action"'), msg)
+                self.assertIn("write plain rules instead", msg)
+                self.assertNotIn(raw["rules"][0]["condition"], msg)  # never the model's own words back
+
+    def test_on_the_last_attempt_the_node_is_dropped_with_a_note(self):
+        raw = self._reply(2)  # verify-v1 s2 keytar: the guard is rule 1, eight plain rules follow it
+        fixed, notes = T.enforce_finished_guards(raw, "vocab-2", drop=True)
+        self.assertEqual([n["id"] for n in fixed["rules"]], [n["id"] for n in raw["rules"][1:]])
+        self.assertEqual(len(notes), 1)
+        self.assertTrue(notes[0].startswith('unfinished guard: removed guard_shop_priority ("can this bot afford its next item right now?") '
+                                            "and the 2 node(s) in its branches"), notes[0])
+        schema = T.parse_schema(fixed, "p.md", "keytar", "raw", "vocab-2", economy="eco-3-late")
+        self.assertIn("rule_low_hp_recall", [r.id for r in schema.rules])
+
+    def test_nested_ones_are_dropped_and_their_count_includes_their_own_branches(self):
+        raw = self._reply(0)  # repro s6: the outer guard holds two more in its else-branch
+        fixed, notes = T.enforce_finished_guards(raw, "vocab-2", drop=True)
+        self.assertEqual([n["id"] for n in fixed["rules"]], ["build_tier1"])
+        self.assertEqual(len(notes), 1)
+        # then: 1 rule; else: two guards (1 + 1 + 1, 1 + 2 + 1) and 1 rule
+        self.assertIn("and the 9 node(s) in its branches", notes[0])
+
+    def test_one_inside_a_typed_guard_is_found_too(self):
+        inner = self._reply(1)["rules"][0]
+        guard = {"type": "guard", "id": "can_win", "condition": "can this bot win the fight it is in?",
+                 "then": {"nodes": [inner], "default_action": None},
+                 "else": {"nodes": [], "default_action": {"kind": "move", "ability": None, "target_selector": "home"}}}
+        raw = {"rules": [guard], "default_action": {"kind": "move", "ability": None, "target_selector": "push_lane"}}
+        with self.assertRaises(T.UnfinishedGuardError):
+            T.enforce_finished_guards(raw, "vocab-2")
+        fixed, notes = T.enforce_finished_guards(raw, "vocab-2", drop=True)
+        self.assertEqual(fixed["rules"][0]["then"]["nodes"], [])
+        self.assertEqual(len(notes), 1)
+
+    def test_drop_still_raises_when_nothing_would_be_left(self):
+        with self.assertRaises(T.UnfinishedGuardError):
+            T.enforce_finished_guards(self._reply(1), "vocab-2", drop=True)  # repro s6 retry: the guard is the only node
+
+    def test_only_that_shape_is_touched(self):
+        branch = {"nodes": [], "default_action": {"kind": "move", "ability": None, "target_selector": "home"}}
+        action = {"kind": "attack", "ability": None, "target_selector": "nearest_enemy"}
+        for node, why in (({"id": "guard_x", "condition": "c?", "then": branch}, "one branch"),
+                          ({"id": "guard_x", "condition": "c?", "then": branch, "else": branch, "type": "guard"}, "a typed guard"),
+                          ({"id": "guard_x", "condition": "c?", "then": branch, "else": branch, "type": "rule"}, "a type of its own"),
+                          ({"id": "guard_x", "condition": "c?", "then": branch, "else": branch, "action": action}, "an action kind"),
+                          ({"id": "guard_x", "condition": "c?", "action": {"kind": None}}, "no branches")):
+            raw = {"rules": [node], "default_action": action}
+            with self.subTest(why):
+                self.assertEqual(T.enforce_finished_guards(raw, "vocab-2"), (raw, ()))
+                self.assertEqual(T.enforce_finished_guards(raw, "vocab-2", drop=True), (raw, ()))
+
+    def test_vocab_1_is_untouched(self):
+        raw = self._reply(2)
+        self.assertEqual(T.enforce_finished_guards(raw, "vocab-1", drop=True), (raw, ()))
+
+    def test_translate_pilot_retries_without_the_finish_the_guard_line(self):
+        fixed = self._reply(2)
+        fixed["rules"] = fixed["rules"][1:]
+        replies, prompts = [IDENTITY["replies"][2]["reply"], json.dumps(fixed)], []
+
+        def generate(prompt):
+            prompts.append(prompt)
+            return replies[len(prompts) - 1]
+
+        schema = T.translate_pilot(IDENTITY["prose"], "pilot.md", "keytar", "chord", "glissando", generate=generate, vocab="vocab-2",
+                                   economy="eco-3-late")
+        self.assertEqual(len(prompts), 2)
+        retry = prompts[1].split("Your previous attempt was invalid:")[1]
+        self.assertIn("write plain rules instead", retry)
+        self.assertNotIn("finish the guard shape", retry)
+        self.assertNotIn("invalid action kind", retry)
+        self.assertEqual([r.id for r in schema.rules], [n["id"] for n in fixed["rules"]])
+        self.assertFalse([n for n in schema.validation_notes if n.startswith("unfinished guard:")])
+
+    def test_three_bad_replies_end_in_a_drop_not_a_failure(self):
+        prompts = []
+
+        def generate(prompt):
+            prompts.append(prompt)
+            return IDENTITY["replies"][2]["reply"]
+
+        schema = T.translate_pilot(IDENTITY["prose"], "pilot.md", "keytar", "chord", "glissando", generate=generate, vocab="vocab-2",
+                                   economy="eco-3-late")
+        self.assertEqual(len(prompts), 3)
+        self.assertFalse([n for n in schema.root.nodes if isinstance(n, T.GuardNode)])
+        self.assertIn("rule_low_hp_recall", [r.id for r in schema.rules])
+        md = T.render_markdown(schema)
+        self.assertIn("**Unfinished guards -- what was removed:**", md)
+        self.assertIn("unfinished guard: removed guard_shop_priority", md)
+        self.assertNotIn("**Automatic priority fixes applied to this schema:**", md)
+
+
 if __name__ == "__main__":
     unittest.main()

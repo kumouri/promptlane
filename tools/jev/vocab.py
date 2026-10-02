@@ -117,7 +117,7 @@ class TowerFact:
 
     @property
     def shooting_my_minions(self) -> bool:
-        """The siege (spec §8.7): this bot stands inside an enemy tower's range while that tower has
+        """The siege (spec §8.8): this bot stands inside an enemy tower's range while that tower has
         this bot's minions in range, so by the same rule it shoots them and not this bot. Exactly
         the in-range enemy towers that `will_shoot_me` leaves out, judged from the same minions."""
         return (not self.own) and self.tower.get("alive", True) and self.in_range and self.my_minions_in_range > 0

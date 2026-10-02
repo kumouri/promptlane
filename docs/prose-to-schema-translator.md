@@ -245,7 +245,11 @@ bounty, respawns, ...) in plain sentences whenever an observation carries them, 
 byte-for-byte as before. See `docs/economy-spec.md` §4.1, §4.3 and §4.5. Under vocab-2 a shopping
 list is `build` only: `translator.enforce_shopping_list` drops a rule that restates a pure shopping
 sentence ("is this bot at its base? → home" per item) with a `build:` note, or rejects the reply for
-a retry when `build` is missing (`docs/vocabulary-spec.md` §8.5).
+a retry when `build` is missing (`docs/vocabulary-spec.md` §8.5). A rule that asks only which
+instrument or team this bearbot is ("is this bot's instrument 'Violin'?") is rejected the same way
+by `translator.enforce_identity_rules`, and dropped with an `identity:` note on the last attempt
+(`docs/vocabulary-spec.md` §8.7). So is a node with both guard branches but no `"type"` and no action
+(`translator.enforce_finished_guards`, an `unfinished guard:` note).
 
 **Recipe rulesets (`eco-3-late`).** When the ruleset has recipes (any item with a `from`), the items
 block groups items by tier with what each is made from, and asks for `build` as the items in the

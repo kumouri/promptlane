@@ -234,6 +234,21 @@ class ShoppingListLineTests(unittest.TestCase):
         self.assertIn(f"- {note}", text)
         self.assertNotIn("Automatic priority fixes", text)
 
+    def test_identity_notes_get_their_own_section(self):
+        note = ("identity: removed rule shop_order_violin (\"is this bot's instrument 'Violin'?\") -- it asks only about this "
+                "bearbot's own instrument, which never changes during a match.")
+        text = self._render(self._schema("violin", ("amp",), (note,)))
+        self.assertIn("## Rules about which bearbot this is — what was removed", text)
+        self.assertIn(f"- {note}", text)
+        self.assertNotIn("Automatic priority fixes", text)
+
+    def test_unfinished_guard_notes_get_their_own_section(self):
+        note = ('unfinished guard: removed guard_shop_priority ("can this bot afford its next item right now?") and the 2 node(s) '
+                "in its branches -- it had \"then\" and \"else\" branches but no \"type\": \"guard\" and no action.")
+        text = self._render(self._schema("keytar", ("amp",), (note,)))
+        self.assertIn("## Unfinished guards — what was removed", text)
+        self.assertIn(f"- {note}", text)
+        self.assertNotIn("Automatic priority fixes", text)
 
 
 class RecipeShoppingListLineTests(unittest.TestCase):

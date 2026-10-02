@@ -90,7 +90,7 @@ any enemy tower" with "any listed enemy tower has my minions", which can be two 
 
 **What this means for A.** The siege holds on only ~2.8 % of decisions, and Jev already reads it. So a
 summary line can't raise Jev's accuracy on it. Ceryce's call stands ("Add it."), so the line is added
-(`580355b`, spec §8.7). The Noul docs' advice is behind it too: a two-part question is judged worse
+(`580355b`, spec §8.8). The Noul docs' advice is behind it too: a two-part question is judged worse
 than one stated fact. It gets a pre-registered guard (§1.4, block R): if it costs accuracy on the
 siege question or moves any other decision, it is reverted.
 
@@ -138,7 +138,7 @@ They differ in:
 
 ### 1.1 What changes
 
-- **A (done, `580355b`):** the siege summary line (spec §8.7).
+- **A (done, `580355b`):** the siege summary line (spec §8.8).
 - **B:** medium moves to prose.
   - `prompts/pilots/house-medium-eco.prose.md` (new) states MF in #88's house style. It is one file
     for both sides, like easy's and hard's.
@@ -378,7 +378,7 @@ matches a pairing, a line is a direction, not a rate.
      that the entrant no longer clears it and hard still beats it.
    - **Make the new hard the bar.** Hard beat this medium 3–1, but hard vs the siege entrant has
      never been played on Jev.
-2. **The siege line is in vocab-2** (spec §8.7). It changes what Jev reads for every vocab-2 schema,
+2. **The siege line is in vocab-2** (spec §8.8). It changes what Jev reads for every vocab-2 schema,
    entrants' included, from the next server restart. On #88's states it changed no decision outside
    noise. Restarting the arena also picks up the new medium: the `house` ledger row records the new
    medium hash (below). Nothing in the arena was touched.
@@ -392,7 +392,7 @@ matches a pairing, a line is a direction, not a rate.
 
 - **A:** `tools/jev/vocab.py` (`TowerFact.shooting_my_minions`, `FACTS_V2`),
   `tools/jev/fidelity_harness.py` (the summary line), `tools/jev/test_vocab.py`,
-  `docs/vocabulary-spec.md` §8.7.
+  `docs/vocabulary-spec.md` §8.8.
 - **B:**
   - `prompts/pilots/house-medium-eco.prose.md` (new);
   - `prompts/pilots/house-medium-eco.schemas.json`;

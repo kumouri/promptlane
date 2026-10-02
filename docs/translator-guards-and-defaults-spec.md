@@ -451,6 +451,13 @@ failed the same way (≈5%)** — reduced, not eliminated, and reported as a res
 closed one. Full detail and the checked-in sample batch: `docs/entrant-compile-preview.md`'s
 2026-09-25 (late) update.
 
+**2026-10-02, vocab-2:** the residual failure, recorded raw, was a complete guard (condition, both
+branches) with only its `"type": "guard"` line missing. The retry above asks for the shape it already
+has. Completing the type shipped guards that cut off every rule below them, so under vocab-2
+`translator.enforce_finished_guards` rejects such a reply with a retry asking for plain rules. On the
+last attempt it drops the node (`docs/vocabulary-spec.md` §8.7,
+`runs/vocab2-identity-rules-2026-10-02.md`).
+
 ## 8. The A/B: is the 47.2% shortfall guard-specific? (measured, 2026-09-26)
 
 **Ceryce's ruling, 2026-09-26 00:14 CT: §7's "not a guard-specific regression" claim was untested —

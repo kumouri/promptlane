@@ -320,7 +320,7 @@ def _names(ids) -> str:
 def _tower_lines(obs: dict, spec: MapSpec) -> list[str]:
     """Spec A1. One sentence per alive tower within 390, then four summary sentences that are
     always present, so "am I under my own tower?", "will an enemy tower shoot me?", "am I inside an
-    enemy tower's range while it has my minions to shoot?" (the siege, §8.7) and "is an enemy
+    enemy tower's range while it has my minions to shoot?" (the siege, §8.8) and "is an enemy
     bearbot under my tower?" each get a definite answer (§3 rule 5)."""
     facts = sorted(tower_facts(obs, spec), key=lambda f: (f.distance, f.tower["id"]))
     alive = [f for f in facts if f.tower.get("alive", True)]

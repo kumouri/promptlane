@@ -223,7 +223,7 @@ class TowerFacts(unittest.TestCase):
         self.assertIn("An enemy tower will shoot you (tw-9).", describe_observation(theirs, VOCAB_2, "pvp-1"))
 
     def test_siege_line_is_the_in_range_tower_that_shoots_my_minions(self):
-        """§8.7: the siege fact gets its own always-present line, the complement of "will shoot you"
+        """§8.8: the siege fact gets its own always-present line, the complement of "will shoot you"
         among the enemy towers this bot stands inside the range of."""
         no = "You are not inside the range of an enemy tower that has your own minions in its range."
         covered = obs(pos=(420, 250), towers=[tower("tw-9", "green", G_OUTER)], minions=[minion("mn-3", "violet", P(420, 200))])
