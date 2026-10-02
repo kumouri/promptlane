@@ -309,7 +309,14 @@ On Jev (pre-registered, 12 matches):
 - its own towers lost far less before 8:00 (105–130 hp off the weakest, against 308–388).
 
 The entrant won the sudden-death race: it spent 31 % of its time after 8:00 on the 480 s tower
-rule, against medium's 19 %. Medium waits at its own tower when idle, out of sight of enemy towers.
+rule, against medium's 19 %. Medium waited at its own tower when idle, out of sight of enemy towers.
+
+**Medium pushes its lane when idle** (2026-10-02, Ceryce's call; the run file's §4). The fallback is
+now hard-eco's sentence, "push down your lane toward the enemy base". The recompile was taken whole,
+and every sentence maps to its rule. On Jev (pre-registered, 8 matches):
+- medium beat the plain siege entrant 4–0 and easy 2–0;
+- **it also beat hard 2–0**, so hard no longer sits above the bar.
+- Whether to keep it, revert to the wait-at-tower medium, or retune hard is Ceryce's call (§4.4).
 
 ## Sample entrants for the economy measurement: `sample-entrant*.prose.md`
 

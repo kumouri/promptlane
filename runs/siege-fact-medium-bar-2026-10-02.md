@@ -56,6 +56,12 @@ read and before the first paid call (about 15:50 CT).*
 - **What Ceryce may want to decide** (§3): whether this medium ships as the bar (it orders the ladder
   but sits below the plain entrant), or medium's idle rule changes to "push down your lane". That
   would cost another small Jev block.
+- **§4, the follow-up she queued ("Yes and queue."): medium's idle sentence now pushes the lane.**
+  - The recompile is clean, and every sentence maps to its rule.
+  - On Jev, medium beat the siege entrant 4–0 (M1 PASS) and easy 2–0 (M3 PASS).
+  - **It also beat hard 2–0 (M2 FAIL)**, so medium now sits at or above hard.
+  - $0.9858 of a $1.25 stop.
+  - Keep it, revert to §2's medium, or retune hard: §4.4.
 
 ## 0. Diagnosis, at $0
 
@@ -378,6 +384,8 @@ matches a pairing, a line is a direction, not a rate.
      that the entrant no longer clears it and hard still beats it.
    - **Make the new hard the bar.** Hard beat this medium 3–1, but hard vs the siege entrant has
      never been played on Jev.
+
+   Ceryce chose the second ("Yes and queue."): §4.
 2. **The siege line is in vocab-2** (spec §8.8). It changes what Jev reads for every vocab-2 schema,
    entrants' included, from the next server restart. On #88's states it changed no decision outside
    noise. Restarting the arena also picks up the new medium: the `house` ledger row records the new
@@ -475,6 +483,97 @@ Two seeds, and one seed for the ladder pairings, give a direction, not a rate (�
 - **If M2 or M3 fails,** the ladder no longer orders. The write-up says so, and Ceryce decides
   between this medium and §2's.
 
+### 4.4 Result
+
+*Written after the run.*
+
+- **Timeline (CT):**
+  - plan committed 16:30:25 (`04585a9`);
+  - compiles n1–n3, 16:32–16:37;
+  - the amendment (§4.1) was committed after n1–n3 were screened (`fe5d5b1`);
+  - keytar n4–n5, 16:38–16:40;
+  - schemas committed (`5684a0c`);
+  - stub smoke 16:41;
+  - round 1, 16:41–16:46;
+  - round 2, 16:46–16:51.
+  The first paid call came after all of it was committed.
+- **The compiles ($0).** Picks: drums n2, keytar n5, violin n1.
+  - **Every pick maps the prose one sentence to one rule, in the prose's order:**
+    - the low-hp walk and recall;
+    - the shopping walk ("no enemy bearbot, an enemy minion or tower in sight") and the shopping
+      recall;
+    - the 480 s tower rule;
+    - out of tower fire → `own_tower`;
+    - the siege (this bot's own minions) → `nearest_tower`;
+    - the ability (keytar chords any bearbot in sight; drums kick and violin staccato finish under
+      100 hp on `lowest_hp_enemy`);
+    - bearbot, then minion;
+    - the wave → `nearby_minion`;
+    - the default `push_lane` (violin also writes it as a last `true` rule).
+  - No rule names an item, no rule goes home beyond the four, nothing targets `nearest_ally`, and
+    nothing targets `own_front_tower`.
+  - **The failures:**
+    - drums n1: a bare "hp below half → home" first rule, and the shop walk without its sight
+      clauses;
+    - keytar n1: the same, plus a "480 s → `push_lane`" rule ahead of the tower rush;
+    - keytar n2: a bare low-hp first rule and a bare shop walk;
+    - keytar n3: the bare low-hp first rule alone;
+    - violin n3: the bare low-hp rule and the bare shop walk;
+    - keytar n4: a shop walk without "no enemy bearbot in sight".
+- **Spend: $0.9858** of the $1.25 stop, on the server's ledger: 12,050 requests, 0 errors, 0
+  failovers. Round 1 cost $0.4833 ($0.121 a match). The guard allowed all four of round 2:
+  $0.483 + 4 × $0.121 = $0.97 ≤ $1.20. The smokes were free.
+- **Every match finished first time** and replay-verifies, with 0 parse errors on either side.
+  Every one was decided in sudden death.
+
+| line | result | pass line | |
+|---|---|---|---|
+| M1 medium is a real bar | entrant3 **0–4** (medium won all four) | entrant3 ≤ 2 | **PASS** |
+| M2 hard above medium | medium **2–0** | hard both, or one and a draw | **FAIL** |
+| M3 medium above easy | medium **2–0** | medium both, or one and a draw | **PASS** |
+| M4 clean | 8 of 8 verify; 0 server errors; 0 parse errors | all | **PASS** |
+| M5 spend | **$0.9858** | ≤ $1.25 | **PASS** |
+
+**Medium now beats the plain siege entrant, but it beats hard too.** The ladder orders easy <
+medium, and medium ≥ hard. Here it is beside block L's same slots (entrant3 seeds 3 and 7; hard and
+easy seed 3):
+
+| side vs opponent | W–L, §2's medium | W–L, push-lane medium | opponent's weakest tower, hp lost by 7:59 (§2 → §4) | share of decisions after 8:00 on the 480 s rule (§2 → §4) | deaths a match (§2 → §4) |
+|---|---|---|---:|---:|---:|
+| medium vs entrant3 | 0–4 | **4–0** | 114 → **380** | 25 % → 27 % | 1.2 → 5.0 |
+| entrant3 vs medium | 4–0 | **0–4** | 130 → 245 | 31 % → **17 %** | 2.5 → 2.0 |
+| medium vs hard | 1–1 | **2–0** | 318 → 201 | 37 % → 30 % | 3.0 → 4.5 |
+| hard vs medium | 1–1 | **0–2** | 104 → 244 | 42 % → 17 % | 1.5 → 2.0 |
+| medium vs easy | 2–0 | 2–0 | 568 → 480 | 32 % → 29 % | 1.0 → 2.0 |
+
+- **The column's measure differs from §2.3.** "Share after 8:00" here is the share of a side's
+  decisions in sudden death (the probe's `rulesSD`), not §2.3's share of alive time. That is why
+  §2's entrant reads 31 % / medium 25 % here, against §2.3's 31 % / 19 %. Both runs use the same
+  script.
+- **What changed is where the fight happens.**
+  - Pushing when idle, medium now stands in the enemy's lane at 8:00. It took 380 hp off the
+    entrant's weakest tower before sudden death, against 114, and took the first tower every time.
+  - The entrant spent half as much of sudden death on its own tower rush (17 % against 31 %),
+    because medium's wave and bearbots were in its way.
+  - Medium pays for it in deaths (5.0 a match against the entrant, from 1.2), and still wins the
+    race.
+- **Against hard** the same thing happened. Hard dealt more structure damage than before (907 a
+  match) and took no tower. Its 480 s rule fell from 42 % to 17 % of sudden death.
+- **Caveats.** One seed for hard and easy, two for the entrant. Seeds 3 and 7 are near-replays on
+  Jev (§2.4), so "4–0" is closer to two or three distinct matches than four. M2 is the opposite of
+  block L's 3–1 for hard, on 2 matches against 4. That is a direction, not a rate. Untested on Jev:
+  this medium at seed 7 against hard, and hard against the entrant.
+
+**What Ceryce may want to decide** (§4.3: M2 failed, so it is hers):
+1. **Keep the push-lane medium as the bar** (it's on the branch now, `5684a0c`). A plain siege
+   entrant no longer clears it, but neither does the house's hard. Medium would sit at or above
+   hard until hard is retuned.
+2. **Go back to §2's medium** (`git revert 5684a0c`; its compile is `600602f7…`). The ladder orders,
+   and a plain entrant clears the bar 4–0.
+3. **Keep this medium and retune hard above it.** Hard-eco already pushes its lane when idle, so the
+   gap is elsewhere. Against this medium, hard dealt 907 structure damage a match and took no tower.
+   Finding the gap needs its own small Jev check, which this run didn't fund.
+
 ## Files
 
 - **A:** `tools/jev/vocab.py` (`TowerFact.shooting_my_minions`, `FACTS_V2`),
@@ -491,7 +590,13 @@ Two seeds, and one seed for the ladder pairings, give a direction, not a rate (�
 
 | file (sha256, as `tools/arena/house.mjs` hashes it) | before | after |
 |---|---|---|
-| `house-medium-eco.schemas.json` | `91083d42…` (the worksheet medium; now `house-medium-eco-worksheet.schemas.json`) | `600602f7c415354ac8fb5f5355443ed3db4fe3d71c1fbd02c2e0fc405a8e2283` |
+| `house-medium-eco.schemas.json` | `91083d42…` (the worksheet medium; now `house-medium-eco-worksheet.schemas.json`) | `600602f7c415354ac8fb5f5355443ed3db4fe3d71c1fbd02c2e0fc405a8e2283` (§2's medium) |
+| `house-medium-eco.schemas.json`, §4 | `600602f7…` | **`0df793ddea930264c5057d6a64e1f1649a8412df1dd26453864c7ddaeaad8b6d`** (the push-lane medium) |
+
+- **§4:** `prompts/pilots/house-medium-eco.prose.md` (the idle sentence),
+  `prompts/pilots/house-medium-eco.schemas.json`, `tools/arena/test_house.mjs`,
+  `prompts/pilots/README.md`. Its logs, compiles n1–n5, scripts and the server's final `/health` are
+  `medium-push-2026-10-02-data.zip` on the same prerelease, with `SHA256SUMS` inside.
 
 - **C:** kumouri/jamobair-entrants#12 (`README.md` "Three habits that decide matches", and
   `entrants/_template/pilot.md`).
