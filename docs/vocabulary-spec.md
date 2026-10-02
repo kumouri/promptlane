@@ -257,7 +257,7 @@ already names `targeting` (§5.2).
 | `nearest_enemy_bearbot` | id | the nearest `visibleEnemies` entry of kind bearbot | none (the rule doesn't apply) | "attack the closest enemy bearbot" |
 | `nearest_enemy_minion` | id | the nearest enemy minion | none | "farm the nearest minion", "clear their wave" |
 | `tower_diver` | id | the nearest enemy bearbot within `towerRange` of one of my alive towers | none | "attack any enemy bearbot under my tower" |
-| `nearest_ally` | position | the nearest allied bearbot (`allies`, map-wide) | `nearby_minion`, then `home` | "stick with my teammate", "group up" |
+| `nearest_ally` | position | the nearest allied bearbot (`allies`, map-wide) | `nearby_minion`, then `home` | "stick with my teammate", "group up" (never "my minions", which is `nearby_minion`: §8.1) |
 
 - "None" means the target resolves to null, the way `lowest_hp_enemy` with no enemy does today
   (`target_resolve.py:146-148`).
@@ -473,3 +473,30 @@ and its "What your prose can say" section live in `jamobair-entrants`, so they s
 `PROMPTLANE_REF` bump. The qwen side files stay vocab-1 renderings (§4.4 C2). The vocab-2 prompt is
 about 730 tokens longer, so a compile under the arena's 20,000-token cap now has room for two
 retries rather than three.
+
+### 8.1 Two target fixes after the first vocab-2 compiles
+
+The house-tier run (PR #79, `runs/vocab-house-tiers-2026-10-02.md` §2 and §5.4) found two ways the
+`vocab-2` translator picked a target the prose didn't mean. Both are fixed in `translator.py`, and
+`vocab-1` is untouched (its prompt, error text and parsing are byte for byte as before).
+
+- **"My nearest minion" became `nearest_ally`.** Prose that says "walk with my nearest minion" or
+  "move to the nearest allied minion" matched the target *named* `nearest_ally`, which is a teammate
+  bearbot. Prose that says "follow my wave" without "nearest" was already right. The fix:
+  - The `vocab-2` prompt now says which is which. `nearby_minion` is "the nearest allied MINION ...
+    walk / push / ride with my minions, follow my wave". `nearest_ally` is "the nearest allied
+    BEARBOT, a teammate, never a minion" (`VOCAB2_MEANINGS`, `VOCAB2_SELECTORS`).
+  - A deterministic check runs after it (`normalize_targets`). A rule whose own words (id, question,
+    and what "yes" means) name only my minions, but which targets `nearest_ally`, targets
+    `nearby_minion`. The reverse applies to a rule naming only teammates. A mention that is negated
+    ("none of my minions", "my minions are dead") doesn't count, and a rule naming both keeps the
+    translator's choice.
+- **The made-up `nearest_enemy_tower`.** The translator modelled it on `nearest_enemy_bearbot` and
+  `nearest_enemy_minion`, and the compile failed after three attempts. Now a short alias table
+  (`TARGET_ALIASES`) maps this name and a few like it to the real target, here `nearest_tower`. Any
+  other unknown name is still an error, and the retry prompt now lists every valid target.
+
+Every correction is a `target:` note in the schema. The entrant sees it under "Targets — what was
+corrected" in the compile preview. Free local compiles of PR #79's two sources, before and after, are
+in `runs/vocab2-target-fixes-2026-10-02.md`. A schema compiled before the fix keeps the targets it
+was compiled with.

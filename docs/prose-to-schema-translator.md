@@ -183,7 +183,10 @@ Bandstand in this match.")* `highest_bounty_enemy` is the economy's
 to `nearest_enemy` when no enemy carries a bounty. *(2026-10-02: those 12 are `vocab-1`'s list. A
 compile under `vocab-2`, the entrant default, can also name `own_tower`, `own_front_tower`,
 `nearest_enemy_bearbot`, `nearest_enemy_minion`, `tower_diver` and `nearest_ally`, and its prompt
-lists the facts Jev's paragraph states; see [`vocabulary-spec.md`](vocabulary-spec.md).)* The translator's job is to pick the closest-matching selector for what the
+lists the facts Jev's paragraph states; see [`vocabulary-spec.md`](vocabulary-spec.md). Under
+`vocab-2`, a made-up name like `nearest_enemy_tower` is mapped to the real target it means, and a rule
+about my minions that targets the teammate selector is corrected, each with a `target:` note; see
+[`vocabulary-spec.md` §8.1](vocabulary-spec.md#81-two-target-fixes-after-the-first-vocab-2-compiles).)* The translator's job is to pick the closest-matching selector for what the
 prose says ("densest cluster" → `densest_cluster_enemy`, "softest target" → `lowest_hp_enemy`), not
 to invent new ones. **This is a real, named simplification, not a hidden one**: it is a smaller
 version of the same idea the memo's §6 flagged for the whole translation layer, applied specifically

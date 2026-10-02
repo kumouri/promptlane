@@ -51,6 +51,10 @@ VOCABULARIES (`vocab.py`, `docs/vocabulary-spec.md`): `TARGET_SELECTORS` is voca
 adds `VOCAB2_SELECTORS` (own towers, tower divers, the nearest enemy bearbot or minion, the nearest
 ally) and the list of facts the game states (`facts_prompt_block`). A translation names its vocabulary
 and the schema records it; the vocab-1 prompt is byte-identical to the one before vocabularies existed.
+Under vocab-2 only, `normalize_targets` then corrects a reply's targets before validation: a made-up
+name like `nearest_enemy_tower` becomes the real one it means (`TARGET_ALIASES`), and a rule about my
+minions that targets `nearest_ally` (a teammate) targets `nearby_minion`, and the reverse. Each change
+is a `target:` note the entrant sees; any other unknown name is an error the retry is told how to fix.
 The instrument-scope prompt itself is deliberately unchanged: telling the model the prose is shared was measured
 (spec §10.4): each wording tried either made it write MORE foreign-ability rules or added compile failures.
 """
@@ -99,15 +103,140 @@ VOCAB2_SELECTORS = {
     "nearest_enemy_bearbot": "the visible enemy BEARBOT closest to this bearbot (never a minion or tower)",
     "nearest_enemy_minion": "the visible enemy MINION closest to this bearbot (farming, clearing their wave)",
     "tower_diver": "the nearest enemy bearbot standing inside the range of one of this bearbot's own towers (punish a tower dive)",
-    "nearest_ally": "move to the nearest allied bearbot (stick with a teammate, group up)",
+    "nearest_ally": "move to the nearest allied BEARBOT, a teammate, never a minion (stay with my teammates, group up)",
 }
 SELECTOR_DESCRIPTIONS = {**TARGET_SELECTORS, **VOCAB2_SELECTORS}
 SELECTORS_BY_VOCAB = {VOCAB_1: tuple(TARGET_SELECTORS), VOCAB_2: tuple(TARGET_SELECTORS) + tuple(VOCAB2_SELECTORS)}
+# How the vocab-2 prompt words three selectors; the reports keep `SELECTOR_DESCRIPTIONS`, and vocab-1's
+# prompt keeps `TARGET_SELECTORS` exactly. Under vocab-2's first wording, "move to the nearest allied
+# minion" compiled to `nearest_ally` in every hard and sample-entrant compile, and "attack the nearest
+# enemy tower" sometimes to a made-up `nearest_enemy_tower` (runs/vocab-house-tiers-2026-10-02.md §2).
+# These say which one the prose means (runs/vocab2-target-fixes-2026-10-02.md).
+VOCAB2_MEANINGS = {
+    "nearest_ally": VOCAB2_SELECTORS["nearest_ally"] + "; for my minions or my wave use nearby_minion",
+    "nearest_tower": "the nearest visible enemy TOWER or nexus (attack / push their tower: the one target for an enemy tower)",
+    "nearby_minion": "the nearest allied MINION, one of this bearbot's own wave (walk / push / ride with my minions, follow my wave; "
+    "\"my nearest minion\" and \"the nearest allied minion\" mean this one)",
+}
 
 
 def selectors_for(vocab: str) -> dict:
     """The selectors a schema in `vocab` may name, with their translator-prompt meanings."""
-    return {k: SELECTOR_DESCRIPTIONS[k] for k in SELECTORS_BY_VOCAB[resolve_vocab(vocab)]}
+    vocab = resolve_vocab(vocab)
+    meanings = {**SELECTOR_DESCRIPTIONS, **VOCAB2_MEANINGS} if vocab == VOCAB_2 else SELECTOR_DESCRIPTIONS
+    return {k: meanings[k] for k in SELECTORS_BY_VOCAB[vocab]}
+
+
+# --- targets the prose meant (vocab-2 only; vocab-1 parses exactly as it always did) ----------------
+
+# Selector names the translator writes that no vocabulary has, and the real one each means. They are
+# names made by analogy with vocab-2's own (`nearest_enemy_bearbot`, `nearest_enemy_minion`); 4 of 24
+# compiles in the run above died on `nearest_enemy_tower` alone. Any other unknown name is still an
+# error, and the retry is told the valid names.
+TARGET_ALIASES = {
+    "nearest_enemy_tower": "nearest_tower",
+    "enemy_tower": "nearest_tower",
+    "nearest_enemy_nexus": "nearest_tower",
+    "enemy_nexus": "nearest_tower",
+    "nearest_allied_minion": "nearby_minion",
+    "nearest_ally_minion": "nearby_minion",
+    "nearby_allied_minion": "nearby_minion",
+    "allied_minion": "nearby_minion",
+    "my_minion": "nearby_minion",
+    "my_minions": "nearby_minion",
+    "nearest_teammate": "nearest_ally",
+    "teammate": "nearest_ally",
+    "nearest_allied_bearbot": "nearest_ally",
+    "nearest_ally_bearbot": "nearest_ally",
+}
+TARGET_NOTE_PREFIX = "target:"
+
+_MINION_WORDS = frozenset({"minion", "minions", "wave", "waves", "creep", "creeps"})
+_ALLY_WORDS = frozenset({"ally", "allies", "allied", "friendly"})
+_TEAMMATE_WORDS = frozenset({"teammate", "teammates"})
+_NEGATION_BEFORE = frozenset({"no", "none", "not", "zero", "without", "fewer", "nobody", "isn't", "aren't", "never"})
+_NEGATION_AFTER = frozenset({"dead", "gone", "died", "lost"})
+
+
+def _mentions(text: str) -> tuple[bool, bool]:
+    """(names my minions as present, names my teammates as present) in a rule's own words. A mention
+    is negated -- "none of my minions", "no allied minion", "my teammates are dead" -- when a negation
+    word stands up to four words before it or a death word up to three after; a negated mention is
+    about who is missing, not who to walk to ("regroup" and "group up" are verbs: only a negation
+    before them counts). "allied"/"ally" followed by a minion word ("allied minion", the id's
+    "ally_minion") is a minion, not a teammate."""
+    words = re.findall(r"[a-z']+", text.lower().replace("_", " "))
+
+    def present(i: int, noun: bool = True) -> bool:
+        return not (_NEGATION_BEFORE & set(words[max(0, i - 4):i]) or noun and _NEGATION_AFTER & set(words[i + 1:i + 4]))
+
+    minion = teammate = False
+    for i, w in enumerate(words):
+        nxt = words[i + 1] if i + 1 < len(words) else ""
+        if w in _MINION_WORDS:
+            minion = minion or present(i)
+        elif w == "regroup" or (w == "group" and nxt == "up"):
+            teammate = teammate or present(i, noun=False)
+        elif w in _TEAMMATE_WORDS or (w in _ALLY_WORDS and nxt not in _MINION_WORDS):
+            teammate = teammate or present(i)
+    return minion, teammate
+
+
+def _rule_text(raw: dict) -> str:
+    """What a rule says about its own target: its id, its question, and what "yes" looks like (not
+    what "no" looks like, which is all negations)."""
+    criteria = raw.get("criteria") if isinstance(raw.get("criteria"), dict) else {}
+    return " ".join(str(x) for x in (raw.get("id") or "", raw.get("condition") or "", criteria.get("true") or ""))
+
+
+def normalize_targets(raw_json: dict, vocab: str) -> tuple[dict, tuple[str, ...]]:
+    """vocab-2 only, before validation: (1) an alias in `TARGET_ALIASES` becomes the selector it
+    means; (2) a rule whose own words name only my minions but whose target is `nearest_ally` (a
+    teammate) targets `nearby_minion`, and one naming only my teammates but targeting `nearby_minion`
+    targets `nearest_ally`. A rule naming both, or neither, keeps the translator's choice. Each change
+    is a `target:` note the entrant sees. Returns a copy; vocab-1 gets `raw_json` back untouched."""
+    if resolve_vocab(vocab) == VOCAB_1 or not isinstance(raw_json, dict):
+        return raw_json, ()
+    raw_json = json.loads(json.dumps(raw_json))
+    notes: list[str] = []
+
+    def fix_action(action, where: str, text: str | None):
+        if not isinstance(action, dict):
+            return
+        sel = action.get("target_selector")
+        if isinstance(sel, str) and sel in TARGET_ALIASES:
+            action["target_selector"] = TARGET_ALIASES[sel]
+            notes.append(f"{TARGET_NOTE_PREFIX} {where} named {sel!r}, which is not a target; it targets "
+                         f"{TARGET_ALIASES[sel]!r} ({SELECTOR_DESCRIPTIONS[TARGET_ALIASES[sel]]}).")
+            sel = action["target_selector"]
+        if text is None or sel not in ("nearest_ally", "nearby_minion"):
+            return
+        minion, teammate = _mentions(text)
+        if sel == "nearest_ally" and minion and not teammate:
+            action["target_selector"] = "nearby_minion"
+            notes.append(f"{TARGET_NOTE_PREFIX} {where} is about your minions but targeted 'nearest_ally' (a teammate bearbot); "
+                         "it targets 'nearby_minion' (the nearest allied minion).")
+        elif sel == "nearby_minion" and teammate and not minion:
+            action["target_selector"] = "nearest_ally"
+            notes.append(f"{TARGET_NOTE_PREFIX} {where} is about your teammates but targeted 'nearby_minion' (a minion); "
+                         "it targets 'nearest_ally' (the nearest allied bearbot).")
+
+    def walk(nodes, default, where_default: str):
+        for i, node in enumerate(nodes or []):
+            if not isinstance(node, dict):
+                continue
+            rid = node.get("id") or f"r{i+1}"
+            if node.get("type") == "guard":
+                for branch in ("then", "else"):
+                    b = node.get(branch)
+                    if isinstance(b, dict):
+                        walk(b.get("nodes"), b.get("default_action"), f"guard {rid}'s {branch} default")
+            else:
+                fix_action(node.get("action"), f"rule {rid}", _rule_text(node))
+        fix_action(default, where_default, None)
+
+    walk(raw_json.get("rules"), raw_json.get("default_action"), "the default action")
+    return raw_json, tuple(notes)
 
 
 @dataclass(frozen=True)
@@ -348,7 +477,10 @@ def _validate_action(action: dict, context: str, vocab: str = VOCAB_1) -> tuple[
         raise ValueError(f"{context}: invalid ability {ability!r}")
     selector = action.get("target_selector")
     if selector is not None and selector not in SELECTORS_BY_VOCAB[vocab]:
-        raise ValueError(f"{context}: unknown target_selector {selector!r}")
+        if vocab == VOCAB_1:
+            raise ValueError(f"{context}: unknown target_selector {selector!r}")
+        raise ValueError(f"{context}: unknown target_selector {selector!r} -- there is no such target; use exactly one of "
+                         f"{', '.join(SELECTORS_BY_VOCAB[vocab])}, or null")
     return kind, ability, selector
 
 
@@ -396,15 +528,17 @@ def _parse_cascade(nodes_raw: list, default_raw: dict | None, default_required: 
 def parse_schema(raw_json: dict, pilot_file: str, instrument: str, raw_text: str, vocab: str = VOCAB_1,
                  economy: str | None = None) -> TranslatedSchema:
     """`vocab` is what the model was prompted with (`_translation_prompt`); the schema records it.
-    `economy` is the ruleset `build` is checked against (None = `economy_rules.DEFAULT_ECONOMY`)."""
+    `economy` is the ruleset `build` is checked against (None = `economy_rules.DEFAULT_ECONOMY`).
+    Under vocab-2 the targets are first corrected to the ones the rules mean (`normalize_targets`)."""
     vocab = resolve_vocab(vocab)
+    raw_json, target_notes = normalize_targets(raw_json, vocab)
     root = _parse_cascade(raw_json.get("rules"), raw_json.get("default_action"), default_required=True, vocab=vocab)
     if not root.nodes:
         raise ValueError("translator produced zero rules")
     build, build_notes = normalize_build(raw_json.get("build"), instrument, economy)
     return TranslatedSchema(
         pilot_file=pilot_file, instrument=instrument, raw_model_output=raw_text, root=root,
-        validation_notes=build_notes, build=build, vocab=vocab, economy=economy,
+        validation_notes=target_notes + build_notes, build=build, vocab=vocab, economy=economy,
     )
 
 
@@ -1009,10 +1143,14 @@ def render_markdown(schema: TranslatedSchema) -> str:
     lines.append(f"| — | — | *(none of the above — root default)* | {default_desc} |")
     scope_notes = [n for n in schema.validation_notes if n.startswith("instrument scope:")]
     build_notes = [n for n in schema.validation_notes if n.startswith(NOTE_PREFIX)]
-    priority_notes = [n for n in schema.validation_notes if n not in scope_notes and n not in build_notes]
+    target_notes = [n for n in schema.validation_notes if n.startswith(TARGET_NOTE_PREFIX)]
+    priority_notes = [n for n in schema.validation_notes if n not in scope_notes and n not in build_notes and n not in target_notes]
     if priority_notes:
         lines += ["", "**Automatic priority fixes applied to this schema:**", ""]
         lines += [f"- {note}" for note in priority_notes]
+    if target_notes:
+        lines += ["", "**Targets -- what was corrected:**", ""]
+        lines += [f"- {note}" for note in target_notes]
     if build_notes:
         lines += ["", "**Shopping list -- what was changed:**", ""]
         lines += [f"- {note}" for note in build_notes]
