@@ -114,8 +114,14 @@
   "build": [
    "road-case",
    "bass-strings",
-   "metronome"
-  ]
+   "metronome",
+   "backline",
+   "amp",
+   "wall-of-sound",
+   "click-track",
+   "arpeggiator"
+  ],
+  "economy": "eco-3-late"
  },
  "keytar": {
   "pilot_file": "prompts/pilots/house-eco-violet.md",
@@ -232,8 +238,14 @@
   "build": [
    "metronome",
    "amp",
-   "road-case"
-  ]
+   "road-case",
+   "click-track",
+   "bass-strings",
+   "arpeggiator",
+   "backline",
+   "wall-of-sound"
+  ],
+  "economy": "eco-3-late"
  },
  "violin": {
   "pilot_file": "prompts/pilots/house-eco-violet.md",
@@ -350,7 +362,13 @@
   "build": [
    "amp",
    "bass-strings",
-   "road-case"
-  ]
+   "road-case",
+   "fuzz-pedal",
+   "metronome",
+   "feedback",
+   "tour-bus",
+   "headliner"
+  ],
+  "economy": "eco-3-late"
  }
 }

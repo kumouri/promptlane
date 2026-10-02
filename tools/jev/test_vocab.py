@@ -116,6 +116,10 @@ class Vocab1IsByteIdentical(unittest.TestCase):
                 for sel in GOLDEN["selectors"]:
                     self.assertEqual(resolve_target(sel, o, targeting, VOCAB_2, "pvp-1"), want[f"{targeting}:{sel}"], sel)
 
+    # Recompiled under vocab-2 on purpose (vocabulary spec §7 D3, runs/vocab-house-tiers-2026-10-02.md).
+    VOCAB2_ON_PURPOSE = frozenset({"house-easy-eco.schemas.json", "house-hard-eco.schemas.json",
+                                   "vocab-house-tiers-2026-10-02-sample-entrant-eco-vocab2.schemas.json"})
+
     def test_every_checked_in_schema_is_vocab1_and_plays_the_vocab1_description(self):
         files = sorted(REPO.glob("prompts/pilots/*.schemas.json")) + sorted(REPO.glob("runs/*schema*.json"))
         seen = 0
@@ -125,6 +129,14 @@ class Vocab1IsByteIdentical(unittest.TestCase):
             per_inst = [v for v in candidates if "rules" in v and "instrument" in v]
             for raw in per_inst:
                 schema = schema_from_dict(raw)
+                if f.name in self.VOCAB2_ON_PURPOSE:
+                    self.assertEqual(schema.vocab, VOCAB_2, f)
+                    self.assertEqual(schema_to_dict(schema)["vocab"], VOCAB_2, f)
+                    for o in CORPUS[::9]:
+                        client = RecordingClient()
+                        run_prediction(client, schema, o, TARGETING_OWN_LANE_1, "pvp-1")
+                        self.assertEqual(client.states[-1], describe_observation(o, VOCAB_2, "pvp-1"), f)
+                    continue
                 self.assertEqual(schema.vocab, VOCAB_1, f)
                 self.assertNotIn("vocab", schema_to_dict(schema), f)
                 for o, want in list(zip(CORPUS, GOLDEN["descriptions"]))[::9]:

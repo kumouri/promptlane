@@ -4,9 +4,9 @@ seconds, but half of the gold it carries goes to the bots that killed it, so you
 before you risk it.
 
 Your shopping list, in order:
-drums only: Road Case, then Bass Strings, then Amp.
-keytar only: Metronome, then Amp, then Road Case.
-violin only: Amp, then Bass Strings, then Road Case.
+drums only: Road Case, then Bass Strings, then Amp, then Backline, then Metronome, then Wall of Sound, then Click Track, then Arpeggiator.
+keytar only: Metronome, then Amp, then Road Case, then Click Track, then Bass Strings, then Arpeggiator, then Backline, then Wall of Sound.
+violin only: Amp, then Bass Strings, then Road Case, then Fuzz Pedal, then Metronome, then Feedback, then Tour Bus, then Headliner.
 
 Recall with discipline. A hit breaks a recall, so get out of reach first. When your hp is below 50%
 of your max hp and an enemy minion, enemy tower or enemy bearbot is in sight, move back home. When
@@ -22,14 +22,17 @@ Go shopping, out of reach. If you can afford the next item on your shopping list
 is in sight and an enemy minion or enemy tower is in sight, move back home. If you can afford the
 next item on your shopping list and no enemy is in sight, recall home to buy it.
 
-Never carry a fortune into a fight you can lose. If you carry at least 300 gold and an enemy
-bearbot in sight has more hp than you, move back home to spend it.
+Never carry a fortune into a fight you can lose. If you carry at least 300 gold and your side is
+weaker in the fight near you, move back home to spend it.
+
+Punish tower divers. If an enemy bearbot is under your tower, attack the enemy bearbot under your
+tower.
 
 Close out the match. If it is more than 480 seconds into the match and you can see an enemy tower,
 attack the nearest enemy tower.
 
-Never stand at an enemy tower alone. If you can see an enemy tower and there is no allied minion
-near you, move back home.
+Never stand in an enemy tower's fire. If an enemy tower will shoot you, fall back to your own
+tower.
 
 Finish kills. If your ability is ready and an enemy bearbot in sight has less than 100 hp, use your
 primary ability on the enemy bearbot with the lowest hp.
@@ -38,6 +41,9 @@ If an enemy bearbot in sight has less than 100 hp, attack the enemy bearbot with
 
 Take the objective. If you can see an enemy tower and an allied minion is near you, attack the
 nearest enemy tower.
+
+Fight under your own tower. If your side is weaker in the fight near you, fall back to your own
+tower.
 
 Hunt the carrier. If an enemy bearbot is in sight, attack the enemy bearbot worth the most gold.
 
