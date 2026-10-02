@@ -364,7 +364,7 @@ buildable as an evolution of the existing `ctx.arc`/`ctx.fillRect` style in `ren
 
 ## 13. Open decisions for Ceryce
 
-**1. Ship before or after the Oct 2 jam?** *Recommend, revised: phase 1 before, phase 2 (the
+**1. Ship before or after the Jam?** *Recommend, revised: phase 1 before, phase 2 (the
 isometric camera) after — the original "after, full stop" recommendation doesn't survive its own
 premise.* It rested on round one being a passive screen share (`arena-runbook.md` §6) while only the
 semis/final carried real stakes, "live in front of people." Neither half of that is true: there is no

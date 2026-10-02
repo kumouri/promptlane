@@ -1,8 +1,9 @@
 # Elysium — the promptlane arena — website spec
 
 **Status: PHASE B BUILT — 2026-09-22; PHASE C HOSTED BACKEND WIRED — 2026-09-22.** Markdown is
-canonical. Written 2026-09-21 for the InRhythm AI Jam round one (Fri 2026-10-02, IR-only; entrant
-cutoff Thu 2026-10-01 17:00 CT). Phase A (§6, the ladder) and Phase B (the live view and the
+canonical. Written 2026-09-21 for the InRhythm AI Jam round one (then Fri 2026-10-02, IR-only; entrant
+cutoff then Thu 2026-10-01 17:00 CT; those dates no longer hold, and the Jam's dates are in
+[the Jam calendar](arena-runbook.md#the-jam-calendar)). Phase A (§6, the ladder) and Phase B (the live view and the
 jam-day bracket) are checked in under `tools/arena/` + `src/live.ts` and run on the mock in CI; how
 to start it, expose it and operate it — including the jam-day sequence — is
 [`arena-runbook.md`](arena-runbook.md). Phase C's *public* half (Access policy change, public rate
@@ -415,7 +416,7 @@ seeds when N is not a power of two, one match per pairing. Round robin is fairer
 N(N−1)/2 matches; at ~25 wall-minutes each and one at a time on one Ollama backend, 12 entrants is
 27 hours. Single-elim with 16 is 15 matches ≈ 6.5 hours at cadence 2 — **still too long for a jam
 day.** Two levers, both in the tournament config: (a) `cadence 4` (≈13 min per match, the README's
-own measurement) and (b) **pre-run rounds 1–2 Thursday night after the cutoff** and replay them at
+own measurement) and (b) **pre-run rounds 1–2 the night before the Jam, after the cutoff** and replay them at
 4× on the day, with semis and the final genuinely live. With a hosted backend at `concurrency 4`
 the early rounds also run in parallel; that is the cost/latency trade the per-tournament backend
 setting exists for.
@@ -592,10 +593,11 @@ and `/admin` view above are still unbuilt for every backend.
 Today is 2026-09-21. Cutoff is Thu 10-01 17:00 CT; jam is Fri 10-02. Phase A has to be *usable*
 by about Fri 09-25 for entrants to get a week of iteration; Phase B has to be *rehearsed* by Wed
 09-30. Effort is in job-hours (one agent session-hour of focused work), ranges are honest.
+*(That was the plan on 2026-09-21. The Jam has since moved, and its dates are in [the Jam calendar](arena-runbook.md#the-jam-calendar).)*
 
 ### Phase A — "ladder" (submit + test vs house bot + leaderboard, no live view)
 
-The minimum for entrants to try prompts before Oct 2.
+The minimum for entrants to try prompts before the Jam.
 
 **Files.** `tools/match/load.mjs` (extract), `headless.ts` (+`maxSimSec`, `onDecision` no-op ok),
 `tools/arena/{server,queue,ledger,rating,prompts,auth}.mjs`, `tools/arena/pages/{home,test,ladder,matches,admin}.mjs`,
@@ -679,8 +681,8 @@ Where this document was silent, the smallest thing was chosen and is now the rul
 `tools/arena/test_bracket.mjs`, README "Arena" update.
 
 **Effort.** 10–12 job-hours: SSE + backlog 2, `src/live.ts` external-tick driver + checkpoint
-check + speed 3, bracket seeding/byes/ties + admin controls 3, a full dress rehearsal (Thursday
-night pre-run of two rounds, Friday replay at 4×, one live semi watched remotely in a second
+check + speed 3, bracket seeding/byes/ties + admin controls 3, a full dress rehearsal (a
+night-before pre-run of two rounds, a Jam-day replay at 4×, one live semi watched remotely in a second
 browser, the way every real spectator will) 2–4.
 
 **Needs from Ceryce:** Q6 format, Q7 tie order, Q8 jam-day cadence, Q9 pre-run early rounds,
@@ -688,7 +690,7 @@ Q15 side assignment, Q18 spectator gating, Q19 organizer list.
 
 **Done when:** the bracket page shows round 1 seeded from the ladder; a match started from
 `/admin` appears live on `/play/?live=` for two browsers at once, both showing the same clock
-within one round; a Thursday-night log replays at 4× with no divergence; pause/resume and a
+within one round; a night-before log replays at 4× with no divergence; pause/resume and a
 ruling row all round-trip on the bracket page.
 
 #### Phase B — as built (2026-09-22)
@@ -710,7 +712,7 @@ Checklist against the file list above:
   ahead of the server. The model was unloaded afterwards (`keep_alive: 0`).
 - [x] Two browsers on one live match, and the live page mid-match, were exercised on a slow fake
   model server (headless Edge screenshots: `LIVE · 2 s cadence`, clock and last reply moving).
-- [ ] **Dress rehearsal, watched remotely** (Thursday pre-run of two rounds, Friday replay at 4×, one
+- [ ] **Dress rehearsal, watched remotely** (night-before pre-run of two rounds, Jam-day replay at 4×, one
   live semi, all watched from a second browser as a real spectator would) — **Ceryce, with the real
   entrants** (runbook §5)
 
@@ -998,7 +1000,7 @@ later default change can't move the ladder silently.
 `"none"` = off; docs/economy-spec.md §9) flows the same way and is checked at startup, and so does
 `tournament.recall` (`"recall-2"`, or `"none"` = the specimen's recall; §9.10), and so does
 `tournament.finale` (`"final-chorus-1"`, or `"none"`; docs/fewer-draws-spec.md §4.1). Unset, the runner's
-`DEFAULT_OBJECTIVE` applies, which is none until the Sun 10-04 gate. The log records the ruleset,
+`DEFAULT_OBJECTIVE` applies, which is none until the go/no-go gate. The log records the ruleset,
 the `meta` event carries it, and the live view and replay attach it before the first tick.
 
 **Cost** (Jev input tokens at $0.042/M; output is free):

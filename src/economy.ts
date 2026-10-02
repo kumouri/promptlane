@@ -145,8 +145,9 @@ export const ECONOMY_RULESETS: Record<string, EconomyRuleset> = {
 };
 
 /**
- * The economy new matches get when none is named: none, until Ceryce's go/no-go gate on Sun 10-04
- * (§7, ruled Q10). Matches opt in with `--economy eco-2` (CLI) or `economy` (runner, arena config).
+ * The economy new matches get when none is named: none, until Ceryce's go/no-go gate (§7, ruled
+ * Q10; when it falls: docs/arena-runbook.md §6, *The Jam calendar*). Matches opt in with
+ * `--economy eco-2` (CLI) or `economy` (runner, arena config).
  */
 export const DEFAULT_ECONOMY: EconomyRuleset | null = null;
 
