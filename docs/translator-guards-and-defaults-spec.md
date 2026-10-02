@@ -152,7 +152,7 @@ inside a branch, or left them after the guard as dead rules. #89 found develop's
 one in 24 replies (`runs/vocab2-identity-rules-2026-10-02.md` §4).
 
 It is built as `translator.enforce_guard_scope`. What counts as "the prose places it under the
-verdict" is in `docs/vocabulary-spec.md` §8.8. In short, a node must state a sentence in the
+verdict" is in `docs/vocabulary-spec.md` §8.10. In short, a node must state a sentence in the
 verdict's own paragraph or section, or one that restates the verdict's words, and no node may follow
 a guard. The evidence is `runs/vocab2-guard-scope-2026-10-02.md`. vocab-1 trees are unchanged.
 

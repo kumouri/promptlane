@@ -67,7 +67,7 @@ Every typed guard in the saved vocab-2 schemas (`tools/jev/testdata/guard_scope.
 ## 2. The check
 
 `translator.enforce_guard_scope` runs right after the instrument-scope guard, before the shopping
-guard. `docs/vocabulary-spec.md` §8.8 is the spec.
+guard. `docs/vocabulary-spec.md` §8.10 is the spec.
 
 **The verdict's prose.**
 - A guard's question has words that most rules don't use ("afford", "next", "item"; "side",
@@ -265,7 +265,7 @@ designed for:
 - **Docs:**
   - `docs/translator-guards-and-defaults-spec.md` §2.2: the ruling;
   - `docs/prose-to-schema-translator.md` §2: "Design priority: fidelity", and the check;
-  - `docs/vocabulary-spec.md` §8.8;
+  - `docs/vocabulary-spec.md` §8.10;
   - the translator's module docstring.
 - **Data:** the
   [`data-vocab2-guard-scope-2026-10-02`](https://github.com/kumouri/promptlane/releases/tag/data-vocab2-guard-scope-2026-10-02)

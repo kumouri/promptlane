@@ -153,7 +153,7 @@ wrong output, because the 9B copies that back. If the last attempt is still wron
 is dropped with a note the entrant sees, never shipped. The rulings made under this priority:
 - **Guards (16:20 CT):** a `vocab-2` guard may only sit above rules the prose places under its
   verdict. See `docs/translator-guards-and-defaults-spec.md` §2.2 and `docs/vocabulary-spec.md`
-  §8.8.
+  §8.10.
 
 **Follow-up, `docs/translator-transparency.md`:** adds per-rule provenance (which prose sentence a
 rule came from), an explicit "what was dropped" view, and a working prose-revision loop built on the
@@ -238,7 +238,7 @@ keeps its "no" or "not" is never touched. See `docs/vocabulary-spec.md` §8.6.
 reply in which a guard has any node after it, because a guard always routes, so those nodes are never
 checked. It also rejects one in which a guard's branches hold a node from prose outside its verdict.
 The retry quotes those nodes' sentences. On the last attempt the guard is flattened instead, with a
-`guard scope:` note. See `docs/vocabulary-spec.md` §8.8.
+`guard scope:` note. See `docs/vocabulary-spec.md` §8.10.
 
 **Shopping list (`build`), added with the economy.** The schema also carries `build`: an ordered
 tuple of at most `shop.slots` unique item keys, or `None` for "the prose names no items" (the
