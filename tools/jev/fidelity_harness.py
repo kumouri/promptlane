@@ -279,7 +279,7 @@ def _tower_lines(obs: dict, spec: MapSpec) -> list[str]:
     lines: list[str] = []
     for f in alive:
         t = f.tower
-        head = f"{'Your' if f.own else 'Enemy'} tower {t['id']} ({t['lane']}, {t['hp']:.0f}/{t['maxHp']:.0f} hp) is {_units(f.distance)}"
+        head = f"{'Your' if f.own else 'Enemy'} tower {t['id']} ({t['lane']}, {t['hp']:.0f}/{t['maxHp']:.0f} hp) at {_xy(t['pos'])} is {_units(f.distance)}"
         if not f.in_range:
             text = f"{head}; you are outside its {rng}-unit range"
         elif f.own:

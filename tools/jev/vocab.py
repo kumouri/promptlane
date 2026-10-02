@@ -220,9 +220,9 @@ FACTS_V2 = (
     Fact("enemies", "every enemy within 260 units (bearbots, minions, towers, the nexus): kind, position, distance, hp", "Enemies within 260 units"),
     Fact("in_attack_range", "which enemies are inside this bearbot's own attack range", "in your attack range"),
     Fact("minions", "every minion within 260 units, yours and theirs: distance and hp", "Minions within 260 units"),
-    Fact("own_towers", "this bearbot's own towers within 390 units: hp, distance, whether it stands inside the tower's range "
+    Fact("own_towers", "this bearbot's own towers within 390 units: hp, position, distance, whether it stands inside the tower's range "
          "(\"under your own tower\"), and any enemy bearbot inside that tower's range (a tower diver)", "under your own tower"),
-    Fact("enemy_towers", "enemy towers within 390 units: hp, distance, whether this bearbot is inside the tower's range, and whether "
+    Fact("enemy_towers", "enemy towers within 390 units: hp, position, distance, whether this bearbot is inside the tower's range, and whether "
          "the tower will shoot it (a tower shoots minions first, and a bearbot only when none of that bearbot's minions is in its range)",
          "enemy tower will shoot you"),
     Fact("fight", "the fight near this bearbot (within 260 units): each side's bearbots and their total hp, minions, and towers whose "

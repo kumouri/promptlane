@@ -174,14 +174,14 @@ class TowerFacts(unittest.TestCase):
 
     def test_under_my_own_tower(self):
         text = describe_observation(obs(towers=[tower("tw-1", "violet", V_INNER)]), VOCAB_2, "pvp-1")
-        self.assertIn("Your tower tw-1 (top, 900/900 hp) is 44 units away; you are inside its 160-unit range.", text)
+        self.assertIn("Your tower tw-1 (top, 900/900 hp) at (100,644) is 44 units away; you are inside its 160-unit range.", text)
         self.assertIn("You are under your own tower (tw-1).", text)
         self.assertIn("No enemy tower is within 390 units.", text)
 
     def test_enemy_tower_will_shoot_me_unless_my_minion_is_in_its_range(self):
         bare = obs(pos=(420, 250), towers=[tower("tw-9", "green", G_OUTER)])
         text = describe_observation(bare, VOCAB_2, "pvp-1")
-        self.assertIn("Enemy tower tw-9 (top, 900/900 hp) is 150 units away; you are inside its 160-unit range, and it has no "
+        self.assertIn("Enemy tower tw-9 (top, 900/900 hp) at (420,100) is 150 units away; you are inside its 160-unit range, and it has no "
                       "minion of yours to shoot first, so it will shoot you.", text)
         self.assertIn("An enemy tower will shoot you (tw-9).", text)
         self.assertIn("You are not under your own tower.", text)
