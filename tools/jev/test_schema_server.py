@@ -106,6 +106,18 @@ class DecideTests(unittest.TestCase):
         stub = JevSchemaBackend(schema_server.DumbStubJevClient()).decide({"schema": SCHEMA, "observation": OBS})
         self.assertEqual(stub["door"], "stub")
 
+    def test_the_stub_answers_the_same_whatever_order_the_asks_arrive_in(self):
+        """`--stub` is threaded: six bots' asks land in any order. Each answer is keyed on the seed and
+        the request, so a seeded stub match plays the same every time (`tools/match/test_vocab.mjs`)."""
+        moved = {**OBS, "self": {**OBS["self"], "pos": {"x": 340, "y": 280}}}
+        bodies = [{"schema": SCHEMA, "observation": OBS}, {"schema": SCHEMA, "observation": moved}]
+        answers = lambda backend, order: {i: backend.decide(bodies[i])["answers"] for i in order}
+        first = answers(JevSchemaBackend(schema_server.DumbStubJevClient()), [0, 1])
+        self.assertEqual(first, answers(JevSchemaBackend(schema_server.DumbStubJevClient()), [1, 0]))
+        self.assertEqual(first, answers(JevSchemaBackend(schema_server.DumbStubJevClient()), [1, 1, 0]), "asking twice changes nothing")
+        self.assertNotEqual(first[0], first[1], "a different state draws different answers")
+        self.assertNotEqual(first, answers(JevSchemaBackend(schema_server.DumbStubJevClient(seed=1)), [0, 1]), "the seed still matters")
+
     def test_the_door_is_the_one_that_answered_this_call(self):
         class Doors(FakeJev):
             backend = "typesafe"

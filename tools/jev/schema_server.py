@@ -44,7 +44,7 @@ from one that played it.
                           "tokens_in": int, "cost_usd": float}          (this call's Jev spend)
                   -> non-2xx {"error": "..."} -- the caller (tools/match/jevSchemaPilot.ts) holds.
 
-    python tools/jev/schema_server.py --stub             # no Jev: seeded random answers, $0
+    python tools/jev/schema_server.py --stub             # no Jev: seeded random answers keyed on each request, $0
     python tools/jev/schema_server.py --stub --port 0    # any free port; the start line names it
     python tools/jev/schema_server.py                    # live Jev, TypeSafe direct, Workers AI behind it
     python tools/jev/schema_server.py --jev-backend workers-ai   # live Jev via Cloudflare Workers AI only
@@ -242,7 +242,7 @@ def make_client(args: argparse.Namespace):
 
 def parse_args(argv=None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    p.add_argument("--stub", action="store_true", help="no Jev: seeded random answers (plumbing only, $0)")
+    p.add_argument("--stub", action="store_true", help="no Jev: seeded random answers keyed on each request, so arrival order never matters (plumbing only, $0)")
     add_jev_backend_args(p)
     p.add_argument("--port", type=int, default=DEFAULT_PORT)
     p.add_argument("--timeout", type=float, default=30.0, help="seconds per Jev call")
