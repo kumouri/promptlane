@@ -115,6 +115,13 @@ class TowerFact:
         but inside the tower's range is missed (stage B makes it exact)."""
         return (not self.own) and self.tower.get("alive", True) and self.in_range and self.my_minions_in_range == 0
 
+    @property
+    def shooting_my_minions(self) -> bool:
+        """The siege (spec §8.7): this bot stands inside an enemy tower's range while that tower has
+        this bot's minions in range, so by the same rule it shoots them and not this bot. Exactly
+        the in-range enemy towers that `will_shoot_me` leaves out, judged from the same minions."""
+        return (not self.own) and self.tower.get("alive", True) and self.in_range and self.my_minions_in_range > 0
+
 
 def tower_facts(obs: dict, spec: MapSpec) -> list[TowerFact]:
     self_ = obs["self"]
@@ -223,8 +230,9 @@ FACTS_V2 = (
     Fact("own_towers", "this bearbot's own towers within 390 units: hp, position, distance, whether it stands inside the tower's range "
          "(\"under your own tower\"), and any enemy bearbot inside that tower's range (a tower diver)", "under your own tower"),
     Fact("enemy_towers", "enemy towers within 390 units: hp, position, distance, whether this bearbot is inside the tower's range, and whether "
-         "the tower will shoot it (a tower shoots minions first, and a bearbot only when none of that bearbot's minions is in its range)",
-         "enemy tower will shoot you"),
+         "the tower will shoot it (a tower shoots minions first, and a bearbot only when none of that bearbot's minions is in its range); "
+         "and whether this bearbot is inside an enemy tower's range while that tower has this bearbot's own minions in its range, so "
+         "the tower shoots them, not it", "enemy tower will shoot you"),
     Fact("fight", "the fight near this bearbot (within 260 units): each side's bearbots and their total hp, minions, and towers whose "
          "range covers it, then a verdict: your side is stronger, even, or weaker here, or there is no fight near you", "Fight near you"),
     Fact("economy", "its gold, level and XP, items, next item and whether it can afford it, whether it is at its base; allies' gold "

@@ -27,6 +27,7 @@ from target_resolve import (  # noqa: E402
 )
 from vocab import (  # noqa: E402
     DEFAULT_VOCAB, FACTS_V2, MAPS, VOCAB_1, VOCAB_2, VOCABS, FightSide, dist, fight, fight_verdict, map_spec, resolve_vocab,
+    tower_facts,
 )
 
 REPO = HERE.parents[1]
@@ -219,6 +220,26 @@ class TowerFacts(unittest.TestCase):
         # an enemy minion near the tower draws nothing
         theirs = obs(pos=(420, 250), towers=[tower("tw-9", "green", G_OUTER)], minions=[minion("mn-4", "green", P(420, 200))])
         self.assertIn("An enemy tower will shoot you (tw-9).", describe_observation(theirs, VOCAB_2, "pvp-1"))
+
+    def test_siege_line_is_the_in_range_tower_that_shoots_my_minions(self):
+        """§8.7: the siege fact gets its own always-present line, the complement of "will shoot you"
+        among the enemy towers this bot stands inside the range of."""
+        no = "You are not inside the range of an enemy tower that has your own minions in its range."
+        covered = obs(pos=(420, 250), towers=[tower("tw-9", "green", G_OUTER)], minions=[minion("mn-3", "violet", P(420, 200))])
+        self.assertIn("You are inside an enemy tower's range while it has your own minions in its range, so it is shooting your "
+                      "minions, not you (tw-9).", describe_observation(covered, VOCAB_2, "pvp-1"))
+        for o, why in (
+                (obs(pos=(420, 250), towers=[tower("tw-9", "green", G_OUTER)]), "no minion: it shoots me instead"),
+                (obs(pos=(420, 250), towers=[tower("tw-9", "green", G_OUTER)], minions=[minion("mn-4", "green", P(420, 200))]), "their minion"),
+                (obs(pos=(420, 300), towers=[tower("tw-9", "green", G_OUTER)], minions=[minion("mn-3", "violet", P(420, 200))]), "I'm out of range"),
+                (obs(pos=(420, 250), towers=[tower("tw-9", "green", G_OUTER, alive=False)], minions=[minion("mn-3", "violet", P(420, 200))]), "dead"),
+                (obs(towers=[tower("tw-1", "violet", V_INNER)], minions=[minion("mn-3", "violet", P(100, 640))]), "my own tower"),
+                (obs(), "no tower at all")):
+            self.assertIn(no, describe_observation(o, VOCAB_2, "pvp-1"), why)
+        # one source of truth: the line names exactly the towers vocab.py calls a siege
+        f = tower_facts(covered, map_spec("pvp-1"))[0]
+        self.assertTrue(f.shooting_my_minions and not f.will_shoot_me)
+        self.assertNotIn("shooting your minions", describe_observation(covered, VOCAB_1, "pvp-1"), "vocab-1 never says it")
 
     def test_outside_range_and_tower_range_comes_from_the_map(self):
         o = obs(pos=(420, 240), towers=[tower("tw-9", "green", G_OUTER)])
@@ -517,6 +538,7 @@ class ReadingStandIn:
     backend = "stand-in"
     READS = (
         (r"under its own tower", r"You are under your own tower \("),
+        (r"enemy tower.*range.*own minions", r"You are inside an enemy tower's range while it has your own minions"),
         (r"enemy tower .*shoot", r"An enemy tower will shoot you \("),
         (r"enemy bearbot under", r"Enemy bearbot under your tower: "),
         (r"side stronger", r"Your side is stronger here\."),
@@ -541,6 +563,7 @@ STAND_IN_SCHEMA = {
     "pilot_file": "entrants/test/pilot.md", "instrument": "keytar", "vocab": VOCAB_2,
     "rules": [
         _rule("shot", "will an enemy tower shoot this bot?", "move", "own_tower"),
+        _rule("siege", "is this bot inside an enemy tower's range while that tower has this bot's own minions in its range?", "attack", "nearest_tower"),
         _rule("diver", "is an enemy bearbot under this bot's tower?", "attack", "tower_diver"),
         _rule("weaker", "is this bot's side weaker in the fight near it?", "move", "nearest_ally"),
         _rule("stronger", "is this bot's side stronger in the fight near it?", "attack", "nearest_enemy_bearbot"),
@@ -557,6 +580,8 @@ class StandInPlaysTheNewConditions(unittest.TestCase):
     def test_each_rule_on_a_state_built_for_it(self):
         dive = self.decide(obs(pos=(420, 250), towers=[tower("tw-9", "green", G_OUTER)]))
         self.assertEqual((dive["rule"], dive["action"]), ("shot", {"kind": "move", "target": P(100, 684)}))
+        siege = self.decide(obs(pos=(420, 250), towers=[tower("tw-9", "green", G_OUTER)], minions=[minion("mn-3", "violet", P(420, 200))]))
+        self.assertEqual((siege["rule"], siege["action"]), ("siege", {"kind": "attack", "target": "tw-9"}))
         punish = self.decide(obs(towers=[tower("tw-1", "violet", V_INNER)], enemies=[bearbot("bb-9", P(150, 700))]))
         self.assertEqual((punish["rule"], punish["action"]), ("diver", {"kind": "attack", "target": "bb-9"}))
         losing = self.decide(obs(pos=(300, 300), hp=40, enemies=[bearbot("bb-9", P(350, 300))], allies=[{"id": "bb-1", "pos": P(100, 900), "hp": 200, "maxHp": 220}]))
