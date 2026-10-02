@@ -229,6 +229,12 @@ spliced in. Every other rule object is byte for byte.
   `own_tower` (it used to walk home whenever an enemy tower was in sight without an allied minion);
   its side weaker in the fight near it → `own_tower`, before hunting the carrier. PR #71's tower-race
   changes ("The economy-aware hard takes the tower race", above) all stay.
+- **On Jev, pre-registered (`eco-3-late`, Final Chorus on), 40 matches:**
+  - **Hard punishes the dive:** 68 % of the sample entrant's deaths credit a defender (46 % before),
+    and the entrant won 2 of 4 decided (6 of 6 before).
+  - **Against medium, hard is unproven:** only 4 of 18 matches were decided (hard won 3), so the
+    primary line is INCONCLUSIVE.
+  - **Easy holds at its tower** 99.7 % of the time and lost no bearbot. It also never shops.
 
 - **Medium keeps its worksheet.** It adds three keys after `hp`: `"gold": self.gold`,
   `"next": self.nextItem.cost` (null when the list is done) and `"home": self.atShop`; the rest,
