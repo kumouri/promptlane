@@ -227,6 +227,13 @@ class ShoppingListLineTests(unittest.TestCase):
         self.assertIn(f"- {note}", text)
         self.assertNotIn("Automatic priority fixes", text)
 
+    def test_negation_notes_get_their_own_section(self):
+        note = 'negation: removed rule shop_no_enemy ("is there any enemy in sight?") -- your prose says "no enemy is in sight".'
+        text = self._render(self._schema("keytar", ("amp",), (note,)))
+        self.assertIn("## Negations — what was removed", text)
+        self.assertIn(f"- {note}", text)
+        self.assertNotIn("Automatic priority fixes", text)
+
 
 
 class RecipeShoppingListLineTests(unittest.TestCase):
