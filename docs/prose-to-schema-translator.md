@@ -214,8 +214,10 @@ See [`translator-guards-and-defaults-spec.md` §10](translator-guards-and-defaul
 
 **Shopping list (`build`), added with the economy.** The schema also carries `build`: an ordered
 tuple of at most `shop.slots` unique item keys, or `None` for "the prose names no items" (the
-economy layer then buys the instrument's default build). Everything about items comes from
-`src/economy/eco-1.json` through `tools/jev/economy_rules.py`; nothing is copied. The translation
+economy layer then buys the instrument's default build). Everything about items comes from the
+ruleset being compiled for (`src/economy/<name>.json`: `compile.py --economy NAME`, default
+`economy_rules.DEFAULT_ECONOMY`, the shipped `eco-3`) through `tools/jev/economy_rules.py`; nothing
+is copied. The translation
 prompt gets an items block generated from that file (key, name, cost, what it gives, what it gives
 up, one line each) plus the instruction *"If the prose names items or a shopping order, emit
 "build" in that order; otherwise omit it."* The model's `build` is run through
@@ -229,6 +231,18 @@ Strings → Road Case (from your prose)" or "(default for keytar — your prose 
 bounty, respawns, ...) in plain sentences whenever an observation carries them, so a rule such as
 "can this bot afford its next item?" is answerable. Observations without those fields are described
 byte-for-byte as before. See `docs/economy-spec.md` §4.1, §4.3 and §4.5.
+
+**Recipe rulesets (`eco-3-late`).** When the ruleset has recipes (any item with a `from`), the items
+block groups items by tier with what each is made from, and asks for `build` as the items in the
+prose's order, any tier ("parts are filled in for you"). `normalize_build` then keeps the list as
+declared (less unknown items and repeats of an item already held) and runs `economy_rules.expand_build`
+-- the mirror of `expandBuild` in `src/economy.ts`, both tested on
+`tools/match/build_expansion_cases.json` -- for its notes: parts added, no free slot, parts not held,
+the 10-step cut. The match expands the declared list again at start, so the wire format is unchanged
+(`FORMAT_VERSION` 2); a non-default ruleset is named by an `"economy"` key in the compiled JSON. The
+transparency line shows the expanded plan with tier-2/3 items in bold, and `describe_observation` names
+each tier-2/3 item's tier and parts. A ruleset without recipes takes none of these paths. See
+`docs/late-game-economy-spec.md` §2.5, §7.3 and §7.4.
 
 ## 3. Evaluation harness and methodology
 

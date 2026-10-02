@@ -31,6 +31,7 @@ import { setRewardSink, type RewardSink } from './ruleset/rewards';
 import ECO_1_JSON from './economy/eco-1.json';
 import ECO_2_JSON from './economy/eco-2.json';
 import ECO_3_JSON from './economy/eco-3.json';
+import ECO_3_LATE_JSON from './economy/eco-3-late.json';
 import RESPAWN_1_JSON from './economy/respawn-1.json';
 
 /**
@@ -44,11 +45,24 @@ export const ECO_1_GOLD_SOURCES: readonly GoldSource[] = GOLD_SOURCES.filter((k)
 
 export interface ItemDef {
   name: string;
+  /** What you pay at THIS step: a tier-1 purchase, a recipe or an upgrade (`totalCost` sums the tree). */
   cost: number;
   gives: string;
   givesUp: string;
-  /** Multipliers as fractions (+0.35 = +35 %); `pvpLifesteal` is the healed share of PvP damage. */
-  mods: Partial<Record<'maxHp' | 'attackDamage' | 'moveSpeed' | 'attackCooldownSec' | 'abilityCooldown' | 'pvpLifesteal', number>>;
+  /**
+   * Multipliers as fractions (+0.35 = +35 %); `pvpLifesteal` is the healed share of PvP damage;
+   * `regenPerSec` is the share of max hp a living bot heals each second (late-game spec §2.4).
+   */
+  mods: Partial<Record<'maxHp' | 'attackDamage' | 'moveSpeed' | 'attackCooldownSec' | 'abilityCooldown' | 'pvpLifesteal' | 'regenPerSec', number>>;
+  /** 1, 2 or 3 (late-game spec §2.1). Absent = 1. */
+  tier?: number;
+  /**
+   * The items this one is made from: two tier-1 items for a recipe, one tier-2 item for an upgrade.
+   * Absent = a tier-1 item bought outright, so every ruleset written before recipes parses unchanged.
+   */
+  from?: string[];
+  /** Two-letter HUD label (late-game spec §7.5). Absent = the name's first letter, as before. */
+  abbr?: string;
 }
 
 export interface EconomyRuleset {
@@ -83,7 +97,8 @@ export interface EconomyRuleset {
     thresholds: number[];
     perLevel: { maxHp: number; attackDamage: number };
   };
-  shop: { radius: number; slots: number };
+  /** `planSteps`: a shopping list with recipes is cut at this many steps (late-game spec §2.5). */
+  shop: { radius: number; slots: number; planSteps?: number };
   items: Record<string, ItemDef>;
   defaultBuilds: Record<Instrument, string[]>;
   /**
@@ -114,7 +129,20 @@ export const ECO_3: EconomyRuleset = ECO_3_JSON as EconomyRuleset;
  */
 export const RESPAWN_ONLY: EconomyRuleset = RESPAWN_1_JSON as EconomyRuleset;
 
-export const ECONOMY_RULESETS: Record<string, EconomyRuleset> = { [ECO_1.name]: ECO_1, [ECO_2.name]: ECO_2, [ECO_3.name]: ECO_3, [RESPAWN_ONLY.name]: RESPAWN_ONLY };
+/**
+ * The late game (docs/late-game-economy-spec.md): eco-3's gold, respawn and tier-1 items, plus four
+ * tier-2 recipes, four tier-3 upgrades with one passive each, and levels 6–8 at a flat 150 XP. Off
+ * unless a match names it; every other ruleset is untouched.
+ */
+export const ECO_3_LATE: EconomyRuleset = ECO_3_LATE_JSON as EconomyRuleset;
+
+export const ECONOMY_RULESETS: Record<string, EconomyRuleset> = {
+  [ECO_1.name]: ECO_1,
+  [ECO_2.name]: ECO_2,
+  [ECO_3.name]: ECO_3,
+  [ECO_3_LATE.name]: ECO_3_LATE,
+  [RESPAWN_ONLY.name]: RESPAWN_ONLY,
+};
 
 /**
  * The economy new matches get when none is named: none, until Ceryce's go/no-go gate (§7, ruled
@@ -139,12 +167,107 @@ export function resolveEconomy(economy: string | EconomyRuleset | null | undefin
   return found;
 }
 
+/** An item's tier: 1 unless the ruleset says otherwise. */
+export function itemTier(ruleset: EconomyRuleset, key: string): number {
+  return ruleset.items[key]?.tier ?? 1;
+}
+
+/** Whether any item is made from others. A ruleset without recipes runs every pre-recipe code path unchanged. */
+export function hasRecipes(ruleset: EconomyRuleset): boolean {
+  return Object.values(ruleset.items).some((it) => (it.from?.length ?? 0) > 0);
+}
+
+/** Everything that went into an item: its own step's cost plus its parts' totals (late-game spec §7.1). */
+export function totalCost(ruleset: EconomyRuleset, key: string): number {
+  const it = ruleset.items[key];
+  return it.cost + (it.from ?? []).reduce((s, k) => s + totalCost(ruleset, k), 0);
+}
+
+/** What `expandBuild` did to a declared list, for the validator's notes (mirrored in `economy_rules.py`). */
+export type BuildNoteKind = 'unknown' | 'repeat' | 'parts-added' | 'no-slot' | 'parts-missing' | 'cut' | 'default';
+export interface BuildNote {
+  kind: BuildNoteKind;
+  key: string | null;
+}
+
 /**
- * A bot's shopping list: the declared one cleaned (unknown and repeated items dropped, cut to the
- * slot count), or the instrument's default when nothing usable was declared. The translator already
- * validates a compiled `build` (tools/jev/economy_rules.py); this is the same rule at the last step.
+ * A recipe ruleset's shopping list (late-game spec §2.5), mirrored step for step by
+ * `normalize_build` in `tools/jev/economy_rules.py`; both run `tools/match/build_expansion_cases.json`.
+ * 1. Walk the declared list in order. An entry the plan already holds at that point is skipped;
+ *    otherwise its recipe tree is added depth-first, parts in their `from` order, then the entry.
+ * 2. Walk that plan from an empty inventory: a tier-1 step that would need a slot beyond
+ *    `shop.slots` is dropped, and so is a recipe or upgrade whose parts aren't held by then.
+ * 3. Cut the plan at `shop.planSteps`.
+ * 4. Nothing left means the instrument's default ladder.
+ */
+export function expandBuild(ruleset: EconomyRuleset, instrument: Instrument, declared?: readonly string[] | null): { plan: string[]; notes: BuildNote[] } {
+  const notes: BuildNote[] = [];
+  const from = (k: string) => ruleset.items[k].from ?? [];
+  const held: string[] = [];
+  const steps: string[] = [];
+  const add = (key: string, isDeclared: boolean): void => {
+    if (held.includes(key)) {
+      if (isDeclared) notes.push({ kind: 'repeat', key });
+      return;
+    }
+    const before = steps.length;
+    for (const part of from(key)) add(part, false);
+    for (const part of from(key)) held.splice(held.indexOf(part), 1);
+    if (isDeclared && steps.length > before) notes.push({ kind: 'parts-added', key });
+    held.push(key);
+    steps.push(key);
+  };
+  for (const key of declared ?? []) {
+    if (Object.hasOwn(ruleset.items, key)) add(key, true);
+    else notes.push({ kind: 'unknown', key: null });
+  }
+
+  const inv: string[] = [];
+  let plan: string[] = [];
+  for (const key of steps) {
+    const parts = from(key);
+    if (!parts.length) {
+      if (inv.length >= ruleset.shop.slots) {
+        notes.push({ kind: 'no-slot', key });
+        continue;
+      }
+      inv.push(key);
+    } else {
+      if (!parts.every((p) => inv.includes(p))) {
+        notes.push({ kind: 'parts-missing', key });
+        continue;
+      }
+      combine(inv, key, parts);
+    }
+    plan.push(key);
+  }
+
+  const max = ruleset.shop.planSteps ?? Infinity;
+  if (plan.length > max) {
+    plan = plan.slice(0, max);
+    notes.push({ kind: 'cut', key: null });
+  }
+  if (!plan.length) {
+    if (declared?.length) notes.push({ kind: 'default', key: null });
+    plan = [...(ruleset.defaultBuilds[instrument] ?? [])];
+  }
+  return { plan, notes };
+}
+
+/** Make `key` out of `parts` in `inv`: it takes the first part's place and the others leave. */
+function combine(inv: string[], key: string, parts: readonly string[]): void {
+  inv[inv.indexOf(parts[0])] = key;
+  for (const p of parts.slice(1)) inv.splice(inv.indexOf(p), 1);
+}
+
+/**
+ * A bot's shopping list. Under a ruleset with recipes it is `expandBuild`'s plan. Otherwise it is
+ * the declared list cleaned (unknown and repeated items dropped, cut to the slot count), or the
+ * instrument's default when nothing usable was declared. The translator already validates a
+ * compiled `build` (tools/jev/economy_rules.py); this is the same rule at the last step.
  */
 export function resolveBuild(ruleset: EconomyRuleset, instrument: Instrument, declared?: readonly string[] | null): string[] {
+  if (hasRecipes(ruleset)) return expandBuild(ruleset, instrument, declared).plan;
   const clean: string[] = [];
   for (const key of declared ?? []) {
     if (Object.hasOwn(ruleset.items, key) && !clean.includes(key)) clean.push(key);
@@ -176,7 +299,7 @@ export interface BotEconomy {
 
 export type EconomyEvent =
   | { tick: number; kind: 'death'; bot: number; killer: number | null; assisters: number[]; carried: number; loss: number; paid: number; respawnAtTick: number }
-  | { tick: number; kind: 'buy'; bot: number; item: string; cost: number }
+  | { tick: number; kind: 'buy'; bot: number; item: string; cost: number; consumed?: string[] }
   | { tick: number; kind: 'respawn'; bot: number }
   | { tick: number; kind: 'level'; bot: number; level: number }
   | { tick: number; kind: 'tower'; team: Team; local: number[] };
@@ -199,13 +322,24 @@ export interface EconomyObservation extends Observation {
     xpToNext: number | null;
     items: string[];
     slotsFree: number;
-    nextItem: { item: string; cost: number } | null;
+    nextItem: ShopEntry | null;
     atShop: boolean;
   };
   allies: Array<Observation['allies'][number] & { level: number; gold: number; items: string[] }>;
   visibleEnemies: Array<Observation['visibleEnemies'][number] & { level?: number; bounty?: number; items?: string[] }>;
   respawning: Array<{ id: string; team: Team; inSec: number }>;
-  shop: Array<{ item: string; cost: number }>;
+  shop: ShopEntry[];
+}
+
+/**
+ * An item as pilots see it. Under a ruleset with recipes it also carries `tier`, and `from` for a
+ * recipe or upgrade (late-game spec §7.3); under any other ruleset it is `{item, cost}` as before.
+ */
+export interface ShopEntry {
+  item: string;
+  cost: number;
+  tier?: number;
+  from?: string[];
 }
 
 type Steppable = { tick(dt: number): void };
@@ -245,6 +379,8 @@ export class Economy {
   private passivePaid = 0;
   private firstBloodTaken = false;
   private readonly tickHz: number;
+  /** Whether the ruleset has recipes (`hasRecipes`); without them the shop and observation are pre-recipe, byte for byte. */
+  private readonly recipes: boolean;
 
   constructor(
     private readonly match: Match,
@@ -253,6 +389,7 @@ export class Economy {
     private readonly tickDt: number,
   ) {
     this.tickHz = Math.round(1 / tickDt);
+    this.recipes = hasRecipes(ruleset);
     const zero = (): Record<GoldSource, number> => Object.fromEntries(GOLD_SOURCES.map((s) => [s, 0])) as Record<GoldSource, number>;
     this.bots = match.bearbots.map((b, i) => {
       this.index.set(b, i);
@@ -290,7 +427,7 @@ export class Economy {
 
   netWorth(i: number): number {
     const b = this.bots[i];
-    return b.atRisk + b.safe + b.items.reduce((s, k) => s + this.ruleset.items[k].cost, 0);
+    return b.atRisk + b.safe + b.items.reduce((s, k) => s + totalCost(this.ruleset, k), 0);
   }
 
   /** What bot `i` would lose if it died now (§3.3). */
@@ -420,12 +557,15 @@ export class Economy {
     // 6. The shop.
     bb.forEach((b, i) => this.shopFor(i, tick));
 
-    // 7. Stats, then lifesteal, then the Metronome's cooldown cut on any ability just cast.
+    // 7. Stats, then lifesteal, then regeneration (late-game spec §2.4), then the Metronome's
+    //    cooldown cut on any ability just cast.
     bb.forEach((b, i) => {
       if (!b.alive) return;
       this.deriveStats(i);
       const steal = this.mod(i, 'pvpLifesteal');
       if (steal > 0 && this.pvpDealt[i] > 0) b.hp = Math.min(b.maxHp, b.hp + steal * this.pvpDealt[i]);
+      const regen = this.mod(i, 'regenPerSec');
+      if (regen > 0) b.hp = Math.min(b.maxHp, b.hp + regen * b.maxHp * this.tickDt);
       const cdMod = this.mod(i, 'abilityCooldown');
       for (const k of Object.keys(b.cooldowns)) {
         if (cdMod !== 0 && b.cooldowns[k] > (this.prevCooldowns[i][k] ?? 0) + 1e-9) b.cooldowns[k] *= 1 + cdMod;
@@ -504,19 +644,37 @@ export class Economy {
     return b.alive && dist(b.pos, BASE[b.team]) <= this.ruleset.shop.radius;
   }
 
-  /** Position on the build of the next item to buy (items already owned are passed over), or -1. */
+  /**
+   * Position on the build of the next item to buy (items already owned are passed over), or -1.
+   * A tier-1 step needs a free slot; a recipe or upgrade needs every part held and frees the slots
+   * its extra parts used (late-game spec §2.1). A step that can't be taken ends the list: the shop
+   * never skips one.
+   */
   private nextIndex(i: number): number {
     const e = this.bots[i];
-    if (e.items.length >= this.ruleset.shop.slots) return -1;
-    for (let k = e.cursor; k < e.build.length; k++) if (!e.items.includes(e.build[k])) return k;
+    if (!this.recipes && e.items.length >= this.ruleset.shop.slots) return -1;
+    for (let k = e.cursor; k < e.build.length; k++) {
+      const key = e.build[k];
+      if (e.items.includes(key)) continue;
+      if (!this.recipes) return k;
+      const parts = this.ruleset.items[key].from ?? [];
+      const ok = parts.length ? parts.every((p) => e.items.includes(p)) : e.items.length < this.ruleset.shop.slots;
+      return ok ? k : -1;
+    }
     return -1;
   }
 
-  nextItem(i: number): { item: string; cost: number } | null {
+  /** The next step as pilots see it (`ShopEntry`), or null when the list is done. */
+  nextItem(i: number): ShopEntry | null {
     const k = this.nextIndex(i);
     if (k < 0) return null;
-    const item = this.bots[i].build[k];
-    return { item, cost: this.ruleset.items[item].cost };
+    return this.shopEntry(this.bots[i].build[k]);
+  }
+
+  private shopEntry(item: string): ShopEntry {
+    const def = this.ruleset.items[item];
+    if (!this.recipes) return { item, cost: def.cost };
+    return { item, cost: def.cost, tier: itemTier(this.ruleset, item), ...(def.from?.length ? { from: [...def.from] } : {}) };
   }
 
   /** Buy down the list while the bot is at its shop and can afford the next item; never skip one. */
@@ -528,9 +686,11 @@ export class Economy {
       const cost = this.ruleset.items[item].cost;
       if (this.gold(i) < cost) break;
       this.spend(i, cost);
-      e.items.push(item);
+      const parts = this.ruleset.items[item].from ?? [];
+      if (parts.length) combine(e.items, item, parts);
+      else e.items.push(item);
       e.cursor = k + 1;
-      this.events.push({ tick, kind: 'buy', bot: i, item, cost });
+      this.events.push({ tick, kind: 'buy', bot: i, item, cost, ...(parts.length ? { consumed: [...parts] } : {}) });
     }
   }
 
@@ -598,7 +758,7 @@ export class Economy {
         return j === undefined ? v : { ...v, level: this.bots[j].level, bounty: this.bounty(j), items: [...this.bots[j].items] };
       }),
       respawning: this.respawning(tick),
-      shop: Object.entries(r.items).map(([item, def]) => ({ item, cost: def.cost })),
+      shop: Object.keys(r.items).map((item) => this.shopEntry(item)),
     };
   }
 

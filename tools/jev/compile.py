@@ -20,6 +20,13 @@ BACKENDS (`llm_backends.py`) -- same model either way, so every door compiles al
     --backend openrouter  OpenRouter, qwen/qwen3.5-9b, key from $OPENROUTER_API_KEY. ~$0.0005/compile.
 Default: $JEV_COMPILE_BACKEND, else ollama.
 
+ECONOMY. --economy NAME (default `economy_rules.DEFAULT_ECONOMY`) is the ruleset whose items the
+prompt lists and the shopping list is checked against. A non-default ruleset is named in the output:
+a top-level "economy" key in the JSON, and in each saved schema; the default writes nothing new, so
+its output is unchanged. Under a ruleset with recipes (`eco-3-late`) the compiled "build" is the list
+as declared and the match fills in parts (`docs/late-game-economy-spec.md` §7.4): FORMAT_VERSION
+stays 2.
+
 SPEND CAP. --max-total-tokens (default 60000, roughly 8 compiles' worth) bounds prompt+completion
 tokens across the whole invocation; a call that could cross it is refused before it is made
 (`llm_backends.TokenBudget`), and the instruments it would have compiled are reported as skipped.
@@ -38,6 +45,7 @@ Standard library only.
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import hashlib
 import json
 import os
@@ -47,6 +55,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from economy_rules import DEFAULT_ECONOMY, known_economies  # noqa: E402
 from llm_backends import Backend, BackendError, BudgetExceeded, TokenBudget, make_backend  # noqa: E402
 from scenarios import ABILITIES  # noqa: E402
 from segment import auto_segments, hand_segments_for  # noqa: E402
@@ -65,7 +74,8 @@ from vocab import DEFAULT_VOCAB, LEGACY_VOCAB, VOCABS, resolve_vocab  # noqa: E4
 INSTRUMENTS = ("drums", "keytar", "violin")
 DEFAULT_MAX_TOTAL_TOKENS = 60_000
 # 2: schemas carry "build" (the entrant's shopping list, or null for the instrument default).
-# A version-1 schema has no "build" and reads as null, so v1 files still load.
+# A version-1 schema has no "build" and reads as null, so v1 files still load. An optional
+# "economy" key (absent = the default ruleset) names the ruleset "build" was checked against.
 FORMAT_VERSION = 2
 
 
@@ -105,7 +115,8 @@ def _node_to_dict(n) -> dict:
 
 def schema_to_dict(schema: TranslatedSchema) -> dict:
     """A vocab-1 schema writes no "vocab" key, so it is exactly what it was before vocabularies
-    existed; any later vocabulary is named, last, so the schema plays under it (`vocab.py`)."""
+    existed; any later vocabulary is named, last, so the schema plays under it (`vocab.py`). Likewise
+    a schema checked against the default economy writes no "economy" key."""
     out = {
         "pilot_file": schema.pilot_file,
         "instrument": schema.instrument,
@@ -114,6 +125,8 @@ def schema_to_dict(schema: TranslatedSchema) -> dict:
         "validation_notes": list(schema.validation_notes),
         "build": None if schema.build is None else list(schema.build),
     }
+    if schema.economy not in (None, DEFAULT_ECONOMY):
+        out["economy"] = schema.economy
     if schema.vocab != LEGACY_VOCAB:
         out["vocab"] = schema.vocab
     return out
@@ -155,6 +168,7 @@ def schema_from_dict(d: dict) -> TranslatedSchema:
         raw_model_output="",
         validation_notes=tuple(d.get("validation_notes") or ()),
         build=None if build is None else tuple(build),
+        economy=d.get("economy"),
         root=Cascade(nodes=tuple(_node_from_dict(r) for r in d["rules"]),
                      default=Action(da.get("kind", "hold"), da.get("ability"), da.get("target_selector"))),
         vocab=resolve_vocab(d.get("vocab")),
@@ -173,7 +187,7 @@ def segments_for(text: str, display_name: str):
 
 
 def compile_instrument(text: str, display_name: str, instrument: str, backend: Backend | None, attempts: int = 3,
-                       schema: TranslatedSchema | None = None, vocab: str = DEFAULT_VOCAB) -> dict:
+                       schema: TranslatedSchema | None = None, vocab: str = DEFAULT_VOCAB, economy: str | None = None) -> dict:
     """One instrument: translate (unless `schema` is given), then build + render the report.
     Never raises for a translation failure -- the entry says what went wrong instead.
 
@@ -187,7 +201,8 @@ def compile_instrument(text: str, display_name: str, instrument: str, backend: B
     try:
         if schema is None:
             primary, ultimate = ABILITIES[instrument]
-            schema = translate_pilot(text, pilot_file, instrument, primary, ultimate, max_attempts=attempts, generate=backend.generate, vocab=vocab)
+            schema = translate_pilot(text, pilot_file, instrument, primary, ultimate, max_attempts=attempts, generate=backend.generate, vocab=vocab,
+                                     economy=economy)
         report = build_report(schema, pilot_file, segments=segments, labels=labels)
         entry.update(ok=True, schema=schema_to_dict(schema), markdown=render_report_markdown(report),
                      dropped=[{"label": d.label, "text": d.text.strip()} for d in report.dropped if d.text.strip()],
@@ -202,20 +217,26 @@ def compile_instrument(text: str, display_name: str, instrument: str, backend: B
 
 
 def compile_prompt(text: str, display_name: str, instruments, backend: Backend | None, parallel: int = 1,
-                   attempts: int = 3, schemas: dict | None = None, vocab: str = DEFAULT_VOCAB) -> dict:
+                   attempts: int = 3, schemas: dict | None = None, vocab: str = DEFAULT_VOCAB, economy: str | None = None) -> dict:
     """`vocab` is what a fresh translation is compiled under; a saved schema (`schemas`) keeps its own.
-    The result's `vocab` names the vocabulary every compiled instrument is in."""
+    The result's `vocab` names the vocabulary every compiled instrument is in. `economy` None (or the
+    default's name) compiles for `DEFAULT_ECONOMY` and adds nothing to the result; any other ruleset
+    is recorded as `result["economy"]`."""
     text = text.replace("\r\n", "\n")
-    work = lambda inst: compile_instrument(text, display_name, inst, backend, attempts, (schemas or {}).get(inst), vocab)  # noqa: E731
+    economy = None if economy == DEFAULT_ECONOMY else economy
+    work = lambda inst: compile_instrument(text, display_name, inst, backend, attempts, (schemas or {}).get(inst), vocab, economy)  # noqa: E731
     with ThreadPoolExecutor(max_workers=max(1, parallel)) as pool:
         entries = list(pool.map(work, instruments))
     used = sorted({e["schema"].get("vocab", LEGACY_VOCAB) for e in entries if e["ok"]}) or [vocab]
-    return {
+    result = {
         "name": display_name,
         "sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
         "vocab": ", ".join(used),
         "instruments": {e["instrument"]: e for e in entries},
     }
+    if economy is not None:
+        result["economy"] = economy
+    return result
 
 
 # --- rendering the whole preview ------------------------------------------------------------------
@@ -243,6 +264,8 @@ def header_markdown(result: dict, backend_desc: str, usage: dict, cap: int | Non
         "the targets a rule can name. A compiled schema always plays under the vocabulary it was compiled in.",
         "",
     ]
+    if result.get("economy"):
+        lines += [f"Items and shopping lists follow the `{result['economy']}` ruleset.", ""]
     for inst, e in result["instruments"].items():
         if e["ok"]:
             n = len(e["schema"]["rules"])
@@ -290,6 +313,8 @@ def parse_args(argv=None) -> argparse.Namespace:
     p.add_argument("--timeout", type=float, default=120.0, help="seconds per model call")
     p.add_argument("--format", choices=("markdown", "json"), default="markdown")
     p.add_argument("--out", default=None, help="write the output here instead of stdout")
+    p.add_argument("--economy", choices=known_economies(), default=DEFAULT_ECONOMY,
+                   help=f"the ruleset whose items the prompt lists and the shopping list is checked against (default {DEFAULT_ECONOMY})")
     p.add_argument("--schema-in", action="append", default=[], metavar="FILE",
                    help="render from a saved schema JSON instead of calling a model (repeatable, one per instrument; no spend)")
     p.add_argument("--save-schemas", default=None, metavar="DIR", help="also write each compiled schema as JSON here")
@@ -305,6 +330,7 @@ def main(argv=None) -> int:
         print("give prompt file(s) or --stdin (not both)", file=sys.stderr)
         return 2
     instruments = INSTRUMENTS if args.instrument == "all" else (args.instrument,)
+    economy = None if args.economy == DEFAULT_ECONOMY else args.economy
 
     sources = [(args.name, sys.stdin.read())] if args.stdin else []
     for f in args.prompts:
@@ -319,6 +345,8 @@ def main(argv=None) -> int:
         schemas = {}
         for f in args.schema_in:
             s = schema_from_dict(json.loads(Path(f).read_text(encoding="utf-8")))
+            if economy is not None and s.economy is None:  # a saved schema's own "economy" wins
+                s = dataclasses.replace(s, economy=economy)
             schemas[s.instrument] = s
         instruments = tuple(i for i in instruments if i in schemas)
 
@@ -336,7 +364,7 @@ def main(argv=None) -> int:
     parallel = args.parallel or (3 if args.backend == "openrouter" else 1)
 
     started = time.perf_counter()
-    results = [compile_prompt(text, name, instruments, backend, parallel, args.attempts, schemas, args.vocab) for name, text in sources]
+    results = [compile_prompt(text, name, instruments, backend, parallel, args.attempts, schemas, args.vocab, economy) for name, text in sources]
     usage = backend.usage.as_dict() if backend else {"calls": 0, "prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0, "cost_usd": 0.0, "seconds": 0.0}
     usage["wall_seconds"] = round(time.perf_counter() - started, 2)
 
@@ -350,13 +378,15 @@ def main(argv=None) -> int:
                     (out_dir / f"{stem}-{inst}.json").write_text(json.dumps(e["schema"], indent=1) + "\n", encoding="utf-8")
 
     if args.format == "json":
-        out = json.dumps({
+        payload = {
             "version": FORMAT_VERSION,
+            **({"economy": economy} if economy is not None else {}),
             "backend": backend_desc,
             "cap_tokens": cap,
             "usage": usage,
             "prompts": [{**r, "markdown": full_markdown(r, backend_desc, usage, cap)} for r in results],
-        }, indent=1) + "\n"
+        }
+        out = json.dumps(payload, indent=1) + "\n"
     else:
         out = "\n\n".join(full_markdown(r, backend_desc, usage, cap) for r in results)
 

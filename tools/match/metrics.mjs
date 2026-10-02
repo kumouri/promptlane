@@ -244,6 +244,14 @@ export const MATCH_ROWS = [
   ['economy: comeback (behind at 5:00 wins)', 'ecoComeback', pct, true],
   ['economy: shopping recalls / match, violet', 'ecoShoppingRecallsViolet', (x) => num(x, 2), true],
   ['economy: shopping recalls / match, green', 'ecoShoppingRecallsGreen', (x) => num(x, 2), true],
+  // docs/late-game-economy-spec.md §6 lines 1–3 (§7.6); the tier rows only show where a log bought one.
+  ['economy: item value (total cost) per bot at the end', 'ecoItemValuePerBot', (x) => num(x, 0), true],
+  ['economy: unspent gold at the end (median per match)', 'ecoUnspentAtEnd', (x) => num(x, 0), true],
+  ['…violet bots', 'ecoUnspentAtEndViolet', (x) => num(x, 0), true],
+  ['…green bots', 'ecoUnspentAtEndGreen', (x) => num(x, 0), true],
+  ['economy: first tier-2 item at, s (median per match)', 'ecoTier2AtSec', (x) => num(x, 0), true],
+  ['economy: first tier-3 item at, s (median per match)', 'ecoTier3AtSec', (x) => num(x, 0), true],
+  ['economy: level at 8:00 per bot', 'ecoLevelAt480', (x) => num(x, 2), true],
   // Recalls, under the log's rule: the specimen's 3x run home, or recall-2's channel (src/recall.ts).
   ['recalls started / match', 'recallsStarted', (x) => num(x, 2)],
   ['…got home', 'recallsHome', (x) => num(x, 2)],

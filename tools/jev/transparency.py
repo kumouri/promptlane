@@ -40,7 +40,7 @@ from dataclasses import dataclass
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from expressibility import FILES as PILOT_SEGMENTS  # noqa: E402
-from economy_rules import NOTE_PREFIX, default_build, format_build  # noqa: E402
+from economy_rules import NOTE_PREFIX, default_build, expand_build, format_build, has_recipes, item_name, item_tier  # noqa: E402
 from translator import (  # noqa: E402
     Action,
     Cascade,
@@ -330,10 +330,21 @@ def build_report(schema: TranslatedSchema, pilot_file: str, segments=None, label
 def shopping_list_line(schema: TranslatedSchema) -> str:
     """The entrant-facing shopping list: their own (`schema.build`) or, when their prose names no
     items, the instrument's default from the ruleset file -- said so, so a default is never mistaken
-    for something the entrant wrote."""
-    if schema.build:
-        return f"Shopping list: {format_build(schema.build)} (from your prose)"
-    return f"Shopping list: {format_build(default_build(schema.instrument))} (default for {schema.instrument} — your prose names no items)"
+    for something the entrant wrote.
+
+    Under a ruleset with recipes (`schema.economy`, late-game spec §7.4) it is the plan the match will
+    actually buy -- `economy_rules.expand_build` of the declared list, parts filled in -- with tier-2
+    and tier-3 items in bold. Under any other ruleset it is the pre-recipe line exactly."""
+    economy = getattr(schema, "economy", None)
+    if not has_recipes(economy):
+        if schema.build:
+            return f"Shopping list: {format_build(schema.build, economy)} (from your prose)"
+        return f"Shopping list: {format_build(default_build(schema.instrument, economy), economy)} (default for {schema.instrument} — your prose names no items)"
+    plan, _ = expand_build(schema.build or (), schema.instrument, economy)
+    steps = " → ".join(f"**{item_name(k, economy)}**" if item_tier(k, economy) >= 2 else item_name(k, economy) for k in plan)
+    if not schema.build:
+        return f"Shopping list: {steps} (default for {schema.instrument} — your prose names no items)"
+    return f"Shopping list: {steps} (from your prose{'' if tuple(plan) == tuple(schema.build) else '; parts filled in'})"
 
 
 def render_report_markdown(report: TransparencyReport) -> str:

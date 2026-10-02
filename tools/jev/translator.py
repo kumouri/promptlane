@@ -40,10 +40,12 @@ schemas (`docs/translator-guards-and-defaults-spec.md` §10). Two deterministic 
 `scope_to_instrument` sets aside lines explicitly marked for another instrument before the model
 sees the prose, and `enforce_instrument_scope` removes any rule that still fires another
 instrument's ability or asks about its cooldown (a no-op in the sim, pre-empting everything below).
-SHOPPING LIST. The prompt also carries an items block generated from `src/economy/eco-2.json`
-(`economy_rules.item_lines`); a prose that names items or a shopping order becomes `schema.build`,
-validated by `economy_rules.normalize_build` (unknown/duplicate items dropped, over-long lists cut to
-the slot count, each with a `build:` note). Economy P2 added one target selector,
+SHOPPING LIST. The prompt also carries an items block generated from the ruleset being compiled for
+(`economy_rules.items_prompt_block`; `economy=None` is `economy_rules.DEFAULT_ECONOMY`); a prose that
+names items or a shopping order becomes `schema.build`, validated by `economy_rules.normalize_build`
+(unknown/duplicate items dropped, over-long lists cut to the slot count, each with a `build:` note).
+Under a ruleset with recipes (`docs/late-game-economy-spec.md` §7.4) `build` lists items of any tier
+in the prose's order and the notes say which parts the match will fill in. Economy P2 added one target selector,
 `highest_bounty_enemy` (`docs/economy-spec.md` §4.2): "go after the enemy worth the most gold".
 VOCABULARIES (`vocab.py`, `docs/vocabulary-spec.md`): `TARGET_SELECTORS` is vocab-1's list. vocab-2
 adds `VOCAB2_SELECTORS` (own towers, tower divers, the nearest enemy bearbot or minion, the nearest
@@ -63,7 +65,7 @@ from dataclasses import dataclass, field
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ground_truth import _ollama_generate, resolve_ollama_url  # noqa: E402
-from economy_rules import NOTE_PREFIX, item_lines, normalize_build, slots  # noqa: E402
+from economy_rules import NOTE_PREFIX, items_prompt_block, normalize_build  # noqa: E402
 from number_normalize import normalize_numbers_for_trace  # noqa: E402
 from scenarios import ABILITIES  # noqa: E402
 from vocab import VOCAB_1, VOCAB_2, facts_for, resolve_vocab  # noqa: E402
@@ -176,9 +178,11 @@ class TranslatedSchema:
     representation that sees the whole tree, so anything that saves or sends a schema must walk
     `root` (as `compile.py`'s schema_to_dict does), never `rules`.
 
-    `build` is the entrant's shopping list: ordered ruleset-file (`eco-2.json`) item keys, at most `shop.slots`,
-    already validated by `economy_rules.normalize_build`. `None` means "the prose names no items" --
-    the economy layer then uses the instrument's default build (`docs/economy-spec.md` §4.3).
+    `build` is the entrant's shopping list: ordered item keys of the ruleset `economy` names (None =
+    `economy_rules.DEFAULT_ECONOMY`), already validated by `economy_rules.normalize_build` -- at most
+    `shop.slots` of them, or under a ruleset with recipes the items as declared, whose parts the
+    match fills in. `None` means "the prose names no items" -- the economy layer then uses the
+    instrument's default build (`docs/economy-spec.md` §4.3).
 
     `vocab` is the vocabulary it was compiled under (`vocab.py`): what Jev is told and which
     selectors it may name. It plays under that vocabulary everywhere, never a server's default."""
@@ -194,6 +198,7 @@ class TranslatedSchema:
     root: Cascade | None = None
     build: tuple[str, ...] | None = None
     vocab: str = VOCAB_1
+    economy: str | None = None
 
     def __post_init__(self):
         if self.root is None:
@@ -259,16 +264,18 @@ def facts_prompt_block(vocab: str) -> str:
     )
 
 
-def _translation_prompt(pilot_text: str, instrument: str, primary_ability: str, ultimate_ability: str, vocab: str = VOCAB_1) -> str:
+def _translation_prompt(pilot_text: str, instrument: str, primary_ability: str, ultimate_ability: str, vocab: str = VOCAB_1,
+                        economy: str | None = None) -> str:
     """vocab-1's prompt is byte-identical to the one every schema compiled before vocab-2 was
     (golden-tested, `test_vocab.py`); vocab-2 adds its six selectors, the facts list, and a condition
-    example in those facts' terms."""
+    example in those facts' terms. `economy` picks the ITEMS block (`economy_rules.items_prompt_block`);
+    the default ruleset's is the pre-recipe text exactly."""
     vocab = resolve_vocab(vocab)
     selectors = selectors_for(vocab)
     selectors_desc = "\n".join(f'  "{k}" -- {v}' for k, v in selectors.items())
     facts_block = facts_prompt_block(vocab)
     condition_desc = _CONDITION_DESC[vocab]
-    item_lines_desc = "\n".join(item_lines())
+    items_block = items_prompt_block(economy)
     return f"""You are translating a game-bot prompt written in prose into a strict decision table.
 
 The bot plays {instrument}. Its two abilities are named "{primary_ability}" (primary) and
@@ -323,10 +330,7 @@ If the prose has NO strategic-verdict content, output only plain rules -- do not
 {{"rules": [{{"id": "...", "condition": "...", "criteria": {{"true": "...", "false": "..."}}, "action": {{"kind": "...", "ability": null, "target_selector": null}}}}],
  "default_action": {{"kind": "...", "ability": null, "target_selector": null}}}}
 
-ITEMS a bearbot can buy at its base (at most {slots()} per bearbot, bought in order):
-{item_lines_desc}
-If the prose names items or a shopping order, emit "build" in that order; otherwise omit it. "build" is
-a top-level key next to "rules", a list of item keys from the list above, e.g. "build": ["amp", "road-case"].
+{items_block}
 
 PROSE PILOT:
 {pilot_text.strip()}
@@ -389,16 +393,18 @@ def _parse_cascade(nodes_raw: list, default_raw: dict | None, default_required: 
     return Cascade(nodes=nodes, default=default)
 
 
-def parse_schema(raw_json: dict, pilot_file: str, instrument: str, raw_text: str, vocab: str = VOCAB_1) -> TranslatedSchema:
-    """`vocab` is what the model was prompted with (`_translation_prompt`); the schema records it."""
+def parse_schema(raw_json: dict, pilot_file: str, instrument: str, raw_text: str, vocab: str = VOCAB_1,
+                 economy: str | None = None) -> TranslatedSchema:
+    """`vocab` is what the model was prompted with (`_translation_prompt`); the schema records it.
+    `economy` is the ruleset `build` is checked against (None = `economy_rules.DEFAULT_ECONOMY`)."""
     vocab = resolve_vocab(vocab)
     root = _parse_cascade(raw_json.get("rules"), raw_json.get("default_action"), default_required=True, vocab=vocab)
     if not root.nodes:
         raise ValueError("translator produced zero rules")
-    build, build_notes = normalize_build(raw_json.get("build"), instrument)
+    build, build_notes = normalize_build(raw_json.get("build"), instrument, economy)
     return TranslatedSchema(
         pilot_file=pilot_file, instrument=instrument, raw_model_output=raw_text, root=root,
-        validation_notes=build_notes, build=build, vocab=vocab,
+        validation_notes=build_notes, build=build, vocab=vocab, economy=economy,
     )
 
 
@@ -616,6 +622,7 @@ def enforce_absolute_priority(schema: TranslatedSchema, pilot_text: str) -> Tran
         validation_notes=schema.validation_notes + (note,),
         build=schema.build,
         vocab=schema.vocab,
+        economy=schema.economy,
     )
 
 
@@ -824,6 +831,7 @@ def enforce_instrument_scope(schema: TranslatedSchema, instrument: str, primary_
         validation_notes=schema.validation_notes + tuple(notes),
         build=schema.build,
         vocab=schema.vocab,
+        economy=schema.economy,
     )
 
 
@@ -838,11 +846,13 @@ def translate_pilot(
     max_attempts: int = 3,
     generate=None,
     vocab: str = VOCAB_1,
+    economy: str | None = None,
 ) -> TranslatedSchema:
     """`generate`, when given, is a `prompt -> reply text` callable that replaces the host-Ollama
     call (`llm_backends.Backend.generate` -- how `compile.py` runs the same translation on
     OpenRouter, or under a token cap). The prompt, parsing, retries and guards are the same
-    either way.
+    either way. `economy` names the ruleset whose items the prompt lists and `build` is checked
+    against (None = `economy_rules.DEFAULT_ECONOMY`); every backend gets the same prompt.
 
     `vocab` (`vocab.py`) picks the prompt's selector and facts lists and the selectors the reply
     may name, and the schema records it. vocab-1 by default here, so a research harness keeps the
@@ -863,13 +873,13 @@ def translate_pilot(
             f"of the {instrument} schema (each is compiled only for the instrument it names): {quoted}",
         )
     vocab = resolve_vocab(vocab)
-    prompt = _translation_prompt(scoped.text, instrument, primary_ability, ultimate_ability, vocab)
+    prompt = _translation_prompt(scoped.text, instrument, primary_ability, ultimate_ability, vocab, economy=economy)
     last_err: Exception | None = None
     for attempt in range(max_attempts):
         reply = generate(prompt)
         try:
             raw_json = _extract_json_object(reply)
-            schema = parse_schema(raw_json, pilot_file, instrument, reply, vocab)
+            schema = parse_schema(raw_json, pilot_file, instrument, reply, vocab, economy=economy)
             if scope_notes:
                 schema = dataclasses.replace(schema, validation_notes=schema.validation_notes + scope_notes)
             schema = enforce_instrument_scope(schema, instrument, primary_ability, ultimate_ability)
@@ -877,7 +887,7 @@ def translate_pilot(
         except (ValueError, json.JSONDecodeError) as err:
             last_err = err
             prompt = (
-                _translation_prompt(scoped.text, instrument, primary_ability, ultimate_ability, vocab)
+                _translation_prompt(scoped.text, instrument, primary_ability, ultimate_ability, vocab, economy=economy)
                 + f"\n\nYour previous attempt was invalid: {err}. If this mentions a 'guard_'-named "
                 "rule, you emitted a plain rule action for something that needed the full guard shape "
                 "(type/then/else) -- either finish the guard shape or use a normal rule instead. "

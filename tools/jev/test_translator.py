@@ -531,5 +531,138 @@ class BandstandSelectorTests(unittest.TestCase):
         self.assertNotIn("targeting: move to the Bandstand", md)
 
 
+LATE = "eco-3-late"
+
+
+class EconomyPromptTests(unittest.TestCase):
+    """`economy` threads through the prompt and the validator; the default prompt is the pre-recipe one."""
+
+    def test_the_default_prompt_is_the_pre_recipe_prompt(self):
+        import economy_rules as E
+        for inst, (p, u) in (("drums", ("kick", "fill")), ("keytar", ("chord", "arpeggio"))):
+            default = T._translation_prompt("Buy the amp.", inst, p, u)
+            self.assertEqual(default, T._translation_prompt("Buy the amp.", inst, p, u, economy=None))
+            self.assertEqual(default, T._translation_prompt("Buy the amp.", inst, p, u, economy="eco-3"))
+            self.assertEqual(default, T._translation_prompt("Buy the amp.", inst, p, u, economy="eco-2"))
+            old_block = (
+                "ITEMS a bearbot can buy at its base (at most 3 per bearbot, bought in order):\n"
+                + "\n".join(E.item_lines("eco-2"))
+                + '\nIf the prose names items or a shopping order, emit "build" in that order; otherwise omit it. "build" is\n'
+                'a top-level key next to "rules", a list of item keys from the list above, e.g. "build": ["amp", "road-case"].\n\nPROSE PILOT:\n'
+            )
+            self.assertIn(old_block, default)
+            for word in ("Tier", "recipe", "Backline", "parts are filled in"):
+                self.assertNotIn(word, default)
+
+    def test_a_recipe_ruleset_changes_only_the_items_block(self):
+        import economy_rules as E
+        default = T._translation_prompt("Buy the amp.", "drums", "kick", "fill")
+        late = T._translation_prompt("Buy the amp.", "drums", "kick", "fill", economy=LATE)
+        self.assertEqual(default.replace(E.items_prompt_block(), "<ITEMS>"), late.replace(E.items_prompt_block(LATE), "<ITEMS>"))
+        self.assertIn("3 slots; combining two items into a recipe frees a slot", late)
+        self.assertIn('emit "build" as the items in the order the prose wants them,\nany tier; parts are filled in for you', late)
+        for key in E.items(LATE):
+            self.assertIn(f'"{key}" -- ', late)
+
+    def test_translate_pilot_sends_the_rulesets_prompt_and_validates_against_it(self):
+        seen = []
+
+        def generate(prompt):
+            seen.append(prompt)
+            return _reply_with(build=["Backline", "Wall of Sound"])
+
+        schema = T.translate_pilot("Build a Backline, then Wall of Sound.", "pilot.md", "drums", "kick", "fill", generate=generate, economy=LATE)
+        self.assertIn("parts are filled in for you", seen[0])
+        self.assertEqual(schema.build, ("backline", "wall-of-sound"))
+        self.assertEqual(schema.economy, LATE)
+        self.assertEqual(schema.validation_notes,
+                         ("build: Backline needs Road Case and Bass Strings: added them to the shopping list.",))
+        # the same reply under the default ruleset: recipe names are not items there
+        schema = T.translate_pilot("Build a Backline.", "pilot.md", "drums", "kick", "fill", generate=generate)
+        self.assertIsNone(schema.build)
+        self.assertIsNone(schema.economy)
+        self.assertNotIn("parts are filled in", seen[-1])
+
+    def test_the_economy_survives_both_guards(self):
+        prose = "Recall when hp is below a quarter, no exceptions. Engage enemy bearbots. Buy the Backline."
+        reply = json.dumps({**VALID_SCHEMA, "rules": list(reversed(VALID_SCHEMA["rules"])) + [
+            {"id": "chord_it", "condition": "is chord ready?", "action": {"kind": "ability", "ability": "chord", "target_selector": None}}],
+            "build": ["backline"]})
+        schema = T.translate_pilot(prose, "pilot.md", "drums", "kick", "fill", generate=lambda p: reply, economy=LATE)
+        self.assertEqual(schema.rules[0].id, "recall_low_hp")  # the priority guard rebuilt the schema
+        self.assertTrue(any(n.startswith("instrument scope: removed rule chord_it") for n in schema.validation_notes))
+        self.assertEqual((schema.build, schema.economy), (("backline",), LATE))
+
+
+def _late_reply(rules, build=None, default=None):
+    out = {"rules": rules, "default_action": default or {"kind": "move", "ability": None, "target_selector": "push_lane"}}
+    if build is not None:
+        out["build"] = build
+    return json.dumps(out)
+
+
+class LateGameProseTests(unittest.TestCase):
+    """docs/late-game-economy-spec.md §7.3's prose -> schema table, with an offline scripted backend
+    (llm_backends.ScriptedBackend: the reply the translator is expected to give). These test the
+    parse / validate / describe path, not a model."""
+
+    def translate(self, prose, reply, instrument="drums"):
+        from llm_backends import ScriptedBackend
+        from scenarios import ABILITIES
+        backend = ScriptedBackend([reply])
+        primary, ultimate = ABILITIES[instrument]
+        return T.translate_pilot(prose, "pilot.md", instrument, primary, ultimate, generate=backend.generate, economy=LATE)
+
+    def test_build_toward_a_target_then_another(self):
+        import economy_rules as E
+        reply = _late_reply([_rule_spec("engage", "is an enemy bearbot visible?",
+                                        {"kind": "attack", "ability": None, "target_selector": "nearest_enemy"})],
+                            build=["Wall of Sound", "Arpeggiator"])
+        schema = self.translate("Build toward Wall of Sound first, then Arpeggiator.", reply)
+        self.assertEqual(schema.build, ("wall-of-sound", "arpeggiator"))
+        plan, _ = E.expand_build(schema.build, "drums", LATE)
+        self.assertEqual(plan, ("road-case", "bass-strings", "backline", "wall-of-sound", "metronome", "amp", "click-track", "arpeggiator"))
+
+    def test_explicit_steps_are_kept_as_written(self):
+        reply = _late_reply([_rule_spec("engage", "is an enemy bearbot visible?",
+                                        {"kind": "attack", "ability": None, "target_selector": "nearest_enemy"})],
+                            build=["amp", "bass-strings", "road-case", "fuzz-pedal"])
+        schema = self.translate("Buy Amp, Bass Strings, Road Case, then combine into Fuzz Pedal.", reply, "violin")
+        self.assertEqual(schema.build, ("amp", "bass-strings", "road-case", "fuzz-pedal"))
+        self.assertFalse([n for n in schema.validation_notes if n.startswith("build:")])
+
+    def test_afford_the_next_upgrade_and_no_enemy_is_answerable_and_recalls(self):
+        import fidelity_harness as FH
+        rule = _rule_spec("buy_upgrade", "can it afford the next item on its list, and no enemy bearbot is visible?",
+                          {"kind": "recall", "ability": None, "target_selector": "none"})
+        schema = self.translate("When I can afford my next upgrade and no enemy is near, go home and buy it.", _late_reply([rule]))
+        self.assertEqual(T.evaluate_schema(schema, {"buy_upgrade": True}).kind, "recall")
+        text = FH.describe_observation(_late_obs(gold=450, nextItem={"item": "wall-of-sound", "cost": 400, "tier": 3, "from": ["backline"]}))
+        self.assertIn("Next on its shopping list: Wall of Sound, an upgrade of its Backline, 400 gold -- it can afford it now.", text)
+        self.assertIn("No enemies visible.", text)
+
+    def test_owning_a_tier_3_item_is_answerable_and_pushes_towers(self):
+        import fidelity_harness as FH
+        rule = _rule_spec("tier3_push", "does it own a tier-3 item and are allied minions near?",
+                          {"kind": "attack", "ability": None, "target_selector": "nearest_tower"})
+        schema = self.translate("Once I have a tier-3 item, push towers with the wave.", _late_reply([rule]))
+        action = T.evaluate_schema(schema, {"tier3_push": True})
+        self.assertEqual((action.kind, action.target_selector), ("attack", "nearest_tower"))
+        text = FH.describe_observation(_late_obs(items=["wall-of-sound", "metronome"], slotsFree=1))
+        self.assertIn("Items: Wall of Sound (tier 3, upgraded from Backline), Metronome (1 of 3 slots free).", text)
+
+
+def _late_obs(**self_over):
+    obs = {
+        "clockSec": 412.0,
+        "self": {"id": "bb-1", "team": "violet", "lane": "top", "instrument": "drums", "pos": {"x": 300, "y": 300},
+                 "hp": 200, "maxHp": 220, "moveSpeed": 55, "cooldowns": {"kick": 0, "fill": 3.5},
+                 "gold": 120, "level": 7, "xp": 900, "xpToNext": 110, "items": ["backline", "metronome"], "slotsFree": 1,
+                 "nextItem": {"item": "amp", "cost": 350, "tier": 1}, "atShop": False},
+        "allies": [], "visibleEnemies": [], "nearbyMinions": [], "nearbyTowers": [],
+    }
+    obs["self"].update(self_over)
+    return obs
+
 if __name__ == "__main__":
     unittest.main()
