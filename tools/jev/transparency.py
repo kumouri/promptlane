@@ -49,6 +49,7 @@ from translator import (  # noqa: E402
     TranslatedSchema,
     collect_nodes,
     display_rows,
+    TARGET_NOTE_PREFIX,
     _rule_tokens,
     _tokenize,
 )
@@ -425,10 +426,15 @@ def render_report_markdown(report: TransparencyReport) -> str:
 
     scope_notes = [n for n in schema.validation_notes if n.startswith("instrument scope:")]
     build_notes = [n for n in schema.validation_notes if n.startswith(NOTE_PREFIX)]
-    priority_notes = [n for n in schema.validation_notes if n not in scope_notes and n not in build_notes]
+    target_notes = [n for n in schema.validation_notes if n.startswith(TARGET_NOTE_PREFIX)]
+    priority_notes = [n for n in schema.validation_notes if n not in scope_notes and n not in build_notes and n not in target_notes]
     if priority_notes:
         lines += ["## Automatic priority fixes applied to this schema", ""]
         lines += [f"- {note}" for note in priority_notes]
+        lines.append("")
+    if target_notes:
+        lines += ["## Targets — what was corrected", ""]
+        lines += [f"- {note}" for note in target_notes]
         lines.append("")
     if build_notes:
         lines += ["## Shopping list — what was changed", ""]
