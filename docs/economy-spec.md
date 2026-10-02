@@ -340,7 +340,7 @@ optional fifth item. Q4 ruled it out of eco-1.
 
 - **Stacking.** `stat = instrumentBase × (1 + levelBonus) × Π(1 + itemModifier)`. For example, drums with Road Case and Amp has `220 × 1.35 × 0.85 = 252` hp at level 1.
 - **Three slots from four items**, so every build leaves one out. The choice is what to skip and in what order.
-- **Late-game gold.** Once all slots are full, extra gold buys nothing and only raises the bot's bounty. That is deliberate. A bot that has won enough to fill every slot becomes a target, which is a comeback lever that costs nothing to build.
+- **Late-game gold.** Once all slots are full, extra gold buys nothing and only raises the bot's bounty. That is deliberate. A bot that has won enough to fill every slot becomes a target, which is a comeback lever that costs nothing to build. (On recorded eco-3 logs the defenders hit that wall by about minute 5. [`late-game-economy-spec.md`](late-game-economy-spec.md) proposes recipes and more levels as the sink.)
 - **Default builds** apply when a pilot names no items, so a pilot that ignores the economy still gets items:
   - drums: Road Case → Bass Strings → Metronome
   - keytar: Metronome → Amp → Road Case
