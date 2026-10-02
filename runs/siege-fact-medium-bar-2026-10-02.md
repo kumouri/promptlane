@@ -388,6 +388,86 @@ matches a pairing, a line is a direction, not a rate.
 4. **The clause-coverage job** owns easy's shopping sentence (#88's easy shopping rule). Nothing of
    easy's changed here.
 
+## 4. Follow-up: medium pushes its lane when idle
+
+**Ceryce, 2026-10-02 16:26 CT:** "Yes and queue." That is §3's second option. Medium's idle sentence
+becomes "push down your lane". This section's plan (§4.1–§4.3) was committed before any recompile
+was read and before the first paid call.
+
+**Budget:** a Jev **hard stop of $1.25** for this follow-up, on its own server's ledger.
+
+**Out of bounds:**
+- easy's prose and schemas, which belong to the clause-coverage job;
+- hard, the entrants, the translator, and vocab-1/vocab-2;
+- the live arena and its backend (`:8790`, `:8797`).
+
+### 4.1 What changes
+
+- **`house-medium-eco.prose.md`, one sentence.** The fallback was "wait for the next wave at your
+  own tower: move to the outermost standing tower of your own lane and wait there". It becomes
+  "Your fallback, when none of the above applies, is to push down your lane toward the enemy base."
+  That is hard-eco's fallback sentence, word for word. It is MA on the stand-in (§0.2).
+- **`house-medium-eco.schemas.json`, a whole recompile ($0).** First `origin/develop` is merged in,
+  so the compile uses #89's translator guards. The tool and flags are §1.2's: `compile.py --vocab
+  vocab-2 --economy eco-3-late --backend ollama`.
+  - The compiles are n1, then n2 and n3 only if an instrument has no pass yet.
+  - Each instrument is taken whole from the first sample that passes §1.2's ten points. Point (i)
+    changes: the root default (or a catch-all last rule) is `push_lane`, and no rule targets
+    `own_front_tower`.
+  - **If an instrument has no full pass after n3, no Jev is spent.** That is reported instead.
+  - The screen's per-clause result for the picks is reported: which rule each prose sentence became.
+- `tools/arena/test_house.mjs` pins the new sentence and the `push_lane` fallback. The README and
+  the house hash row follow it.
+
+### 4.2 The Jev block M
+
+- **One server:** a private `tools/jev/schema_server.py` on live Jev (TypeSafe), started from this
+  worktree, with `--budget-usd 1.20`. It refuses calls past that, as a backstop under the $1.25.
+  A free `--stub` server on another private port runs the smokes.
+- **Lines, every match:** §1.4's flags (`pvp-1`, `simultaneous-1`, `own-lane-1`, `recall-2`,
+  `eco-3-late`, `river-2-set10`, cadence 2, `final-chorus-1`), full 600 s. The opponents are the
+  committed `house-easy-eco`, `house-hard-eco` and `sample-entrant-siege` ("entrant3") schemas, as
+  in block L.
+- **Stub smoke, free:** 120 s at seed 7, each of the four pairings, before any paid match.
+- **Round 1 (the question), 4 matches, in parallel:** entrant3–medium and medium–entrant3, seeds 3
+  and 7. That is block L's first four, against the new medium.
+- **Round 2 (the ladder), 4 matches, in parallel, in this order:** hard–medium s3, medium–hard s3,
+  medium–easy s3, easy–medium s3. There is one seed per side order, because the budget doesn't
+  cover two.
+- **Spend guard:** round 2 starts only after round 1 has finished. It takes the mean cost of round
+  1's finished matches, m. It launches the first k of round 2's four, where k is the largest number
+  with ledger spend + k × m ≤ $1.20. Rounds are sequential, so no match is in flight when the guard
+  reads the ledger (§2.1's mis-estimate can't recur).
+- Nothing is extended, added or replayed after any result is seen. A match that crashes before it
+  finishes is retried once, if the guard allows it.
+
+| line | pass | fail | otherwise |
+|---|---|---|---|
+| **M1, medium is a real bar** (L3's line) | entrant3 wins at most 2 of 4 | entrant3 wins 3 or 4 | — |
+| **M2, hard above medium** | hard wins both, or one with a draw | medium wins both, or one with a draw | INCONCLUSIVE |
+| **M3, medium above easy** | medium wins both, or one with a draw | easy wins either | INCONCLUSIVE |
+| **M4, clean** | every match finishes and replay-verifies; 0 server errors; 0 parse errors | any of those | — |
+| **M5, spend** | at most $1.25 on the ledger | over it | — |
+
+Matches cut by the guard count as not played, and a line short of its matches is INCONCLUSIVE.
+
+**Reported, not lines:** side by side with block L's same seeds:
+- winners, end reasons and match length;
+- structure damage, deaths and towers taken, per side;
+- the opponent's most-damaged tower's hp lost by 7:59;
+- medium's time by rule after 8:00, chiefly the 480 s rule and the idle (push) rule.
+
+Two seeds, and one seed for the ladder pairings, give a direction, not a rate (§2.4).
+
+### 4.3 What is decided where
+
+- **If M1–M3 pass,** the push-lane medium is the bar. It ships on #90's branch.
+- **If M1 fails,** the push-lane medium still ships on the branch, because the sentence is Ceryce's
+  ruling. The write-up says it doesn't hold the bar, and §3's third option (hard as the bar) is
+  hers to call.
+- **If M2 or M3 fails,** the ladder no longer orders. The write-up says so, and Ceryce decides
+  between this medium and §2's.
+
 ## Files
 
 - **A:** `tools/jev/vocab.py` (`TowerFact.shooting_my_minions`, `FACTS_V2`),
