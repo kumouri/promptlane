@@ -603,3 +603,22 @@ before the priority guard:
 
 The prompt is unchanged, and vocab-1 is unchanged. The evidence and the free recompiles are in
 `runs/vocab2-negation-polarity-2026-10-02.md`.
+
+### 8.7 pvp-2: the speed boost and the teleport
+
+The opt-in `pvp-2` map (`src/mapVariant.ts`; [`runs/pvp-2-2026-10-02.md`](../runs/pvp-2-2026-10-02.md))
+adds three things to the observation, and vocab-2 states each only when the observation carries it, so
+every pvp-1 description is unchanged (`fidelity_harness._map_rule_lines`, `vocab.FACTS_PVP2`):
+- `self.speedBoost` (`src/homeguard.ts`): "Its out-of-base speed boost is on: it moves faster until it
+  takes damage or enters the river." (or off).
+- `teleport` (`src/teleport.ts`): whether the bot's teleport is ready, its cooldown or its own channel,
+  and every standing tower of its team, map-wide, with how many enemy bearbots are within 260 of it.
+- `teleports`: every channel in progress, either team's ("Enemy bb-9 is teleporting to their top tower
+  tw-12, landing in 2.5 s.").
+
+The teleport is the existing `ability` action with the name `teleport`. A compile told the map
+(`compile.py --map pvp-2`, vocab-2 only) is offered it as a third ability for every instrument, and two
+targets for it: `tp_lane_tower` (its own lane's outer tower, else the inner one) and
+`tp_threatened_tower` (its own tower with the most enemy bearbots near it). The schema records
+`"map": "pvp-2"`. Without `--map`, or with any other map, the prompt and the parse are byte for byte
+what they were. Couriers are not built (the run's §4 says why), so there is no courier fact yet.

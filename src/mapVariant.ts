@@ -8,10 +8,31 @@
  * a log without one was played on the specimen map, so every older log still replays unchanged.
  *
  * Why the variant exists, and the measurements behind its numbers: runs/balance-pvp-2026-09-30.md.
+ *
+ * `pvp-2` (Ceryce, 2026-09-30 23:18 CT; runs/pvp-2-2026-10-02.md) adds three things a variant may carry:
+ * - `scale`: every map coordinate is multiplied by it — bases, lane paths, towers, spawn points, the
+ *   fountain's shop zone and the Bandstand's sites — while ranges, vision and speeds stay as they
+ *   are, so every walk takes `scale` times as long. The frozen sim reads `BASE` and `LANE_PATHS`
+ *   itself in three places, and each is handled from outside: `applyMapVariant` moves the nexuses,
+ *   towers and bearbots before tick 1 and re-places each minion wave as it spawns; the minion's
+ *   lane walk is `src/resolution.ts`'s (so a scaled map needs `simultaneous-1`); and the recall,
+ *   respawn, shop and Bandstand read `mapGeometry(match)`. A variant without `scale` registers no
+ *   geometry, and every one of those reads the specimen's own constants, as before.
+ * - `laneTowerFractions`: one lane's tower fractions, overriding `towerFractions` for that lane.
+ * - `homeguard` and `teleport`: rule layers the map brings with it (`src/homeguard.ts`,
+ *   `src/teleport.ts`), attached by `attachMapRules`.
  */
 import type { Lane, Team, Vec2 } from './types';
 import type { Match } from './sim/match';
 import { LANE_PATHS, LANES, dist, pointAlongPath } from './sim/map';
+import { scaledGeometry, setGeometry, type MapGeometry } from './geometry';
+import type { HomeguardRules } from './homeguard';
+import type { TeleportRules } from './teleport';
+import HOMEGUARD_1_JSON from './homeguard/homeguard-1.json';
+import TELEPORT_1_JSON from './teleport/teleport-1.json';
+
+export const HOMEGUARD_1: HomeguardRules = HOMEGUARD_1_JSON as HomeguardRules;
+export const TELEPORT_1: TeleportRules = TELEPORT_1_JSON as TeleportRules;
 
 export interface MapVariant {
   /** Stable name recorded in match logs. */
@@ -20,6 +41,14 @@ export interface MapVariant {
   towerRange: number;
   /** Tower path fractions from each team's own base: [tier 1 (inner), tier 2 (outer)]. */
   towerFractions: [number, number];
+  /** Per-lane override of `towerFractions`. Absent = every lane uses `towerFractions`. */
+  laneTowerFractions?: Partial<Record<Lane, [number, number]>>;
+  /** Every map coordinate × this (module comment). Absent = 1, the specimen's 1000 × 1000 world. */
+  scale?: number;
+  /** Out-of-base speed boost (`src/homeguard.ts`). Absent = none. */
+  homeguard?: HomeguardRules;
+  /** Teleport to a friendly tower, every bot's extra ability (`src/teleport.ts`). Absent = none. */
+  teleport?: TeleportRules;
 }
 
 /** The specimen's own map, exactly as `sim/map.ts` and `sim/entities.ts` build it. */
@@ -39,10 +68,27 @@ export const PVP_MAP: MapVariant = { name: 'pvp-1', towerRange: 160, towerFracti
  */
 export const PVP_SHORT_RANGE_MAP: MapVariant = { name: 'pvp-1r', towerRange: 120, towerFractions: [0.2, 0.34] };
 
+/**
+ * pvp-2 (opt-in; Ceryce approved the package 2026-09-30 23:18 CT): the world scaled ×1.33, back
+ * towers at 0.16 and front towers at 0.35 of each side lane, mid's front tower at 0.375, an
+ * out-of-base speed boost (homeguard-1) and a teleport to any friendly tower (teleport-1). Recall
+ * stays recall-2. Couriers are not in it yet (runs/pvp-2-2026-10-02.md §4). `pvp-1` stays the default.
+ */
+export const PVP_2_MAP: MapVariant = {
+  name: 'pvp-2',
+  towerRange: 160,
+  towerFractions: [0.16, 0.35],
+  laneTowerFractions: { mid: [0.16, 0.375] },
+  scale: 1.33,
+  homeguard: HOMEGUARD_1,
+  teleport: TELEPORT_1,
+};
+
 export const MAP_VARIANTS: Record<string, MapVariant> = {
   [SPECIMEN_MAP.name]: SPECIMEN_MAP,
   [PVP_MAP.name]: PVP_MAP,
   [PVP_SHORT_RANGE_MAP.name]: PVP_SHORT_RANGE_MAP,
+  [PVP_2_MAP.name]: PVP_2_MAP,
 };
 
 /**
@@ -61,23 +107,67 @@ export function resolveMap(map: string | MapVariant | null | undefined): MapVari
   return found;
 }
 
+/** The variant's geometry (`src/geometry.ts`): the specimen's own unless it has a `scale`. */
+export function variantGeometry(variant: MapVariant): MapGeometry {
+  return scaledGeometry(variant.scale ?? 1);
+}
+
+/** A lane's [tier 1, tier 2] tower fractions on a variant. */
+export function laneFractions(variant: MapVariant, lane: Lane): [number, number] {
+  return variant.laneTowerFractions?.[lane] ?? variant.towerFractions;
+}
+
 /** Where a tower of this lane/team/tier stands on a variant. */
 export function towerPos(variant: MapVariant, lane: Lane, team: Team, tier: 1 | 2): Vec2 {
-  const frac = variant.towerFractions[tier - 1];
-  return pointAlongPath(LANE_PATHS[lane], team === 'violet' ? frac : 1 - frac);
+  const frac = laneFractions(variant, lane)[tier - 1];
+  return pointAlongPath(variantGeometry(variant).lanePaths[lane], team === 'violet' ? frac : 1 - frac);
 }
+
+/** Where the sim spawns a bearbot (`src/sim/match.ts`) and the economy respawns it: 0.08 down its lane. */
+export const LANE_SPAWN_T = 0.08;
 
 /**
  * Move and re-range the towers of a match that has not ticked yet. A no-op on the specimen map, so
  * a v1 match is bit-identical whether or not this is called.
+ *
+ * On a scaled variant it also moves the nexuses and the bearbots to the scaled world, registers the
+ * geometry on the match (`src/geometry.ts`), and wraps the sim's minion-wave step so each new
+ * minion is re-placed at the scaled lane start (keeping the sim's own jitter, so the RNG draws are
+ * the same). A scaled match needs the `simultaneous-1` resolution for its minions' lane walk:
+ * `attachMapRules` checks.
  */
-export function applyMapVariant(match: Pick<Match, 'towers'>, variant: MapVariant): void {
+export function applyMapVariant(match: Match, variant: MapVariant): void {
   for (const t of match.towers) {
     const p = towerPos(variant, t.lane, t.team, t.tier);
     t.pos.x = p.x;
     t.pos.y = p.y;
     t.attackRange = variant.towerRange;
   }
+  const scale = variant.scale ?? 1;
+  if (scale === 1) return;
+  const geo = variantGeometry(variant);
+  setGeometry(match, geo);
+  for (const n of match.nexuses) {
+    n.pos.x = geo.base[n.team].x;
+    n.pos.y = geo.base[n.team].y;
+  }
+  for (const b of match.bearbots) {
+    const p = pointAlongPath(geo.lanePaths[b.lane], b.team === 'violet' ? LANE_SPAWN_T : 1 - LANE_SPAWN_T);
+    b.pos.x = p.x;
+    b.pos.y = p.y;
+  }
+  const m = match as unknown as { updateMinionWaves(dt: number): void };
+  const specimenWaves = m.updateMinionWaves.bind(match);
+  m.updateMinionWaves = (dt: number) => {
+    const before = match.minions.length;
+    specimenWaves(dt);
+    for (let k = before; k < match.minions.length; k++) {
+      const mn = match.minions[k];
+      const from = pointAlongPath(LANE_PATHS[mn.lane], mn.pathT);
+      const to = pointAlongPath(geo.lanePaths[mn.lane], mn.pathT);
+      mn.pos = { x: to.x + (mn.pos.x - from.x), y: to.y + (mn.pos.y - from.y) };
+    }
+  };
 }
 
 export interface LaneCoverage {
@@ -101,24 +191,34 @@ export interface LaneCoverage {
    * path.
    */
   circleGap: number;
+  /**
+   * Path length between one team's own inner and outer towers that neither covers (the "blank" a
+   * pushing wave crosses after the outer tower falls). 0 = the two ranges meet along the lane.
+   */
+  innerGapLength: number;
 }
 
 /** Model-independent geometry: how much of each lane sits outside both outer towers' coverage. */
 export function laneCoverage(variant: MapVariant, samplesPerLane = 4000): LaneCoverage[] {
+  const geo = variantGeometry(variant);
   return LANES.map((lane) => {
-    const path = LANE_PATHS[lane];
+    const path = geo.lanePaths[lane];
     let length = 0;
     for (let i = 1; i < path.length; i++) length += dist(path[i - 1], path[i]);
+    const [innerFrac, outerFrac] = laneFractions(variant, lane);
+    const vInner = towerPos(variant, lane, 'violet', 1);
     const vOuter = towerPos(variant, lane, 'violet', 2);
     const gOuter = towerPos(variant, lane, 'green', 2);
-    const [lo, hi] = [variant.towerFractions[1], 1 - variant.towerFractions[1]];
+    const [lo, hi] = [outerFrac, 1 - outerFrac];
     let neutral = 0;
     let overlap = 0;
+    let innerGap = 0;
     const step = 1 / samplesPerLane;
     for (let k = 0; k < samplesPerLane; k++) {
       const t = (k + 0.5) * step;
-      if (t < lo || t > hi) continue;
       const p = pointAlongPath(path, t);
+      if (t >= innerFrac && t <= outerFrac && dist(p, vInner) > variant.towerRange && dist(p, vOuter) > variant.towerRange) innerGap += step * length;
+      if (t < lo || t > hi) continue;
       const inV = dist(p, vOuter) <= variant.towerRange;
       const inG = dist(p, gOuter) <= variant.towerRange;
       if (!inV && !inG) neutral += step * length;
@@ -133,6 +233,7 @@ export function laneCoverage(variant: MapVariant, samplesPerLane = 4000): LaneCo
       neutralShare: neutral / length,
       overlapLength: overlap,
       circleGap: outerTowerDistance - 2 * variant.towerRange,
+      innerGapLength: innerGap,
     };
   });
 }

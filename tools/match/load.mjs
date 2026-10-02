@@ -108,6 +108,9 @@ export function resultLine(log, outFile) {
     // Only a finale match says anything here: the towers standing at the Chorus (by=chorus-lead or
     // by=sudden-death above says when the finale ended it).
     ...(r.finale ? [`finale=${r.finale.name} chorus-towers=${r.finale.towersAtChorus ? `${r.finale.towersAtChorus.violet}-${r.finale.towersAtChorus.green}` : 'none'}`] : []),
+    // Only a pvp-2 match says anything here: teleports landed, and boosts broken by damage.
+    ...(r.teleport ? [`teleports=${r.teleport.bots.reduce((n, b) => n + b.arrive, 0)}/${r.teleport.bots.reduce((n, b) => n + b.started, 0)}`] : []),
+    ...(r.homeguard ? [`boost-breaks=${r.homeguard.bots.reduce((n, b) => n + b.damage, 0)}dmg/${r.homeguard.bots.reduce((n, b) => n + b.river, 0)}river`] : []),
     `backend=${backendLabel(log.backend)}`,
     // Only an economy match says anything here, so every older result line is unchanged.
     ...(r.economy ? [`economy=${r.economy.ruleset} items=${r.economy.bots.map((b) => b.items.length).join('/')} levels=${r.economy.bots.map((b) => b.level).join('/')}`] : []),

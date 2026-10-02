@@ -15,6 +15,8 @@ import { getEconomy, type EconomySummary, type LogEconomy } from './economy';
 import { getObjective, type ObjectiveRules, type ObjectiveSummary } from './objective';
 import { getRecall, type RecallRules, type RecallSummary } from './recall';
 import type { EndReason, FinaleRules, FinaleSummary } from './finale';
+import { getHomeguard, type HomeguardSummary } from './homeguard';
+import { getTeleport, type TeleportSummary } from './teleport';
 
 export const MATCH_LOG_SCHEMA = 'promptlane-match-log-1';
 
@@ -100,6 +102,10 @@ export interface MatchResult {
   recall?: RecallSummary;
   /** Where the Chorus found the towers and how it ended the match, under a finale (`src/finale.ts`). */
   finale?: FinaleSummary;
+  /** The map's speed boost (pvp-2, `src/homeguard.ts`), when its map has one. */
+  homeguard?: HomeguardSummary;
+  /** The map's teleport (pvp-2, `src/teleport.ts`), when its map has one. */
+  teleport?: TeleportSummary;
 }
 
 export interface MatchLog {
@@ -192,6 +198,8 @@ export function checkpointOf(match: Match): string {
   const economy = getEconomy(match);
   const objective = getObjective(match);
   const recall = getRecall(match);
+  const homeguard = getHomeguard(match);
+  const teleport = getTeleport(match);
   return JSON.stringify({
     b: match.bearbots.map((b) => [r(b.hp), r(b.pos.x), r(b.pos.y), b.alive ? 1 : 0, b.recalling ? 1 : 0]),
     t: match.towers.map((t) => r(t.hp)),
@@ -200,6 +208,8 @@ export function checkpointOf(match: Match): string {
     ...(economy ? { e: economy.checkpoint() } : {}),
     ...(objective ? { o: objective.checkpoint() } : {}),
     ...(recall ? { r: recall.checkpoint() } : {}),
+    ...(homeguard ? { g: homeguard.checkpoint() } : {}),
+    ...(teleport ? { p: teleport.checkpoint() } : {}),
   });
 }
 

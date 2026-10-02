@@ -40,6 +40,7 @@ import { TICK_DT } from './sim/match';
 import { dist } from './sim/map';
 import { deriveStats, setStatMultiplier } from './ruleset/stats';
 import { rewardSinkOf } from './ruleset/rewards';
+import { mapGeometry } from './geometry';
 import RIVER_1_JSON from './objective/river-1.json';
 import RIVER_2_JSON from './objective/river-2.json';
 import RIVER_2_SET10_JSON from './objective/river-2-set10.json';
@@ -242,8 +243,11 @@ export class Objective {
     this.encoreUntil = match.bearbots.map(() => null);
   }
 
+  /** The open or next site, at the map's scale (`src/geometry.ts`: a scaled map scales its sites). */
   get site(): ObjectiveSite {
-    return this.rules.sites[this.siteIndex];
+    const site = this.rules.sites[this.siteIndex];
+    const s = mapGeometry(this.match).scale;
+    return s === 1 ? site : { ...site, x: site.x * s, y: site.y * s };
   }
 
   /** The match's current tick (the sim adds `tickDt` to `clockSec` once per tick). */

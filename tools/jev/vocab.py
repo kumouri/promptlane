@@ -42,6 +42,18 @@ MAPS = {
     "v1": (160, (0.22, 0.42)),
     "pvp-1": (160, (0.16, 0.30)),
     "pvp-1r": (120, (0.20, 0.34)),
+    "pvp-2": (160, (0.16, 0.35)),
+}
+# src/mapVariant.ts: a variant's `scale` and `laneTowerFractions`, for the maps that have them.
+MAP_GEOMETRY = {
+    "pvp-2": (1.33, {"mid": (0.16, 0.375)}),
+}
+# src/sim/map.ts BASE and LANE_PATHS: the specimen's 1000 x 1000 world, violet base -> green base.
+SPECIMEN_BASE = {"violet": (100, 900), "green": (900, 100)}
+SPECIMEN_LANE_PATHS = {
+    "top": ((100, 900), (100, 100), (900, 100)),
+    "mid": ((100, 900), (900, 100)),
+    "bottom": ((100, 900), (900, 900), (900, 100)),
 }
 # resolveMap(null): a request (like a log) that names no map is on the specimen map.
 NO_MAP = "v1"
@@ -71,22 +83,43 @@ class MapSpec:
     name: str
     tower_range: float
     tower_fractions: tuple[float, float]
+    # A scaled map (pvp-2, `src/geometry.ts`): every coordinate of the specimen world x this.
+    scale: float = 1.0
+    # Per-lane overrides of `tower_fractions`, as ((lane, (tier 1, tier 2)), ...).
+    lane_fractions: tuple = ()
+
+    def fractions(self, lane: str) -> tuple[float, float]:
+        return dict(self.lane_fractions).get(lane, self.tower_fractions)
+
+    def home(self, team: str) -> dict:
+        """The team's base point (src/geometry.ts base): the nexus, where recall-2 lands."""
+        x, y = SPECIMEN_BASE[team]
+        return {"x": x * self.scale, "y": y * self.scale} if self.scale != 1 else {"x": x, "y": y}
+
+    def lane_paths(self) -> dict:
+        if self.scale == 1:
+            return SPECIMEN_LANE_PATHS
+        return {lane: tuple((x * self.scale, y * self.scale) for x, y in path) for lane, path in SPECIMEN_LANE_PATHS.items()}
 
 
 def map_spec(map_: str | dict | None) -> MapSpec:
     """The request's `map`: a variant object as a log records it (`{name, towerRange,
-    towerFractions}`), or a name this module mirrors, or None for the specimen map."""
+    towerFractions}`, plus `scale` and `laneTowerFractions` on pvp-2), or a name this module
+    mirrors, or None for the specimen map."""
     if map_ is None:
         map_ = NO_MAP
     if isinstance(map_, dict):
         try:
-            return MapSpec(str(map_.get("name", "custom")), float(map_["towerRange"]), (float(map_["towerFractions"][0]), float(map_["towerFractions"][1])))
-        except (KeyError, IndexError, TypeError, ValueError) as err:
+            lanes = map_.get("laneTowerFractions") or {}
+            return MapSpec(str(map_.get("name", "custom")), float(map_["towerRange"]), (float(map_["towerFractions"][0]), float(map_["towerFractions"][1])),
+                           float(map_.get("scale", 1)), tuple(sorted((str(k), (float(v[0]), float(v[1]))) for k, v in lanes.items())))
+        except (KeyError, IndexError, TypeError, ValueError, AttributeError) as err:
             raise ValueError(f"bad map {map_!r}: needs towerRange and towerFractions") from err
     if map_ not in MAPS:
         raise ValueError(f"unknown map {map_!r} (known: {', '.join(MAPS)}; or send the variant object)")
     rng, fr = MAPS[map_]
-    return MapSpec(map_, float(rng), fr)
+    scale, lanes = MAP_GEOMETRY.get(map_, (1.0, {}))
+    return MapSpec(map_, float(rng), fr, float(scale), tuple(sorted(lanes.items())))
 
 
 def dist(a: dict, b: dict) -> float:
@@ -235,6 +268,28 @@ FACTS_V2 = (
 
 FACTS = {VOCAB_1: (), VOCAB_2: FACTS_V2}
 
+# What a map with a teleport and a speed boost adds (pvp-2: `src/teleport.ts`, `src/homeguard.ts`). The
+# description states them only when the observation carries them, and a compile lists them only when
+# it is told the map (`compile.py --map pvp-2`), so every pvp-1 prompt and description is unchanged.
+FACTS_PVP2 = (
+    Fact("speed_boost", "whether this bearbot's out-of-base speed boost is on (it moves faster after being in its base, until it takes "
+         "damage or enters the river)", "speed boost", when="the map has the speed boost"),
+    Fact("teleport", "whether its teleport is ready or how many seconds of cooldown are left, and whether it is channelling one", "Its teleport",
+         when="the map has the teleport"),
+    Fact("own_towers_map", "every standing tower of its own team, anywhere on the map: lane, inner or outer, hp, and how many enemy "
+         "bearbots are within 260 units of it", "Your standing towers", when="the map has the teleport"),
+    Fact("teleports", "every teleport in progress, either team's: who, to which tower, and how many seconds until it lands",
+         "teleporting", when="the map has the teleport"),
+)
 
-def facts_for(vocab: str) -> tuple[Fact, ...]:
-    return FACTS[resolve_vocab(vocab)]
+
+def map_has_teleport(map_: str | dict | None) -> bool:
+    """Whether a compile's map brings the teleport (and the speed boost): pvp-2's do."""
+    if isinstance(map_, dict):
+        return bool(map_.get("teleport"))
+    return map_ == "pvp-2"
+
+
+def facts_for(vocab: str, map_: str | dict | None = None) -> tuple[Fact, ...]:
+    facts = FACTS[resolve_vocab(vocab)]
+    return facts + FACTS_PVP2 if facts and map_has_teleport(map_) else facts

@@ -28,10 +28,11 @@
  * one was played on the specimen's sequential order, so every older log replays byte-identically;
  * a log with one replays under the same named resolution. A later change is a new name.
  */
-import type { Action, Lane, Team, Vec2 } from './types';
+import type { Action, Team, Vec2 } from './types';
 import type { Match } from './sim/match';
 import type { Bearbot, Minion, Unit } from './sim/entities';
-import { BASE, LANE_PATHS, dist, otherTeam, pointAlongPath } from './sim/map';
+import { dist, otherTeam, pointAlongPath } from './sim/map';
+import { mapGeometry, type MapGeometry } from './geometry';
 
 /** The specimen's own order: no layer attached. Never recorded in a log. */
 export const SEQUENTIAL = 'sequential';
@@ -112,13 +113,16 @@ export function attachResolution(match: Match, resolution: Resolution): void {
     }
   };
 
+  // The map's geometry (src/geometry.ts): the specimen's own BASE and LANE_PATHS unless the map is scaled.
+  const geo = mapGeometry(match);
+
   m.updateBearbots = (dt: number) => {
     pending = new Set();
     const start = match.bearbots.map((b) => ({ pos: b.pos, x: b.pos.x, y: b.pos.y, slowUntil: b.buffs.slowUntil, soloUntil: b.buffs.soloUntil }));
     const moved: Array<Vec2 | null> = match.bearbots.map(() => null);
     match.bearbots.forEach((bot, i) => {
       if (!bot.alive) return;
-      updateOneBearbot(m, match.clockSec, bot, start[i], dt);
+      updateOneBearbot(m, geo, match.clockSec, bot, start[i], dt);
       // Hold the move until every bot has acted; until then the others see where it started.
       moved[i] = { x: bot.pos.x, y: bot.pos.y };
       bot.pos = start[i].pos;
@@ -157,7 +161,7 @@ export function attachResolution(match: Match, resolution: Resolution): void {
         }
         continue;
       }
-      moves.push(() => walkLane(mn, dt));
+      moves.push(() => walkLane(geo, mn, dt));
     }
     for (const move of moves) move();
     resolveDeaths();
@@ -171,7 +175,7 @@ export function attachResolution(match: Match, resolution: Resolution): void {
  * The specimen's `updateBearbots` loop body for one bot, except that its speed reads the slows
  * and solos it had at the start of the step (a slow cast this step applies from the next).
  */
-function updateOneBearbot(m: Internals, clockSec: number, bot: Bearbot, start: { slowUntil: number; soloUntil: number }, dt: number): void {
+function updateOneBearbot(m: Internals, geo: MapGeometry, clockSec: number, bot: Bearbot, start: { slowUntil: number; soloUntil: number }, dt: number): void {
   for (const k of Object.keys(bot.cooldowns)) bot.cooldowns[k] = Math.max(0, bot.cooldowns[k] - dt);
   bot.attackTimer = Math.max(0, bot.attackTimer - dt);
 
@@ -186,8 +190,8 @@ function updateOneBearbot(m: Internals, clockSec: number, bot: Bearbot, start: {
   }
 
   if (bot.recalling) {
-    m.stepToward(bot.pos, BASE[bot.team], speed * RECALL_SPEED_MULT, dt);
-    if (dist(bot.pos, BASE[bot.team]) < 20) {
+    m.stepToward(bot.pos, geo.base[bot.team], speed * RECALL_SPEED_MULT, dt);
+    if (dist(bot.pos, geo.base[bot.team]) < 20) {
       bot.hp = bot.maxHp;
       bot.recalling = false;
       ps.currentAction = { kind: 'hold' };
@@ -232,17 +236,10 @@ function nearestEnemy(team: Team, from: Vec2, units: Unit[], start: Map<Unit, { 
   return best;
 }
 
-/** The specimen's lane walk for a minion with nothing in range. */
-function walkLane(mn: Minion, dt: number): void {
+/** The specimen's lane walk for a minion with nothing in range, on the match's geometry. */
+function walkLane(geo: MapGeometry, mn: Minion, dt: number): void {
   const dir = mn.team === 'violet' ? 1 : -1;
-  mn.pathT = Math.max(0, Math.min(1, mn.pathT + (dir * mn.moveSpeed * dt) / laneLength(mn.lane)));
-  mn.pos = pointAlongPath(LANE_PATHS[mn.lane], mn.pathT);
+  mn.pathT = Math.max(0, Math.min(1, mn.pathT + (dir * mn.moveSpeed * dt) / geo.laneLengths[mn.lane]));
+  mn.pos = pointAlongPath(geo.lanePaths[mn.lane], mn.pathT);
   if (mn.pathT <= 0 || mn.pathT >= 1) mn.alive = false; // reached the enemy base area and despawns into it
-}
-
-function laneLength(lane: Lane): number {
-  const path = LANE_PATHS[lane];
-  let total = 0;
-  for (let i = 1; i < path.length; i++) total += dist(path[i - 1], path[i]);
-  return total;
 }
