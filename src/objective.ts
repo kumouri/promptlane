@@ -112,8 +112,9 @@ export const OBJECTIVES: Record<string, ObjectiveRules> = {
 };
 
 /**
- * The objective new matches play with when the caller names none: none, until Ceryce's go/no-go at
- * the Sun 10-04 gate (Q17). `--objective river-1` (CLI) or `objective: 'river-1'` turns it on.
+ * The objective new matches play with when the caller names none: none, until Ceryce's go/no-go
+ * gate (Q17; when it falls: docs/arena-runbook.md §6, *The Jam calendar*). `--objective river-1`
+ * (CLI) or `objective: 'river-1'` turns it on.
  */
 export const DEFAULT_OBJECTIVE: ObjectiveRules | null = null;
 
