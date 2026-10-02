@@ -79,7 +79,8 @@ docs/                current design notes and historical recordings; not implici
                      vocabulary-spec.md: what a compiled rule can see, ask and target, the gaps,
                      and ranked, versioned additions such as own towers and fight balance;
                      late-game-economy-spec.md: recipe items, tier-3 passives and a level cap of 8
-                     so late gold and XP still buy something, sized on recorded logs)
+                     so late gold and XP still buy something, sized on recorded logs; built as
+                     the opt-in ruleset eco-3-late)
 assets/logo/         Jamobair, the mascot (PNG on black, on near-black, and transparent)
 assets/favicon/      the bearbot tab icon (SVG, PNG, ICO) and make_favicon.mjs, which draws them
 ```
@@ -156,7 +157,11 @@ words every schema had before, and it is described and resolved exactly as befor
 **Economy.** `--economy eco-2` plays the Jam economy: respawn, gold, levels, four items and a shop
 at base (`src/economy.ts`, every number in `src/economy/eco-2.json`; the design is
 `docs/economy-spec.md`). `eco-3` is the spec's one tuning pass on it (§13.6: 100 start gold, a
-smaller kill bounty), the candidate for the Jam. `eco-1` is P1's starting values, kept so older runs reproduce. It is off
+smaller kill bounty), the candidate for the Jam. `eco-3-late` is `eco-3` plus the late game: four
+tier-2 recipes, four tier-3 upgrades with one passive each, and levels up to 8
+(`src/economy/eco-3-late.json`; [`docs/late-game-economy-spec.md`](docs/late-game-economy-spec.md)).
+A shopping list there may name items of any tier, and the parts are filled in. It runs only when a
+match names it. `eco-1` is P1's starting values, kept so older runs reproduce. It is off
 by default until the Sun 10-04 go/no-go. Under an economy, `house:<tier>` plays that tier's
 economy-aware version (`prompts/pilots/README.md`). A schema side buys the
 shopping list its prose compiled to (`build`), else its instrument's default. The log records the

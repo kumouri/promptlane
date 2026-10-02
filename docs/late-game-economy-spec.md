@@ -7,8 +7,9 @@
 > reduction, attack speed, and life steal, or something like those)" — Ceryce, Telegram, Fri
 > 2026-10-02 02:33 CT
 
-**Status:** design only. No code changed, and every number here is a proposal. §9 lists what she
-needs to rule on.
+**Status:** the full version is built as the ruleset `eco-3-late`, which is off unless a match names
+it (§11). Every number is still a proposal. The build took each §9 recommendation, and §9 still lists
+what she needs to rule on.
 **Written:** Fri 2026-10-02, on `develop` at `92e6044`.
 **Spend:** $0. No model call of any kind was made, and nothing touched the live arena. The analysis
 replays recorded match logs on local code. The tools are outside git, in
@@ -696,3 +697,105 @@ Everything is in `C:\Users\willa\workspace\scratch\late-game-spec\` (outside git
 - `s3.py`: the dive re-score for every arm, lean and strong, with the identity and eco-4 checks
   (`s3.out`). `s4.py` gives defender multipliers and the dive's damage mix (`s4.out`).
 - Inputs: the logs and job 4e15's per-death probe output, in `C:\Users\willa\workspace\scratch\dive-trade\`.
+
+---
+
+## 11. As built: `eco-3-late`
+
+**What it is.** `src/economy/eco-3-late.json` is eco-3's gold, respawn and tier-1 items plus §2.2's
+eight items and §3.1's curve. `eco-3.json` and every other ruleset file are byte-identical to before.
+It runs only when a match names it (`--economy eco-3-late`), and `DEFAULT_ECONOMY` is unchanged.
+
+**§9, as built.** Each decision took the recommendation, and each is one ruleset edit to overrule:
+
+| # | Built as |
+|---|---|
+| D2 | **strong** numbers (§2.2) |
+| D3 | 8 levels, flat 150 XP past level 5 |
+| D4 | respawn stays linear: level 8 waits 30 s on eco-3's timers. There is no `maxLevel` knob. |
+| D5 | toughness (max hp +80 %) as the damage-reduction stand-in |
+| D7 | recipe 250, upgrade 400 |
+| D8 | Backline, Click Track, Fuzz Pedal, Tour Bus; Wall of Sound, Arpeggiator, Feedback, Headliner |
+
+D1 (which version ships) and D6 (the Jev measurement) are hers. The build is the full version, so
+`eco-3-lv8` and the per-instrument variant are not separate files. Either is a copy of
+`eco-3-late.json` with items removed.
+
+**Where the code is.**
+- **Engine** (`src/economy.ts`):
+  - `expandBuild` is §2.5 (a `shop.planSteps` field holds the 10-step cut). `hasRecipes` gates
+    every new path, so a ruleset without recipes runs the old code.
+  - The recipe-aware shop is `nextIndex` / `shopFor`.
+  - `regenPerSec` is step 7, after lifesteal.
+  - `totalCost` feeds `netWorth`.
+  - `ShopEntry` carries `tier` and `from` only under recipes.
+- **Python mirror:** `tools/jev/economy_rules.py` (`expand_build`, `normalize_build`).
+  - It now reads the ruleset it is compiling for (`--economy`, default `eco-3`), not `eco-2.json`.
+  - Both mirrors run the same cases, `tools/match/build_expansion_cases.json`.
+- **HUD:** `src/render.ts` draws each `abbr`, with tier as weight.
+- **Metrics:** `itemValueAtEnd`, `unspentAtEnd`, `tier2At`, `tier3At` and `levelAt480` are in
+  `tools/match/metrics.ts`.
+
+**Found while building** (each needs her call; nothing below is changed):
+- **A declared list is taken as written.** Every compiled schema in the repo, house and sample
+  entrant alike, declares three tier-1 items. Under `eco-3-late` those bots buy exactly those three
+  and never a recipe. Only a bot that declares nothing gets the default ladder. So the gold sink
+  reaches the house only after §7.6's ladders and recompile, and an entrant only once their prose
+  names more.
+- **"Append the default ladder" (§2.5 house builds) falls short for hard drums and all of easy.**
+  Their first three items aren't the instrument default. The appended ladder then tries a fourth
+  tier-1 item before combining, so that item is dropped and the second recipe with it. For example,
+  hard drums ends Road Case → Bass Strings → Amp → Backline → Wall of Sound. The house prose should
+  name §4's ladder explicitly instead: first three, first recipe, the fourth item, its upgrade, the
+  second recipe and its upgrade.
+- **Passives stack across two tier-3 items.** `[feedback, wall-of-sound]` is a legal plan, and it
+  heals 110 % of the PvP damage dealt. Click Track plus Tour Bus cuts ability cooldowns by 70 %.
+  Nothing caps either.
+- **The arena compiles for the default ruleset.** `tools/arena/compile.mjs` passes no `--economy`,
+  so a tournament switched to `eco-3-late` would drop recipe names from shopping lists as unknown.
+  Switching it on means passing the tournament's economy there and in the compile cache key.
+- **`economy_rules.py` is not in the arena's `COMPILER_FILES`.** It wasn't before this change either.
+  Under the default ruleset its output is byte-identical, so no recompile is due. Adding it to the
+  hash is vocabulary-spec §5.2's job.
+
+**The paper analysis, re-run on the built code** ($0; recorded decisions only, no model). The tools
+are in `C:\Users\willa\workspace\scratch\late-game-build\analysis\`.
+- **Identity.** All 160 economy logs in the dive-trade set replay checkpoint-identical. The spec
+  counted 158.
+- **The rules match the paper.** The built `eco-3-late.json` equals `ladder.py`'s strong items,
+  250 / 400 and the flat-150 curve. Every bot's §4 ladder passes through the built `expandBuild`
+  unchanged.
+- **Method.** Each log's decisions are replayed open-loop on the real engine under two arms:
+  - **shipped:** each bot's declared list, as a new `eco-3-late` match would use it;
+  - **ladder:** §4's ladders.
+
+  Unlike §4, income and deaths are re-simulated, so a stronger defender's extra kills count. Unlike a
+  live match, decisions are replayed rather than re-made.
+- **Defenders vs the entrant, ladder arm** (median per bot). The §4 figure is in brackets.
+
+  | | built (§4) |
+  |---|---|
+  | Unspent gold at the end | 183–271 (127–355) |
+  | Tier 2 lands | 4:34–5:52 (4:33–6:01) |
+  | Tier 3 lands | 8:41–9:41 where the median reaches it (8:06–8:51) |
+  | Tier-2+ items held at the end | 1.20–1.42 (1.22–1.47) |
+  | Level at the end | 6–7 (6–7) |
+  | Share at level 8 | 7–31 % (7–40 %) |
+
+  Entrant bots and house vs house are unchanged within noise.
+- **Shipped arm.** Levels only, in effect: rich defenders still end with 732–1,297 unspent. That is
+  the first finding above.
+- **Results with the entrant** (§5.2's late-game column in brackets):
+
+  | Condition | built |
+  |---|---|
+  | C1 vs hard-old | entrant 12, draw 3 (same) |
+  | C1 vs medium | entrant 3, medium 8, draw 4 (5 / 9 / 1) |
+  | HH vs hard-new | entrant 4, draw 2 (entrant 6) |
+  | C0 vs hard-old | entrant 6, draw 9 (7 / 8) |
+  | C0 vs medium | entrant 1, medium 3, draw 11 (medium 2, draw 13) |
+
+  House vs house: none of the 94 results change, in either arm.
+- **Verdict: the paper numbers held.** The direction and size match §4 and §5.2. The built code is a
+  little harsher on the entrant than the re-score was, because a defender's extra kills now feed
+  back. It is a replay of fixed decisions, so it is still no evidence about adapted play (§6).

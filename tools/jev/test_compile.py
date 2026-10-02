@@ -328,6 +328,82 @@ class GuardNodesSurviveTheSavePathTests(unittest.TestCase):
         self.assertEqual(set(out["answers"]), set(self.ALL_IDS))
 
 
+
+class EconomyFlagTests(unittest.TestCase):
+    """--economy NAME (docs/late-game-economy-spec.md §7.4): the default writes nothing new; any other
+    ruleset is named in the JSON and in each saved schema. FORMAT_VERSION stays 2."""
+
+    def _schema(self, build=None, economy=None):
+        return TranslatedSchema(pilot_file="p.md", instrument="drums", raw_model_output="",
+                                rules=(TranslatedRule("r1", "is an enemy near?", "yes", "no", "attack", None, "nearest_enemy"),),
+                                default_kind="move", default_ability=None, default_target_selector="push_lane",
+                                build=build, economy=economy)
+
+    def test_the_default_economy_writes_no_key(self):
+        for economy in (None, "eco-3"):
+            self.assertNotIn("economy", C.schema_to_dict(self._schema(("amp",), economy)))
+        self.assertEqual(C.schema_to_dict(self._schema(("amp",), "eco-3")), C.schema_to_dict(self._schema(("amp",))))
+
+    def test_a_named_economy_round_trips(self):
+        d = C.schema_to_dict(self._schema(("wall-of-sound",), "eco-3-late"))
+        self.assertEqual(d["economy"], "eco-3-late")
+        back = C.schema_from_dict(json.loads(json.dumps(d)))
+        self.assertEqual((back.economy, back.build), ("eco-3-late", ("wall-of-sound",)))
+        self.assertEqual(C.schema_to_dict(back), d)
+        del d["economy"]
+        self.assertIsNone(C.schema_from_dict(d).economy)
+        self.assertEqual(C.FORMAT_VERSION, 2)
+
+    def _main_json(self, extra, reply):
+        with tempfile.TemporaryDirectory() as d:
+            f = Path(d) / "pilot.md"
+            f.write_text("Recall when hurt. Engage enemy bearbots. Build toward Wall of Sound.\n", encoding="utf-8")
+            out = Path(d) / "out.json"
+            saved = Path(d) / "saved"
+            original = C.make_backend
+            C.make_backend = lambda *a, **k: ScriptedBackend([reply], budget=a[2])
+            try:
+                rc = C.main([str(f), "--format", "json", "--out", str(out), "--save-schemas", str(saved)] + extra)
+            finally:
+                C.make_backend = original
+            return rc, json.loads(out.read_text(encoding="utf-8")), [json.loads(p.read_text(encoding="utf-8")) for p in sorted(saved.glob("*.json"))]
+
+    def test_main_with_the_late_economy(self):
+        reply = json.dumps({"rules": [{"id": "engage", "condition": "is an enemy bearbot visible?",
+                                       "action": {"kind": "attack", "ability": None, "target_selector": "nearest_enemy"}}],
+                            "default_action": {"kind": "move", "ability": None, "target_selector": "push_lane"},
+                            "build": ["Wall of Sound"]})
+        rc, data, saved = self._main_json(["--economy", "eco-3-late"], reply)
+        self.assertEqual(rc, 0)
+        self.assertEqual((data["version"], data["economy"]), (2, "eco-3-late"))
+        prompt = data["prompts"][0]
+        self.assertEqual(prompt["economy"], "eco-3-late")
+        self.assertIn("Items and shopping lists follow the `eco-3-late` ruleset.", prompt["markdown"])
+        for e in prompt["instruments"].values():
+            self.assertEqual((e["schema"]["build"], e["schema"]["economy"]), (["wall-of-sound"], "eco-3-late"))
+            self.assertIn("**Wall of Sound** (from your prose; parts filled in)", e["markdown"])
+        self.assertEqual([s["economy"] for s in saved], ["eco-3-late"] * 3)
+
+    def test_main_with_the_default_economy_adds_nothing(self):
+        reply = json.dumps({"rules": [{"id": "engage", "condition": "is an enemy bearbot visible?",
+                                       "action": {"kind": "attack", "ability": None, "target_selector": "nearest_enemy"}}],
+                            "default_action": {"kind": "move", "ability": None, "target_selector": "push_lane"},
+                            "build": ["amp"]})
+        for extra in ([], ["--economy", "eco-3"]):
+            rc, data, saved = self._main_json(extra, reply)
+            self.assertEqual(rc, 0)
+            self.assertEqual(list(data), ["version", "backend", "cap_tokens", "usage", "prompts"])
+            self.assertNotIn("economy", data["prompts"][0])
+            self.assertNotIn("follow the", data["prompts"][0]["markdown"])
+            for s in saved:
+                self.assertNotIn("economy", s)
+
+    def test_an_unknown_economy_is_a_usage_error(self):
+        from contextlib import redirect_stderr
+        with self.assertRaises(SystemExit) as cm, redirect_stderr(io.StringIO()):
+            C.parse_args(["p.md", "--economy", "eco-99"])
+        self.assertEqual(cm.exception.code, 2)
+
 if __name__ == "__main__":
     unittest.main()
 

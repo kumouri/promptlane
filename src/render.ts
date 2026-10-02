@@ -729,14 +729,31 @@ function bearbotDrawable(b: Match['bearbots'][number], selected: boolean, fx: Re
       drawHpBar(ctx, screenPos.x, screenPos.y - radiusPx - 10 * fit.kx, 34 * fit.kx, b.hp, b.maxHp, color, fit.kx);
       if (eco) {
         const e = eco.economy.bots[eco.index];
-        const items = e.items.map((k) => eco.economy.ruleset.items[k]?.name.slice(0, 1) ?? '?').join('');
-        drawEcoTag(ctx, screenPos.x, screenPos.y + radiusPx + 9 * fit.kx, `L${e.level} ${eco.economy.gold(eco.index)}g${items ? ' ' + items : ''}`, fit.kx);
+        const ruleset = eco.economy.ruleset;
+        const head = `L${e.level} ${eco.economy.gold(eco.index)}g`;
+        if (Object.values(ruleset.items).some((it) => it.abbr)) {
+          // Late-game spec §7.5: each item's two-letter `abbr`, tier as weight (1 plain, 2 bold, 3 bold in the team colour).
+          const segments: EcoTagSegment[] = [{ text: head, bold: true, color: ECO_TAG_GOLD }];
+          for (const k of e.items) {
+            const def = ruleset.items[k];
+            const tier = def?.tier ?? 1;
+            segments.push({ text: ` ${def?.abbr ?? def?.name.slice(0, 1) ?? '?'}`, bold: tier >= 2, color: tier >= 3 ? color : ECO_TAG_GOLD });
+          }
+          drawEcoTagSegments(ctx, screenPos.x, screenPos.y + radiusPx + 9 * fit.kx, segments, fit.kx);
+        } else {
+          const items = e.items.map((k) => ruleset.items[k]?.name.slice(0, 1) ?? '?').join('');
+          drawEcoTag(ctx, screenPos.x, screenPos.y + radiusPx + 9 * fit.kx, `${head}${items ? ' ' + items : ''}`, fit.kx);
+        }
       }
     },
   };
 }
 
-/** Economy matches (src/economy.ts): level, unspent gold and item initials under a bearbot, or its respawn countdown over its husk. */
+/**
+ * Economy matches (src/economy.ts): level, unspent gold and item initials under a bearbot, or its
+ * respawn countdown over its husk. A ruleset whose items carry an `abbr` draws the bearbot's tag
+ * with `drawEcoTagSegments` instead.
+ */
 function drawEcoTag(ctx: CanvasRenderingContext2D, x: number, y: number, text: string, px: number): void {
   const fontSize = Math.max(9, 10 * px);
   ctx.save();
@@ -746,8 +763,43 @@ function drawEcoTag(ctx: CanvasRenderingContext2D, x: number, y: number, text: s
   ctx.lineWidth = Math.max(2, 3 * px);
   ctx.strokeStyle = 'rgba(0,0,0,0.85)';
   ctx.strokeText(text, x, y);
-  ctx.fillStyle = '#ffd34d';
+  ctx.fillStyle = ECO_TAG_GOLD;
   ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const ECO_TAG_GOLD = '#ffd34d';
+
+interface EcoTagSegment {
+  text: string;
+  bold: boolean;
+  color: string;
+}
+
+/**
+ * `drawEcoTag` for a ruleset whose items carry an `abbr` (late-game spec §7.5): the same outlined
+ * text, laid out in segments that each keep their own weight and colour, centred on `x` as a whole.
+ */
+function drawEcoTagSegments(ctx: CanvasRenderingContext2D, x: number, y: number, segments: EcoTagSegment[], px: number): void {
+  const fontSize = Math.max(9, 10 * px);
+  const font = (bold: boolean) => `${bold ? 'bold ' : ''}${fontSize}px 'Courier New', monospace`;
+  ctx.save();
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.lineWidth = Math.max(2, 3 * px);
+  ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+  const widths = segments.map((s) => {
+    ctx.font = font(s.bold);
+    return ctx.measureText(s.text).width;
+  });
+  let cursor = x - widths.reduce((sum, w) => sum + w, 0) / 2;
+  segments.forEach((s, k) => {
+    ctx.font = font(s.bold);
+    ctx.strokeText(s.text, cursor, y);
+    ctx.fillStyle = s.color;
+    ctx.fillText(s.text, cursor, y);
+    cursor += widths[k];
+  });
   ctx.restore();
 }
 

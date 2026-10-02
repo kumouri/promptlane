@@ -84,7 +84,7 @@ no sim or replay-verification change (§6). Everything else is ranked in §5.
 | Surface | What it is | Where |
 |---|---|---|
 | Canvas viewer | One page, three modes: local match, `?replay=<log>`, `?live=<matchId>`. Iso 2.5D field, a top bar (clock, `TEAM N — N TEAM`, Bandstand count, LIVE/REPLAY badge, speed 1/4/16×), and a side panel (roster; the selected pilot's prompt and last reply) | `src/main.ts`, `src/render.ts`, `src/live.ts`, `src/style.css` |
-| Economy overlay | `L3 336g MA` under each bot (level, unspent gold, item initials) and a respawn countdown over a husk | `render.ts` `drawEcoTag` |
+| Economy overlay | `L3 336g MA` under each bot (level, unspent gold, item initials; under `eco-3-late`, two-letter abbrs weighted by tier) and a respawn countdown over a husk | `render.ts` `drawEcoTag`, `drawEcoTagSegments` |
 | Bandstand overlay | The stage on the river, a capture ring, `BANDSTAND IN 74s` / `CONTESTED` labels, a gold Encore glow | `render.ts` `drawStage`, `drawStageLabel`, `drawEncoreGlow` |
 | Site | Server-rendered pages (no client script): Home, Contract, Compile, Test, Ladder, Matches, match page, Bracket, Admin | `tools/arena/pages/*.mjs` |
 | Final Chorus (in flight) | Appends `· SUDDEN DEATH ×3` to the clock. End labels: `tower lead at 8:00`, `first tower in sudden death`, `timeout tiebreak` | `origin/feat/final-chorus`, `src/finale.ts` |
