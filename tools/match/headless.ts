@@ -91,7 +91,7 @@ export interface RunOptions {
   map?: string | MapVariant;
   /**
    * Economy ruleset (`src/economy.ts`) — a name such as `'eco-2'`, a ruleset object, or `'none'`.
-   * Default: `DEFAULT_ECONOMY` (none until the Sun 10-04 gate). Recorded in the log, with every
+   * Default: `DEFAULT_ECONOMY` (none until the go/no-go gate). Recorded in the log, with every
    * bot's shopping list, as `economy`; a match without one writes no `economy` field at all.
    */
   economy?: string | EconomyRuleset | null;
@@ -102,7 +102,7 @@ export interface RunOptions {
   buildFor?: (botIndex: number) => readonly string[] | null | undefined;
   /**
    * River objective (`src/objective.ts`) — a name such as `'river-1'`, a ruleset object, or `'none'`.
-   * Default: `DEFAULT_OBJECTIVE` (none until the Sun 10-04 gate). Recorded in the log as `objective`;
+   * Default: `DEFAULT_OBJECTIVE` (none until the go/no-go gate). Recorded in the log as `objective`;
    * a match without one writes no `objective` field, so its log is exactly what it was before.
    */
   objective?: string | ObjectiveRules | null;

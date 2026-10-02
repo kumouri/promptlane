@@ -52,8 +52,8 @@ export const DEFAULT_CAMPAIGN = {
   // The ruleset is part of the shape: every match plays it explicitly (`--map`, `--economy`,
   // `--objective`) and the cache key hashes it, so a later change to the runner's defaults can't leak
   // into a campaign or reuse a match played under other rules. `map` mirrors DEFAULT_MAP
-  // (src/mapVariant.ts; a test holds them equal); `economy` and `objective` are none until the Sun
-  // 10-04 gate (src/economy.ts DEFAULT_ECONOMY, src/objective.ts DEFAULT_OBJECTIVE); `resolution`
+  // (src/mapVariant.ts; a test holds them equal); `economy` and `objective` are none until the
+  // go/no-go gate (src/economy.ts DEFAULT_ECONOMY, src/objective.ts DEFAULT_OBJECTIVE); `resolution`
   // mirrors DEFAULT_RESOLUTION (src/resolution.ts), `targeting` DEFAULT_TARGETING and `vocab`
   // DEFAULT_VOCAB (tools/match/jevSchemaPilot.ts): the vocabulary every genome compiles under
   // (adapters.mjs campaignVocab; a campaign without it is vocab-1).

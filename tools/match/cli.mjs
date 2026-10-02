@@ -56,7 +56,7 @@ options:
                       log with every bot's shopping list, applied on --verify
   --objective NAME    river objective (src/objective.ts): river-1 (the Bandstand), river-2 (its
                       redesign), river-2-set10 (river-2 with a 10 s set, §9.8's tuning pass) or
-                      none (the default until the 10-04 gate); recorded in the log, applied on --verify
+                      none (the default until the go/no-go gate); recorded in the log, applied on --verify
   --recall NAME       recall rule (src/recall.ts): recall-2 (a 4 s channel, then a teleport home;
                       damage in its first 3.5 s cancels it) or none (the specimen's 3x run home,
                       the default); recorded in the log, applied on --verify

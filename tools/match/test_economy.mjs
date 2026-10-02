@@ -425,7 +425,7 @@ test('an eco-1 log records the whole ruleset and every bot\'s shopping list; a l
   assert.equal('economy' in plainLog, false);
   assert.equal('economy' in plainLog.result, false);
   assert.ok(plainLog.checkpoints.every((c) => !('e' in JSON.parse(c.state))));
-  assert.equal(h.DEFAULT_ECONOMY, null, 'off until the Sun 10-04 gate');
+  assert.equal(h.DEFAULT_ECONOMY, null, 'off until the go/no-go gate');
   assert.throws(() => h.resolveEconomy('eco-9'), /unknown economy ruleset/);
   assert.equal(h.resolveEconomy('none'), null);
 });
