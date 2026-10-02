@@ -13,11 +13,6 @@ of your max hp and an enemy minion, enemy tower or enemy bearbot is in sight, mo
 your hp is below 50% of your max hp and no enemy is in sight, recall home to heal. These come before
 everything else.
 
-Play the Bandstand. When the Bandstand is open, no enemy bearbot is in sight and your hp is above half
-of your max hp, move to the Bandstand. If the Bandstand is open and it is contested or the enemy team
-is making progress on it, and your hp is above 40% of your max hp, move to the Bandstand. If the
-Bandstand opens within 10 seconds and it is less than 400 units from you, move to the Bandstand.
-
 Go shopping, out of reach. If you can afford the next item on your shopping list, no enemy bearbot
 is in sight and an enemy minion or enemy tower is in sight, move back home. If you can afford the
 next item on your shopping list and no enemy is in sight, recall home to buy it.
@@ -39,8 +34,8 @@ primary ability on the enemy bearbot with the lowest hp.
 
 If an enemy bearbot in sight has less than 100 hp, attack the enemy bearbot with the lowest hp.
 
-Take the objective. If you can see an enemy tower and an allied minion is near you, attack the
-nearest enemy tower.
+Siege with your wave. If you are inside an enemy tower's range and that tower has your own minions in
+its range to shoot first, attack the nearest enemy tower.
 
 Fight under your own tower. If your side is weaker in the fight near you, fall back to your own
 tower.
@@ -50,5 +45,11 @@ Hunt the carrier. If an enemy bearbot is in sight, attack the enemy bearbot wort
 If an enemy minion is in sight, attack the nearest enemy.
 
 Otherwise push with your wave: if an allied minion is near you, move to the nearest allied minion.
+
+Play the Bandstand when your lane gives you nothing to do. When the Bandstand is open, no enemy
+bearbot is in sight and your hp is above half of your max hp, move to the Bandstand. If the Bandstand
+is open and it is contested or the enemy team is making progress on it, and your hp is above 40% of
+your max hp, move to the Bandstand. If the Bandstand opens within 10 seconds and it is less than 400
+units from you, move to the Bandstand.
 
 Your fallback, when none of the above applies, is to push down your lane toward the enemy base.
