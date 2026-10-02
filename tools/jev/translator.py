@@ -13,6 +13,12 @@ requirement is satisfiable by inspection, not by trusting the translator. See
 an entrant can't read turns "prompt-writing" into "hope the model got it right," which is exactly
 the worry §6 raises about this whole approach.
 
+DESIGN PRIORITY: fidelity (Ceryce, 2026-10-02: the translation from prose to Jev "HAS to be right").
+The model is sampled, so deterministic checks after it reject what the prose doesn't say. Their retries
+quote the prose, never the model's wrong output (the 9B copies it back), and a last attempt that is still
+wrong drops the offending part with a note the entrant sees. Under that priority a vocab-2 guard may only
+sit above rules the prose places under its verdict (`enforce_guard_scope`, GUARD SCOPE below).
+
 MODEL: host Ollama's `qwen3.5:9b` (`$OLLAMA_HOST`, this repo's own `DEFAULT_OLLAMA_MODEL` in
 `tools/model_server.py`) -- already configured in this repo, and free (local inference, no API
 spend), so the translation step's reported cost is real ($0 in dollars, real in wall-clock/tokens --
@@ -59,6 +65,9 @@ NEGATION (vocab-2 only): `enforce_negation` rejects a reply in which a rule asks
 there while the rule's id or its prose sentence says it is NOT ("no enemy is in sight"), and the
 retry quotes the sentence; on the last attempt it drops the rule with a `negation:` note instead.
 The prompt is unchanged here too.
+GUARD SCOPE (vocab-2 only): `enforce_guard_scope` rejects a reply in which a guard has a node after it
+(never checked: a guard always routes) or holds a node from prose outside its verdict; the retry quotes
+those nodes' sentences, and the last attempt flattens the guard with a `guard scope:` note.
 Economy P2 added one target selector,
 `highest_bounty_enemy` (`docs/economy-spec.md` §4.2): "go after the enemy worth the most gold".
 VOCABULARIES (`vocab.py`, `docs/vocabulary-spec.md`): `TARGET_SELECTORS` is vocab-1's list. vocab-2

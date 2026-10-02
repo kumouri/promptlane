@@ -1472,7 +1472,7 @@ class GuardScopeTests(unittest.TestCase):
                 self.assertIs(T.enforce_guard_scope(schema, prose, drop=True), schema)
 
     def test_violin_md_does_not_place_its_opener_under_its_verdict(self):
-        # Known strictness, flagged for a ruling (docs/vocabulary-spec.md §8.7): the guards spec's own worked tree
+        # Known strictness, flagged for a ruling (docs/vocabulary-spec.md §8.8): the guards spec's own worked tree
         # (§3.2) puts Staccato under "you only take fights you can win", which ends its paragraph; the Staccato
         # paragraph after it never restates the verdict, so under vocab-2 the guard is rejected.
         prose = T.scope_to_instrument(open(os.path.join(os.path.dirname(__file__), "..", "..", "prompts", "pilots", "violin.md"),
