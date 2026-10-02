@@ -49,6 +49,12 @@ in the prose's order and the notes say which parts the match will fill in. Under
 is `build` only, never a rule: `enforce_shopping_list` drops a rule that only restates the list (or
 rejects the reply when `build` is missing, so the retry quotes the line). The prompt does not say so:
 a line that did, quoting the rule it forbids, made the translator write that rule more often.
+IDENTITY (vocab-2 only): `enforce_identity_rules` rejects a rule whose question asks only about this
+bearbot's own instrument or team ("is this bot's instrument 'Violin'?"), which has one answer all match;
+the retry quotes the prose line it came from, and the last attempt drops it with an `identity:` note.
+UNFINISHED GUARDS (vocab-2 only): `enforce_finished_guards` rejects a reply with a node that has both
+branches but no "type" and no action, asking for plain rules; the last attempt drops the node with an
+`unfinished guard:` note. Completing its type instead shipped guards that cut off every rule below them.
 NEGATION (vocab-2 only): `enforce_negation` rejects a reply in which a rule asks whether a thing IS
 there while the rule's id or its prose sentence says it is NOT ("no enemy is in sight"), and the
 retry quotes the sentence; on the last attempt it drops the rule with a `negation:` note instead.
@@ -577,6 +583,82 @@ def _parse_cascade(nodes_raw: list, default_raw: dict | None, default_required: 
     return Cascade(nodes=nodes, default=default)
 
 
+# --- a guard with no "type" (vocab-2 only) -----------------------------------------------------------
+#
+# The 9B often writes a node with a condition and both a "then" and an "else" branch but no "type":
+# "guard" and no action ("guard_spend_gold"). As a plain rule it fails `invalid action kind None`, and
+# develop's retry asks it to "finish the guard shape", which it already has; #87's s1 drums failed all
+# three replies so. Completing the type is NOT the fix: a guard sends every decision into one of its two
+# branches, so every rule after it is never checked, and the completed trees that shipped held the bot
+# out of every fight and recall (runs/vocab2-identity-rules-2026-10-02.md §2). Under vocab-2 such a reply
+# is rejected with a retry that asks for plain rules; on the last attempt the node is dropped, branches
+# and all, with an `unfinished guard:` note, so the rest of the schema still compiles.
+
+UNFINISHED_GUARD_NOTE_PREFIX = "unfinished guard:"
+
+
+class UnfinishedGuardError(ValueError):
+    """A node shaped as a guard with no "type" (`enforce_finished_guards`). `translate_pilot` retries it
+    without its generic "finish the guard shape" line, which is what the reply already did."""
+
+
+def _unfinished_guard(node) -> bool:
+    if not isinstance(node, dict) or "type" in node:
+        return False
+    action = node.get("action")
+    return all(isinstance(node.get(b), dict) for b in ("then", "else")) and not (isinstance(action, dict) and action.get("kind"))
+
+
+def _rules_in(node: dict) -> int:
+    return sum(1 + (_rules_in(n) if isinstance(n, dict) and ("then" in n or "else" in n) else 0)
+               for b in ("then", "else") if isinstance(node.get(b), dict)
+               for n in (node[b].get("nodes") if isinstance(node[b].get("nodes"), list) else ()))
+
+
+def enforce_finished_guards(raw_json: dict, vocab: str, drop: bool = False) -> tuple[dict, tuple[str, ...]]:
+    """vocab-2 only, on the raw reply before `parse_schema`: when a node anywhere in the tree has both
+    a "then" and an "else" branch object, no "type" and no action kind (`_unfinished_guard`), raises
+    `UnfinishedGuardError`, which `translate_pilot` retries. With `drop` (the last attempt) every such
+    node is removed instead, with its branches, each with an `unfinished guard:` note the entrant sees,
+    and it raises only if no node would be left at the root. A node with one branch, a "type" of its
+    own or an action kind is not one, and goes on to `parse_schema` as before. Returns `(raw_json,
+    notes)`; a reply with no such node, and any vocab-1 reply, comes back as it came, with no notes."""
+    if resolve_vocab(vocab) == VOCAB_1 or not isinstance(raw_json, dict) or not isinstance(raw_json.get("rules"), list):
+        return raw_json, ()
+    found: list[dict] = []
+
+    def walk(nodes):
+        if not isinstance(nodes, list):
+            return nodes
+        kept = []
+        for node in nodes:
+            if _unfinished_guard(node):
+                found.append(node)
+                continue
+            if isinstance(node, dict) and node.get("type") == "guard":
+                node = {**node, **{b: {**node[b], "nodes": walk(node[b].get("nodes"))} for b in ("then", "else") if isinstance(node.get(b), dict)}}
+            kept.append(node)
+        return kept
+
+    rules = walk(raw_json["rules"])
+    if not found:
+        return raw_json, ()
+    if not drop or not rules:
+        node = found[0]
+        raise UnfinishedGuardError(
+            f'node {node.get("id") or "(no id)"} has "then" and "else" branches but no "action", so it is neither a rule nor a guard. '
+            "A guard would send every decision into one of its two branches, and no rule after it would ever be checked: write "
+            'plain rules instead, each with its own "action", in the order the prose gives them'
+        )
+    notes = tuple(
+        f'{UNFINISHED_GUARD_NOTE_PREFIX} removed {node.get("id") or "a node"} ("{node.get("condition") or ""}") and the {_rules_in(node)} '
+        'node(s) in its branches -- it had "then" and "else" branches but no "type": "guard" and no action, so it was neither a rule '
+        "nor a guard, and the translator's last try still wrote it that way. Rewording the prose it came from may help."
+        for node in found
+    )
+    return {**raw_json, "rules": rules}, notes
+
+
 def parse_schema(raw_json: dict, pilot_file: str, instrument: str, raw_text: str, vocab: str = VOCAB_1,
                  economy: str | None = None, map_=None) -> TranslatedSchema:
     """`vocab` is what the model was prompted with (`_translation_prompt`); the schema records it.
@@ -996,6 +1078,105 @@ def enforce_shopping_list(schema: TranslatedSchema, pilot_text: str) -> Translat
         "As a rule it would have " + ("sent the bot home and held it at its base whenever it fired." if not named
                                       else "fired on what the bot owns or can buy, not on anything your rules say.")
         for rule, named in found
+    )
+    return dataclasses.replace(schema, root=new_root, rules=(), validation_notes=schema.validation_notes + notes)
+
+
+# --- a rule that asks only which bearbot this is (vocab-2 only) --------------------------------------
+#
+# "Violin: Amp, then Bass Strings, then Road Case." The 9B sometimes made the line's label a rule of its
+# own: "is this bot's instrument 'Violin'? -> hold", as rule 1 (3 of #87's 35 compiles, each on the first
+# reply). The game states this bearbot's instrument and team, and neither changes during a match, so
+# such a question has one answer for the whole match: the violin would hold on every decision. Under
+# vocab-2 a rule whose question asks about nothing but this bearbot's own instrument or team is rejected,
+# and the retry quotes the prose line it came from, never the question (#87's lesson: the 9B copies a
+# quoted question back). On the last attempt the rule is dropped with an `identity:` note instead. A
+# question that asks anything else as well ("is an enemy violin in sight?", "is this bot's instrument
+# the violin and can it afford an Amp?") is left alone. vocab-1 is unchanged.
+
+IDENTITY_NOTE_PREFIX = "identity:"
+
+_IDENTITY_INSTRUMENT = frozenset({"instrument", "instruments", "keytar", "keytars", "violin", "violins", "drum", "drums"})
+_IDENTITY_TEAM = frozenset({"team", "violet", "green"})
+_IDENTITY_NAMES = (_IDENTITY_INSTRUMENT | _IDENTITY_TEAM) - {"instrument", "instruments", "team"}
+_INSTRUMENT_LABEL = re.compile(r"\b(?:keytar|violin|drums?)\W{0,2}:", re.IGNORECASE)  # "Violin: Amp, ...", "**Drums:**"
+_IDENTITY_FILLER = frozenset(
+    "is are am be a an the this that it its own my our i me s bot bots bearbot bearbots of on in for as to "
+    "which what does do play plays playing currently assigned named called and or".split()
+)
+
+
+def _identity_only(condition: str) -> str | None:
+    """"instrument", "team" or "instrument and team" when `condition` asks about nothing but this
+    bearbot's own instrument or team ("is this bot's instrument 'Violin'?", "is this bearbot on the
+    violet team?"), else None. Any other word ("enemy", "side", "near", "afford") makes it a real
+    question."""
+    words = set(re.findall(r"[a-z]+", condition.lower()))
+    if words - _IDENTITY_FILLER - _IDENTITY_INSTRUMENT - _IDENTITY_TEAM:
+        return None
+    what = [w for w, vocab_ in (("instrument", _IDENTITY_INSTRUMENT), ("team", _IDENTITY_TEAM)) if words & vocab_]
+    return " and ".join(what) or None
+
+
+def _identity_sentence(rule: TranslatedRule, sentences: list[str]) -> str | None:
+    """The prose sentence the rule came from: of the sentences naming an instrument or team the question
+    names, the one sharing the most words with the rule (id included); the first on a tie."""
+    asked = set(re.findall(r"[a-z]+", rule.condition.lower())) & _IDENTITY_NAMES
+    asked |= {w.rstrip("s") for w in asked} | {w + "s" for w in asked}
+    tokens = _rule_tokens_v2(rule) | _tokenize(rule.id.replace("_", " "))
+    best, best_score = None, -1
+    for s in sentences:
+        own = set(re.findall(r"[a-z]+", s.lower()))
+        if own & asked and len(_tokenize(s) & tokens) > best_score:
+            best, best_score = " ".join(s.split()), len(_tokenize(s) & tokens)
+    return best
+
+
+def enforce_identity_rules(schema: TranslatedSchema, pilot_text: str, drop: bool = False) -> TranslatedSchema:
+    """vocab-2 only (vocab-1 gets `schema` back): when a rule anywhere in the tree asks only about this
+    bearbot's own instrument or team (`_identity_only`), raises `SchemaValidationError`, which
+    `translate_pilot` retries; the message quotes the prose line the rule came from, not the question.
+    With `drop` (`translate_pilot`'s last attempt) every such rule is removed instead, each with an
+    `identity:` note the entrant sees, and it raises only if nothing would be left at the root. A schema
+    with no such rule is returned as it came."""
+    if schema.vocab != VOCAB_2:
+        return schema
+    sentences = _prose_sentences(pilot_text)
+    found: list[tuple[TranslatedRule, str, str | None]] = []
+
+    def walk(cascade: Cascade) -> Cascade:
+        nodes: list[Node] = []
+        for node in cascade.nodes:
+            if isinstance(node, GuardNode):
+                nodes.append(dataclasses.replace(node, then=walk(node.then), else_=walk(node.else_)))
+                continue
+            what = _identity_only(node.condition)
+            if what:
+                found.append((node, what, _identity_sentence(node, sentences)))
+            else:
+                nodes.append(node)
+        return Cascade(nodes=tuple(nodes), default=cascade.default)
+
+    new_root = walk(schema.root)
+    if not found:
+        return schema
+    if not drop or not new_root.nodes:
+        rule, what, sentence = found[0]
+        msg = (f"rule {rule.id} asks only about this bearbot's own {what}, which never changes during a match, so it would "
+               "fire on every decision or on none. Remove that rule and keep the others.")
+        if sentence:
+            msg += f' It came from the prose line "{sentence[:200]}"'
+            if _INSTRUMENT_LABEL.search(sentence):
+                msg += ": the label before the colon only says which instrument the line is for"
+            if _is_shopping_sentence(sentence, _item_patterns(schema.economy)):
+                msg += ', and its items belong in the top-level "build" list'
+            msg += "."
+        raise SchemaValidationError(msg)
+    notes = tuple(
+        f'{IDENTITY_NOTE_PREFIX} removed rule {rule.id} ("{rule.condition}") -- it asks only about this bearbot\'s own {what}, '
+        "which never changes during a match, so it would have fired on every decision (holding everything below it) or on none."
+        + (f' It came from "{sentence[:200]}"; rewording that line may help.' if sentence else "")
+        for rule, what, sentence in found
     )
     return dataclasses.replace(schema, root=new_root, rules=(), validation_notes=schema.validation_notes + notes)
 
@@ -1422,15 +1603,23 @@ def translate_pilot(
     last_err: Exception | None = None
     for attempt in range(max_attempts):
         reply = generate(prompt)
+        last = attempt == max_attempts - 1
         try:
-            raw_json = _extract_json_object(reply)
+            raw_json, guard_notes = enforce_finished_guards(_extract_json_object(reply), vocab, drop=last)
             schema = parse_schema(raw_json, pilot_file, instrument, reply, vocab, economy=economy, map_=map_)
-            if scope_notes:
-                schema = dataclasses.replace(schema, validation_notes=schema.validation_notes + scope_notes)
+            if scope_notes or guard_notes:
+                schema = dataclasses.replace(schema, validation_notes=schema.validation_notes + guard_notes + scope_notes)
             schema = enforce_instrument_scope(schema, instrument, primary_ability, ultimate_ability, teleport=teleport)
             schema = enforce_shopping_list(schema, scoped.text)
+            schema = enforce_identity_rules(schema, scoped.text, drop=last)
             schema = enforce_negation(schema, scoped.text, drop=attempt == max_attempts - 1)
             return enforce_absolute_priority(schema, scoped.text)
+        except UnfinishedGuardError as err:
+            last_err = err
+            prompt = (
+                _translation_prompt(scoped.text, instrument, primary_ability, ultimate_ability, vocab, economy=economy, map_=map_)
+                + f"\n\nYour previous attempt was invalid: {err}. Output ONLY the JSON object, no other text."
+            )
         except (ValueError, json.JSONDecodeError) as err:
             last_err = err
             prompt = (
@@ -1557,12 +1746,21 @@ def render_markdown(schema: TranslatedSchema) -> str:
     scope_notes = [n for n in schema.validation_notes if n.startswith("instrument scope:")]
     build_notes = [n for n in schema.validation_notes if n.startswith(NOTE_PREFIX)]
     target_notes = [n for n in schema.validation_notes if n.startswith(TARGET_NOTE_PREFIX)]
+    identity_notes = [n for n in schema.validation_notes if n.startswith(IDENTITY_NOTE_PREFIX)]
+    unfinished_notes = [n for n in schema.validation_notes if n.startswith(UNFINISHED_GUARD_NOTE_PREFIX)]
     negation_notes = [n for n in schema.validation_notes if n.startswith(NEGATION_NOTE_PREFIX)]
     priority_notes = [n for n in schema.validation_notes
-                      if n not in scope_notes and n not in build_notes and n not in target_notes and n not in negation_notes]
+                      if n not in scope_notes and n not in build_notes and n not in target_notes
+                      and n not in identity_notes and n not in unfinished_notes and n not in negation_notes]
     if priority_notes:
         lines += ["", "**Automatic priority fixes applied to this schema:**", ""]
         lines += [f"- {note}" for note in priority_notes]
+    if unfinished_notes:
+        lines += ["", "**Unfinished guards -- what was removed:**", ""]
+        lines += [f"- {note}" for note in unfinished_notes]
+    if identity_notes:
+        lines += ["", "**Rules about which bearbot this is -- what was removed:**", ""]
+        lines += [f"- {note}" for note in identity_notes]
     if negation_notes:
         lines += ["", "**Negations -- what was removed:**", ""]
         lines += [f"- {note}" for note in negation_notes]
