@@ -4,8 +4,9 @@
  *   - every checked-in match log still replays to the same checkpoints (§5.1: nothing in stage A can
  *     move a replay, and this proves it on the logs we have);
  *   - a real match, one side on vocab-2 schemas naming every new target and the other on a vocab-1
- *     schema, played through the real `schema_server.py --stub` (seeded random answers, $0): every
- *     ask is answered in the schema's own vocabulary, every new target resolves, and the log replays;
+ *     schema, played through the real `schema_server.py --stub` (seeded random answers keyed on each
+ *     request, $0): every ask is answered in the schema's own vocabulary, every new target resolves,
+ *     the log replays, and the same seed plays the same match again;
  *   - a schema pilot holds rather than play a vocab-2 schema on a server too old to know it;
  *   - `fight_samples.mjs` (the fight verdict's calibration data) reads every bearbot's hp.
  */
@@ -117,8 +118,9 @@ test('a real match on the stub schema server: vocab-2 targets resolve, vocab-1 p
   writeFileSync(path.join(dir, 'v1.json'), JSON.stringify(vocab1Schemas()));
   const out = path.join(dir, 'match.json');
   const prose = path.join(ROOT, 'prompts', 'pilots', 'drums.md');
-  const r = await cli(['--a', prose, '--a-schemas', path.join(dir, 'v2.json'), '--b', prose, '--b-schemas', path.join(dir, 'v1.json'),
-    '--jev-schema', endpoint, '--seed', '7', '--cadence', '2', '--max-sim-sec', '150', '--out', out, '--quiet']);
+  const play = (to) => cli(['--a', prose, '--a-schemas', path.join(dir, 'v2.json'), '--b', prose, '--b-schemas', path.join(dir, 'v1.json'),
+    '--jev-schema', endpoint, '--seed', '7', '--cadence', '2', '--max-sim-sec', '150', '--out', to, '--quiet']);
+  const r = await play(out);
   assert.equal(r.code, 0, r.out);
   const log = JSON.parse(readFileSync(out, 'utf8'));
   assert.equal(log.sides.violet.schemas.drums.vocab, 'vocab-2', 'the log keeps each schema, vocab key included');
@@ -139,6 +141,13 @@ test('a real match on the stub schema server: vocab-2 targets resolve, vocab-1 p
   for (const sel of ['own_tower', 'own_front_tower', 'nearest_ally']) assert.ok(fired.get(sel) > 0, `${sel} fired: ${JSON.stringify([...fired])}`);
   const v = await cli(['--verify', out]);
   assert.equal(v.code, 0, v.out);
+  // The stub's six asks a round arrive in any order; its answers must not depend on that, or this
+  // match plays differently every run and the counts above are luck (a selector fired 0 times on CI).
+  const again = path.join(dir, 'again.json');
+  assert.equal((await play(again)).code, 0);
+  const played = (l) => l.decisions.filter((d) => !d.cached).map((d) => ({ tick: d.tick, bot: d.bot, answers: JSON.parse(d.reply).answers, action: d.action }))
+    .sort((a, b) => a.tick - b.tick || a.bot - b.bot);
+  assert.deepEqual(played(JSON.parse(readFileSync(again, 'utf8'))), played(log), 'the same seed on the stub plays the same match');
 });
 
 test('a schema pilot holds rather than play a vocab-2 schema on a server too old to echo it', async () => {

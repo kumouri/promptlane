@@ -29,6 +29,7 @@ defeat the point (ground truth has to be real).
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -82,15 +83,25 @@ class DumbStubJevClient:
     """Plumbing-only dry run: seeded pseudo-random noul answers, no ground-truth concept (unlike
     `client.StubSystemOneClient`, which needs a hand-coded oracle per question -- this harness's
     questions are LLM-authored prose, not fixed formulas, so there is no such oracle to stub
-    against). Exercises the wire shape and the rest of the pipeline; says nothing about fidelity."""
+    against). Exercises the wire shape and the rest of the pipeline; says nothing about fidelity.
+
+    Each answer is a function of the seed, the state and the question alone, never of call order:
+    `schema_server.py --stub` is threaded, so six bots' asks arrive in whatever order the network
+    delivers them, and one shared random stream dealt the same draws to different bots run to run
+    (a seeded stub match played differently every time; `tools/match/test_vocab.mjs`)."""
 
     backend = "stub"  # the "door" a stub decision reports (`run_prediction`)
 
     def __init__(self, seed: int = 20260923):
-        self._rng = random.Random(seed)
+        self._seed = seed
+
+    def _noul(self, state, q) -> float:
+        key = json.dumps([self._seed, state, q.id, q.instructions, q.criteria], sort_keys=True, default=str)
+        rng = random.Random(int.from_bytes(hashlib.sha256(key.encode("utf-8")).digest()[:8], "big"))
+        return round(rng.uniform(0.1, 0.9), 4)
 
     def ask(self, state, questions: list) -> dict:
-        answers = {q.id: {"noul": round(self._rng.uniform(0.1, 0.9), 4)} for q in questions}
+        answers = {q.id: {"noul": self._noul(state, q)} for q in questions}
         input_tokens = estimate_request_tokens(state, questions)
         return {"model": "stub-jev", "answers": answers, "usage": {"input_tokens": input_tokens, "output_tokens": 0}}
 
