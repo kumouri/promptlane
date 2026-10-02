@@ -456,7 +456,9 @@ test('medium (eco, vocab-2): the placement bar shops, closes out at 480 s, steps
   assert.match(prose, /If an enemy tower will shoot you, fall back to your own tower\./);
   assert.match(prose, /Siege with your wave\. If you are inside an enemy tower's range and that tower has your own minions in its range to shoot first, attack the nearest enemy tower\./);
   assert.match(prose, /keytar only: If your ability is ready and an enemy bearbot is in sight, use your primary ability on the nearest enemy bearbot\./);
-  assert.match(prose, /move to the outermost standing tower of your own lane and wait there\./);
+  // §4: the idle sentence pushes the lane (hard-eco's words), so the 480 s rush has an enemy tower in sight
+  assert.match(prose, /Your fallback, when none of the above applies, is to push down your lane toward the enemy base\./);
+  assert.doesNotMatch(prose, /outermost standing tower/);
   assert.doesNotMatch(prose, /Bandstand/);
   const sel = (r) => `${r.action_kind} ${r.action_target_selector}`;
   const PRIMARY = { drums: 'kick', keytar: 'chord', violin: 'staccato' };
@@ -479,8 +481,8 @@ test('medium (eco, vocab-2): the placement bar shops, closes out at 480 s, steps
     assert.equal(s.rules[ability].action_target_selector, inst === 'keytar' ? 'nearest_enemy_bearbot' : 'lowest_hp_enemy', label);
     assert.ok(!s.rules.some((r) => r.action_target_selector === 'nearest_ally'), `${label}: the wave, never an ally`);
     assert.equal(s.rules.filter((r) => r.action_target_selector === 'home' || r.action_kind === 'recall').length, 4, `${label}: home only for low hp and shopping`);
-    const last = s.rules[s.rules.length - 1];
-    assert.ok(s.default_action.target_selector === 'own_front_tower' || last.action_target_selector === 'own_front_tower', `${label}: waits at its own front tower`);
+    assert.equal(s.default_action.target_selector, 'push_lane', `${label}: pushes its lane when idle`);
+    assert.ok(!s.rules.some((r) => r.action_target_selector === 'own_front_tower'), `${label}: never waits at its own front tower`);
   }
 });
 

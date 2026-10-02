@@ -295,7 +295,8 @@ Its rules, in order:
   and violin finish a bearbot under 100 hp;
 - fight bearbots, then minions;
 - walk with the wave;
-- otherwise wait for the next wave at its own outer tower.
+- otherwise push down its lane toward the enemy base (hard-eco's fallback sentence). Until the
+  run file's §4 it waited for the next wave at its own outer tower.
 
 It has no Bandstand rule. On the stand-in, putting the Bandstand where old medium had it (right after
 the low-hp pair) cost hard most of its margin over medium. `house-medium-eco.schemas.json` is one

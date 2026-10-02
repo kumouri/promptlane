@@ -37,5 +37,4 @@ enemy minion is in sight, attack the nearest enemy minion.
 
 Ride with your wave. If one of your own minions is near you, walk with your nearest minion.
 
-Your fallback, when none of the above applies, is to wait for the next wave at your own tower: move
-to the outermost standing tower of your own lane and wait there.
+Your fallback, when none of the above applies, is to push down your lane toward the enemy base.
