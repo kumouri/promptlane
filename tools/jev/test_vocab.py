@@ -22,9 +22,11 @@ from compile import compile_prompt, header_markdown, parse_args, schema_from_dic
 from fidelity_harness import describe_observation, run_prediction  # noqa: E402
 from schema_server import JevSchemaBackend  # noqa: E402
 from scenarios import ABILITIES  # noqa: E402
-from target_resolve import TARGETING_FIRST_MIN, TARGETING_OWN_LANE_1, TARGETING_RULES, VOCAB2_SELECTORS, resolve_target  # noqa: E402
+from target_resolve import (  # noqa: E402
+    TARGETING_FIRST_MIN, TARGETING_OWN_LANE_1, TARGETING_RULES, VOCAB2_SELECTORS, VOCAB2_WIDER, resolve_target,
+)
 from vocab import (  # noqa: E402
-    DEFAULT_VOCAB, FACTS_V2, MAPS, VOCAB_1, VOCAB_2, VOCABS, FightSide, fight, fight_verdict, map_spec, resolve_vocab,
+    DEFAULT_VOCAB, FACTS_V2, MAPS, VOCAB_1, VOCAB_2, VOCABS, FightSide, dist, fight, fight_verdict, map_spec, resolve_vocab,
 )
 
 REPO = HERE.parents[1]
@@ -110,11 +112,20 @@ class Vocab1IsByteIdentical(unittest.TestCase):
             self.assertEqual(G.sha(describe_observation(o, VOCAB_1, "pvp-1")), want)  # the map never reaches vocab-1
 
     def test_every_vocab1_selector_resolves_as_before_under_both_vocabularies(self):
+        widened = 0
         for o, want in zip(CORPUS, GOLDEN["resolutions"]):
             self.assertEqual(G.resolutions(o), want)
             for targeting in TARGETING_RULES:
                 for sel in GOLDEN["selectors"]:
-                    self.assertEqual(resolve_target(sel, o, targeting, VOCAB_2, "pvp-1"), want[f"{targeting}:{sel}"], sel)
+                    got = resolve_target(sel, o, targeting, VOCAB_2, "pvp-1")
+                    if sel in VOCAB2_WIDER and want[f"{targeting}:{sel}"] is None:
+                        # vocab-2 also reaches the enemy towers its description lists beyond 260
+                        listed = [t for t in o.get("nearbyTowers") or () if t["team"] != o["self"]["team"] and t.get("alive", True)]
+                        self.assertEqual(got, min(listed, key=lambda t: dist(o["self"]["pos"], t["pos"]))["id"] if listed else None, sel)
+                        widened += got is not None
+                        continue
+                    self.assertEqual(got, want[f"{targeting}:{sel}"], sel)
+        self.assertGreater(widened, 0, "the corpus has a tower listed beyond 260")
 
     # Recompiled under vocab-2 on purpose (vocabulary spec §7 D3, runs/vocab-house-tiers-2026-10-02.md,
     # runs/jev-recheck-vocab2-2026-10-02.md).
@@ -400,6 +411,27 @@ class Selectors(unittest.TestCase):
         self.assertEqual(self.r("tower_diver", o), "bb-9", "bb-8 is nearer the dead tower only")
         self.assertIsNone(self.r("tower_diver", obs(towers=towers, enemies=[bearbot("bb-8", P(300, 600))])))
         self.assertIsNone(self.r("tower_diver", obs(enemies=[bearbot("bb-9", P(150, 700))])), "no tower of mine in sight")
+
+    def test_nearest_tower_reaches_the_towers_the_description_lists(self):
+        # 300 from green's top outer tower: listed (within 390), not in visibleEnemies (260)
+        far = obs(pos=(120, 100), towers=[tower("tw-7", "green", G_OUTER)])
+        self.assertIn("Enemy tower tw-7", describe_observation(far, VOCAB_2, "pvp-1"))
+        self.assertEqual(self.r("nearest_tower", far), "tw-7")
+        self.assertEqual(self.r("nearest_tower", far, targeting=TARGETING_FIRST_MIN), "tw-7")
+        self.assertIsNone(self.r("nearest_tower", far, vocab=VOCAB_1), "vocab-1 reads visibleEnemies only")
+        self.assertEqual(self.r("nearest_tower", mirror(far)), "tw-7")
+        # under 260 it is in both lists, and both vocabularies pick it
+        near = obs(pos=(200, 100), towers=[tower("tw-7", "green", G_OUTER)],
+                   enemies=[{"id": "tw-7", "pos": G_OUTER, "hp": 900, "maxHp": 900, "kind": "tower"}])
+        self.assertEqual(self.r("nearest_tower", near), self.r("nearest_tower", near, vocab=VOCAB_1))
+        self.assertEqual(self.r("nearest_tower", near), "tw-7")
+        # never my own tower or a dead one; the nexus still counts, from visibleEnemies
+        mine = obs(pos=(120, 100), towers=[tower("tw-2", "violet", V_OUTER), tower("tw-7", "green", G_OUTER, alive=False)])
+        self.assertIsNone(self.r("nearest_tower", mine))
+        nexus = obs(pos=(700, 300), towers=[tower("tw-8", "green", G_INNER)],
+                    enemies=[{"id": "nx-1", "pos": P(900, 100), "hp": 2000, "maxHp": 2000, "kind": "nexus"}])
+        self.assertEqual(self.r("nearest_tower", nexus), "tw-8")
+        self.assertEqual(self.r("nearest_tower", obs(pos=(800, 200), enemies=nexus["visibleEnemies"])), "nx-1")
 
     def test_nearest_ally(self):
         o = obs(allies=[{"id": "bb-1", "pos": P(100, 900), "hp": 1, "maxHp": 220}, {"id": "bb-3", "pos": P(500, 500), "hp": 1, "maxHp": 150}])

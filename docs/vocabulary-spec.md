@@ -120,6 +120,8 @@ The ✗ entries in the right-hand columns are the gaps.
 
 **How the selectors read the observation.** `nearest_tower` reads `visibleEnemies`, so it is an enemy
 tower or nexus by construction (`target_resolve.py:199-201`). No selector reads `nearbyTowers`.
+(That is vocab-1, as it still is; under `vocab-2`, `nearest_tower` also reaches the towers A1 lists,
+§8.2.)
 `lowest_hp_enemy` and `isolated_enemy` prefer bearbots, but fall back to any enemy, towers included
 (`:179-182, 191-198`).
 
@@ -506,3 +508,14 @@ Every correction is a `target:` note in the schema. The entrant sees it under "T
 corrected" in the compile preview. Free local compiles of PR #79's two sources, before and after, are
 in `runs/vocab2-target-fixes-2026-10-02.md`. A schema compiled before the fix keeps the targets it
 was compiled with.
+
+### 8.2 `nearest_tower` reaches the towers vocab-2 describes
+
+The Jev re-check after §8.1 (`runs/jev-recheck-vocab2-2026-10-02.md` §2.2) found a reach gap. A1
+lists enemy towers out to `nearbyTowers`' 390, but `nearest_tower` still read only `visibleEnemies`
+(260). So "attack their tower" fired with no target, and the bot stood still 260–390 units out.
+Ceryce ruled to fix the target side and keep the description. Under `vocab-2`, `nearest_tower` now
+picks from every enemy tower or nexus the description lists: `visibleEnemies`, plus the alive enemy
+towers that A1's lines read (`vocab.tower_facts`, `target_resolve.VOCAB2_WIDER`). The sim's `attack`
+walks to a target that is out of reach. Under `vocab-1` it reads `visibleEnemies`, as in §2.2. The
+result is in `runs/vocab2-tower-reach-2026-10-02.md`.
