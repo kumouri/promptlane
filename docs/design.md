@@ -93,6 +93,8 @@ established yet. Preserve the specimen and evaluate those claims rather than cha
 A later prompt may specify a channel, delay, or another recall rule after that investigation.
 For the Jam, `recall-2` (`src/recall.ts`) is such a rule applied from outside: a 4 s channel, then a
 teleport home; it is opt-in and recorded in the match log (`docs/economy-spec.md` §9.10).
+The Final Chorus (`src/finale.ts`, `docs/fewer-draws-spec.md` §4.1) is another: a decisive last two
+minutes inside the same 600 s, also opt-in and recorded in the log.
 The original behavior stays in the teaser: an honest example of what a short build session buys,
 not a requirement that other models reproduce the same failure.
 

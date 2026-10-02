@@ -128,13 +128,15 @@ export class Queue {
    *                         `none`); unset = the runner's DEFAULT_OBJECTIVE
    * @param opts.recall      recall rule name for every match (`tournament.recall`, e.g. `recall-2` or
    *                         `none`); unset = the runner's DEFAULT_RECALL (the specimen's 3x run home)
+   * @param opts.finale      finale name for every match (`tournament.finale`, e.g. `final-chorus-1` or
+   *                         `none`); unset = the runner's DEFAULT_FINALE (none: play to 10:00)
    * @param opts.live        LiveHub (optional) — running jobs stream their events into it
    * @param opts.economy     economy ruleset name for every match (`tournament.economy`, src/economy.ts);
    *                         null/unset = none (the default until the Sun 10-04 gate)
    * @param opts.hooks       test seams: `afterRun(log, job)` may replace the log before verify;
    *                         `callModelFor(job)` replaces the adapter; `wallCapMs` overrides the cap
    */
-  constructor({ ledger, backends, headless, dataDir, promptStore, house, schemaCache = null, map = null, live = null, economy = null, objective = null, recall = null, log = console, hooks = {} }) {
+  constructor({ ledger, backends, headless, dataDir, promptStore, house, schemaCache = null, map = null, live = null, economy = null, objective = null, recall = null, finale = null, log = console, hooks = {} }) {
     this.ledger = ledger;
     this.backends = backends;
     this.headless = headless;
@@ -147,6 +149,7 @@ export class Queue {
     this.map = map;
     this.objective = objective;
     this.recall = recall;
+    this.finale = finale;
     this.live = live;
     this.economy = economy;
     this.log = log;
@@ -502,6 +505,7 @@ export class Queue {
         ...(this.map ? { map: this.map } : {}),
         ...(this.objective ? { objective: this.objective } : {}),
         ...(this.recall ? { recall: this.recall } : {}),
+        ...(this.finale ? { finale: this.finale } : {}),
         flush,
         signal: ac.signal,
         onProgress: (p) => {

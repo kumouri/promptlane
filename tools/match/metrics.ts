@@ -32,6 +32,11 @@
  * specimen's 3x run home (`bearbot.recalling`) or `recall-2`'s channel (`src/recall.ts`, attached when
  * the log has one) — how many started, how many got home, how many damage interrupted (recall-2 only),
  * and the share of alive bot-time spent recalling.
+ *
+ * A log with a finale (`src/finale.ts`, the Final Chorus) is replayed with it attached, last, as the
+ * runner attaches it; `finale` names it, and the end reason says whether it ended the match. From a
+ * level 8:00 on, structures are rescaled to a third of their hp, so hp lost by a tower or nexus after
+ * that (`botToStructure`) is in the rescaled hp: ×3 for the equivalent on the old scale.
  */
 import type { Action, Instrument, Lane, Team, Vec2 } from '../../src/types';
 import { Match, TICK_DT, type RosterSlot } from '../../src/sim/match';
@@ -43,6 +48,7 @@ import { attachAttribution } from '../../src/attribution';
 import { ECO_1_GOLD_SOURCES, GOLD_SOURCES, attachEconomy, type Economy, type GoldSource } from '../../src/economy';
 import { attachObjective, resolveObjective, type Objective } from '../../src/objective';
 import { attachRecall, resolveRecall, type Recall } from '../../src/recall';
+import { attachFinale, resolveFinale } from '../../src/finale';
 import { attachResolution, resolveResolution } from '../../src/resolution';
 
 export { LANE_PATHS } from '../../src/sim/map';
@@ -166,6 +172,8 @@ export interface MatchMetrics {
   sides: Record<Team, string>;
   winner: Team | null;
   endReason: string | null;
+  /** The finale the match was played under (`src/finale.ts`); absent = none. */
+  finale?: string;
   durationMin: number;
   replayOk: boolean;
   checkpointsCompared: number;
@@ -358,6 +366,8 @@ export async function measureLog(log: MatchLog, flush: () => Promise<void> = def
   const objectiveRules = resolveObjective(log.objective);
   const objective: Objective | null = objectiveRules ? attachObjective(match, objectiveRules, TICK_DT) : null;
   const economy: Economy | null = log.economy ? attachEconomy(match, log.economy.ruleset, log.economy.builds, TICK_DT) : null;
+  const finaleRules = resolveFinale(log.finale);
+  if (finaleRules) attachFinale(match, finaleRules, TICK_DT);
   const m = match;
   const botIndex = new Map<Bearbot, number>(m.bearbots.map((b, i) => [b, i]));
 
@@ -686,6 +696,7 @@ export async function measureLog(log: MatchLog, flush: () => Promise<void> = def
     sides: { violet: log.sides.violet.name, green: log.sides.green.name },
     winner: m.winner,
     endReason: m.endReason,
+    ...(finaleRules ? { finale: finaleRules.name } : {}),
     durationMin,
     replayOk: !diverged && (log.result.endReason === null || (m.winner === log.result.winner && tickOf(m) === log.result.ticks)),
     checkpointsCompared: compared,
@@ -956,6 +967,8 @@ export function matchValues(m: MatchMetrics): Record<string, number | null> {
   return {
     durationMin: m.durationMin,
     decided: m.winner !== null ? 1 : 0,
+    // Only a finale match has these, so a table of logs without one reads exactly as before.
+    ...(m.finale ? { endedChorusLead: m.endReason === 'chorus-lead' ? 1 : 0, endedSuddenDeath: m.endReason === 'sudden-death' ? 1 : 0 } : {}),
     deathsPerMin: m.deathsPerMin,
     damagePerMin: m.damagePerMin.total,
     pvpDamagePerMin: m.damagePerMin.pvp,

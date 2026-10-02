@@ -996,7 +996,8 @@ later default change can't move the ladder silently.
 
 **Objective.** `tournament.objective` (`"river-1"` = the Bandstand, `"river-2"` = its redesign,
 `"none"` = off; docs/economy-spec.md §9) flows the same way and is checked at startup, and so does
-`tournament.recall` (`"recall-2"`, or `"none"` = the specimen's recall; §9.10). Unset, the runner's
+`tournament.recall` (`"recall-2"`, or `"none"` = the specimen's recall; §9.10), and so does
+`tournament.finale` (`"final-chorus-1"`, or `"none"`; docs/fewer-draws-spec.md §4.1). Unset, the runner's
 `DEFAULT_OBJECTIVE` applies, which is none until the Sun 10-04 gate. The log records the ruleset,
 the `meta` event carries it, and the live view and replay attach it before the first tick.
 

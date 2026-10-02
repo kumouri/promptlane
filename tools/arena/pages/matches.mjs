@@ -6,7 +6,8 @@ function outcome(job) {
   if (job.status !== 'finished') return job.reason ? `<span class="dim">${esc(job.reason)}</span>` : '';
   const r = job.result;
   if (r.endReason === null) return `<span class="dim">unfinished (${Math.round(r.durationSec)} s)</span>`;
-  const by = r.endReason === 'nexus' ? 'nexus kill' : 'timeout';
+  // Why it ended; the last two only under a finale (src/finale.ts).
+  const by = { nexus: 'nexus kill', 'chorus-lead': 'tower lead at 8:00', 'sudden-death': 'first tower in sudden death' }[r.endReason] ?? 'timeout';
   if (r.winner === null) return `draw · ${by}`;
   const name = sideLabel(job.sides[r.winner]);
   return `<b class="${r.winner}">${esc(name)}</b> wins · ${by}`;

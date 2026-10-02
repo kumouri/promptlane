@@ -105,6 +105,9 @@ export function resultLine(log, outFile) {
     ...(r.objective ? [`bandstand violet=${r.objective.captures.violet} green=${r.objective.captures.green} openings=${r.objective.openings.length}`] : []),
     // Only a recall-2 match says anything here: channels started, and how many got home.
     ...(r.recall ? [`recall=${r.recall.name} channels=${r.recall.bots.reduce((n, b) => n + b.started, 0)} home=${r.recall.bots.reduce((n, b) => n + b.home, 0)} interrupted=${r.recall.bots.reduce((n, b) => n + b.damage, 0)}`] : []),
+    // Only a finale match says anything here: the towers standing at the Chorus (by=chorus-lead or
+    // by=sudden-death above says when the finale ended it).
+    ...(r.finale ? [`finale=${r.finale.name} chorus-towers=${r.finale.towersAtChorus ? `${r.finale.towersAtChorus.violet}-${r.finale.towersAtChorus.green}` : 'none'}`] : []),
     `backend=${backendLabel(log.backend)}`,
     // Only an economy match says anything here, so every older result line is unchanged.
     ...(r.economy ? [`economy=${r.economy.ruleset} items=${r.economy.bots.map((b) => b.items.length).join('/')} levels=${r.economy.bots.map((b) => b.level).join('/')}`] : []),

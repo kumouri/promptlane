@@ -8,6 +8,7 @@ import { RenderFx, render } from './render';
 import { CHECKPOINT_EVERY_TICKS, isMatchLog, tickOf, type MatchLog } from './replay';
 import { DivergenceCheck, LiveFeed, LivePacer, Ticker, buildMatch, openLive } from './live';
 import { getObjective } from './objective';
+import { endReasonLabel, getFinale } from './finale';
 
 import drumsPrompt from '../prompts/pilots/drums.md?raw';
 import keytarPrompt from '../prompts/pilots/keytar.md?raw';
@@ -365,6 +366,12 @@ function clockText(sec: number): string {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
+/** The running clock, marked while a finale's sudden death is on (src/finale.ts). */
+function clockTextOf(m: Match): string {
+  const finale = getFinale(m);
+  return finale?.suddenDeath ? `${clockText(m.clockSec)} · SUDDEN DEATH ×${finale.rules.structureDamageMult}` : clockText(m.clockSec);
+}
+
 /**
  * "Bandstand 2–1" (violet's captures–green's, in team colours) beside the tower score, only when the match has a river objective
  * (src/objective.ts); hidden otherwise. Only touches the DOM when a capture changes the count.
@@ -401,11 +408,11 @@ function refreshHud(): void {
     clockEl.textContent = `REPLAY DIVERGED @${(check.divergedAt * (feed.meta?.tickDt ?? 0.05)).toFixed(1)}s`;
   } else if (match.ended) {
     const who = match.winner ? sideLabel(match.winner) : 'NOBODY';
-    clockEl.textContent = `${who} WINS (${match.endReason})`;
+    clockEl.textContent = `${who} WINS (${endReasonLabel(match.endReason, getFinale(match)?.rules).toUpperCase()})`;
   } else if (feed.result && feed.result.endReason === null && t >= feed.result.ticks) {
     clockEl.textContent = `${clockText(match.clockSec)} · STOPPED (${feed.end?.status === 'timed-out' ? 'wall cap' : 'unfinished'})`;
   } else {
-    clockEl.textContent = clockText(match.clockSec);
+    clockEl.textContent = clockTextOf(match);
   }
   const live = view.mode === 'live' && !feed.meta?.finished;
   const behind = Math.max(0, feed.lastRoundTick - t);
@@ -420,13 +427,13 @@ function refreshHud(): void {
 
 function onMatchTick(): void {
   if (!match || view) return;
-  clockEl.textContent = clockText(match.clockSec);
+  clockEl.textContent = clockTextOf(match);
   scoreVioletEl.textContent = `${sideLabel('violet')} ${match.towersDestroyedBy('green')}`;
   scoreGreenEl.textContent = `${match.towersDestroyedBy('violet')} ${sideLabel('green')}`;
   refreshBandstandScore();
   if (match.ended) {
     const who = match.winner ? sideLabel(match.winner) : 'NOBODY';
-    clockEl.textContent = `${who} WINS (${match.endReason})`;
+    clockEl.textContent = `${who} WINS (${endReasonLabel(match.endReason, getFinale(match)?.rules).toUpperCase()})`;
   }
   renderPromptView();
 }

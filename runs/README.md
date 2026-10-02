@@ -78,6 +78,12 @@ release), and
 12 medium-vs-hard matches, each seed both ways, on the post-#57 tiers and `own-lane-1`; metrics
 `economy-eco3-check-2026-10-01-*` beside it, logs on the
 [`data-economy-eco3-check-2026-10-01`](https://github.com/kumouri/promptlane/releases/tag/data-economy-eco3-check-2026-10-01)
+release), and
+[final-chorus-2026-10-01.md](final-chorus-2026-10-01.md) (the Final Chorus on the Jam stack on Jev:
+62 matches with and 62 without, the fewer-draws spec's pre-registered measurement with its sample
+amended before the run, and the recommendation for the 10-04 gate; metrics
+`final-chorus-2026-10-01-metrics.md` beside it, logs on the
+[`data-final-chorus-2026-10-01`](https://github.com/kumouri/promptlane/releases/tag/data-final-chorus-2026-10-01)
 release).
 The bulky captures those documents hash live under ignored `artifacts/<run>-evidence/` and
 `artifacts/<run>-reviewed/`.

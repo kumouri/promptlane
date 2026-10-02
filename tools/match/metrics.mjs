@@ -183,6 +183,9 @@ export const MATCH_ROWS = [
   ['matches (replay ok)', null, null],
   ['duration, min', 'durationMin', (x) => num(x, 2)],
   ['decided (not a draw)', 'decided', pct],
+  // The Final Chorus (src/finale.ts): only logs with a finale have these.
+  ['…ended by a tower lead at 8:00', 'endedChorusLead', pct, true],
+  ['…ended by the first tower in sudden death', 'endedSuddenDeath', pct, true],
   ['deaths / min', 'deathsPerMin', (x) => num(x, 3)],
   ['damage / min, all', 'damagePerMin', (x) => num(x, 0)],
   ['damage / min, PvP (bot → enemy bot)', 'pvpDamagePerMin', (x) => num(x, 1)],
