@@ -376,6 +376,17 @@ _CONDITION_DESC = {
 }
 
 
+# How many top-level nodes the prompt asks for. vocab-1 keeps "3 and 8" byte for byte (golden-tested).
+# vocab-2 sets no upper bound: the prose decides how many rules there are. The 8 had no stated reason,
+# nothing enforced it, and a node costs one more question in the decision's single Jev call, about 40
+# input tokens and under 1 ms (runs/vocab2-node-cap-2026-10-02.md §1). One is the floor `parse_schema` needs.
+_NODE_COUNT = {
+    VOCAB_1: "Use between 3 and 8 top-level nodes.",
+    VOCAB_2: "Write one top-level node for every rule the prose states, as many as it has (at least one); "
+    "never drop a rule to make the list shorter.",
+}
+
+
 def facts_prompt_block(vocab: str) -> str:
     """The "facts the game states" list (spec §4.1 A5), from `vocab.FACTS_V2`, the table whose
     `lead` phrases `test_vocab.py` finds in every vocab-2 description. Empty for vocab-1, which
@@ -453,7 +464,7 @@ the prose's priority order calls for:
  "then": {{"nodes": [{{"id": "opener_ready", "condition": "...", "criteria": {{"true": "...", "false": "..."}}, "action": {{"kind": "ability", "ability": null, "target_selector": null}}}}], "default_action": {{"kind": "move", "ability": null, "target_selector": null}}}},
  "else": {{"nodes": [], "default_action": {{"kind": "move", "ability": null, "target_selector": null}}}}}}
 
-Use between 3 and 8 top-level nodes. Output ONLY this JSON object, nothing else, no markdown fences.
+{_NODE_COUNT[vocab]} Output ONLY this JSON object, nothing else, no markdown fences.
 If the prose has NO strategic-verdict content, output only plain rules -- do not force a guard in:
 
 {{"rules": [{{"id": "...", "condition": "...", "criteria": {{"true": "...", "false": "..."}}, "action": {{"kind": "...", "ability": null, "target_selector": null}}}}],
@@ -695,6 +706,64 @@ def _match_rule_for_paragraph(paragraph: str, rules: list[TranslatedRule], min_o
     return best_idx
 
 
+# --- vocab-2's priority guard: the rule the override phrase modifies, or none -----------------------
+#
+# vocab-1's guard (below) promotes the root rule sharing the most words with the override PARAGRAPH.
+# When the translator has dropped the rule the phrase modifies, a different rule about the same things
+# can still share two words and gets promoted: "back off home ..., no matter what else is going on"
+# promoted "attack the nearest enemy tower when two of my minions are near" to rule 1 in 3 of #84's
+# compiles (runs/vocab2-node-cap-2026-10-02.md §2). Under vocab-2 a rule is the one an override
+# SENTENCE modifies only if no other sentence of the prose matches it better, and the rule's target
+# counts ("home", "nearest tower"). The attack rule matches its own sentence better, so it stays put,
+# and the missing rule raises, which is the retry path. vocab-1 keeps its guard exactly.
+
+
+def _rule_tokens_v2(rule: TranslatedRule) -> set[str]:
+    return _rule_tokens(rule) | _tokenize((rule.action_target_selector or "").replace("_", " "))
+
+
+def _prose_sentences(pilot_text: str) -> list[str]:
+    """Every sentence of the prose that isn't the reply-format tail (`segment.auto_segments`'s cut)."""
+    from segment import auto_segments
+
+    return [text for label, text in auto_segments(pilot_text) if label != "boilerplate"]
+
+
+def _match_rule_for_sentence(sentence: str, sentences: list[str], rules: list[TranslatedRule], min_overlap: int = 2) -> int | None:
+    """The rule `sentence` states: the best overlap with it (at least `min_overlap` tokens) among
+    rules that no other sentence of the prose matches strictly better. None when the translator
+    dropped it -- a look-alike belongs to its own sentence and is never promoted in its place."""
+    own = _tokenize(sentence)
+    others = [_tokenize(s) for s in sentences if s != sentence]
+    best_idx, best_score = None, min_overlap - 1
+    for i, rule in enumerate(rules):
+        tokens = _rule_tokens_v2(rule)
+        score = len(own & tokens)
+        if score > best_score and not any(len(o & tokens) > score for o in others):
+            best_idx, best_score = i, score
+    return best_idx
+
+
+def _enforce_absolute_priority_v2(schema: TranslatedSchema, pilot_text: str) -> TranslatedSchema:
+    sentences = _prose_sentences(pilot_text)
+    marked = [s for s in sentences if any(p in s.lower() for p in ABSOLUTE_OVERRIDE_PHRASES)]
+    if not marked:
+        return schema
+    root_nodes = list(schema.root.nodes)
+    rule_candidates = [(i, n) for i, n in enumerate(root_nodes) if isinstance(n, TranslatedRule)]
+    matched_indices: set[int] = set()
+    for sentence in marked:
+        idx = _match_rule_for_sentence(sentence, sentences, [n for _, n in rule_candidates])
+        if idx is None:
+            phrase = next(p for p in ABSOLUTE_OVERRIDE_PHRASES if p in sentence.lower())
+            raise SchemaValidationError(
+                f"the prose uses override language ({phrase!r}) on a rule the schema does not have -- "
+                f"write a rule for this sentence: {' '.join(sentence.split())[:200]!r}"
+            )
+        matched_indices.add(rule_candidates[idx][0])
+    return _promote(schema, root_nodes, matched_indices, marked)
+
+
 def enforce_absolute_priority(schema: TranslatedSchema, pilot_text: str) -> TranslatedSchema:
     """Structural guard: a rule cascade is first-match-wins, so if the prose marks one rule as an
     unconditional override ("no exceptions", "no matter", ...) but the translator placed it anywhere
@@ -716,7 +785,11 @@ def enforce_absolute_priority(schema: TranslatedSchema, pilot_text: str) -> Tran
     enough (the translator dropped the override rule entirely -- reordering can't fix a missing rule).
     Otherwise returns a schema with the matched rule(s) stably sorted to the front of the root cascade,
     and a plain-English note recorded in `validation_notes` (surfaced to the entrant via
-    `render_markdown`) when that actually changed the order."""
+    `render_markdown`) when that actually changed the order.
+
+    vocab-2 schemas match per sentence and never promote a look-alike (`_enforce_absolute_priority_v2`)."""
+    if schema.vocab == VOCAB_2:
+        return _enforce_absolute_priority_v2(schema, pilot_text)
     paragraphs = _find_absolute_paragraphs(pilot_text)
     if not paragraphs:
         return schema
@@ -734,7 +807,12 @@ def enforce_absolute_priority(schema: TranslatedSchema, pilot_text: str) -> Tran
                 f"translated rule -- the schema is missing this override entirely: {paragraph[:160]!r}"
             )
         matched_indices.add(rule_candidates[idx][0])
+    return _promote(schema, root_nodes, matched_indices, paragraphs)
 
+
+def _promote(schema: TranslatedSchema, root_nodes: list, matched_indices: set[int], marked: list[str]) -> TranslatedSchema:
+    """Stably sorts the matched root nodes to the front, with the note the entrant sees; `marked` is
+    the prose that carried the override phrases."""
     order = sorted(range(len(root_nodes)), key=lambda i: (i not in matched_indices, i))
     if order == list(range(len(root_nodes))):
         return schema
@@ -744,7 +822,7 @@ def enforce_absolute_priority(schema: TranslatedSchema, pilot_text: str) -> Tran
         "priority guard: promoted rule(s) "
         + ", ".join(moved_ids)
         + " to the top of the cascade -- the prose uses unconditional-override language for them "
-        "(" + ", ".join(sorted({p for p in ABSOLUTE_OVERRIDE_PHRASES if any(p in para.lower() for para in paragraphs)})) + ") "
+        "(" + ", ".join(sorted({p for p in ABSOLUTE_OVERRIDE_PHRASES if any(p in text.lower() for text in marked)})) + ") "
         "but the translator placed them lower, where an earlier rule could pre-empt them."
     )
     new_root = Cascade(nodes=tuple(root_nodes[i] for i in order), default=schema.root.default)

@@ -1,6 +1,7 @@
 """Tests for tools/jev/translator.py's pure parsing/validation logic (no Ollama call)."""
 from __future__ import annotations
 
+import dataclasses
 import json
 import os
 import sys
@@ -210,6 +211,101 @@ class EnforceAbsolutePriorityTests(unittest.TestCase):
         fixed = T.enforce_absolute_priority(schema, prose)
         self.assertEqual([r.id for r in fixed.rules], ["close_enemy_kick", "low_health_retreat"])
         self.assertEqual(fixed.validation_notes, ())
+
+
+# PR #84's variant 3: "..., I back off home instead of tanking the tower alone, no matter what else is
+# going on." Its exact prose and four of its compiled schemas (testdata/override_lookalike.json).
+LOOKALIKE = json.loads(open(os.path.join(os.path.dirname(__file__), "testdata", "override_lookalike.json"), encoding="utf-8").read())
+
+
+def _lookalike(index: int, vocab: str = "vocab-2") -> tuple[T.TranslatedSchema, str]:
+    case = LOOKALIKE["schemas"][index]
+    schema = T.parse_schema(case["reply"], "prompts/pilots/sample-entrant-eco.prose.md", case["instrument"], "raw", vocab, economy="eco-3-late")
+    return schema, T.scope_to_instrument(LOOKALIKE["prose"], case["instrument"]).text
+
+
+class VocabTwoPriorityGuardTests(unittest.TestCase):
+    def test_a_lookalike_of_a_dropped_rule_is_never_promoted(self):
+        for i in (0, 1, 2):  # keytar s4, violin s4, violin s3: back off dropped
+            case = LOOKALIKE["schemas"][i]
+            schema, prose = _lookalike(i)
+            self.assertIn(case["old_guard_promoted"], [r.id for r in schema.rules])
+            with self.subTest(case["sample"] + " " + case["instrument"]), self.assertRaises(T.SchemaValidationError) as err:
+                T.enforce_absolute_priority(schema, prose)
+            self.assertIn("back off home instead of tanking the tower alone", str(err.exception))
+
+    def test_the_rule_the_phrase_modifies_is_promoted(self):
+        schema, prose = _lookalike(3)  # drums s1: back off compiled, last
+        self.assertEqual(schema.rules[-1].id, "avoid_tower_alone")
+        fixed = T.enforce_absolute_priority(schema, prose)
+        self.assertEqual(fixed.rules[0].id, "avoid_tower_alone")
+        self.assertEqual([r.id for r in fixed.rules[1:]], [r.id for r in schema.rules[:-1]])
+        self.assertIn("promoted rule(s) avoid_tower_alone", fixed.validation_notes[-1])
+
+    def test_vocab1_keeps_its_guard_exactly(self):
+        # Including its misfires: the three look-alikes, and on drums s1 a tie between back off and the
+        # attack-tower rule that goes to whichever the translator wrote first (here, the attack rule).
+        want = [c["old_guard_promoted"] for c in LOOKALIKE["schemas"][:3]] + ["attack_tower_wave"]
+        for i, case in enumerate(LOOKALIKE["schemas"]):
+            schema, prose = _lookalike(i)
+            fixed = T.enforce_absolute_priority(dataclasses.replace(schema, vocab="vocab-1"), prose)
+            self.assertEqual(fixed.rules[0].id, want[i], case["sample"])
+
+    def test_translate_pilot_retries_and_the_retry_names_the_sentence(self):
+        dropped = LOOKALIKE["schemas"][0]["reply"]
+        back_off = {"id": "back_off_tower", "condition": "is an enemy tower visible and are none of this bot's minions near it?",
+                    "criteria": {"true": "an enemy tower is visible and no allied minion is near", "false": "no enemy tower or a minion is near"},
+                    "action": {"kind": "move", "ability": None, "target_selector": "home"}}
+        fixed_reply = {**dropped, "rules": dropped["rules"] + [back_off]}
+        replies, prompts = [json.dumps(dropped), json.dumps(fixed_reply)], []
+
+        def generate(prompt):
+            prompts.append(prompt)
+            return replies[len(prompts) - 1]
+
+        schema = T.translate_pilot(LOOKALIKE["prose"], "prompts/pilots/sample-entrant-eco.prose.md", "keytar", "chord", "glissando",
+                                   generate=generate, vocab="vocab-2", economy="eco-3-late")
+        self.assertEqual(len(prompts), 2)
+        self.assertIn("on a rule the schema does not have", prompts[1])
+        self.assertEqual(schema.rules[0].id, "back_off_tower")
+
+    def test_keytar_repro_still_promotes_recall(self):
+        schema = dataclasses.replace(_schema_from_rule_specs(KEYTAR_REPRO_RULES), vocab="vocab-2")
+        fixed = T.enforce_absolute_priority(schema, KEYTAR_PILOT_TEXT)
+        self.assertEqual(fixed.rules[0].id, "recall_low_hp")
+        self.assertEqual({r.id for r in fixed.rules}, {r.id for r in schema.rules})
+
+    def test_always_and_never_are_still_not_override_markers(self):
+        # "never" gates a rule; promoting the recall it's on would put it above back off (#84's variant 5).
+        prose = ("If I can see an enemy tower and none of my minions are near me, I back off home.\n\n"
+                 "I recall home to heal when my hp is below a third, but never inside an enemy tower's range.\n\n"
+                 "Use kick on cooldown, always, no hesitation.")
+        rules = [
+            {"id": "back_off", "condition": "is an enemy tower visible and none of this bot's minions near?",
+             "action": {"kind": "move", "ability": None, "target_selector": "home"}},
+            {"id": "recall_low", "condition": "is this bot's hp below a third of its max?",
+             "action": {"kind": "recall", "ability": None, "target_selector": "none"}},
+            {"id": "kick", "condition": "is kick ready and an enemy bearbot in range?",
+             "action": {"kind": "ability", "ability": "kick", "target_selector": "nearest_enemy_bearbot"}},
+        ]
+        schema = T.parse_schema({"rules": rules, "default_action": {"kind": "move", "ability": None, "target_selector": "push_lane"}},
+                                "p.md", "drums", "raw", "vocab-2")
+        self.assertIs(T.enforce_absolute_priority(schema, prose), schema)
+
+    def test_no_override_language_is_a_noop(self):
+        schema, prose = _lookalike(3)
+        fixed = T.enforce_absolute_priority(schema, prose.replace(", no matter what else is going on", ""))
+        self.assertIs(fixed, schema)
+
+
+class NodeCountPromptTests(unittest.TestCase):
+    def test_vocab2_has_no_upper_bound(self):
+        prompt = T._translation_prompt("Push the lane.", "drums", "kick", "fill", "vocab-2")
+        self.assertNotIn("between 3 and 8", prompt)
+        self.assertIn("one top-level node for every rule the prose states, as many as it has (at least one)", prompt)
+
+    def test_vocab1_keeps_3_to_8(self):
+        self.assertIn("Use between 3 and 8 top-level nodes.", T._translation_prompt("Push the lane.", "drums", "kick", "fill"))
 
 
 class RenderMarkdownTests(unittest.TestCase):

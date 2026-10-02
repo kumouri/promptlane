@@ -534,3 +534,22 @@ copied. An ability with range 0 (fill, glissando, solo) never checks one and is 
 target the observation doesn't list, or a cast with no target. The reply in the log keeps the
 server's action, and the decision's `action` is the one played. Under `vocab-1` the server's action
 plays as it comes. The numbers are in `runs/vocab2-ability-range-2026-10-02.md`.
+
+### 8.4 No cap on rules, and override words promote the rule they're on
+
+PR #84's sample-entrant recompiles found two translator problems. Both are fixed under `vocab-2`
+only; vocab-1's prompt and guard are byte for byte as before.
+
+- **The prompt asked for 3 to 8 top-level nodes.** It had no stated reason, and nothing enforced it.
+  A prose with about ten rule sentences lost rules, most often keytar's recall. Each node is one
+  more question in the decision's single Jev call: about 40 input tokens (≈2 % of a call) and under
+  1 ms. The `vocab-2` prompt now asks for one node for every rule the prose states (at least one,
+  which `parse_schema` needs).
+- **The priority guard promoted a look-alike.** When the translator dropped the rule an override
+  phrase ("no matter what") was on, the guard promoted another rule about the same things, for
+  example "attack the tower". Under `vocab-2` it matches the override *sentence*, and only to a rule
+  that no other sentence of the prose matches better (the rule's target counts too). A dropped rule
+  raises, and the translator retries with the sentence named. "Always" and "never" are still not
+  override words (§2 of the run).
+
+The evidence and the free recompiles are in `runs/vocab2-node-cap-2026-10-02.md`.
