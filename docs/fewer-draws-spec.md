@@ -48,6 +48,11 @@ draws are not exciting". Ruling (12:55 CT): **"Design pass now, no Jev"**.
 - **Measurement plan for the Final Chorus on Jev:** 2 arms × 26 matches on the Jam stack, about
   **$4.70** (approve $5.00, ceiling $7.00). Its [details](#8-pre-registered-measurement-plan-final-chorus)
   are at the end. Not run: this pass had no Jev.
+- **Measured on Jev, 2026-10-01, with the sample amended to 62 a side**
+  ([`runs/final-chorus-2026-10-01.md`](../runs/final-chorus-2026-10-01.md)). **The primary line
+  passes:** decided 18.3 % → 63.3 %, +45.0 pp [+31.7, +58.3], and every keep-line holds.
+  - **Against the stand-in:** the total matches it, but the composition doesn't. House hard won no
+    decided match on Jev, in either arm, where the sims had hard winning every medium–hard one.
 
 ## 1. What was measured, and how
 
@@ -349,7 +354,8 @@ $0.092 a match, Bandstand 5 P2 $0.083, O2 $0.070. A seed-paired two-arm test at 
   triple damage, first tower wins") would let entrant prose refer to it, but the house tiers don't
   need it.
 
-**Implementation size: medium-small.**
+**Implementation size: medium-small.** Built as `final-chorus-1` (`src/finale.ts`), off by default.
+
 - **The layer:** a named rule layer like `src/recall.ts`: `src/finale.ts` plus
   `src/finale/final-chorus-1.json`, about 120 lines.
   - ×3 is exact as an hp rescale of every structure at 8:00. The finish uses the match's own
@@ -576,7 +582,9 @@ near a nexus).
 
 ## 8. Pre-registered measurement plan: Final Chorus
 
-**For Ceryce's approval. Nothing below has been run.**
+**For Ceryce's approval.** She approved it on 2026-10-01 at 17:56 CT and raised the budget to $15 at
+17:58. It ran that evening with the sample amended (the last subsection). The result is in
+[`runs/final-chorus-2026-10-01.md`](../runs/final-chorus-2026-10-01.md).
 
 **Prerequisites.**
 - eco-3 is on `develop` (#61).

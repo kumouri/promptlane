@@ -168,6 +168,7 @@ the first tower to fall wins (`src/finale.ts`, numbers in `src/finale/final-chor
 measurement plan in `docs/fewer-draws-spec.md`). Nothing gets longer than 600 s. Off by default. The
 result says why a match ended (`by=chorus-lead`, `by=sudden-death`, as well as `nexus-kill` and
 `timeout`), the log records the rule, `--verify` replays with it, and logs without one play to 10:00.
+Measured on Jev in [`runs/final-chorus-2026-10-01.md`](runs/final-chorus-2026-10-01.md).
 **Metrics.** `npm run metrics -- --group <label> <log.json>… [--group …] --md out.md --heatmaps pfx`
 replays logs and reports how they were played: PvP vs PvE damage and time, team fights, team
 proximity, where fights and deaths happen relative to towers, a gold proxy and its swinginess,
