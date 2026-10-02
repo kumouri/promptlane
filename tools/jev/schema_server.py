@@ -19,15 +19,26 @@ gets `first-min`, the rule every caller had before the field existed: a runner f
 checkout (an evolution campaign already under way, an arena not yet restarted) plays on exactly as
 it started. `jevSchemaPilot.ts` names `own-lane-1` and checks the reply's `targeting` echoes it.
 
+Each schema plays under the vocabulary it was compiled under (`vocab.py`): its own `"vocab"` key,
+and no key is vocab-1, which is described and resolved exactly as before vocabularies existed. A
+request may name `vocab` to check it (a mismatch is a 400), and names the match's `map` (the variant
+object a match log records, or a name), which vocab-2's tower facts read for tower range. The reply
+echoes the vocabulary, so `jevSchemaPilot.ts` can tell a server too old to know vocab-2 (no echo)
+from one that played it.
+
     GET  /health  -> {"ok": true, "backend": "jev-schema", "model", "requests", "errors",
                       "avg_seconds", "tokens_in", "cost_usd", "budget_usd", "jev_backend",
                       "targeting": [the rules this server resolves],
+                      "vocabs": [the vocabularies this server plays],
                       "token_source", "token_expires_in_sec", "token_renewals",
                       "jev_fallback_*" (typesafe only)}
     POST /        body: {"schema": <compile.py schema JSON>, "observation": <Observation>,
-                         "targeting"?: "own-lane-1" | "first-min"}  (absent = first-min)
+                         "targeting"?: "own-lane-1" | "first-min",  (absent = first-min)
+                         "vocab"?: "vocab-1" | "vocab-2",            (absent = the schema's own)
+                         "map"?: {name, towerRange, towerFractions} | "pvp-1" | ...}  (absent = the specimen map)
                   -> 200 {"action": {kind, target?, ability?}, "rule": <rule id | null>,
                           "targeting": <the rule the target resolved under>,
+                          "vocab": <the vocabulary the schema played under>,
                           "answers": {rule id: 0.0-1.0}, "ms": float,
                           "door": "typesafe" | "workers-ai" | "stub",   (which door answered THIS call)
                           "tokens_in": int, "cost_usd": float}          (this call's Jev spend)
@@ -82,6 +93,7 @@ from client import (  # noqa: E402
 from compile import schema_from_dict  # noqa: E402
 from fidelity_harness import DumbStubJevClient, run_prediction  # noqa: E402
 from target_resolve import TARGETING_FIRST_MIN, TARGETING_RULES  # noqa: E402
+from vocab import VOCABS, map_spec, resolve_vocab  # noqa: E402
 from local_http import BurstTolerantHTTPServer  # noqa: E402
 
 DEFAULT_PORT = 8797
@@ -112,10 +124,17 @@ class JevSchemaBackend:
         targeting = body.get("targeting", TARGETING_FIRST_MIN)
         if targeting not in TARGETING_RULES:
             raise ValueError(f"unknown targeting {targeting!r} (this server resolves: {', '.join(TARGETING_RULES)})")
+        # The schema plays under its own vocabulary (vocab.py); a request that names one is checking
+        # it, and a mismatch is a caller bug, not something to paper over with either side's choice.
+        asked = body.get("vocab")
+        if asked is not None and resolve_vocab(asked) != schema.vocab:
+            raise ValueError(f"the request names vocab {asked!r}, but the schema was compiled under {schema.vocab!r}")
+        map_ = body.get("map")
+        map_spec(map_)  # an unknown or malformed map is a 400 here, not a failure mid-decision
         with self.lock:
             if self.budget_usd is not None and self.cost_usd >= self.budget_usd:
                 raise BudgetExceeded(f"jev-schema budget ${self.budget_usd:.2f} reached (spent ${self.cost_usd:.4f})")
-        pred = run_prediction(self.client, schema, body["observation"], targeting)
+        pred = run_prediction(self.client, schema, body["observation"], targeting, map_)
         tokens_in = int(pred["input_tokens"])
         cost = estimate_cost_usd(tokens_in)
         with self.lock:
@@ -127,6 +146,7 @@ class JevSchemaBackend:
             "action": pred["action"],
             "rule": pred["fired_rule"],
             "targeting": targeting,
+            "vocab": schema.vocab,
             "answers": {rid: round(q["noul"], 4) for rid, q in pred["per_question"].items()},
             "ms": round(pred["latency_sec"] * 1000, 1),
             "door": pred.get("door") or "unknown",
@@ -144,6 +164,7 @@ class JevSchemaBackend:
                 "cost_usd": round(self.cost_usd, 4),
                 "budget_usd": self.budget_usd,
                 "targeting": list(TARGETING_RULES),
+                "vocabs": list(VOCABS),
             }
         snap.update(client_status(self.client))
         return snap

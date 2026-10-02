@@ -12,7 +12,8 @@ own tower' selector, so easy leashes itself by leaving whenever an enemy tower c
 
 - **Spend:** $0. No model call of any kind was made: no Jev, no Workers AI, no TypeSafe, no Ollama,
   no schema server. Nothing touched the live arena or evolution campaign 2.
-- **This is a design document.** It changes no code. §7 lists the decisions for Ceryce.
+- **This is a design document.** §1–§7 were written before any code, and §7 lists the decisions for
+  Ceryce. §8 records stage A as built, and where the build departs from the design.
 - **Related, in flight:** the sample entrant beats both house tiers by diving towers and dying
   about 21 times a match. A separate $0 log analysis (job 4e15) is costing that trade. §4.2's
   `tower_diver` and §4.1's tower facts are the vocabulary a house tier needs to punish a dive. Use
@@ -237,7 +238,8 @@ already names `targeting` (§5.2).
   - **even** otherwise;
   - **"No fight near you"** when no enemy bearbot is within 260.
 
-  The 1.25 and the tower clause are a starting point. Calibrate them before the vocabulary ships,
+  *(As built, §8: the calibration below kept 1.25, made the tower clause decide first, and dropped
+  the outnumbered veto.)* The 1.25 and the tower clause are a starting point. Calibrate them before the vocabulary ships,
   at $0, on the match logs already recorded (§7 D4): for every logged decision where both sides
   have a bearbot within 260, compute the verdict, and check who loses more hp over the next 5 s.
   The logs hold every position and hp, so this replays with no model call.
@@ -430,3 +432,43 @@ Fixed dates (`docs/economy-spec.md:18, 46, 764-766`):
 | D6 | A small Jev check after stage A merges: house easy and the sample entrant, compiled under `vocab-2`, a few seeded matches | **Yes, capped at ~$2** | ~$2 |
 | D7 | Evolution campaign 2: pin `vocab-1`, or relaunch under `vocab-2`? | **Pin `vocab-1`.** Its results stay comparable, and the blackout starts at midnight going into the Jam anyway. | – |
 | D8 | Stage B by Thu 10-08, or after the Jam? | **By 10-08 only if stage A merged clean on 10-05**, else after the Jam | ~8 h, a second recompile and announcement |
+
+## 8. Stage A as built
+
+Ceryce ruled D1 and D2 yes (Telegram, Fri 2026-10-02 02:35 CT: "Build it now"). D7 is as
+recommended: campaign 2 stays on vocab-1. D3 and D6 are open, so no house tier was recompiled and no
+model was called. The build is A1–A5, the §5.2 plumbing and the D4 calibration, at $0.
+
+**Where it lives.** `tools/jev/vocab.py` holds the names, the facts table (A5), the tower and fight
+arithmetic, and the mirrors of `src/mapVariant.ts` and the attack ranges. `fidelity_harness.
+describe_observation(obs, vocab, map)` keeps vocab-1's function as `_describe_vocab1`, unchanged, and
+adds `_describe_vocab2`. `target_resolve.resolve_target(..., vocab, map)` resolves the six new
+selectors under vocab-2 only. `translator` takes `vocab` through the prompt, the validator and the
+schema. `compile.py --vocab` defaults to vocab-2. `schema_server.py` plays each schema under its own
+`vocab` key, echoes it, and lists `vocabs` in `/health`. `jevSchemaPilot.ts` sends `vocab` and `map`
+and holds on a missing or wrong echo. The CLI and the arena check `/health` before a match.
+
+**Departures from §4–§5.**
+
+| design | as built | why |
+|---|---|---|
+| A3 verdict: stronger when hp ≥ 1.25× theirs **or** a one-sided tower, vetoed when outnumbered by 2+ | a one-sided tower over the fight **decides first**, then hp at 1.25×; no veto | D4 on 64,290 recorded pvp-1 decisions (`runs/vocab-fight-calibration-2026-10-02.md`): with only my tower over the fight my side won the next 5 s 71 % of the time, with only theirs 11 %, with neither 49 %. "Tower first" is right 65.4 % of the time on 84 % of fights; the design's rule 61.0 % on 73 %. The veto made every setting slightly worse. |
+| A2: distances and in-range flags | also each minion's hp, and the bot's own lane | both are in the observation and cost one clause each (gaps G5, G10); `own_front_tower` needs the lane to mean anything |
+| the request names the map | it sends the variant object a log records (`{name, towerRange, towerFractions}`); a known name also works | a new map variant needs no Python change |
+| `VOCABS = ("vocab-1", "vocab-2", "vocab-3")` | `("vocab-1", "vocab-2")` | vocab-3 is stage B; naming it before it exists would let a schema claim it |
+| new campaigns | `DEFAULT_CAMPAIGN.shape.vocab` is vocab-2, hashed into `matchKey`; a campaign without it compiles vocab-1 | campaign 2 keeps its keys and its words; a new campaign measures what entrants write |
+
+**Proofs (no model).** `tools/jev/test_vocab.py` holds vocab-1's prompt, description and every
+resolution to goldens recorded from develop at eaf1b45 (`tools/jev/testdata/`), over 226
+observations, 154 of them recovered from the checked-in logs. It plays every checked-in schema and
+checks Jev would be shown the same paragraph. It also tests each fact and target, and runs a stand-in
+that reads only the description text. `tools/match/test_vocab.mjs` replays every checked-in log,
+checks the Python mirrors against the TypeScript, and plays a real match on the stub schema server
+with one side on vocab-2 and the other on vocab-1. `test_evolve.mjs` checks that matchKeys recorded
+before vocab-2 are unchanged.
+
+**Left for later, on purpose.** Stage B (B1–B4) and stage C, as §6.1 says. The entrants README fix
+and its "What your prose can say" section live in `jamobair-entrants`, so they ship there with the
+`PROMPTLANE_REF` bump. The qwen side files stay vocab-1 renderings (§4.4 C2). The vocab-2 prompt is
+about 730 tokens longer, so a compile under the arena's 20,000-token cap now has room for two
+retries rather than three.

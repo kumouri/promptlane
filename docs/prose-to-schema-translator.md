@@ -180,7 +180,10 @@ status, distance, progress from your side, whether it is contested, how many of 
 it, what taking it gives, and who has Encore. Without the objective it ends with "There is no
 Bandstand in this match.")* `highest_bounty_enemy` is the economy's
 (`docs/economy-spec.md` §4.3): the visible enemy bearbot worth the most gold if killed, falling back
-to `nearest_enemy` when no enemy carries a bounty. The translator's job is to pick the closest-matching selector for what the
+to `nearest_enemy` when no enemy carries a bounty. *(2026-10-02: those 12 are `vocab-1`'s list. A
+compile under `vocab-2`, the entrant default, can also name `own_tower`, `own_front_tower`,
+`nearest_enemy_bearbot`, `nearest_enemy_minion`, `tower_diver` and `nearest_ally`, and its prompt
+lists the facts Jev's paragraph states; see [`vocabulary-spec.md`](vocabulary-spec.md).)* The translator's job is to pick the closest-matching selector for what the
 prose says ("densest cluster" → `densest_cluster_enemy`, "softest target" → `lowest_hp_enemy`), not
 to invent new ones. **This is a real, named simplification, not a hidden one**: it is a smaller
 version of the same idea the memo's §6 flagged for the whole translation layer, applied specifically

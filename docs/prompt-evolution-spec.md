@@ -579,6 +579,10 @@ npm run evolve -- init --name campaign-2-hard \
   up the top lane from the fountain (`runs/bandstand-4-2026-10-01.md`). Every pairing is played
   from both sides, so that lean doesn't favour a genome by side. A campaign created since names
   `targeting: own-lane-1` in its shape, and `matchKey` hashes it.
+- **Vocabulary: `vocab-1`** (ruled 2026-10-02, [`vocabulary-spec.md`](vocabulary-spec.md) §7 D7).
+  The shape names none, so every genome compiles with `--vocab vocab-1` (`adapters.mjs
+  campaignVocab`) and its matchKeys don't move. A campaign created since names `vocab: vocab-2`, what
+  entrants compile under, and `matchKey` hashes it.
 - **Everything else is the default**, as in campaign 1.
 
 ## 11. Found along the way

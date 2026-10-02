@@ -24,6 +24,11 @@ SPEND CAP. --max-total-tokens (default 60000, roughly 8 compiles' worth) bounds 
 tokens across the whole invocation; a call that could cross it is refused before it is made
 (`llm_backends.TokenBudget`), and the instruments it would have compiled are reported as skipped.
 
+VOCABULARY. --vocab (default `vocab.DEFAULT_VOCAB`, vocab-2) is what the prose compiles under: the
+facts Jev is told each decision and the targets a rule can name (`vocab.py`, `docs/vocabulary-spec.md`).
+A vocab-2 schema names it in a "vocab" key and plays under it wherever it goes; `--vocab vocab-1`
+writes exactly the schema JSON a compile wrote before vocabularies existed.
+
 EXIT STATUS. 0 every instrument compiled; 1 at least one failed to compile (the model never produced
 a valid schema -- the view says which); 2 bad usage or backend unreachable; 3 the token cap stopped
 the run.
@@ -55,6 +60,7 @@ from translator import (  # noqa: E402
     scope_to_instrument,
     translate_pilot,
 )
+from vocab import DEFAULT_VOCAB, LEGACY_VOCAB, VOCABS, resolve_vocab  # noqa: E402
 
 INSTRUMENTS = ("drums", "keytar", "violin")
 DEFAULT_MAX_TOTAL_TOKENS = 60_000
@@ -98,7 +104,9 @@ def _node_to_dict(n) -> dict:
 
 
 def schema_to_dict(schema: TranslatedSchema) -> dict:
-    return {
+    """A vocab-1 schema writes no "vocab" key, so it is exactly what it was before vocabularies
+    existed; any later vocabulary is named, last, so the schema plays under it (`vocab.py`)."""
+    out = {
         "pilot_file": schema.pilot_file,
         "instrument": schema.instrument,
         "rules": [_node_to_dict(n) for n in schema.root.nodes],
@@ -106,6 +114,9 @@ def schema_to_dict(schema: TranslatedSchema) -> dict:
         "validation_notes": list(schema.validation_notes),
         "build": None if schema.build is None else list(schema.build),
     }
+    if schema.vocab != LEGACY_VOCAB:
+        out["vocab"] = schema.vocab
+    return out
 
 
 def _action_from_dict(a: dict | None) -> Action | None:
@@ -134,6 +145,8 @@ def _node_from_dict(r: dict):
 
 
 def schema_from_dict(d: dict) -> TranslatedSchema:
+    """No "vocab" key is vocab-1; a vocabulary this checkout doesn't know is a ValueError, never a
+    silent fallback to a different description."""
     da = d.get("default_action") or {}
     build = d.get("build")
     return TranslatedSchema(
@@ -144,6 +157,7 @@ def schema_from_dict(d: dict) -> TranslatedSchema:
         build=None if build is None else tuple(build),
         root=Cascade(nodes=tuple(_node_from_dict(r) for r in d["rules"]),
                      default=Action(da.get("kind", "hold"), da.get("ability"), da.get("target_selector"))),
+        vocab=resolve_vocab(d.get("vocab")),
     )
 
 
@@ -159,7 +173,7 @@ def segments_for(text: str, display_name: str):
 
 
 def compile_instrument(text: str, display_name: str, instrument: str, backend: Backend | None, attempts: int = 3,
-                       schema: TranslatedSchema | None = None) -> dict:
+                       schema: TranslatedSchema | None = None, vocab: str = DEFAULT_VOCAB) -> dict:
     """One instrument: translate (unless `schema` is given), then build + render the report.
     Never raises for a translation failure -- the entry says what went wrong instead.
 
@@ -173,7 +187,7 @@ def compile_instrument(text: str, display_name: str, instrument: str, backend: B
     try:
         if schema is None:
             primary, ultimate = ABILITIES[instrument]
-            schema = translate_pilot(text, pilot_file, instrument, primary, ultimate, max_attempts=attempts, generate=backend.generate)
+            schema = translate_pilot(text, pilot_file, instrument, primary, ultimate, max_attempts=attempts, generate=backend.generate, vocab=vocab)
         report = build_report(schema, pilot_file, segments=segments, labels=labels)
         entry.update(ok=True, schema=schema_to_dict(schema), markdown=render_report_markdown(report),
                      dropped=[{"label": d.label, "text": d.text.strip()} for d in report.dropped if d.text.strip()],
@@ -188,14 +202,18 @@ def compile_instrument(text: str, display_name: str, instrument: str, backend: B
 
 
 def compile_prompt(text: str, display_name: str, instruments, backend: Backend | None, parallel: int = 1,
-                   attempts: int = 3, schemas: dict | None = None) -> dict:
+                   attempts: int = 3, schemas: dict | None = None, vocab: str = DEFAULT_VOCAB) -> dict:
+    """`vocab` is what a fresh translation is compiled under; a saved schema (`schemas`) keeps its own.
+    The result's `vocab` names the vocabulary every compiled instrument is in."""
     text = text.replace("\r\n", "\n")
-    work = lambda inst: compile_instrument(text, display_name, inst, backend, attempts, (schemas or {}).get(inst))  # noqa: E731
+    work = lambda inst: compile_instrument(text, display_name, inst, backend, attempts, (schemas or {}).get(inst), vocab)  # noqa: E731
     with ThreadPoolExecutor(max_workers=max(1, parallel)) as pool:
         entries = list(pool.map(work, instruments))
+    used = sorted({e["schema"].get("vocab", LEGACY_VOCAB) for e in entries if e["ok"]}) or [vocab]
     return {
         "name": display_name,
         "sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
+        "vocab": ", ".join(used),
         "instruments": {e["instrument"]: e for e in entries},
     }
 
@@ -220,6 +238,9 @@ def header_markdown(result: dict, backend_desc: str, usage: dict, cap: int | Non
         "One prompt drives all three of your bearbots, so each instrument is compiled separately. A line "
         "that starts `keytar only:` (or `violin only:`, `drums only:`, `Keytar:`...) is compiled only "
         "for the instrument it names.",
+        "",
+        f"Vocabulary: `{result.get('vocab', LEGACY_VOCAB)}` -- the facts Jev is told about the game each decision and "
+        "the targets a rule can name. A compiled schema always plays under the vocabulary it was compiled in.",
         "",
     ]
     for inst, e in result["instruments"].items():
@@ -272,6 +293,9 @@ def parse_args(argv=None) -> argparse.Namespace:
     p.add_argument("--schema-in", action="append", default=[], metavar="FILE",
                    help="render from a saved schema JSON instead of calling a model (repeatable, one per instrument; no spend)")
     p.add_argument("--save-schemas", default=None, metavar="DIR", help="also write each compiled schema as JSON here")
+    p.add_argument("--vocab", choices=VOCABS, default=DEFAULT_VOCAB,
+                   help=f"the vocabulary to compile under (tools/jev/vocab.py; default {DEFAULT_VOCAB}). "
+                   f"{LEGACY_VOCAB} writes exactly the schema JSON compiles wrote before vocabularies existed")
     return p.parse_args(argv)
 
 
@@ -312,7 +336,7 @@ def main(argv=None) -> int:
     parallel = args.parallel or (3 if args.backend == "openrouter" else 1)
 
     started = time.perf_counter()
-    results = [compile_prompt(text, name, instruments, backend, parallel, args.attempts, schemas) for name, text in sources]
+    results = [compile_prompt(text, name, instruments, backend, parallel, args.attempts, schemas, args.vocab) for name, text in sources]
     usage = backend.usage.as_dict() if backend else {"calls": 0, "prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0, "cost_usd": 0.0, "seconds": 0.0}
     usage["wall_seconds"] = round(time.perf_counter() - started, 2)
 

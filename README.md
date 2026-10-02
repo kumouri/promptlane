@@ -147,6 +147,12 @@ start of its own lane, and a near-tie between targets breaks the same way for bo
 fountain's three-way tie went to float noise and sent green's bots up the top lane
 ([`runs/bandstand-4-2026-10-01.md`](runs/bandstand-4-2026-10-01.md)). `--targeting first-min` plays the
 old rule. The log records the rule; a log without one played `first-min`.
+**Vocabulary.** A compiled schema plays under the vocabulary it was compiled in: what Jev is told
+about the game each decision and which targets a rule can name (`tools/jev/vocab.py`,
+[`docs/vocabulary-spec.md`](docs/vocabulary-spec.md)). Entrant compiles default to `vocab-2`, which
+adds tower facts by team, distances and attack range, a fight-balance line that counts towers, and
+six targets such as `own_tower` and `tower_diver`. A schema without a `vocab` key is `vocab-1`, the
+words every schema had before, and it is described and resolved exactly as before.
 **Economy.** `--economy eco-2` plays the Jam economy: respawn, gold, levels, four items and a shop
 at base (`src/economy.ts`, every number in `src/economy/eco-2.json`; the design is
 `docs/economy-spec.md`). `eco-3` is the spec's one tuning pass on it (§13.6: 100 start gold, a

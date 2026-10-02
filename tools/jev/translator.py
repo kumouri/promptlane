@@ -45,6 +45,10 @@ SHOPPING LIST. The prompt also carries an items block generated from `src/econom
 validated by `economy_rules.normalize_build` (unknown/duplicate items dropped, over-long lists cut to
 the slot count, each with a `build:` note). Economy P2 added one target selector,
 `highest_bounty_enemy` (`docs/economy-spec.md` §4.2): "go after the enemy worth the most gold".
+VOCABULARIES (`vocab.py`, `docs/vocabulary-spec.md`): `TARGET_SELECTORS` is vocab-1's list. vocab-2
+adds `VOCAB2_SELECTORS` (own towers, tower divers, the nearest enemy bearbot or minion, the nearest
+ally) and the list of facts the game states (`facts_prompt_block`). A translation names its vocabulary
+and the schema records it; the vocab-1 prompt is byte-identical to the one before vocabularies existed.
 The instrument-scope prompt itself is deliberately unchanged: telling the model the prose is shared was measured
 (spec §10.4): each wording tried either made it write MORE foreign-ability rules or added compile failures.
 """
@@ -62,6 +66,7 @@ from ground_truth import _ollama_generate, resolve_ollama_url  # noqa: E402
 from economy_rules import NOTE_PREFIX, item_lines, normalize_build, slots  # noqa: E402
 from number_normalize import normalize_numbers_for_trace  # noqa: E402
 from scenarios import ABILITIES  # noqa: E402
+from vocab import VOCAB_1, VOCAB_2, facts_for, resolve_vocab  # noqa: E402
 
 DEFAULT_MODEL = "qwen3.5:9b"
 
@@ -82,6 +87,25 @@ TARGET_SELECTORS = {
     "otherwise the same as push_lane",
     "highest_bounty_enemy": "the visible enemy bearbot worth the most gold if killed (the highest bounty: a carrier of unspent gold)",
 }
+
+# vocab-2's six (`docs/vocabulary-spec.md` §4.1 A4; resolved by `target_resolve._resolve_vocab2`).
+# `TARGET_SELECTORS` above stays vocab-1's list, byte for byte, so the vocab-1 prompt is unchanged.
+VOCAB2_SELECTORS = {
+    "own_tower": "move to this bearbot's own nearest standing tower, just behind it on the home side "
+    "(inside its range): fall back to / hold at / defend my tower",
+    "own_front_tower": "move to the outermost standing tower of this bearbot's own lane, just behind it: hold my lane at our outer tower",
+    "nearest_enemy_bearbot": "the visible enemy BEARBOT closest to this bearbot (never a minion or tower)",
+    "nearest_enemy_minion": "the visible enemy MINION closest to this bearbot (farming, clearing their wave)",
+    "tower_diver": "the nearest enemy bearbot standing inside the range of one of this bearbot's own towers (punish a tower dive)",
+    "nearest_ally": "move to the nearest allied bearbot (stick with a teammate, group up)",
+}
+SELECTOR_DESCRIPTIONS = {**TARGET_SELECTORS, **VOCAB2_SELECTORS}
+SELECTORS_BY_VOCAB = {VOCAB_1: tuple(TARGET_SELECTORS), VOCAB_2: tuple(TARGET_SELECTORS) + tuple(VOCAB2_SELECTORS)}
+
+
+def selectors_for(vocab: str) -> dict:
+    """The selectors a schema in `vocab` may name, with their translator-prompt meanings."""
+    return {k: SELECTOR_DESCRIPTIONS[k] for k in SELECTORS_BY_VOCAB[resolve_vocab(vocab)]}
 
 
 @dataclass(frozen=True)
@@ -154,7 +178,10 @@ class TranslatedSchema:
 
     `build` is the entrant's shopping list: ordered ruleset-file (`eco-2.json`) item keys, at most `shop.slots`,
     already validated by `economy_rules.normalize_build`. `None` means "the prose names no items" --
-    the economy layer then uses the instrument's default build (`docs/economy-spec.md` §4.3)."""
+    the economy layer then uses the instrument's default build (`docs/economy-spec.md` §4.3).
+
+    `vocab` is the vocabulary it was compiled under (`vocab.py`): what Jev is told and which
+    selectors it may name. It plays under that vocabulary everywhere, never a server's default."""
 
     pilot_file: str
     instrument: str
@@ -166,6 +193,7 @@ class TranslatedSchema:
     validation_notes: tuple[str, ...] = ()
     root: Cascade | None = None
     build: tuple[str, ...] | None = None
+    vocab: str = VOCAB_1
 
     def __post_init__(self):
         if self.root is None:
@@ -203,8 +231,43 @@ def _extract_json_object(text: str) -> dict:
     raise ValueError(f"unbalanced JSON object in model output: {text[:300]!r}")
 
 
-def _translation_prompt(pilot_text: str, instrument: str, primary_ability: str, ultimate_ability: str) -> str:
-    selectors_desc = "\n".join(f'  "{k}" -- {v}' for k, v in TARGET_SELECTORS.items())
+_CONDITION_DESC = {
+    VOCAB_1: """  "condition": one yes/no question about the bot's current game state (a threshold comparison or a
+      presence check -- e.g. "is this bot's hp below a quarter of its max?", "is an enemy bearbot
+      within melee range?"). Never a question that needs a text answer.""",
+    VOCAB_2: """  "condition": one yes/no question about the bot's current game state, asked about the FACTS THE
+      GAME STATES listed below (a threshold comparison or a presence check -- e.g. "is this bot's hp
+      below a quarter of its max?", "is an enemy bearbot in this bot's attack range?", "is this bot
+      under its own tower?"). Never a question that needs a text answer.""",
+}
+
+
+def facts_prompt_block(vocab: str) -> str:
+    """The "facts the game states" list (spec §4.1 A5), from `vocab.FACTS_V2`, the table whose
+    `lead` phrases `test_vocab.py` finds in every vocab-2 description. Empty for vocab-1, which
+    never had one, so its prompt is unchanged."""
+    facts = facts_for(vocab)
+    if not facts:
+        return ""
+    lines = "\n".join(f"  - {f.says}" + (f" (when {f.when})" if f.when else "") for f in facts)
+    return (
+        "\n\nFACTS THE GAME STATES every decision. Jev answers each condition by reading a paragraph that states exactly\n"
+        "these, so ask about them, in these terms, and about nothing else (no other distances, nothing hidden):\n"
+        f"{lines}\n"
+        'A strategic verdict like "you only take fights you can win" can ask about the fight verdict the game\n'
+        'states ("is this bot\'s side stronger in the fight near it?").'
+    )
+
+
+def _translation_prompt(pilot_text: str, instrument: str, primary_ability: str, ultimate_ability: str, vocab: str = VOCAB_1) -> str:
+    """vocab-1's prompt is byte-identical to the one every schema compiled before vocab-2 was
+    (golden-tested, `test_vocab.py`); vocab-2 adds its six selectors, the facts list, and a condition
+    example in those facts' terms."""
+    vocab = resolve_vocab(vocab)
+    selectors = selectors_for(vocab)
+    selectors_desc = "\n".join(f'  "{k}" -- {v}' for k, v in selectors.items())
+    facts_block = facts_prompt_block(vocab)
+    condition_desc = _CONDITION_DESC[vocab]
     item_lines_desc = "\n".join(item_lines())
     return f"""You are translating a game-bot prompt written in prose into a strict decision table.
 
@@ -215,16 +278,14 @@ invent a different name.
 Read this prose pilot below and extract its strategy as an ORDERED list of nodes, evaluated top to
 bottom, FIRST MATCH WINS -- exactly like a priority list. Most nodes are RULES. A rule has:
   "id": a short snake_case id
-  "condition": one yes/no question about the bot's current game state (a threshold comparison or a
-      presence check -- e.g. "is this bot's hp below a quarter of its max?", "is an enemy bearbot
-      within melee range?"). Never a question that needs a text answer.
+{condition_desc}
   "criteria": {{"true": "one short clause describing what 'true' looks like in the state",
       "false": "one short clause describing what 'false' looks like in the state"}}
   "action": {{"kind": one of {ACTION_KINDS}, "ability": one of ["{primary_ability}", "{ultimate_ability}", null],
-      "target_selector": one of {list(TARGET_SELECTORS)} or null}}
+      "target_selector": one of {list(selectors)} or null}}
 
 target_selector meanings (pick the closest match to what the prose says; do not invent a new one):
-{selectors_desc}
+{selectors_desc}{facts_block}
 
 SOMETIMES the prose states a JUDGMENT that decides which whole SET of rules applies, not a single
 fact about the state -- e.g. "you only take fights you can win" (this decides whether the
@@ -272,7 +333,9 @@ PROSE PILOT:
 """
 
 
-def _validate_action(action: dict, context: str) -> tuple[str, str | None, str | None]:
+def _validate_action(action: dict, context: str, vocab: str = VOCAB_1) -> tuple[str, str | None, str | None]:
+    """Only `vocab`'s selectors are accepted (`selectors_for`): a vocab-1 compile naming a vocab-2
+    selector is invalid, exactly as any unknown selector always was."""
     kind = action.get("kind")
     if kind not in ACTION_KINDS:
         raise ValueError(f"{context}: invalid action kind {kind!r}")
@@ -280,12 +343,12 @@ def _validate_action(action: dict, context: str) -> tuple[str, str | None, str |
     if ability is not None and not isinstance(ability, str):
         raise ValueError(f"{context}: invalid ability {ability!r}")
     selector = action.get("target_selector")
-    if selector is not None and selector not in TARGET_SELECTORS:
+    if selector is not None and selector not in SELECTORS_BY_VOCAB[vocab]:
         raise ValueError(f"{context}: unknown target_selector {selector!r}")
     return kind, ability, selector
 
 
-def _parse_node(raw: dict, idx: int) -> Node:
+def _parse_node(raw: dict, idx: int, vocab: str = VOCAB_1) -> Node:
     rid = raw.get("id") or f"r{idx+1}"
     cond = raw.get("condition")
     if not cond or not isinstance(cond, str):
@@ -298,10 +361,10 @@ def _parse_node(raw: dict, idx: int) -> Node:
         else_raw = raw.get("else")
         if not isinstance(then_raw, dict) or not isinstance(else_raw, dict):
             raise ValueError(f"guard {rid}: 'then' and 'else' must both be present cascade objects")
-        then_cascade = _parse_cascade(then_raw.get("nodes") or [], then_raw.get("default_action"), default_required=False)
-        else_cascade = _parse_cascade(else_raw.get("nodes") or [], else_raw.get("default_action"), default_required=False)
+        then_cascade = _parse_cascade(then_raw.get("nodes") or [], then_raw.get("default_action"), default_required=False, vocab=vocab)
+        else_cascade = _parse_cascade(else_raw.get("nodes") or [], else_raw.get("default_action"), default_required=False, vocab=vocab)
         return GuardNode(id=rid, condition=cond, criteria_true=ct, criteria_false=cf, then=then_cascade, else_=else_cascade)
-    kind, ability, selector = _validate_action(raw.get("action") or {}, f"rule {rid}")
+    kind, ability, selector = _validate_action(raw.get("action") or {}, f"rule {rid}", vocab)
     return TranslatedRule(
         id=rid,
         condition=cond,
@@ -313,27 +376,29 @@ def _parse_node(raw: dict, idx: int) -> Node:
     )
 
 
-def _parse_cascade(nodes_raw: list, default_raw: dict | None, default_required: bool) -> Cascade:
-    nodes = tuple(_parse_node(r, i) for i, r in enumerate(nodes_raw or []))
+def _parse_cascade(nodes_raw: list, default_raw: dict | None, default_required: bool, vocab: str = VOCAB_1) -> Cascade:
+    nodes = tuple(_parse_node(r, i, vocab) for i, r in enumerate(nodes_raw or []))
     if default_required:
-        kind, ability, selector = _validate_action(default_raw or {}, "default_action")
+        kind, ability, selector = _validate_action(default_raw or {}, "default_action", vocab)
         default = Action(kind, ability, selector)
     elif default_raw is not None:
-        kind, ability, selector = _validate_action(default_raw, "default_action")
+        kind, ability, selector = _validate_action(default_raw, "default_action", vocab)
         default = Action(kind, ability, selector)
     else:
         default = None
     return Cascade(nodes=nodes, default=default)
 
 
-def parse_schema(raw_json: dict, pilot_file: str, instrument: str, raw_text: str) -> TranslatedSchema:
-    root = _parse_cascade(raw_json.get("rules"), raw_json.get("default_action"), default_required=True)
+def parse_schema(raw_json: dict, pilot_file: str, instrument: str, raw_text: str, vocab: str = VOCAB_1) -> TranslatedSchema:
+    """`vocab` is what the model was prompted with (`_translation_prompt`); the schema records it."""
+    vocab = resolve_vocab(vocab)
+    root = _parse_cascade(raw_json.get("rules"), raw_json.get("default_action"), default_required=True, vocab=vocab)
     if not root.nodes:
         raise ValueError("translator produced zero rules")
     build, build_notes = normalize_build(raw_json.get("build"), instrument)
     return TranslatedSchema(
         pilot_file=pilot_file, instrument=instrument, raw_model_output=raw_text, root=root,
-        validation_notes=build_notes, build=build,
+        validation_notes=build_notes, build=build, vocab=vocab,
     )
 
 
@@ -550,6 +615,7 @@ def enforce_absolute_priority(schema: TranslatedSchema, pilot_text: str) -> Tran
         root=new_root,
         validation_notes=schema.validation_notes + (note,),
         build=schema.build,
+        vocab=schema.vocab,
     )
 
 
@@ -757,6 +823,7 @@ def enforce_instrument_scope(schema: TranslatedSchema, instrument: str, primary_
         root=new_root,
         validation_notes=schema.validation_notes + tuple(notes),
         build=schema.build,
+        vocab=schema.vocab,
     )
 
 
@@ -770,11 +837,16 @@ def translate_pilot(
     model: str = DEFAULT_MODEL,
     max_attempts: int = 3,
     generate=None,
+    vocab: str = VOCAB_1,
 ) -> TranslatedSchema:
     """`generate`, when given, is a `prompt -> reply text` callable that replaces the host-Ollama
     call (`llm_backends.Backend.generate` -- how `compile.py` runs the same translation on
     OpenRouter, or under a token cap). The prompt, parsing, retries and guards are the same
     either way.
+
+    `vocab` (`vocab.py`) picks the prompt's selector and facts lists and the selectors the reply
+    may name, and the schema records it. vocab-1 by default here, so a research harness keeps the
+    prompt it measured; `compile.py`, the entrant path, defaults to `vocab.DEFAULT_VOCAB`.
 
     The model only ever sees `scope_to_instrument(pilot_text, instrument).text`, and the priority
     guard reads the same scoped text -- another instrument's "no exceptions" clause must not demand a
@@ -790,13 +862,14 @@ def translate_pilot(
             f"instrument scope: {len(scoped.set_aside)} clause(s) your prose marks for another instrument were left out "
             f"of the {instrument} schema (each is compiled only for the instrument it names): {quoted}",
         )
-    prompt = _translation_prompt(scoped.text, instrument, primary_ability, ultimate_ability)
+    vocab = resolve_vocab(vocab)
+    prompt = _translation_prompt(scoped.text, instrument, primary_ability, ultimate_ability, vocab)
     last_err: Exception | None = None
     for attempt in range(max_attempts):
         reply = generate(prompt)
         try:
             raw_json = _extract_json_object(reply)
-            schema = parse_schema(raw_json, pilot_file, instrument, reply)
+            schema = parse_schema(raw_json, pilot_file, instrument, reply, vocab)
             if scope_notes:
                 schema = dataclasses.replace(schema, validation_notes=schema.validation_notes + scope_notes)
             schema = enforce_instrument_scope(schema, instrument, primary_ability, ultimate_ability)
@@ -804,7 +877,7 @@ def translate_pilot(
         except (ValueError, json.JSONDecodeError) as err:
             last_err = err
             prompt = (
-                _translation_prompt(scoped.text, instrument, primary_ability, ultimate_ability)
+                _translation_prompt(scoped.text, instrument, primary_ability, ultimate_ability, vocab)
                 + f"\n\nYour previous attempt was invalid: {err}. If this mentions a 'guard_'-named "
                 "rule, you emitted a plain rule action for something that needed the full guard shape "
                 "(type/then/else) -- either finish the guard shape or use a normal rule instead. "
@@ -954,5 +1027,5 @@ def _describe_action(kind: str, ability: str | None, selector: str | None) -> st
     else:
         base = f"**{kind}**"
     if selector and selector != "none":
-        base += f" targeting: {TARGET_SELECTORS[selector]}"
+        base += f" targeting: {SELECTOR_DESCRIPTIONS[selector]}"
     return base

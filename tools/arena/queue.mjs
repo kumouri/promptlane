@@ -184,7 +184,10 @@ export class Queue {
     if (health?.backend !== 'jev-schema') {
       return `${backend.endpoint} is not a Jev schema server (its /health says backend=${JSON.stringify(health?.backend ?? null)}); start python tools/jev/schema_server.py there`;
     }
-    const unsupported = this.headless.targetingUnsupported(health, this.headless.DEFAULT_TARGETING);
+    const unsupported =
+      this.headless.targetingUnsupported(health, this.headless.DEFAULT_TARGETING) ??
+      // entrants compile under the default vocabulary (tools/jev/compile.py --vocab); the house is vocab-1
+      this.headless.vocabUnsupported(health, [this.headless.DEFAULT_VOCAB]);
     if (unsupported) return `${backend.endpoint}: ${unsupported}`;
     if (health.budget_usd != null && health.cost_usd >= health.budget_usd) {
       return `the schema server's own --budget-usd $${health.budget_usd} is spent; restart it to reset`;
@@ -368,7 +371,7 @@ export class Queue {
     if (!backend) throw new Error(`practice backend ${job.practice.backend} is not configured`);
     const side = job.sides.violet?.practice ? 'violet' : job.sides.green?.practice ? 'green' : null;
     if (!side) return undefined;
-    const pilot = this.headless.jevSchemaTracingPilot({ endpoint: backend.endpoint, timeoutSec: backend.timeoutSec, schemas: job.practice.schemas });
+    const pilot = this.headless.jevSchemaTracingPilot({ endpoint: backend.endpoint, timeoutSec: backend.timeoutSec, schemas: job.practice.schemas, map: this.map });
     return (botIndex, team) => (team === side ? pilot : undefined);
   }
 
@@ -472,7 +475,7 @@ export class Queue {
         };
         const pilots = {};
         jevPilotFor = (_botIndex, team) =>
-          (pilots[team] ??= meter.wrap(team, this.headless.jevSchemaTracingPilot({ endpoint: backend.endpoint, timeoutSec: backend.timeoutSec, schemas: sides[team].schemas })));
+          (pilots[team] ??= meter.wrap(team, this.headless.jevSchemaTracingPilot({ endpoint: backend.endpoint, timeoutSec: backend.timeoutSec, schemas: sides[team].schemas, map: this.map })));
       } else if (backend.kind === 'mock') {
         logBackend = { kind: 'mock', arenaBackend: job.backendId, model: backend.model ?? 'mock' };
         callModelFor = (i) => this.headless.mockCallModel(100 + i);

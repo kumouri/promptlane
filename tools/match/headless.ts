@@ -43,6 +43,7 @@ export { mockCallModel } from '../../src/pilots/callModel';
 export { jevTracingPilot } from './jevPilot';
 export { jevTeamTracingPilot } from './jevTeamPilot';
 export { DEFAULT_TARGETING, FIRST_MIN, OWN_LANE_1, TARGETINGS, jevSchemaTracingPilot, resolveTargeting, targetingUnsupported } from './jevSchemaPilot';
+export { DEFAULT_VOCAB, VOCAB_1, VOCAB_2, VOCABS, schemaVocab, vocabUnsupported, vocabsOf } from './jevSchemaPilot';
 export { DEFAULT_MAP, MAP_VARIANTS, PVP_MAP, SPECIMEN_MAP, laneCoverage, resolveMap } from '../../src/mapVariant';
 export { DEFAULT_ECONOMY, ECONOMY_RULESETS, ECO_1, ECO_2, ECO_3, RESPAWN_ONLY, attachEconomy, getEconomy, resolveBuild, resolveEconomy } from '../../src/economy';
 export { DEFAULT_OBJECTIVE, OBJECTIVES, RIVER_1, RIVER_2, RIVER_2_SET10, attachObjective, getObjective, resolveObjective } from '../../src/objective';
@@ -53,6 +54,7 @@ export { DEFAULT_FINALE, FINALES, FINAL_CHORUS_1, attachFinale, endReasonLabel, 
 /** For the economy's, the objective's, the recall's and the finale's rule tests (`test_economy.mjs`, `test_objective.mjs`, `test_recall.mjs`, `test_finale.mjs`), which build matches by hand. */
 export { Match, TICK_DT, applyMapVariant, checkpointOf };
 export { BASE, LANE_PATHS, pointAlongPath } from '../../src/sim/map';
+export { INSTRUMENTS } from '../../src/sim/entities';
 
 const MATCH_DURATION_SEC = 600;
 const MAX_TICKS = Math.ceil(MATCH_DURATION_SEC / TICK_DT) + 2;

@@ -50,6 +50,10 @@ One prompt drives all three of an entrant's bearbots, so every instrument is com
 A line the prose marks for one instrument (`keytar only: …`, `Violin: …`, `- **drums**: …`) is
 compiled only into that instrument's schema, and any rule that still names another instrument's
 ability is removed with a note ([`translator-guards-and-defaults-spec.md` §10](translator-guards-and-defaults-spec.md#10-instrument-scope--the-schema-assembly-guard-against-cross-instrument-leaks-2026-09-30)).
+The header names the **vocabulary** the prose compiled under (`--vocab`, default `vocab-2`;
+[`vocabulary-spec.md`](vocabulary-spec.md)): the facts Jev is told each decision and the targets a
+rule can name. Each schema JSON carries it as `"vocab"` and plays under it everywhere; `--vocab
+vocab-1` compiles under the words schemas had before 2026-10-02 and writes no key.
 A preview is a short header followed by one transparency report per instrument. The report format
 is the one [`translator-transparency.md` §1](translator-transparency.md#1-the-transparency-view)
 documents:
