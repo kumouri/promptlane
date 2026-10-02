@@ -370,6 +370,8 @@ first epoch has a **$15 cap**. A second epoch may run only if the first spent le
 **Epoch 2's cap is whatever is left of the $25 after epoch 1** ("Epoch 2 = what's left of $25"):
 if epoch 1 spends $9, epoch 2 may spend up to $16. The whole campaign spends at most **$25**.
 **No campaign activity from Fri 2026-10-16 00:00 CDT (midnight going into the Jam) through the end of the Jam (Fri 2026-10-16).** Moved from Thu 10-15 17:00 CT by Ceryce, 2026-10-01 18:44 CT: *"Training cutoff is 20261016T00:00.00-5"*.
+That instant is her ruling and stays as set in `budget.mjs` until she moves it. The Jam's own
+dates are unsettled ([the Jam calendar](arena-runbook.md#the-jam-calendar)).
 
 **Enforced in code, `tools/evolve/budget.mjs`.** `step` wraps every paid dependency
 (`guardDeps`). Before each paid call, it checks the call's **reserve** against the caps. The reserve

@@ -1,6 +1,6 @@
 # Entrant compile preview — three ways to try your prose before the jam
 
-The InRhythm AI Jam (Friday 2026-10-02, arena = Elysium) runs entrants on **Jev**. Each entrant's
+The InRhythm AI Jam (date unsettled: [the Jam calendar](arena-runbook.md#the-jam-calendar); arena = Elysium) runs entrants on **Jev**. Each entrant's
 prose `pilot.md` is compiled once into a Jev rule cascade by the prose-to-schema translator
 ([`prose-to-schema-translator.md`](prose-to-schema-translator.md),
 [`translator-transparency.md`](translator-transparency.md)), and Jev answers the cascade's yes/no

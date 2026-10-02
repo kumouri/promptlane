@@ -285,7 +285,7 @@ max_tokens, think}`); the arena spec should:
 
 ## 9. Recommendation
 
-- **Jam day (Fri 2026-10-02):** OpenRouter (or HF's router, same endpoints) on
+- **Jam day:** OpenRouter (or HF's router, same endpoints) on
   `qwen/qwen3-32b` or `google/gemma-4-31b-it`, provider pinned, JSON mode on, `--cadence 2`;
   ≈$2.50–3 for the whole bracket plus a ≈$0.20 rehearsal match, and matches finish in 5–10
   minutes instead of half an hour. Keep the host's Ollama as the offline fallback.

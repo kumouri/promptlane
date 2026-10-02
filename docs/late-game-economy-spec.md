@@ -72,13 +72,13 @@ makes a dive a losing trade is still a house tier that pushes while an enemy is 
 
 **Against the Jam (§8):**
 - **The full version (18–22 h plus about $13 to measure) does not fit** before sign-ups close
-  (Tue 10-06) alongside vocabulary stage A. Recommend after the Jam.
+  alongside vocabulary stage A. Recommend after the Jam.
 - **The Jam-sized version is levels only.** It is a data-only ruleset: 1–2 h, no translator change
   and no recompile. It respects the 2026-09-30 "minimal economy before the jam" ruling. It keeps XP
   mattering to the end, but it does nothing for gold.
-- **A middle option fits only with a Sat 10-03 ruling:** one recipe and one upgrade per instrument,
-  6 new items, all on existing stat paths. It is 12–15 h, has to ride vocab-2's Mon 10-05
-  recompile, and carries medium-high risk.
+- **A middle option fits only with a ruling by noon the day before the gate:** one recipe and one
+  upgrade per instrument, 6 new items, all on existing stat paths. It is 12–15 h, has to ride
+  vocab-2's recompile when entrant-facing changes land, and carries medium-high risk.
 
 > Ceryce's ruling, 2026-09-30 19:58 CT: "With the extra time and both Alex and Kristen ghosting me
 > today let's go minimal economy before the jam."
@@ -555,7 +555,7 @@ evidence about play.
 
 **One recompile, not two.** The items block in the translator prompt and the description lines are
 both compiler inputs. Changing them recompiles every entry (`vocabulary-spec.md` §6.2). If items
-land before the Jam, they must land **in the same Mon 10-05 merge window as vocab-2**, so there is
+land before the Jam, they must land **in the same entrant-facing merge window as vocab-2**, so there is
 one recompile and one announcement. Levels only changes neither, so it causes no recompile.
 
 ### 7.4 Translator, validator, schema server, qwen
@@ -617,14 +617,14 @@ one recompile and one announcement. Levels only changes neither, so it causes no
 
 ## 8. Timing against the Jam
 
-**Fixed dates:**
-- the economy go/no-go is **Sun 10-04** at end of day;
-- entrant-facing changes land by **Mon 10-05**;
-- sign-ups close **Tue 10-06**;
-- numbers freeze **Thu 10-08**;
-- the training cutoff is **Fri 10-16 00:00 CT**, and the Jam is **Fri 10-16**.
+**The milestones, in order** (dates unsettled; once set, they are in [the Jam calendar](arena-runbook.md#the-jam-calendar)):
+- the economy's **go/no-go gate**, at end of day;
+- the next day, **entrant-facing changes land**;
+- then **sign-ups close**;
+- then **the numbers freeze**;
+- then the training cutoff at midnight going into the Jam, and **the Jam**.
 
-**Competing for the same window:** vocabulary stage A (about 9 h, by Mon 10-05) and the economy gate
+**Competing for the same window:** vocabulary stage A (about 9 h, by the time entrant-facing changes land) and the economy gate
 itself.
 
 ### 8.1 The full version: after the Jam
@@ -639,11 +639,13 @@ itself.
   That is **18–22 h of agent work**, plus about **$13** and 2–4 h of matches for §6, plus about $3–4
   for the house tier check.
 - **Against the dates:**
-  - It can't be built, measured and announced by Mon 10-05 alongside stage A.
-  - The earliest honest landing is Wed 10-07 to Thu 10-08. That is after sign-ups close, with
+  - It can't be built, measured and announced by the time entrant-facing changes land, alongside
+    stage A.
+  - The earliest honest landing is between sign-ups closing and the numbers freeze. That is after
+    sign-ups close, with
     entrants already writing against "3 slots, 4 items", and right at the freeze, with no slack for
     a tuning pass.
-  - The economy spec's rule is that entrants see the rules they write against (`economy-spec.md:46`).
+  - The economy spec's rule is that entrants see the rules they write against (`economy-spec.md` §0 row 10).
 - **Recommendation: after the Jam,** measured by §6 first.
 
 ### 8.2 Jam-sized options
@@ -653,8 +655,8 @@ itself.
 | What | `eco-3-lv8` or `eco-4-lv8`: eco-3's file with thresholds `[0, 80, 200, 360, 560, 710, 860, 1010]` | (a) plus Backline, Click Track, Fuzz Pedal, Wall of Sound, Arpeggiator and Feedback. **All six use existing stat paths; no new mod.** |
 | Code | **none.** The level cap is the thresholds' length (`economy.ts:82-83, 406, 573`). Add the registry line, update 2–3 test pins that say "level 5 (the highest level)" (`test_fidelity_harness.py:260-266`, `test_economy.mjs:347-357`), and change the README's level table. | §7 minus regeneration: engine recipes and expansion, the Python mirror, description, prompt, transparency, HUD, metrics, house ladders |
 | Effort | 1–2 h | 12–15 h + about $13 to measure + about $3–4 for the house tier check |
-| Recompile | **none** (no translator input changes) | every entry, once: **must share vocab-2's Mon 10-05 window** |
-| Dates | Rule by the Sun 10-04 gate. Merge with the gate's ruleset (folded into whatever `eco-4` is ruled). It can be measured inside §6, or alone at 60 matches (about $6). | Rule by **Sat 10-03 noon**. Build Sat–Sun in parallel with stage A; both touch `translator.py` and `fidelity_harness.py`, so whichever merges second rebases. Measure Mon 10-05, announce Mon 10-05, freeze Thu 10-08. |
+| Recompile | **none** (no translator input changes) | every entry, once: **must share vocab-2's entrant-facing window** |
+| Dates | Rule by the go/no-go gate. Merge with the gate's ruleset (folded into whatever `eco-4` is ruled). It can be measured inside §6, or alone at 60 matches (about $6). | Rule by **noon the day before the gate**. Build over the next two days in parallel with stage A; both touch `translator.py` and `fidelity_harness.py`, so whichever merges second rebases. Measure and announce the day entrant-facing changes land; freeze at the numbers freeze. |
 | Risk | low | **medium-high:** two compiler changes in one window, and the measurement and the announcement on the same day |
 | What it fixes | XP keeps mattering to the end for the rich side | gold and XP both keep mattering; on paper the same as the full version (§4, §5.2) |
 | What it doesn't | **gold:** defenders still end with 890–1,320 they can't spend | Tour Bus and Headliner, and the full ladder for violin |
@@ -662,7 +664,7 @@ itself.
 **On the 2026-09-30 ruling.** (a) is within "minimal economy before the jam": it is a constants
 change on the economy already built. (b) grows the economy before the Jam, and (b) and the full
 version both need her to override that ruling explicitly. **The recommendation:**
-1. (a) for the Jam, decided at the Sun 10-04 gate together with eco-4's timers.
+1. (a) for the Jam, decided at the go/no-go gate together with eco-4's timers.
 2. The house push-while-they-respawn rule (`vocabulary-spec.md` D3), as the lever that actually
    decides the dive (§5.3).
 3. The full ladder after the Jam, measured by §6.
@@ -673,7 +675,7 @@ version both need her to override that ruling explicitly. **The recommendation:*
 
 | # | Decision | Recommendation | Cost if yes |
 |---|---|---|---|
-| D1 | **Which version ships for the Jam?** (a) levels only, (b) levels + one recipe and one upgrade per instrument, (c) the full ladder, (d) nothing before the Jam | **(a)**, folded into the gate's ruleset; (b) only with an explicit override of the 09-30 ruling by **Sat 10-03 noon** | (a) 1–2 h, $0 to build; (b) 12–15 h + about $16; (c) doesn't fit before sign-ups (§8.1) |
+| D1 | **Which version ships for the Jam?** (a) levels only, (b) levels + one recipe and one upgrade per instrument, (c) the full ladder, (d) nothing before the Jam | **(a)**, folded into the gate's ruleset; (b) only with an explicit override of the 09-30 ruling by **noon the day before the gate** | (a) 1–2 h, $0 to build; (b) 12–15 h + about $16; (c) doesn't fit before sign-ups (§8.1) |
 | D2 | Item strength: **strong** (§2.2; tier 2 = parts + 15 points, tier-3 passives as listed) or **lean** (tier 2 = its parts + 5; smaller passives) | **strong.** Lean absorbs the gold but buys almost no power (DPS ×1.04–1.10 at 8:00). Neither moves house vs house on paper. | — |
 | D3 | Level curve: **8 levels, flat 150 XP past 5** or 7 levels on eco-3's +40 steps | **8 / flat 150.** The cap lands in the last 1.5 min for the top quarter, and a kill stays 40 % of a level. | — |
 | D4 | Respawn past level 5: keep `base + per × level` linear (L8 = 30 s on eco-3, 50 s on eco-4), or stop it growing past 5 | **linear.** Data only, it rarely fires, and killing the rich bot pays. | the knob: 2 lines + a ruleset field |

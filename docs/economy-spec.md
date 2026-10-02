@@ -3,7 +3,7 @@
 **Status:** P1's blocking questions are ruled: Q1, Q2, Q3, Q4 and Q10 (Telegram, 2026-09-30
 20:35–20:37 CT; §8). The river objective's four, Q14–Q17, are ruled too (Telegram, 2026-09-30
 20:47–20:48 CT; §8, §9), all option A. The spec body below reads against those rulings. Q5–Q9 and
-Q11–Q13 are still open. **P1 (§7) is built**, off by default until the Sun 10-04 gate; §11 records
+Q11–Q13 are still open. **P1 (§7) is built**, off by default until the go/no-go gate; §11 records
 how it was built and the choices the spec left open. **The river objective (O1 and O2) is built**,
 also off by default until its own go/no-go at the same gate; §12 records how, and its §9.8
 measurement. **The redesign after that measurement failed, `river-2` and `recall-2`, is ruled
@@ -15,7 +15,9 @@ scorable line, and it is the recommendation for the gate (§13.6).
 The entrant-facing part of P2 (README, template, compile preview) waits for the gate.
 **Written:** 2026-09-30, after Ceryce chose "minimal economy before the jam" (19:57 CT). §9, the
 neutral river objective, was added the same evening after she backed the idea (20:34 CT).
-**Jam:** Fri 2026-10-16. Entry cutoff is midnight Central on Thu 10-15. Sign-ups close Tue 10-06.
+**Jam:** the date is unsettled (2026-10-02). The milestones this spec plans against (the go/no-go
+gate, entrant-facing changes landing, sign-ups closing, the numbers freeze, the entry cutoff, the
+Jam) and their order stand. Their dates live only in [the Jam calendar](arena-runbook.md#the-jam-calendar).
 
 > "The MVP was supposed to have the minimum version of stats, items, gold, and leveling to give the
 > bots more strategy surface." — Ceryce, 2026-09-30 19:54 CT
@@ -43,8 +45,8 @@ adds numbers, it is cut.
 | 7 | **Buy only at your own base. The prose declares a shopping list.** It is bought automatically when you're at base and can afford the next item. There is no new action kind. *Ruled, Q3.* | The decision a bot makes during play is *when to go home*. That is a yes/no question Jev already answers well. A `buy` action would be a new failure mode in the translator. |
 | 8 | **All of it runs outside the frozen sim**, as `src/economy.ts` plus one constants file. Match logs record it as `economy: "eco-1"`. | This is the same pattern as the balance study's `src/mapVariant.ts`. Old logs replay unchanged. |
 | 9 | **Measure on Jev** with the balance study's metric tool, in four seed-paired conditions (§6). There are pre-registered pass/fail lines. | Standing rule: Jev, never qwen 9B. |
-| 10 | **Entrant-facing changes land by Mon 10-05**, numbers freeze Thu 10-08, and there is a go/no-go gate on Sun 10-04, end of day (§7). *Ruled, Q10.* | Sign-ups close Tue 10-06. Entrants must see the rules they are writing against. |
-| 11 | **A neutral river objective, the Bandstand** (§9). It alternates between two river sites outside every tower's range. A team takes it by holding the stage, and any enemy on the stage freezes the capture. The reward is a 45 s team Encore buff, plus gold and XP when the economy is on. Bots reach it through one new move selector, with no new action kind. It has its own layer and its own gate, and is measured on Jev before Sun 10-04. | `pvp-1` cut team fights from 4.6 to 2.75 a match by removing the one spot both teams converged on. This puts a shared spot back on neutral ground, and only PvP can win it. |
+| 10 | **A go/no-go gate at end of day, then entrant-facing changes land, then the numbers freeze** (§7). *Ruled, Q10.* | Entrant-facing changes land before sign-ups close. Entrants must see the rules they are writing against. |
+| 11 | **A neutral river objective, the Bandstand** (§9). It alternates between two river sites outside every tower's range. A team takes it by holding the stage, and any enemy on the stage freezes the capture. The reward is a 45 s team Encore buff, plus gold and XP when the economy is on. Bots reach it through one new move selector, with no new action kind. It has its own layer and its own gate, and is measured on Jev before the gate. | `pvp-1` cut team fights from 4.6 to 2.75 a match by removing the one spot both teams converged on. This puts a shared spot back on neutral ground, and only PvP can win it. |
 
 ---
 
@@ -648,7 +650,7 @@ whoever killed you.)
 
 **`README.md` / `entrants/README.md`:**
 - **Replace** "There is no respawn: a dead bearbot stays dead for the match" with the respawn rule.
-- **Add an "Economy" section** with gold sources, the death drop, levels and the item table. **Generate it from `eco-1.json`** so the numbers can't drift, and mark them "provisional until Thu 10-08" (§7).
+- **Add an "Economy" section** with gold sources, the death drop, levels and the item table. **Generate it from `eco-1.json`** so the numbers can't drift, and mark them "provisional until the numbers freeze" (§7).
 - **Extend the observation contract** with §4.1's fields. It currently quotes `src/types.ts`; it will quote the economy layer's extended type instead.
 - **Add the new selector** to the "what the compiler understands" list.
 - **Give two worked examples** of shopping prose with their compiled output.
@@ -749,8 +751,8 @@ No third pass before the Jam.
 
 ## 7. Plan to hit the Jam
 
-Today is Wed 09-30. The fixed dates are: sign-ups close Tue 10-06, the entry cutoff is midnight
-Central Thu 10-15, and the Jam is Fri 10-16. Effort is agent working hours. Every phase is a PR into
+Written Wed 09-30. The Jam's dates are unsettled ([the Jam calendar](arena-runbook.md#the-jam-calendar)). The phases below are ordered against
+its milestones and carry dates only where the work is already done. Effort is agent working hours. Every phase is a PR into
 `develop` that Ceryce merges.
 
 | Phase | Dates | Effort | Contents | Done when |
@@ -758,20 +760,20 @@ Central Thu 10-15, and the Jam is Fri 10-16. Effort is agent working hours. Ever
 | **P0 Rulings** | Thu 10-01 | — | Ceryce answers §8. Q1–Q4 and Q10, the ones that block P1, were ruled Wed 09-30 evening. (The balance study's `pvp-1` already shipped as `DEFAULT_MAP`, PR #48.) | Rulings recorded in this spec |
 | **P1 Ruleset layer** | Thu 10-01 – Fri 10-02 | 12–16 h | `eco-1.json`, `src/economy.ts`, `src/attribution.ts`, respawn, items and levels, observation wrapper, auto-buy, log and checkpoint fields, wired into all five places that build a match, HUD, metric-tool respawn support. Tests: ledger arithmetic, determinism, replay of old logs unchanged, replay of eco logs verified. | `npm test` green; an eco-1 match replays OK; v1 logs bit-identical |
 | **O1 Objective layer** (§9) | Thu 10-01 – Fri 10-02, alongside P1 | 6–8 h | `river-1.json`, `src/objective.ts`, the shared `src/ruleset/stats.ts`, the `bandstand` observation block, log and checkpoint fields, the same five call sites, the stage and Encore in `src/render.ts`, and the §9.8 objective metrics. It is built by a separate agent and does not depend on the economy. Of P1 and O1, whichever merges second rebases onto the first (both touch `headless.ts` and the observation wrapper). Tests: determinism; capture, contest and drain arithmetic; v1 and `pvp-1` logs bit-identical; a river-1 match replays OK. | `npm test` green; a river-1 match replays OK |
-| **P2 Decision surface** | Fri 10-02 – Sun 10-04 | 12–16 h | Translator `build` + selector + prompt items block + wire format, `describe_observation`, transparency, house tiers and worksheets, entrants README, template and compile preview, Elysium panel | Compile preview shows a shopping list; house bots shop |
-| **O2 Objective surface + measurement** | Sat 10-03 – Sun 10-04 | 4–6 h + about 2 h wall clock | The `bandstand` selector and its fallback, description lines, the house-tier Bandstand rules (§9.7), then the §9.8 run: P vs O, 48 matches on Jev, map-only, plus one tuning pass if needed | The §9.8 verdict is written up before the gate |
-| **Gate** | **Sun 10-04, end of day** | — | **Go/no-go:** if P1 is not merged and P2 not in review, the Jam runs on map-only, and the economy moves to after the Jam. The entrant-facing text is not published. **The objective has its own go/no-go at the same time:** it ships if O1 is merged and §9.8 passes (or Ceryce rules per Q17), whatever the economy's verdict. Without the economy it ships with the Encore only (§9.5). | Ceryce decides |
-| **P2b Entrant freeze** | **Mon 10-05** | 1–2 h | Entrants README, template and preview merged in `jamobair-entrants`; `PROMPTLANE_REF` bumped. Announce to entrants. If the objective is go, this includes the Bandstand README section and template blank. | Live before sign-ups close Tue 10-06 |
-| **P3 Measure + one tune** | Mon 10-05 – Wed 10-07 | 4–6 h wall clock + 3 h analysis | §6 conditions A, R, B0, B1; one tuning pass if needed. If both ship, add B1 + objective against B1 (§9.8, 12 matches per condition). | Pass lines met, or fallback ruled |
-| **Numbers freeze** | **Thu 10-08** | — | `eco-1.json` and `river-1.json` final; README tables regenerated. Only bug fixes after this. | — |
-| **P4 Re-tune house + campaign** | Thu 10-08 – Sun 10-11 | 6–8 h + background | House tier check re-run on Jev (easy < medium ≤ hard), with the objective on if it shipped; per-tier builds tuned. **Fix `matchKey`** (`tools/evolve/generation.mjs:121-123`) to include the ruleset (map + economy + objective + translator version); it currently hashes only sides, seed, cadence and length, so old cached matches would be reused silently. Campaign 1's results are void under eco-1 or river-1; **campaign 2** relaunches on the shipped ruleset within the epoch caps Ceryce set. | Tier ordering holds; campaign 2 running |
-| **P5 Rehearsal + buffer** | Mon 10-12 – Thu 10-15 | 4 h | Full Jam dry run on Elysium with entrant-shaped prose; runbook updated | Dry run clean |
+| **P2 Decision surface** | from Fri 10-02, up to the gate | 12–16 h | Translator `build` + selector + prompt items block + wire format, `describe_observation`, transparency, house tiers and worksheets, entrants README, template and compile preview, Elysium panel | Compile preview shows a shopping list; house bots shop |
+| **O2 Objective surface + measurement** | up to the gate | 4–6 h + about 2 h wall clock | The `bandstand` selector and its fallback, description lines, the house-tier Bandstand rules (§9.7), then the §9.8 run: P vs O, 48 matches on Jev, map-only, plus one tuning pass if needed | The §9.8 verdict is written up before the gate |
+| **Gate** | **the go/no-go gate, end of day** | — | **Go/no-go:** if P1 is not merged and P2 not in review, the Jam runs on map-only, and the economy moves to after the Jam. The entrant-facing text is not published. **The objective has its own go/no-go at the same time:** it ships if O1 is merged and §9.8 passes (or Ceryce rules per Q17), whatever the economy's verdict. Without the economy it ships with the Encore only (§9.5). | Ceryce decides |
+| **P2b Entrant freeze** | **entrant-facing changes land** (the day after the gate) | 1–2 h | Entrants README, template and preview merged in `jamobair-entrants`; `PROMPTLANE_REF` bumped. Announce to entrants. If the objective is go, this includes the Bandstand README section and template blank. | Live before sign-ups close |
+| **P3 Measure + one tune** | after the gate, up to the numbers freeze | 4–6 h wall clock + 3 h analysis | §6 conditions A, R, B0, B1; one tuning pass if needed. If both ship, add B1 + objective against B1 (§9.8, 12 matches per condition). | Pass lines met, or fallback ruled |
+| **Numbers freeze** | **the numbers freeze** | — | `eco-1.json` and `river-1.json` final; README tables regenerated. Only bug fixes after this. | — |
+| **P4 Re-tune house + campaign** | after the numbers freeze | 6–8 h + background | House tier check re-run on Jev (easy < medium ≤ hard), with the objective on if it shipped; per-tier builds tuned. **Fix `matchKey`** (`tools/evolve/generation.mjs:121-123`) to include the ruleset (map + economy + objective + translator version); it currently hashes only sides, seed, cadence and length, so old cached matches would be reused silently. Campaign 1's results are void under eco-1 or river-1; **campaign 2** relaunches on the shipped ruleset within the epoch caps Ceryce set. | Tier ordering holds; campaign 2 running |
+| **P5 Rehearsal + buffer** | the days before the entry cutoff | 4 h | Full Jam dry run on Elysium with entrant-shaped prose; runbook updated | Dry run clean |
 
-**Things that must land before sign-ups close (Tue 10-06):** respawn and the economy rules in the entrants README, the
+**Things that must land before sign-ups close:** respawn and the economy rules in the entrants README, the
 shopping-list template blank, the observation fields, the new selector, and a compile preview that
 shows the shopping list. If the objective is go, the same deadline applies to the Bandstand rules,
 its observation fields, the `bandstand` selector and its template blank. Numbers may still move until
-Thu 10-08, and entrants are told they are provisional.
+the numbers freeze, and entrants are told they are provisional.
 
 **What to cut first**, in order, if the schedule slips:
 1. ~~Tip Jar~~ (ruled out by Q4).
@@ -783,7 +785,7 @@ Thu 10-08, and entrants are told they are provisional.
 
 **The objective as a whole is not on this list.** It is the only part of the spec aimed directly at
 the team fights `pvp-1` lost, so it is not traded against economy items to save time. It is cut
-only by its own gate: O1 not merged by Sun 10-04, or a §9.8 keep-line still regressing after the
+only by its own gate: O1 not merged by the gate, or a §9.8 keep-line still regressing after the
 one tuning pass.
 
 **Never cut:** respawn (if ruled in), kill gold, the shopping list with default builds, shop-at-base,
@@ -797,7 +799,7 @@ measurement.
 Each question lists the options with the recommendation first. **Q1–Q4 and Q10 blocked P1, and all
 five are ruled** (Telegram pickers, 2026-09-30, times America/Chicago; her answers are quoted
 verbatim). Q5–Q9 and Q11–Q13 are open, and P1 builds their recommendations as constants. **Q14–Q16
-blocked O1 and Q17 the Sun 10-04 gate; all four are ruled** (Telegram pickers, 2026-09-30
+blocked O1 and Q17 the go/no-go gate; all four are ruled** (Telegram pickers, 2026-09-30
 20:47–20:48 CT), each option A.
 
 **Q1. Respawn.** **RULED 20:35:** "Respawn, timer grows with level" → **option A.**
@@ -854,13 +856,14 @@ option here is a constants edit.
 - B: hidden. Simpler description.
 
 **Q10. Go/no-go date.** **RULED 20:37:** "Sun 10-04, end of day" → **option A**, a go/no-go.
-- **A (rec, ruled):** Sun 10-04, end of day, as in §7.
+- **A (rec, ruled):** Sun 10-04, end of day, as in §7. *(That date no longer holds: the go/no-go
+  gate stands, and its date is in [the Jam calendar](arena-runbook.md#the-jam-calendar).)*
 - B: Tue 10-06, which risks publishing entrant rules that then get pulled.
 - C: no gate; always ship the economy.
 
 **Q11. Where the ruleset lives after the Jam.**
 - **A (rec):** it stays an external layer for the Jam. If it proves out, write it into `prompts/v2.md` afterwards, since the prompt is the source.
-- B: write `prompts/v2.md` now and regenerate. That isn't feasible before 10-16, and it would invalidate every measurement.
+- B: write `prompts/v2.md` now and regenerate. That isn't feasible before the Jam, and it would invalidate every measurement.
 
 **Q12. A `nearest_ally` move selector.**
 - **A (rec):** not in eco-1. Proximity XP and assists already pay for grouping.
@@ -1399,7 +1402,7 @@ There is no third pass before the Jam.
   Q18, ruled 23:00–23:02 CT (§9.10).
 
 The objective is built and measured on the **map-only** game, so its verdict is known **before** the
-Sun 10-04 gate, whatever the economy's state.
+go/no-go gate, whatever the economy's state.
 
 ### 9.10 The redesign: `river-2` and `recall-2` (Q18)
 
@@ -1622,7 +1625,7 @@ what is a default:
   `tools/jev/economy_rules.py` (the translator's reader of the same JSON). Tests:
   `tools/match/test_economy.mjs` (one per rule, plus replay determinism) and
   `tools/jev/test_economy_rules.py`.
-- **Off by default.** `DEFAULT_ECONOMY` is none until the Sun 10-04 gate (Q10). Opt in with
+- **Off by default.** `DEFAULT_ECONOMY` is none until the go/no-go gate (Q10). Opt in with
   `npm run match -- --economy eco-1`, the arena's `tournament.economy`, or an evolve campaign's
   `shape.economy`.
 - **Open questions built at the recommendation, as constants:** Q5 (five levels, +8 % hp and attack
@@ -1679,7 +1682,7 @@ decide, and what the build decided:
   derivation; each layer registers a multiplier) and `rewards.ts` (the reward sink). Tests:
   `tools/match/test_objective.mjs` (one per rule, replay determinism, old logs). The Jev side is in
   `tools/jev/` (`bandstand` selector, description lines), the house rules in `prompts/pilots/`.
-- **Off by default.** `DEFAULT_OBJECTIVE` is none until the Sun 10-04 gate (Q17). Opt in with
+- **Off by default.** `DEFAULT_OBJECTIVE` is none until the go/no-go gate (Q17). Opt in with
   `npm run match -- --objective river-1`, the arena's `tournament.objective`, or an evolve campaign's
   `shape.objective`.
 - **How the objective and the economy connect.** Neither imports the other.
@@ -1736,7 +1739,7 @@ decide, and what the build decided:
 ## 13. Income tuning pass and P2 as built
 
 PR "economy P2 + the income tuning pass" (2026-09-30), on `develop` after #51 and #52. It is built so
-§6's measurement can run before the Sun 10-04 gate. Nothing entrant-facing changed: not the entrants
+§6's measurement can run before the go/no-go gate. Nothing entrant-facing changed: not the entrants
 repo, the template or the README. `DEFAULT_ECONOMY` is still none.
 
 ### 13.1 The income tuning pass: `eco-2`
@@ -1964,7 +1967,7 @@ They were played before #56, on the sequential order.
   - `gold.start` alone raises income, because start gold is paid as passive.
   - Then re-run B1 only. This proposed `--resolution sequential`; the re-run used `simultaneous-1`
     (below).
-- **The recommendation for the Sun 10-04 gate is go** on the economy.
+- **The recommendation for the go/no-go gate is go** on the economy.
 
 **The tuning pass, run:** [`runs/economy-eco3-2026-10-01.md`](../runs/economy-eco3-2026-10-01.md).
 - **`eco-3`** is `src/economy/eco-3.json`: `eco-2` with only those three prices changed, and a test

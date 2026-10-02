@@ -44,16 +44,16 @@ own tower' selector, so easy leashes itself by leaving whenever an enemy tower c
   schema names the vocabulary it was compiled under, and it is described and resolved under that
   vocabulary. A schema without the key is `vocab-1`, today's. So every checked-in schema plays as
   it does now, and every match log replays byte-identical (§5).
-- **What fits before sign-ups close (Tue 10-06):** stage A, which is Python only and reads the
+- **What fits before sign-ups close:** stage A, which is Python only and reads the
   observation as it is. That covers own and enemy tower facts, distances and in-range flags, a
   count-and-hp fight line that counts your towers, and six new selectors, `own_tower` among them.
-  It has to merge by **Mon 10-05**, the entrant-facing deadline the economy spec already set
-  (`docs/economy-spec.md:46`).
-- **What fits before the numbers freeze (Thu 10-08):** stage B, a TypeScript observation layer
+  It has to merge by the time **entrant-facing changes land**, the deadline the economy spec
+  already set (`docs/economy-spec.md` §0 row 10, §7).
+- **What fits before the numbers freeze:** stage B, a TypeScript observation layer
   outside `src/sim`. It adds damage-weighted fight strength, map-wide tower status, whether a tower
   is shooting you, the scoreboard and the wave timer.
 - **What must wait for after the Jam:** structured numeric conditions (stage C). Nothing in this
-  spec should change after 10-08 (§6).
+  spec should change after the numbers freeze (§6).
 
 ## 1. How a rule reads the game today
 
@@ -371,20 +371,21 @@ evolve's key only when named (`schema_server.py:112-146`; `jevSchemaPilot.ts:33-
 
 ## 6. Timing against the Jam
 
-Fixed dates (`docs/economy-spec.md:18, 46, 764-766`):
-- sign-ups close **Tue 10-06**;
-- entrant-facing changes land by **Mon 10-05**;
-- numbers freeze **Thu 10-08**;
-- the training cutoff is **Fri 10-16 00:00 CT**, and the Jam is **Fri 10-16**.
+The Jam's dates are unsettled; the dates, once set, are in [the Jam calendar](arena-runbook.md#the-jam-calendar). The milestones and their
+order stand (`docs/economy-spec.md` §7):
+- **entrant-facing changes land**;
+- then **sign-ups close**;
+- then **the numbers freeze**;
+- then the training cutoff at midnight going into the Jam, and **the Jam**.
 
 ### 6.1 What fits where
 
 | window | what lands | gate |
 |---|---|---|
-| **By Mon 10-05** (before sign-ups) | Stage A: A1–A5, `vocab-2`, the §5.2 plumbing, and the A3 calibration on recorded logs ($0). Entrants README "What your prose can say" section (§6.3), `PROMPTLANE_REF` bump, announcement. | Ruled by Sat 10-03, so there is a day to build and a day to review. Optional Jev check (§7 D6). |
-| **By Thu 10-08** (freeze) | Stage B: `sight-1`, `vocab-3`. Only if stage A merged clean on 10-05. | A second announcement and a second recompile of every entry. Nothing after 10-08. |
+| **By the time entrant-facing changes land** (before sign-ups close) | Stage A: A1–A5, `vocab-2`, the §5.2 plumbing, and the A3 calibration on recorded logs ($0). Entrants README "What your prose can say" section (§6.3), `PROMPTLANE_REF` bump, announcement. | Ruled two days before that, so there is a day to build and a day to review. Optional Jev check (§7 D6). |
+| **By the numbers freeze** | Stage B: `sight-1`, `vocab-3`. Only if stage A merged clean when entrant-facing changes landed. | A second announcement and a second recompile of every entry. Nothing after the freeze. |
 | **After the Jam** | Stage C; anything stage B didn't fit. | – |
-| **Never between 10-08 and 10-16** | any translator, description or selector change | It would recompile every entry in the last week (§6.2). |
+| **Never between the numbers freeze and the Jam** | any translator, description or selector change | It would recompile every entry in the last week (§6.2). |
 
 ### 6.2 The risk of changing the vocabulary after entrants start writing
 
@@ -411,9 +412,9 @@ Fixed dates (`docs/economy-spec.md:18, 46, 764-766`):
   - Replace the false sentence at `README.md:103-105` (§2.3).
   - Add a "What your prose can say" section that lists the facts Jev is told and the targets your
     rules can name, each with an example sentence. Generate it from the translator's selector and
-    facts tables, as the economy section is generated from the ruleset (`economy-spec.md:651`), so
+    facts tables, as the economy section is generated from the ruleset (`economy-spec.md:653`), so
     it can't drift.
-  - Mark it "final at the freeze, Thu 10-08".
+  - Mark it "final at the numbers freeze".
 - **Compile preview** (all three doors, `docs/entrant-compile-preview.md`): the transparency view
   already shows each rule's selector. Add the vocab name to its header. After the bump, an
   entrant's next PR comment shows their prose under the new terms.
@@ -424,14 +425,14 @@ Fixed dates (`docs/economy-spec.md:18, 46, 764-766`):
 
 | # | decision | recommendation | cost if yes |
 |---|---|---|---|
-| D1 | Build stage A to land **Mon 10-05**, before sign-ups close? | **Yes.** It is Python only, covers the whole ask (own towers, fight balance, hold at my tower), and every existing schema is unchanged. | ~9 h agent work, $0 |
+| D1 | Build stage A to land when **entrant-facing changes land**, before sign-ups close? | **Yes.** It is Python only, covers the whole ask (own towers, fight balance, hold at my tower), and every existing schema is unchanged. | ~9 h agent work, $0 |
 | D2 | Make `vocab-2` the **default** for entrant compiles from the moment it merges (recompiles every entry once)? | **Yes**, and only before sign-ups close. A default that stays `vocab-1` means entrants never get the vocabulary. | one recompile per entry |
 | D3 | Which house tiers get recompiled under `vocab-2`, and when? | **Easy and hard-eco**, after job 4e15 reports: easy holds at its own tower, hard punishes divers. Keep **medium** as the bar unless 4e15 says it must move. | a tier check on Jev (~$3-4, as in PR #71) |
 | D4 | Calibrate A3's 1.25 band and tower clause on recorded logs before it ships? | **Yes**, $0, part of stage A. | ~1 h |
 | D5 | Information policy for stage B: map-wide tower status, nexus hp and scoreboard; enemy instrument | **Yes to both** (HUD-equivalent, visible on the model) | – |
 | D6 | A small Jev check after stage A merges: house easy and the sample entrant, compiled under `vocab-2`, a few seeded matches | **Yes, capped at ~$2** | ~$2 |
 | D7 | Evolution campaign 2: pin `vocab-1`, or relaunch under `vocab-2`? | **Pin `vocab-1`.** Its results stay comparable, and the blackout starts at midnight going into the Jam anyway. | – |
-| D8 | Stage B by Thu 10-08, or after the Jam? | **By 10-08 only if stage A merged clean on 10-05**, else after the Jam | ~8 h, a second recompile and announcement |
+| D8 | Stage B by the numbers freeze, or after the Jam? | **By the freeze only if stage A merged clean when entrant-facing changes landed**, else after the Jam | ~8 h, a second recompile and announcement |
 
 ## 8. Stage A as built
 

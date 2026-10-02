@@ -157,7 +157,7 @@ words every schema had before, and it is described and resolved exactly as befor
 at base (`src/economy.ts`, every number in `src/economy/eco-2.json`; the design is
 `docs/economy-spec.md`). `eco-3` is the spec's one tuning pass on it (§13.6: 100 start gold, a
 smaller kill bounty), the candidate for the Jam. `eco-1` is P1's starting values, kept so older runs reproduce. It is off
-by default until the Sun 10-04 go/no-go. Under an economy, `house:<tier>` plays that tier's
+by default until the go/no-go gate (no date yet: [the Jam calendar](docs/arena-runbook.md#the-jam-calendar)). Under an economy, `house:<tier>` plays that tier's
 economy-aware version (`prompts/pilots/README.md`). A schema side buys the
 shopping list its prose compiled to (`build`), else its instrument's default. The log records the
 whole ruleset and every bot's list, and `--verify` replays with it; logs without one have no economy.
@@ -165,7 +165,7 @@ whole ruleset and every bot's list, and `--verify` replays with it; logs without
 between two river sites, taken by holding it (any enemy on it freezes the capture), paying the team a
 45 s Encore buff, plus gold and XP when the economy is on (`src/objective.ts`, every number in
 `src/objective/river-1.json`; the design is `docs/economy-spec.md` §9). It is off by default until its
-own Sun 10-04 go/no-go. The log records the ruleset and every opening; logs without one have none.
+own go/no-go at the same gate. The log records the ruleset and every opening; logs without one have none.
 `--objective river-2` is Ceryce's redesign after `river-1` stalemated on Jev (§9.10): sets of
 7.5 / 5 / 2.5 s, the bigger group pushes the other team's progress down, and an untaken stage closes
 after 30–45 s (`src/objective/river-2.json`).
