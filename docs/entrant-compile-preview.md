@@ -155,7 +155,8 @@ decisions unanswered (`runs/jev-client-renew-2026-09-30.md`). How it plays:
   `{schema, observation}` per decision. The server decides with `fidelity_harness.run_prediction`
   unchanged: one Jev call per decision covering every node in the tree (guards and the rules inside
   their branches included), the first "yes" in cascade order wins, a guard routes to its yes- or
-  no-branch, and the target is resolved in Python.
+  no-branch, and the target is resolved in Python. Under vocab-2, the pilot plays an ability aimed
+  beyond its range as a move toward the target ([`vocabulary-spec.md` §8.3](vocabulary-spec.md)).
 - The house plays green. On a Jev ladder ([`arena-site-spec.md` §9](arena-site-spec.md), the
   example config's default) it plays its tier's compiled schemas on the same server, so both sides
   are on Jev. On a text-model ladder it plays `tournament.backend`.

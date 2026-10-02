@@ -22,8 +22,13 @@
  * tower range from it), and a reply that doesn't echo the schema's vocabulary is a failed call. A
  * server from before vocabularies existed echoes nothing, which reads as vocab-1, so a vocab-1 schema
  * plays on it exactly as before and a vocab-2 schema holds instead of playing under the wrong words.
+ *
+ * Under vocab-2, an ability aimed outside its own range walks toward its target
+ * (`approachOutOfRange`); under vocab-1 the server's action is played as it comes.
  */
-import type { Action, ActionKind, Instrument, Observation } from '../../src/types';
+import type { Action, ActionKind, Instrument, Observation, Vec2 } from '../../src/types';
+import { INSTRUMENTS } from '../../src/sim/entities';
+import { dist } from '../../src/sim/map';
 import { DEFAULT_MAP, resolveMap, type MapVariant } from '../../src/mapVariant';
 import { transportErrorMessage, type TracingDecision, type TracingPilot } from './jevPilot';
 
@@ -106,6 +111,31 @@ interface SchemaDecideResponse {
 
 const KINDS: ReadonlySet<ActionKind> = new Set(['move', 'attack', 'ability', 'recall', 'hold']);
 
+/** Where `obs` lists unit `id`, or null when it lists no such unit. */
+function listedPos(obs: Observation, id: string): Vec2 | null {
+  const unit = [...obs.visibleEnemies, ...obs.nearbyTowers, ...obs.nearbyMinions, ...obs.allies].find((u) => u.id === id);
+  return unit ? unit.pos : null;
+}
+
+/**
+ * vocab-2's ability reach (docs/vocabulary-spec.md §8.3). The sim's `ability` never moves the bot:
+ * aimed at a target beyond the ability's range it does nothing, and the bot stands where it is until
+ * its next decision (src/sim/match.ts tryUseAbility). Its `attack` walks to a target out of reach
+ * (approachAndAttack), which is what vocab-2's `nearest_tower` relies on (§8.2). So an ability
+ * whose target `obs` places beyond that ability's range becomes a move to where the target stood;
+ * the next decision casts it once the bot is in range. The range is the sim's own
+ * (`INSTRUMENTS[...].abilities[...].range`). An ability with range 0 (fill, glissando, solo) never
+ * checks one, and a target `obs` doesn't list, or no target, is left to the sim as before.
+ */
+export function approachOutOfRange(action: Action, obs: Observation): Action {
+  if (action.kind !== 'ability' || action.target === undefined) return action;
+  const ability = INSTRUMENTS[obs.self.instrument].abilities.find((a) => a.name === action.ability);
+  if (!ability || ability.range <= 0) return action;
+  const pos = typeof action.target === 'string' ? listedPos(obs, action.target) : action.target;
+  if (!pos || dist(obs.self.pos, pos) <= ability.range) return action;
+  return { kind: 'move', target: { x: pos.x, y: pos.y } };
+}
+
 export function jevSchemaTracingPilot(config: JevSchemaPilotConfig): TracingPilot {
   const timeoutMs = (config.timeoutSec ?? 30) * 1000;
   const targeting = config.targeting === undefined ? DEFAULT_TARGETING : resolveTargeting(config.targeting);
@@ -116,11 +146,13 @@ export function jevSchemaTracingPilot(config: JevSchemaPilotConfig): TracingPilo
       const schema = config.schemas[obs.self.instrument];
       if (!schema) return { action: null, reply: `[pilot error: no compiled schema for ${obs.self.instrument}]` };
       const vocab = schemaVocab(schema);
+      // the observation as asked: the sim's positions are live and move on while the call is out
+      const asked = structuredClone(obs);
       try {
         const res = await fetch(config.endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ schema, observation: obs, targeting, vocab, map }),
+          body: JSON.stringify({ schema, observation: asked, targeting, vocab, map }),
           signal: AbortSignal.timeout(timeoutMs),
         });
         if (!res.ok) {
@@ -134,8 +166,9 @@ export function jevSchemaTracingPilot(config: JevSchemaPilotConfig): TracingPilo
         const playedUnder = data.vocab ?? VOCAB_1;
         if (playedUnder !== vocab) throw new Error(`jev-schema played the schema under ${playedUnder}, not its own ${vocab}; restart tools/jev/schema_server.py from this checkout`);
         const door = data.door ?? 'unknown';
+        // the reply keeps the server's action; a vocab-2 ability out of range plays as a move
         return {
-          action: data.action,
+          action: vocab === VOCAB_1 ? data.action : approachOutOfRange(data.action, asked),
           reply: JSON.stringify({ rule: data.rule, action: data.action, answers: data.answers, ms: data.ms, ...(data.door ? { door } : {}) }),
           usage: { door, tokensIn: data.tokens_in ?? 0, costUsd: data.cost_usd ?? 0 },
         };

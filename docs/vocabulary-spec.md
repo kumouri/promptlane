@@ -519,3 +519,18 @@ picks from every enemy tower or nexus the description lists: `visibleEnemies`, p
 towers that A1's lines read (`vocab.tower_facts`, `target_resolve.VOCAB2_WIDER`). The sim's `attack`
 walks to a target that is out of reach. Under `vocab-1` it reads `visibleEnemies`, as in §2.2. The
 result is in `runs/vocab2-tower-reach-2026-10-02.md`.
+
+### 8.3 An ability aimed out of its range walks toward its target
+
+§8.2's re-check found the same gap for abilities. A rule like "chord the enemy with the lowest hp" can
+pick any enemy within 260, but chord reaches 180 and staccato 50. The sim's `ability` never moves the
+bot (`src/sim/match.ts` `tryUseAbility`): out of range it does nothing, and the bot stands until its
+next decision. Unlike towers, the target here is right; the action is the problem. So under `vocab-2`
+the schema pilot (`tools/match/jevSchemaPilot.ts` `approachOutOfRange`) checks the cast against the
+observation the server answered. A cast whose target that observation places beyond that ability's
+range plays as a `move` to where the target stood, and the next decision casts once the bot is in
+range. The range is read from the sim's own table (`INSTRUMENTS[…].abilities[…].range`), so no range is
+copied. An ability with range 0 (fill, glissando, solo) never checks one and is left alone. So is a
+target the observation doesn't list, or a cast with no target. The reply in the log keeps the
+server's action, and the decision's `action` is the one played. Under `vocab-1` the server's action
+plays as it comes. The numbers are in `runs/vocab2-ability-range-2026-10-02.md`.

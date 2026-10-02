@@ -8,6 +8,8 @@
  *     request, $0): every ask is answered in the schema's own vocabulary, every new target resolves,
  *     the log replays, and the same seed plays the same match again;
  *   - a schema pilot holds rather than play a vocab-2 schema on a server too old to know it;
+ *   - vocab-2 reach: "attack the enemy tower" walks to a tower the description lists (§8.2), and an
+ *     ability aimed beyond its range walks toward its target (§8.3); vocab-1 stands still as before;
  *   - `fight_samples.mjs` (the fight verdict's calibration data) reads every bearbot's hp.
  */
 import { test, after } from 'node:test';
@@ -251,6 +253,110 @@ test('vocab-2 "attack the enemy tower" under 260 units resolves as vocab-1 does'
   assert.ok(v2.moved > 1);
   assert.equal(v2.moved, v1.moved);
   assert.equal(v2.towerDamage, v1.towerDamage);
+});
+
+test('approachOutOfRange: an ability aimed beyond the sim\'s range for it becomes a move to the target', () => {
+  const range = Object.fromEntries(Object.values(h.INSTRUMENTS).flatMap((d) => d.abilities.map((a) => [a.name, a.range])));
+  const obs = (instrument, gap, kind = 'bearbot') => ({
+    self: { id: 'bearbot-1', instrument, pos: { x: 100, y: 500 }, cooldowns: {} },
+    allies: [], nearbyMinions: [], nearbyTowers: [],
+    visibleEnemies: [{ id: 'e-9', pos: { x: 100 + gap, y: 500 }, hp: 50, maxHp: 100, kind }],
+  });
+  const cast = (ability, target = 'e-9') => ({ kind: 'ability', ability, target });
+  for (const [instrument, ability] of [['keytar', 'chord'], ['violin', 'staccato'], ['drums', 'kick']]) {
+    const r = range[ability];
+    assert.deepEqual(h.approachOutOfRange(cast(ability), obs(instrument, r)), cast(ability), `${ability} at exactly its range casts`);
+    assert.deepEqual(h.approachOutOfRange(cast(ability), obs(instrument, r + 1)), { kind: 'move', target: { x: 101 + r, y: 500 } }, `${ability} beyond it walks`);
+  }
+  // a point target (chord's aoe can be aimed at one) is measured the same way
+  assert.deepEqual(h.approachOutOfRange(cast('chord', { x: 100, y: 700 }), obs('keytar', 0)), { kind: 'move', target: { x: 100, y: 700 } });
+  // range 0 never checks one; an unlisted target, no target, or not an ability is the sim's as before
+  for (const [instrument, ability] of [['drums', 'fill'], ['keytar', 'glissando'], ['violin', 'solo']]) {
+    assert.equal(range[ability], 0);
+    assert.deepEqual(h.approachOutOfRange(cast(ability), obs(instrument, 250)), cast(ability));
+  }
+  assert.deepEqual(h.approachOutOfRange(cast('chord', 'e-404'), obs('keytar', 250)), cast('chord', 'e-404'));
+  assert.deepEqual(h.approachOutOfRange({ kind: 'ability', ability: 'chord' }, obs('keytar', 250)), { kind: 'ability', ability: 'chord' });
+  assert.deepEqual(h.approachOutOfRange({ kind: 'attack', target: 'e-9' }, obs('keytar', 250)), { kind: 'attack', target: 'e-9' });
+});
+
+/**
+ * The ability-reach gap (runs/vocab2-ability-range-2026-10-02.md): violet's keytar stands `gap` units
+ * from green's keytar, away from every lane and tower, and a schema server answers every ask with
+ * "chord the enemy bearbot". The real schema pilot plays it under `vocab`; everyone else holds.
+ */
+async function chordAt(vocab, gap, seconds = 6) {
+  const srv = createServer((req, res) => {
+    let body = '';
+    req.on('data', (c) => (body += c));
+    req.on('end', () => {
+      const ask = JSON.parse(body);
+      const foe = ask.observation.visibleEnemies.find((e) => e.kind === 'bearbot');
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ action: { kind: 'ability', ability: 'chord', ...(foe ? { target: foe.id } : {}) }, rule: 'chord', answers: {}, ms: 1, targeting: ask.targeting, vocab: ask.vocab }));
+    });
+  });
+  await new Promise((r) => srv.listen(0, '127.0.0.1', r));
+  const pilot = h.jevSchemaTracingPilot({ endpoint: `http://127.0.0.1:${srv.address().port}/`, schemas: vocab === 'vocab-2' ? vocab2Schemas() : vocab1Schemas() });
+  const played = [];
+  let asking = null;
+  const hold = () => ({ decide: async () => ({ kind: 'hold' }) });
+  const caster = () => ({
+    decide: async (obs) => {
+      asking = pilot.decide(obs);
+      const { action } = await asking;
+      played.push(action.kind);
+      return action;
+    },
+  });
+  const roster = ['violet', 'green'].flatMap((team) => [['top', 'drums'], ['mid', 'keytar'], ['bottom', 'violin']].map(([lane, instrument]) => ({
+    team, lane, instrument, pilotKind: 'scripted', makePilot: team === 'violet' && instrument === 'keytar' ? caster : hold,
+  })));
+  const match = new h.Match(1, roster);
+  h.applyMapVariant(match, h.resolveMap('pvp-1'));
+  const bot = match.bearbots.find((b) => b.team === 'violet' && b.instrument === 'keytar');
+  const foe = match.bearbots.find((b) => b.team === 'green' && b.instrument === 'keytar');
+  // the top-left jungle: 165 from the top lane, 212 from mid, no tower within 300
+  const off = gap / 2 / Math.SQRT2;
+  bot.pos = { x: 350 - off, y: 350 + off };
+  foe.pos = { x: 350 + off, y: 350 - off };
+  const start = { ...bot.pos };
+  let casts = 0;
+  for (let t = 1; t <= seconds / h.TICK_DT && !match.ended; t++) {
+    const before = bot.cooldowns.chord;
+    match.tick(h.TICK_DT);
+    if (bot.cooldowns.chord > before) casts += 1;
+    while (asking) {
+      const was = asking;
+      await was;
+      if (asking === was) asking = null;
+    }
+    await flush();
+  }
+  srv.close();
+  const d = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  return { played, casts, moved: d(bot.pos, start), left: d(bot.pos, foe.pos), range: h.INSTRUMENTS.keytar.abilities.find((a) => a.name === 'chord').range };
+}
+
+test('vocab-2 "chord the enemy" from 240 units out: the keytar walks into chord\'s range and casts; vocab-1 stands still as before', async () => {
+  const v2 = await chordAt('vocab-2', 240);
+  assert.ok(v2.played.includes('move') && v2.played.includes('ability'), JSON.stringify(v2.played));
+  assert.ok(v2.left <= v2.range, `ends in chord's range (${v2.left.toFixed(1)} from the target)`);
+  assert.ok(v2.casts > 0, 'and casts it');
+  const v1 = await chordAt('vocab-1', 240);
+  assert.deepEqual([...new Set(v1.played)], ['ability'], 'vocab-1 plays the server\'s action as it comes');
+  assert.ok(v1.moved < 1, 'and stands still');
+  assert.equal(v1.casts, 0, 'casting nothing');
+});
+
+test('vocab-2 "chord the enemy" inside its range plays as vocab-1 does', async () => {
+  const [v2, v1] = [await chordAt('vocab-2', 150, 2), await chordAt('vocab-1', 150, 2)];
+  assert.deepEqual([...new Set(v2.played)], ['ability']);
+  assert.deepEqual(v2.played, v1.played);
+  assert.equal(v2.casts, 1);
+  assert.equal(v1.casts, 1);
+  assert.equal(v2.moved, 0);
+  assert.equal(v1.moved, 0);
 });
 
 test('fight_samples: every bearbot in a sampled fight has its hp read back 5 s later', async () => {
