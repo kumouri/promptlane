@@ -93,6 +93,12 @@ on the
 release), and
 [vocab-fight-calibration-2026-10-02.md](vocab-fight-calibration-2026-10-02.md) (vocab-2's fight
 verdict scored on 64,290 decisions replayed from 219 recorded `pvp-1` matches, $0; the logs are the
-earlier runs' own).
+earlier runs' own), and
+[pvp-2-2026-10-02.md](pvp-2-2026-10-02.md) (the opt-in `pvp-2` ruleset: the map ×1.33, new tower
+spots, a speed boost and a teleport, with couriers deferred. It is measured against `pvp-1` on PR #88's
+20 matches on Jev, pre-registered, plus teleport and drift blocks: 42 matches, $4.61. The logs and the
+stand-in kit are on the
+[`data-pvp-2-2026-10-02`](https://github.com/kumouri/promptlane/releases/tag/data-pvp-2-2026-10-02)
+prerelease).
 The bulky captures those documents hash live under ignored `artifacts/<run>-evidence/` and
 `artifacts/<run>-reviewed/`.

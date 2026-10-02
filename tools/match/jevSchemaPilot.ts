@@ -139,8 +139,10 @@ export function approachOutOfRange(action: Action, obs: Observation): Action {
 export function jevSchemaTracingPilot(config: JevSchemaPilotConfig): TracingPilot {
   const timeoutMs = (config.timeoutSec ?? 30) * 1000;
   const targeting = config.targeting === undefined ? DEFAULT_TARGETING : resolveTargeting(config.targeting);
-  const { name, towerRange, towerFractions } = config.map === undefined ? DEFAULT_MAP : resolveMap(config.map);
-  const map = { name, towerRange, towerFractions };
+  const { name, towerRange, towerFractions, laneTowerFractions, scale } = config.map === undefined ? DEFAULT_MAP : resolveMap(config.map);
+  // The geometry the Python side mirrors (tools/jev/vocab.py map_spec); a scaled map (pvp-2) adds its scale
+  // and per-lane towers, and a pvp-1 ask is byte for byte what it was.
+  const map = { name, towerRange, towerFractions, ...(laneTowerFractions ? { laneTowerFractions } : {}), ...(scale !== undefined ? { scale } : {}) };
   return {
     async decide(obs: Observation): Promise<TracingDecision> {
       const schema = config.schemas[obs.self.instrument];

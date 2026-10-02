@@ -44,8 +44,7 @@ import sys
 import os
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from scenarios import HOME_POS  # noqa: E402
-from vocab import TOWER_STAND_OFF, VOCAB_1, MapSpec, map_spec, resolve_vocab, tower_facts  # noqa: E402
+from vocab import SPECIMEN_LANE_PATHS, TOWER_STAND_OFF, VOCAB_1, MapSpec, map_spec, resolve_vocab, tower_facts  # noqa: E402
 
 TARGETING_FIRST_MIN = "first-min"
 TARGETING_OWN_LANE_1 = "own-lane-1"
@@ -57,13 +56,11 @@ DEFAULT_TARGETING = TARGETING_OWN_LANE_1
 TIE_TOLERANCE = 0.5
 
 # src/sim/map.ts LANE_PATHS (the frozen specimen sim), violet base -> green base. The mirror
-# (x, y) -> (y, x) swaps the bases and maps every lane onto itself.
+# (x, y) -> (y, x) swaps the bases and maps every lane onto itself. A scaled map (pvp-2) scales every
+# point (`MapSpec.lane_paths`, `MapSpec.home`); each function below takes the request's spec.
 LANES = ("top", "mid", "bottom")
-LANE_PATHS = {
-    "top": ((100, 900), (100, 100), (900, 100)),
-    "mid": ((100, 900), (900, 100)),
-    "bottom": ((100, 900), (900, 900), (900, 100)),
-}
+LANE_PATHS = SPECIMEN_LANE_PATHS
+SPECIMEN = map_spec(None)
 
 # "At its fountain": within the nexus's own radius of the base point (src/sim/map.ts NEXUS_RADIUS).
 # Both recalls land inside it (recall-2 teleports to the base point; the specimen's run home stops
@@ -93,13 +90,13 @@ def _point_along_path(path: tuple, t: float) -> dict:
     return {"x": path[-1][0], "y": path[-1][1]}
 
 
-def lane_start(lane: str, team: str) -> dict:
+def lane_start(lane: str, team: str, spec: MapSpec = SPECIMEN) -> dict:
     """Where `team`'s bot on `lane` starts it: `LANE_START_T` along the lane from its own base."""
-    return _point_along_path(LANE_PATHS[lane], LANE_START_T if team == "violet" else 1 - LANE_START_T)
+    return _point_along_path(spec.lane_paths()[lane], LANE_START_T if team == "violet" else 1 - LANE_START_T)
 
 
-def at_fountain(self_: dict) -> bool:
-    return _dist(self_["pos"], HOME_POS[self_["team"]]) <= FOUNTAIN_RADIUS
+def at_fountain(self_: dict, spec: MapSpec = SPECIMEN) -> bool:
+    return _dist(self_["pos"], spec.home(self_["team"])) <= FOUNTAIN_RADIUS
 
 
 def _segment_dist(p: dict, a: tuple, b: tuple) -> float:
@@ -109,11 +106,11 @@ def _segment_dist(p: dict, a: tuple, b: tuple) -> float:
     return _dist(p, {"x": ax + t * dx, "y": ay + t * dy})
 
 
-def lane_of(pos: dict) -> str | None:
+def lane_of(pos: dict, spec: MapSpec = SPECIMEN) -> str | None:
     """The lane whose path runs nearest `pos`, or None when two lanes are within `TIE_TOLERANCE` of
     it (only at a base, where all three start). The Observation doesn't say which lane a minion
     walks, but a minion is always on its own lane's path."""
-    by_lane = sorted((min(_segment_dist(pos, a, b) for a, b in zip(path, path[1:])), lane) for lane, path in LANE_PATHS.items())
+    by_lane = sorted((min(_segment_dist(pos, a, b) for a, b in zip(path, path[1:])), lane) for lane, path in spec.lane_paths().items())
     return by_lane[0][1] if by_lane[1][0] - by_lane[0][0] > TIE_TOLERANCE else None
 
 
@@ -129,7 +126,7 @@ def _spawn_order(id_: str) -> tuple:
     return (prefix, int(n)) if n.isdigit() else (str(id_), -1)
 
 
-def _pick(pool: list, score, self_: dict, targeting: str, best=min):
+def _pick(pool: list, score, self_: dict, targeting: str, best=min, spec: MapSpec = SPECIMEN):
     """The candidate with the best `score` (`best` = min for nearest, max for farthest)."""
     if targeting == TARGETING_FIRST_MIN:
         return best(pool, key=score)
@@ -141,7 +138,7 @@ def _pick(pool: list, score, self_: dict, targeting: str, best=min):
     own_lane, team = self_.get("lane"), self_["team"]
 
     def tie_key(c):
-        lane = lane_of(c["pos"])
+        lane = lane_of(c["pos"], spec)
         fx, fy = _own_frame(c["pos"], team)
         return (
             0 if own_lane is not None and lane == own_lane else 1,
@@ -156,19 +153,23 @@ def _pick(pool: list, score, self_: dict, targeting: str, best=min):
 
 # vocab-2's selectors (translator.VOCAB2_SELECTORS describes them to the translator).
 VOCAB2_SELECTORS = ("own_tower", "own_front_tower", "nearest_enemy_bearbot", "nearest_enemy_minion", "tower_diver", "nearest_ally")
+# A teleport's two targets on a map that has one (pvp-2, `src/teleport.ts`; translator.PVP2_SELECTORS):
+# a tower id from the observation's own `teleport.towers` list, or None when it names none (a match
+# without the teleport, or no tower that qualifies).
+PVP2_SELECTORS = ("tp_lane_tower", "tp_threatened_tower")
 # vocab-1 selectors that vocab-2 resolves from what its description states (module docstring).
 VOCAB2_WIDER = ("nearest_tower",)
 
 
 def tower_spot(spec: MapSpec, lane: str, team: str, tier: int) -> dict:
     """src/mapVariant.ts towerPos: where `team`'s tier-`tier` tower (1 inner, 2 outer) of `lane` stands."""
-    frac = spec.tower_fractions[tier - 1]
-    return _point_along_path(LANE_PATHS[lane], frac if team == "violet" else 1 - frac)
+    frac = spec.fractions(lane)[tier - 1]
+    return _point_along_path(spec.lane_paths()[lane], frac if team == "violet" else 1 - frac)
 
 
-def stand_by(tower_pos: dict, team: str) -> dict:
+def stand_by(tower_pos: dict, team: str, spec: MapSpec = SPECIMEN) -> dict:
     """`TOWER_STAND_OFF` units from a tower toward this team's base: inside its range, behind it."""
-    home = HOME_POS[team]
+    home = spec.home(team)
     d = _dist(tower_pos, home)
     if d <= TOWER_STAND_OFF:
         return dict(home)
@@ -195,8 +196,31 @@ def _lane_tower(obs: dict, spec: MapSpec, tiers: tuple) -> dict:
             spot = tower_spot(spec, lane, team, tier)
             seen = _seen_at(obs, spot, team)
             if seen is None or seen.get("alive", True):
-                return stand_by(spot, team)
-    return dict(HOME_POS[team])
+                return stand_by(spot, team, spec)
+    return spec.home(team)
+
+
+def _teleport_tower(selector: str, obs: dict) -> str | None:
+    """A teleport's destination (`src/teleport.ts`): one of this bot's own standing towers from the
+    observation's `teleport.towers`, which lists them map-wide.
+    - `tp_lane_tower`: its own lane's outer tower, else its own lane's inner one.
+    - `tp_threatened_tower`: the tower with the most enemy bearbots within 260 of it (at least one);
+      ties go to the bot's own lane, then lane order (top, mid, bottom), then the outer tower, so a
+      mirrored state picks the mirrored tower."""
+    towers = (obs.get("teleport") or {}).get("towers") or []
+    lane = obs["self"].get("lane")
+    if selector == "tp_lane_tower":
+        mine = sorted((t for t in towers if t.get("lane") == lane), key=lambda t: -t.get("tier", 0))
+        return mine[0]["id"] if mine else None
+    hot = [t for t in towers if (t.get("enemyBearbots") or 0) > 0]
+    if not hot:
+        return None
+
+    def key(t):
+        return (-t["enemyBearbots"], 0 if t.get("lane") == lane else 1,
+                LANES.index(t["lane"]) if t.get("lane") in LANES else len(LANES), -t.get("tier", 0))
+
+    return min(hot, key=key)["id"]
 
 
 def _resolve_vocab2(selector: str, obs: dict, targeting: str, spec: MapSpec) -> object | None:
@@ -207,11 +231,13 @@ def _resolve_vocab2(selector: str, obs: dict, targeting: str, spec: MapSpec) -> 
     own_alive = [t for t in obs.get("nearbyTowers") or () if t.get("team") == team and t.get("alive", True)]
 
     def nearest(pool):
-        return _pick(pool, lambda e: _dist(self_["pos"], e["pos"]), self_, targeting)
+        return _pick(pool, lambda e: _dist(self_["pos"], e["pos"]), self_, targeting, spec=spec)
 
+    if selector in PVP2_SELECTORS:
+        return _teleport_tower(selector, obs)
     if selector == "own_tower":
         # the nearest of my towers listed alive, else my lane's spots, the inner one first
-        return stand_by(nearest(own_alive)["pos"], team) if own_alive else _lane_tower(obs, spec, (1, 2))
+        return stand_by(nearest(own_alive)["pos"], team, spec) if own_alive else _lane_tower(obs, spec, (1, 2))
     if selector == "own_front_tower":
         return _lane_tower(obs, spec, (2, 1))
     if selector == "nearest_enemy_bearbot":
@@ -234,8 +260,8 @@ def _resolve_vocab2(selector: str, obs: dict, targeting: str, spec: MapSpec) -> 
         if allies:
             a = nearest(allies)
             return {"x": a["pos"]["x"], "y": a["pos"]["y"]}
-        near = resolve_target("nearby_minion", obs, targeting)
-        return near if near is not None else dict(HOME_POS[team])
+        near = resolve_target("nearby_minion", obs, targeting, map_=spec)
+        return near if near is not None else spec.home(team)
     raise ValueError(f"unknown target_selector {selector!r}")
 
 
@@ -251,20 +277,21 @@ def resolve_target(selector: str | None, obs: dict, targeting: str = DEFAULT_TAR
     vocab = resolve_vocab(vocab)
     if selector in (None, "none"):
         return None
-    if vocab != VOCAB_1 and (selector in VOCAB2_SELECTORS or selector in VOCAB2_WIDER):
-        return _resolve_vocab2(selector, obs, targeting, map_spec(map_))
+    spec = map_ if isinstance(map_, MapSpec) else map_spec(map_)
+    if vocab != VOCAB_1 and (selector in VOCAB2_SELECTORS or selector in VOCAB2_WIDER or selector in PVP2_SELECTORS):
+        return _resolve_vocab2(selector, obs, targeting, spec)
     self_ = obs["self"]
     team = self_["team"]
     enemy_team = "green" if team == "violet" else "violet"
 
     def nearest(pool, origin=None):
         origin = origin or self_["pos"]
-        return _pick(pool, lambda e: _dist(origin, e["pos"]), self_, targeting)
+        return _pick(pool, lambda e: _dist(origin, e["pos"]), self_, targeting, spec=spec)
 
     if selector == "home":
-        return dict(HOME_POS[team])
+        return spec.home(team)
     if selector == "push_lane":
-        return dict(HOME_POS[enemy_team])
+        return spec.home(enemy_team)
     if selector == "bandstand":
         # The river objective (docs/economy-spec.md §9.7): its stage while it is open or opens
         # within the warning window; closed, done, or a match with no objective at all -> exactly
@@ -272,7 +299,7 @@ def resolve_target(selector: str | None, obs: dict, targeting: str = DEFAULT_TAR
         stand = obs.get("bandstand")
         if stand and stand.get("status") in ("upcoming", "open"):
             return {"x": stand["pos"]["x"], "y": stand["pos"]["y"]}
-        return resolve_target("push_lane", obs, targeting)
+        return resolve_target("push_lane", obs, targeting, map_=spec)
 
     enemies = obs.get("visibleEnemies", [])
     bearbots = [e for e in enemies if e.get("kind") == "bearbot"]
@@ -318,13 +345,13 @@ def resolve_target(selector: str | None, obs: dict, targeting: str = DEFAULT_TAR
                 return max(pool, key=lambda e: (e["bounty"], -_dist(self_["pos"], e["pos"])))["id"]
             richest = max(e["bounty"] for e in pool)
             return nearest([e for e in pool if e["bounty"] == richest])["id"]
-        return resolve_target("nearest_enemy", obs, targeting)
+        return resolve_target("nearest_enemy", obs, targeting, map_=spec)
     if selector == "nearby_minion":
         minions = [m for m in obs.get("nearbyMinions", []) if m.get("team") == team]
         if not minions:
             return None
-        if targeting == TARGETING_OWN_LANE_1 and self_.get("lane") in LANE_PATHS and at_fountain(self_):
-            return lane_start(self_["lane"], team)
+        if targeting == TARGETING_OWN_LANE_1 and self_.get("lane") in LANE_PATHS and at_fountain(self_, spec):
+            return lane_start(self_["lane"], team, spec)
         target = nearest(minions)
         return {"x": target["pos"]["x"], "y": target["pos"]["y"]}
 

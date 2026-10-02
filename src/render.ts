@@ -2,6 +2,7 @@ import { TICK_DT, type Match } from './sim/match';
 import { getEconomy, type Economy } from './economy';
 import { INSTRUMENTS } from './sim/entities';
 import { LANE_PATHS, LANES, WORLD_SIZE, inRiver } from './sim/map';
+import { mapGeometry } from './geometry';
 import type { Lane, Team, Vec2 } from './types';
 import { getObjective, type Objective } from './objective';
 import {
@@ -183,7 +184,9 @@ interface Drawable {
 
 export function render(ctx: CanvasRenderingContext2D, match: Match, selectedBotId: string | null, fx: RenderFx): void {
   const { canvas } = ctx;
-  const fit = fitIso(canvas.width, canvas.height);
+  // A scaled map (pvp-2, src/geometry.ts) fits a bigger world; its ground is the specimen's, drawn × scale.
+  const scale = mapGeometry(match).scale;
+  const fit = fitIso(canvas.width, canvas.height, undefined, scale);
   const t = fx.now();
 
   ctx.save();
@@ -200,9 +203,12 @@ export function render(ctx: CanvasRenderingContext2D, match: Match, selectedBotI
   const objective = getObjective(match);
 
   ctx.setTransform(...groundMatrixOf(fit));
+  ctx.save();
+  ctx.scale(scale, scale);
   drawRiver(ctx);
   drawLanes(ctx);
   drawJungleDots(ctx);
+  ctx.restore();
   if (objective) drawStage(ctx, objective, t);
   ctx.setTransform(1, 0, 0, 1, 0, 0);
 

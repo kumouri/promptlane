@@ -44,7 +44,7 @@
 import type { Action, Instrument, Lane, Team, Vec2 } from '../../src/types';
 import { Match, TICK_DT, type RosterSlot } from '../../src/sim/match';
 import type { Bearbot, Unit } from '../../src/sim/entities';
-import { BASE, WORLD_SIZE, dist, otherTeam } from '../../src/sim/map';
+import { WORLD_SIZE, dist, otherTeam } from '../../src/sim/map';
 import { JAM_ROSTER, ReplayPilot, checkpointOf, decisionsByBot, idNumber, tickOf, type MatchLog } from '../../src/replay';
 import { applyMapVariant, resolveMap, type MapVariant } from '../../src/mapVariant';
 import { attachAttribution } from '../../src/attribution';
@@ -53,6 +53,8 @@ import { attachObjective, resolveObjective, type Objective } from '../../src/obj
 import { attachRecall, resolveRecall, type Recall } from '../../src/recall';
 import { attachFinale, resolveFinale } from '../../src/finale';
 import { attachResolution, resolveResolution } from '../../src/resolution';
+import { attachMapRules } from '../../src/mapRules';
+import { mapGeometry } from '../../src/geometry';
 
 export { LANE_PATHS } from '../../src/sim/map';
 export { towerPos } from '../../src/mapVariant';
@@ -375,7 +377,9 @@ export async function measureLog(log: MatchLog, flush: () => Promise<void> = def
   }));
   match = new Match(log.seed, roster);
   applyMapVariant(match, variant);
-  attachResolution(match, resolveResolution(log.resolution)); // before anything wraps the sim's steps
+  const resolution = resolveResolution(log.resolution);
+  attachResolution(match, resolution); // before anything wraps the sim's steps
+  attachMapRules(match, variant, resolution); // a map's own layers (pvp-2), inside the recall
   // The layers wrap the instance's `tick` (map, then recall, objective, economy, as the runner
   // attaches them). The loop below calls `p.tick` through the instance every tick, so it always
   // reaches the outermost wrapper.
@@ -387,6 +391,7 @@ export async function measureLog(log: MatchLog, flush: () => Promise<void> = def
   const finaleRules = resolveFinale(log.finale);
   if (finaleRules) attachFinale(match, finaleRules, TICK_DT);
   const m = match;
+  const geo = mapGeometry(m);
   const botIndex = new Map<Bearbot, number>(m.bearbots.map((b, i) => [b, i]));
 
   // --- damage attribution (src/attribution.ts) -------------------------------------------------
@@ -528,7 +533,7 @@ export async function measureLog(log: MatchLog, flush: () => Promise<void> = def
       if (now && !wasSpecimenRecalling[i]) specimenRecall.started += 1;
       else if (!now && wasSpecimenRecalling[i]) {
         if (!b.alive) specimenRecall.died += 1;
-        else if (dist(b.pos, BASE[b.team]) < 20) specimenRecall.home += 1;
+        else if (dist(b.pos, geo.base[b.team]) < 20) specimenRecall.home += 1;
         else specimenRecall.cancelled += 1;
       }
       wasSpecimenRecalling[i] = now;
@@ -540,8 +545,9 @@ export async function measureLog(log: MatchLog, flush: () => Promise<void> = def
     m.bearbots.forEach((b, i) => {
       if (!b.alive) return;
       alive[i] += 1;
-      const cx = Math.min(HEAT_N - 1, Math.max(0, Math.floor(b.pos.x / HEAT_CELL)));
-      const cy = Math.min(HEAT_N - 1, Math.max(0, Math.floor(b.pos.y / HEAT_CELL)));
+      // On a scaled map (pvp-2) the heatmap is drawn in the specimen's 1000-unit frame: positions ÷ scale.
+      const cx = Math.min(HEAT_N - 1, Math.max(0, Math.floor(b.pos.x / geo.scale / HEAT_CELL)));
+      const cy = Math.min(HEAT_N - 1, Math.max(0, Math.floor(b.pos.y / geo.scale / HEAT_CELL)));
       heat[b.team][cy * HEAT_N + cx] += 1;
       const isNear = m.bearbots.some((o, j) => j !== i && o.alive && o.team === b.team && dist(o.pos, b.pos) <= PROXIMITY_RADIUS);
       if (isNear) near[i] += 1;

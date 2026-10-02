@@ -130,9 +130,10 @@ class Vocab1IsByteIdentical(unittest.TestCase):
 
     # Recompiled under vocab-2 on purpose (vocabulary spec §7 D3, runs/vocab-house-tiers-2026-10-02.md,
     # runs/jev-recheck-vocab2-2026-10-02.md, runs/better-bots-2026-10-02.md,
-    # runs/siege-fact-medium-bar-2026-10-02.md).
+    # runs/siege-fact-medium-bar-2026-10-02.md, runs/pvp-2-2026-10-02.md).
     VOCAB2_ON_PURPOSE = frozenset({"house-easy-eco.schemas.json", "house-hard-eco.schemas.json",
                                    "house-medium-eco.schemas.json", "sample-entrant-siege.schemas.json",
+                                   "sample-entrant-pvp2.schemas.json",
                                    "vocab-house-tiers-2026-10-02-sample-entrant-eco-vocab2.schemas.json",
                                    "jev-recheck-vocab2-2026-10-02-sample-entrant-eco-vocab2.schemas.json"})
 
@@ -194,7 +195,7 @@ class Names(unittest.TestCase):
         for bad in ("nope", {"name": "x"}):
             with self.assertRaises(ValueError):
                 map_spec(bad)
-        self.assertEqual(set(MAPS), {"v1", "pvp-1", "pvp-1r"})
+        self.assertEqual(set(MAPS), {"v1", "pvp-1", "pvp-1r", "pvp-2"})
 
 
 class TowerFacts(unittest.TestCase):

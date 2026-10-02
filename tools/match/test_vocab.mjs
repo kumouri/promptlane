@@ -50,9 +50,12 @@ function checkedInLogs() {
 }
 
 test('the Python mirrors match the TypeScript: maps, attack ranges, vocabulary names', () => {
-  const py = python('import json, vocab; print(json.dumps({"maps": vocab.MAPS, "range": vocab.ATTACK_RANGE, "vocabs": vocab.VOCABS, "default": vocab.DEFAULT_VOCAB, "legacy": vocab.LEGACY_VOCAB}))');
+  const py = python('import json, vocab; print(json.dumps({"maps": vocab.MAPS, "geometry": vocab.MAP_GEOMETRY, "range": vocab.ATTACK_RANGE, "vocabs": vocab.VOCABS, "default": vocab.DEFAULT_VOCAB, "legacy": vocab.LEGACY_VOCAB}))');
   const maps = Object.fromEntries(Object.values(h.MAP_VARIANTS).map((m) => [m.name, [m.towerRange, m.towerFractions]]));
   assert.deepEqual(py.maps, maps);
+  // a scaled map's scale and per-lane towers (pvp-2)
+  const geometry = Object.fromEntries(Object.values(h.MAP_VARIANTS).filter((m) => m.scale !== undefined || m.laneTowerFractions).map((m) => [m.name, [m.scale ?? 1, m.laneTowerFractions ?? {}]]));
+  assert.deepEqual(py.geometry, geometry);
   assert.deepEqual(py.range, Object.fromEntries(Object.entries(h.INSTRUMENTS).map(([k, v]) => [k, v.attackRange])));
   assert.deepEqual(py.vocabs, [...h.VOCABS]);
   assert.equal(py.default, h.DEFAULT_VOCAB);

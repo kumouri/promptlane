@@ -4,7 +4,7 @@
  * which brings a bot from mid to its fountain in about 3 s and lets a team rotate one bot home and
  * back while the rest keep a stage frozen. `recall-2` replaces it with a channel:
  * - a `recall` starts a **4.0 s channel where the bot stands**; when it completes, the bot is
- *   **teleported to its own fountain** (`BASE`) and fully healed, as the sim's recall heals on arrival;
+ *   **teleported to its own fountain** (`BASE`, or a scaled map's own: `src/geometry.ts`) and fully healed, as the sim's recall heals on arrival;
  * - **damage taken in the first 3.5 s cancels it** (the bot stays where it is, and the recall has to
  *   be issued again); damage in the last 0.5 s does not;
  * - **choosing another action cancels it.** `hold` does not: the sim's own recall also survives a
@@ -29,7 +29,7 @@
 import type { Observation, Team } from './types';
 import type { Match } from './sim/match';
 import { TICK_DT } from './sim/match';
-import { BASE } from './sim/map';
+import { mapGeometry } from './geometry';
 import RECALL_2_JSON from './recall/recall-2.json';
 
 /** The constants file's shape (`src/recall/recall-2.json`). */
@@ -177,7 +177,7 @@ export class Recall {
         return this.end(i, 'damage', t);
       }
       if (t - start + 1 >= this.channelTicks) {
-        const home = BASE[b.team];
+        const home = mapGeometry(this.match).base[b.team];
         b.pos.x = home.x;
         b.pos.y = home.y;
         b.hp = b.maxHp;

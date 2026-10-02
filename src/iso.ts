@@ -62,10 +62,11 @@ export function toIso(p: Vec2): { u: number; v: number } {
  * into canvasWidth x canvasHeight, centered on both axes. Works for any aspect ratio, including a
  * narrow phone viewport (docs/render-spec.md §15) — it just yields a smaller `kx`.
  */
-export function fitIso(canvasWidth: number, canvasHeight: number, maxHeight: number = HEIGHT_BY_KIND.nexus): IsoFit {
+export function fitIso(canvasWidth: number, canvasHeight: number, maxHeight: number = HEIGHT_BY_KIND.nexus, worldScale = 1): IsoFit {
   const MARGIN = 0.92; // leave room for HP bars/glow rings that extend past a unit's own radius
-  const uSpan = 2000; // u = x-y ranges over [-1000, 1000]
-  const groundHeightPerKx = 2000 * ISO_RATIO; // v = x+y ranges over [0, 2000]; screen height = v-span * ky = v-span * kx * ISO_RATIO
+  // A scaled map (`MapVariant.scale`, pvp-2) is a (1000 · worldScale)² world; the fit shrinks to match.
+  const uSpan = 2000 * worldScale; // u = x-y ranges over [-1000, 1000] (× worldScale)
+  const groundHeightPerKx = 2000 * worldScale * ISO_RATIO; // v = x+y ranges over [0, 2000] (× worldScale); screen height = v-span * ky = v-span * kx * ISO_RATIO
   const kxFromWidth = canvasWidth / uSpan;
   const kxFromHeight = canvasHeight / (groundHeightPerKx + maxHeight * ELEVATION_RATIO);
   const kx = Math.max(0, Math.min(kxFromWidth, kxFromHeight) * MARGIN);
