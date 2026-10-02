@@ -205,7 +205,10 @@ matching rule anywhere but first, promotes it and records a plain-English note i
 it without reading code. Deliberately excludes `"always"`/`"never"`: both appear in `drums.md`'s
 ordinary ability-usage language ("on cooldown, always, no hesitation") with no override meaning at
 all, and a test locks in that they don't cause a false promotion
-(`test_translator.py::test_always_and_never_are_not_treated_as_override_markers`). If an override
+(`test_translator.py::test_always_and_never_are_not_treated_as_override_markers`). Under vocab-2 the
+guard matches the override *sentence*, and only to a rule that no other sentence of the prose matches
+better, counting the rule's target, so a look-alike of a dropped rule is never promoted
+(`docs/vocabulary-spec.md` §8.4); vocab-1 keeps the paragraph match described here. If an override
 paragraph doesn't match any translated rule well enough, the guard raises rather than silently doing
 nothing — a missing override rule can't be fixed by reordering, so it's treated the same as a
 JSON-parse failure and retried.

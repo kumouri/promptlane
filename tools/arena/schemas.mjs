@@ -31,7 +31,7 @@ import { hashPrompt } from './prompts.mjs';
  */
 export const COMPILER_FILES = [
   'compile.py', 'translator.py', 'scenarios.py', 'number_normalize.py', 'ground_truth.py', 'llm_backends.py',
-  'vocab.py', 'economy_rules.py', 'fidelity_harness.py', 'target_resolve.py',
+  'vocab.py', 'economy_rules.py', 'fidelity_harness.py', 'target_resolve.py', 'segment.py',
 ];
 
 export class CompileFailed extends Error {}

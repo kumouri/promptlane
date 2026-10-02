@@ -937,9 +937,8 @@ A text-model backend (`http`, `mock`) plays exactly as before.
   re-roll them.
 - The cache is `runs/arena/schemas/<prompt sha256>.<compiler version>.json`, holding the schemas,
   the compile's usage and its transparency markdown. The compiler version is 12 hex chars over the
-  source of `compile.py` and everything it imports for translation (`translator.py`,
-  `scenarios.py`, `number_normalize.py`, `ground_truth.py`, `llm_backends.py`), plus
-  `compile.backend` and `compile.model`. Changing the translator or its model is a new compiler, and
+  source of `compile.py` and everything it imports for translation (`COMPILER_FILES` in
+  `tools/arena/schemas.mjs`), plus `compile.backend`, `compile.model` and the vocabulary. Changing the translator or its model is a new compiler, and
   each prompt compiles again on its next match. Old files are left alone.
 - It runs on `config.compile`'s backend, the same one the `/compile` panel uses (`ollama` by
   default, `openrouter` for hosted). The panel's per-IP limits don't apply to ladder compiles, which
