@@ -1650,6 +1650,15 @@ class RuleOrderTests(unittest.TestCase):
         self.assertEqual(sorted(at, key=at.get), ["480 seconds", "will shoot you", "use your primary ability", "less than 100 hp, attack",
                                                  "Siege with your wave", "Bandstand is open"])
 
+    def test_the_retry_lists_every_sentence_a_rule_may_state(self):
+        # the walk rule may state "push ... with the wave" or "Otherwise I walk with my nearest minion": both are listed,
+        # or the retry drops the walk rule (13 of 36 did when only its first candidate was)
+        schema, prose = _order_case(8)  # sample entrant, #95 s4 drums
+        with self.assertRaises(T.RuleOrderError) as err:
+            T.enforce_rule_order(schema, prose)
+        self.assertIn('"Otherwise I walk with my nearest minion, and if I have no minions near me I go home and wait for the next wave."',
+                      str(err.exception))
+
     def test_on_the_last_attempt_every_moved_rule_goes_back_to_its_place(self):
         for i in OUT_OF_ORDER:
             schema, prose = _order_case(i)

@@ -1997,7 +1997,9 @@ def enforce_rule_order(schema: TranslatedSchema, pilot_text: str, drop: bool = F
     if not drop or not new_root.nodes:
         # The whole order, not the pairs out of it: a retry quoting only the misplaced pairs ("X" before "Y") came back
         # out of order 10 of 11 times on the sample entrant, this list 0 of 11 (runs/vocab2-rule-order-2026-10-02.md §4).
-        parts = sorted({part(n) for n in collect_nodes(schema.root) if prose.candidates(n)})
+        # Every part a node may state is listed, not one per node: listing "walk with my nearest minion" only under
+        # "push the tower with the wave", its first candidate, left its own sentence out, and 13 of 36 retries dropped it.
+        parts = sorted({k for n in collect_nodes(schema.root) for k in prose.candidates(n)})
         listed = " ".join(f'{i}. "{" ".join(prose.texts[k].split())}"' for i, k in enumerate(parts, 1))
         raise RuleOrderError(
             "the first rule whose question is true decides, so the rules must keep the order the prose gives them. Write the "
