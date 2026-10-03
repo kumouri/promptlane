@@ -31,7 +31,11 @@ export const COMPILE_DEFAULTS = {
   backend: 'ollama',
   model: null,
   python: process.platform === 'win32' ? 'python' : 'python3',
-  timeoutSec: 240,
+  // Wall clock for a whole compile: three instruments, up to three attempts each, one at a time on
+  // Ollama. Measured 2026-10-02 (runs/remove-token-caps-2026-10-02.md): a call took at most 50 s with
+  // no reply cap, so 9 calls x 50 s x 2 = 900. The old 240 s was barely above the 222 s slowest
+  // valid house-hard-eco compile.
+  timeoutSec: 900,
   perIpPerMinute: 3,
   perIpPerDay: 20,
   globalPerDay: 400,
