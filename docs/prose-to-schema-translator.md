@@ -145,12 +145,18 @@ touching a JSON schema. **Whether they reliably *would* is untested** — this m
 user study; it only establishes that the artifact exists and is legible, and shows one concrete case
 (§4.2) where a careful read of exactly this kind of table would catch a real bug.
 
-**Design priority: fidelity (Ceryce, 2026-10-02 15:14 CT).** "The most important part of this whole
-thing is the translation from prose to Jev. It HAS to be right." The 9B translator is sampled, so a
-legible table is not enough by itself. Deterministic checks after the model reject any schema that
-says something the prose doesn't. Each check's retry quotes only the prose, never the model's own
-wrong output, because the 9B copies that back. If the last attempt is still wrong, the offending part
-is dropped with a note the entrant sees, never shipped. The rulings made under this priority:
+**Design priority: fidelity (Ceryce, 2026-10-02 15:14 CT).** Verbatim: *"Do it for sure. The most
+important part of this whole thing is the translation from prose to Jev. It HAS to be right. Well, as
+right as we can get it 🙃"* The 9B translator is sampled, so a legible table is not enough by itself.
+Deterministic checks after the model reject any schema that says something the prose doesn't. Each
+check's retry quotes only the prose, never the model's own wrong output, because the 9B copies that
+back. If the last attempt is still wrong, the offending part is dropped with a note the entrant sees,
+never shipped. When a check has to choose, it takes the faithful answer even if that costs more
+retries, model calls and wall time. Its cost is measured and reported, never traded away. The
+rulings made under this priority:
+- **Clause coverage (15:14 CT):** every condition a sentence states is in the rule that states it
+  (below, and `docs/vocabulary-spec.md` §8.11). It costs about 1.7× the model calls of a compile
+  (`runs/vocab2-clause-coverage-2026-10-02.md`).
 - **Guards (16:20 CT):** a `vocab-2` guard may only sit above rules the prose places under its
   verdict. See `docs/translator-guards-and-defaults-spec.md` §2.2 and `docs/vocabulary-spec.md`
   §8.10.
@@ -239,7 +245,7 @@ when a rule's question asks only whether a thing IS there ("is there any enemy w
 but the rule's own id or its prose sentence says it is NOT ("no enemy is in sight"). The retry quotes
 the sentence. On the last attempt the rule is dropped with a `negation:` note instead. A question that
 keeps its "no" or "not" is never touched. See `docs/vocabulary-spec.md` §8.6. Only a sentence of the
-prose the rule states can decide, so a "no" in another sentence never vetoes it (§8.11).
+prose the rule states can decide, so a "no" in another sentence never vetoes it (§8.15).
 
 **Rule-order check, vocab-2 only, added 2026-10-02.** `translator.enforce_rule_order` rejects a reply
 whose cascade leaves the order the prose states its rules in: the first rule whose question is true
@@ -249,13 +255,28 @@ lists the prose's rule sentences in order, quoting only prose. On the last attem
 rule is moved to its own sentence, or removed when no one sentence is clearly its own, with an `order:`
 note. The first reply wrong only in its order is kept, reordered, and ships if no later reply passes
 with as many rules, so the retry can fix the order but never cost a rule. See
-`docs/vocabulary-spec.md` §8.11.
+`docs/vocabulary-spec.md` §8.15.
 
 **Guard-scope check, vocab-2 only, added 2026-10-02.** `translator.enforce_guard_scope` rejects a
 reply in which a guard has any node after it, because a guard always routes, so those nodes are never
 checked. It also rejects one in which a guard's branches hold a node from prose outside its verdict.
 The retry quotes those nodes' sentences. On the last attempt the guard is flattened instead, with a
 `guard scope:` note. See `docs/vocabulary-spec.md` §8.10.
+
+**Clause-coverage guard, vocab-2 only, added 2026-10-02.** It applies the fidelity priority above.
+`translator.enforce_clause_coverage` runs after the negation guard. It rejects a reply in which a rule
+states only part of a condition its prose sentence states. For "When I can afford my next item and no
+enemy is in sight, I head home to shop.", that is any of these:
+- "can this bot afford its next item?" alone;
+- that rule plus a separate "is no enemy in sight?" rule;
+- the two joined by "or".
+
+A condition that no rule states at all is caught too. The retry quotes the prose sentence and its
+clauses, never a rule. From the rewritten reply, only the rules for those sentences are spliced into
+the rules that passed: a full rewrite was measured to drop rules the rejected reply had right. On the
+last attempt the rule is dropped with a `clause coverage:` note instead, and a condition no rule
+states is named in a note. A faithful nesting under a guard question counts. See
+`docs/vocabulary-spec.md` §8.11.
 
 **Shopping list (`build`), added with the economy.** The schema also carries `build`: an ordered
 tuple of at most `shop.slots` unique item keys, or `None` for "the prose names no items" (the

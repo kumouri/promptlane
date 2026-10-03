@@ -601,7 +601,7 @@ before the priority guard:
 - A question that keeps its "no", "not", "none", "zero" or "out of sight" is never touched.
 - A sentence that names the thing both ways ("walk with my nearest minion, and if I have no minions
   near me …") decides nothing.
-- Only a sentence of the prose the rule states can decide (§8.11): a "no" in another sentence never
+- Only a sentence of the prose the rule states can decide (§8.15): a "no" in another sentence never
   vetoes it.
 
 The prompt is unchanged, and vocab-1 is unchanged. The evidence and the free recompiles are in
@@ -726,7 +726,127 @@ in its own paragraph, or restate the verdict's words ("when my side is stronger 
 The prompt is unchanged, and vocab-1 is unchanged. The evidence and the free recompiles are in
 `runs/vocab2-guard-scope-2026-10-02.md`.
 
-### 8.11 A cascade keeps the prose's order
+### 8.11 Every condition of a sentence is in its rule
+
+"When I can afford my next item and no enemy is in sight, I head home to shop." In 20 of #87's 35
+compiles it became "can this bot afford its next item? → go home", so the bot left fights to shop.
+Split into two rules, "is no enemy in sight? → go home" fired at the base too and could hold the bot
+there. Translation fidelity comes first (Ceryce, 2026-10-02:
+[`prose-to-schema-translator.md` §2](prose-to-schema-translator.md#2-translator-design)). So under
+`vocab-2`, `translator.enforce_clause_coverage` runs after the negation guard and before the priority
+guard:
+
+- **What a sentence states.** Each "if", "when" or "whenever" opens a condition. It runs up to the
+  consequence: ", move back home", ", I head home", " I go home", "then …", or the end of the sentence.
+- **Its clauses.** The condition splits at "and" and at commas. A piece with no verb is a list item
+  and joins the next piece: "an enemy minion, enemy tower or enemy bearbot is in sight" stays one
+  clause, whose things are alternatives.
+- **What a clause names:**
+  - **Its things, with their polarity.** These are read by the negation guard's own reader, with
+    wider word lists:
+    - "outside" negates;
+    - "your tower" is the bot's own;
+    - "an enemy is dead" is about a dead enemy, not about there being no enemy;
+    - a "no" carries along a list: "no enemy minion, enemy tower, or enemy bearbot" is none of them.
+  - **Its concepts:** hp, gold, afford, ready, dead, time, the fight verdict, the Bandstand,
+    contested.
+  - **Its numbers, with their unit.** "half" and "50%" are a share of the maximum, "a third" and
+    "33%" are a third, and a plain "100" is an amount, so "hp below 100% of its max" is not "hp below
+    100". 0 and 1 are left out ("one of theirs").
+- **A one-clause condition after an action states its opposite too.** "Otherwise I walk with my
+  nearest minion, and if I have no minions near me I go home" also states "my minions are near me"
+  for the walk.
+- **Which condition a rule is held to.** Each "or" alternative of a rule's question ("… or is …",
+  but not "either … or …") is held to the condition whose requirements it meets the most of. Guard
+  questions the rule is nested under count, a "no" branch with its polarity flipped. The rule is
+  faithful when one such condition is met in full.
+  - **A tie goes to the rule's own sentence.** That is the sentence it shares the most words with,
+    action and target included (§8.4). "Is an enemy minion, tower or bearbot in sight? → go home" is
+    half of "When your hp is below 100 and an enemy … is in sight, move back home". It reads like "If
+    an enemy bearbot is in sight, attack …", but that is not its sentence.
+- **What is caught:**
+  - **A rule that states only part of a condition.** That means a rule that:
+    - drops a clause ("can this bot afford its next item?");
+    - inverts one ("300 gold and is no enemy in sight?", where the prose says an enemy IS in sight;
+      the negation guard only catches the other direction);
+    - splits the sentence into rules that each ask half;
+    - joins the clauses with "or";
+    - loses a number ("are minions near?" for "at least two of my minions", "hp below 100%" for "hp
+      below 100").
+  - **A condition of two or more clauses that no rule states at all.** The bot would never act on
+    it.
+  - **A condition the model made up** for a sentence that states none, like a fallback's "no enemy
+    bearbot or minion in sight → hold at my tower". It is held to whatever it meets most, and is
+    dropped on the last attempt. The default plays that sentence anyway.
+
+  A rule that meets nothing of any condition is not this check's to judge.
+- **The retry** quotes each such sentence and its clauses. It asks for one rule per sentence whose
+  question asks every condition, joined by "and", and no other rule that asks only some of them. When
+  a number is what's missing, it adds that a plain number is an amount. It never quotes a rule that
+  failed: the translator copies back what it is shown (§8.5, §8.6).
+- **The retry repairs the reply; it doesn't replace it.** Three designs were measured:
+  - **A full rewrite** fixed the sentence but dropped rules the rejected reply had right. In the
+    first free batch, the 300-gold rule went from 26 to 11 of 28 retried compiles, and "no minions
+    near me → go home" from 10 to 0. #87's retries did the same, too rarely to show.
+  - **Showing the passing rules and asking to keep them** made the 9B copy them and leave the wanted
+    rule out. The afford sentence had no rule in 16 of 35 compiles.
+  - **So the retry is a plain rewrite** that quotes only the prose, plus one line saying the other
+    rules are kept (`translator._spliced`). From the reply, only the rules that ask all of a wanted
+    condition are spliced into the rules that passed:
+    - a rule that failed is replaced where it stood;
+    - a missing condition goes where the prose's order puts it.
+
+    Nothing else of the reply is used, so a rewrite can't lose a rule that was right.
+
+  A rejection by any other guard still rewrites whole, as before. The shopping, identity,
+  unfinished-guard, negation and priority retries read as before.
+- **On the last attempt:**
+  - A rule that still states only part of a condition is dropped, with a `clause coverage:` note the
+    entrant sees under "Conditions — what was removed".
+  - A condition no rule states gets a note too: the rule a repair took out for it ("removed rule …"),
+    or "no rule states …".
+  - A last repair reply that can't be read (cut off mid-JSON) supplies no rules. The rules that
+    passed ship with those notes, rather than the instrument failing to compile.
+  - It raises only if nothing would be left at the root.
+
+TypeSafe's docs recommend one condition per `noul`, with "A and B" combined in code
+([Noul](https://docs.typesafe.ai/primitives/noul.md)). The schema has no AND node, so this guard keeps
+the conjunction in one question, or in a guard nesting. An AND node of atomic questions would follow
+that advice, and is a follow-up. The prompt is unchanged, and so are vocab-1 and the other guards.
+The evidence and the free recompiles are in `runs/vocab2-clause-coverage-2026-10-02.md`.
+
+### 8.12 Tower aggro is stated when the match has it
+
+The opt-in tower aggro rule (`--tower-aggro aggro-1`, `src/towerAggro.ts`;
+[`runs/tower-aggro-2026-10-02.md`](../runs/tower-aggro-2026-10-02.md)) lets a tower retarget. A bearbot
+that damages a bearbot of the tower's team from inside the tower's range is shot by it for 3 s, or until
+it leaves the range or dies. The observation then carries `towerAggro` (the rule) and an `aggro` entry
+on every listed tower (`{target, leftSec}`, or null). vocab-2 reads them; vocab-1 never does. An
+observation without them reads byte for byte as before:
+
+- **A tower's lock decides whom it shoots** (`vocab.TowerFact`): `will_shoot_me` is true for an
+  in-range enemy tower locked on this bot, whatever minions are in range, and false for one locked on an
+  ally. `shooting_my_minions` (the siege, §8.8) is false for a locked tower. So "will an enemy tower
+  shoot this bot?" reads true while a tower is locked on it.
+- **Per tower:** an enemy tower locked on this bot says "it is shooting you, not your minions, because
+  you hit its team's bearbot inside its range (for up to 2.4 s more, or until you leave its range)".
+  One locked on an ally names the ally. An own tower names the enemy bearbot it is shooting.
+- **The siege summary** keeps its true reading under a lock: "…while it has your own minions in its
+  range, but it is shooting you, not your minions (tw-9)." It doesn't fall back to "You are not inside
+  the range…".
+- **The rule itself**, stated every decision while the match has it (`vocab.FACTS_AGGRO`, lead
+  "Towers retarget"): "a tower shoots a bearbot that damages a bearbot of the tower's team while standing
+  inside the tower's range, instead of minions, for 3 s after the hit or until it leaves the range. So an
+  enemy tower will shoot you if you hit its team's bearbot while you are inside its range, and your tower
+  will shoot an enemy bearbot that hits you or an ally inside its range."
+
+`/health` lists the rules a server describes (`tower_aggro`). A match with the rule refuses a schema
+server that doesn't list it (`jevSchemaPilot.towerAggroUnsupported`): an older server would keep saying
+the tower shoots minions first. The translator prompt doesn't list the fact yet (`facts_for` is
+unchanged). A compile doesn't know the match's tower rule, and two translator jobs were open in
+`translator.py` when this landed.
+
+### 8.15 A cascade keeps the prose's order
 
 A cascade is first-match-wins: a rule placed below one that nearly always fires rarely runs. Once the
 token caps were gone (#95), house-hard-eco's 16-rule prose compiled whole, and in 16 of 36 schemas the

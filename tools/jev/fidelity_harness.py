@@ -333,6 +333,12 @@ def _tower_lines(obs: dict, spec: MapSpec) -> list[str]:
             text = f"{head}; you are outside its {rng}-unit range"
         elif f.own:
             text = f"{head}; you are inside its {rng}-unit range"
+        elif f.aggro_on_me:
+            text = (f"{head}; you are inside its {rng}-unit range, and it is shooting you, not your minions, because you hit its team's "
+                    f"bearbot inside its range (for up to {_seconds(f.aggro_left)} s more, or until you leave its range)")
+        elif f.aggro_target is not None:
+            text = (f"{head}; you are inside its {rng}-unit range, but it is shooting your ally {f.aggro_target}, who hit its team's "
+                    f"bearbot inside its range, so it will not shoot you yet")
         elif f.my_minions_in_range:
             n = f.my_minions_in_range
             text = f"{head}; you are inside its {rng}-unit range, but it has {n} of your minions in range to shoot first, so it will not shoot you yet"
@@ -340,6 +346,8 @@ def _tower_lines(obs: dict, spec: MapSpec) -> list[str]:
             text = f"{head}; you are inside its {rng}-unit range, and it has no minion of yours to shoot first, so it will shoot you"
         if f.own and f.divers:
             text += f"; enemy bearbot {_names(f.divers)} {'is' if len(f.divers) == 1 else 'are'} inside its range"
+        if f.own and f.aggro_target is not None:
+            text += f"; it is shooting enemy bearbot {f.aggro_target}, who hit your team's bearbot inside its range"
         lines.append(text + ".")
     under = [f.tower["id"] for f in alive if f.own and f.in_range]
     shooting = [f.tower["id"] for f in alive if f.will_shoot_me]
@@ -351,12 +359,28 @@ def _tower_lines(obs: dict, spec: MapSpec) -> list[str]:
         lines.append("No enemy tower is within 390 units.")
     lines.append(f"You are under your own tower ({_names(under)})." if under else "You are not under your own tower.")
     lines.append(f"An enemy tower will shoot you ({_names(shooting)})." if shooting else "No enemy tower will shoot you.")
-    lines.append(f"You are inside an enemy tower's range while it has your own minions in its range, so it is shooting your minions, not you "
-                 f"({_names(siege)})." if siege else "You are not inside the range of an enemy tower that has your own minions in its range.")
+    # Tower aggro (src/towerAggro.ts): an in-range tower with this bot's minions, locked on a bearbot, shoots that bearbot instead.
+    locked = [f for f in alive if not f.own and f.in_range and f.my_minions_in_range > 0 and f.aggro_target is not None]
+    if siege:
+        lines.append(f"You are inside an enemy tower's range while it has your own minions in its range, so it is shooting your minions, not you "
+                     f"({_names(siege)}).")
+    for f in locked:
+        who = "you" if f.aggro_on_me else f"your ally {f.aggro_target}"
+        lines.append(f"You are inside an enemy tower's range while it has your own minions in its range, but it is shooting {who}, not your "
+                     f"minions ({f.tower['id']}).")
+    if not siege and not locked:
+        lines.append("You are not inside the range of an enemy tower that has your own minions in its range.")
     lines.append(f"Enemy bearbot under your tower: {_names(divers)}." if divers else "No enemy bearbot is under your tower.")
     dead = [f for f in facts if not f.tower.get("alive", True)]
     if dead:
         lines.append("Dead towers within 390 units: " + ", ".join(f"{f.tower['id']} ({'yours' if f.own else 'enemy'})" for f in dead) + ".")
+    aggro = obs.get("towerAggro")
+    if aggro:
+        # Stated whenever the match has the rule (vocab.FACTS_AGGRO), towers in sight or not.
+        lines.append(f"Towers retarget: a tower shoots a bearbot that damages a bearbot of the tower's team while standing inside "
+                     f"the tower's range, instead of minions, for {_seconds(aggro['windowSec'])} s after the hit or until it leaves "
+                     f"the range. So an enemy tower will shoot you if you hit its team's bearbot while you are inside its range, and "
+                     f"your tower will shoot an enemy bearbot that hits you or an ally inside its range.")
     return lines
 
 

@@ -72,6 +72,16 @@ own, with an `order:` note. Rules from override-worded prose are left to `enforc
 GUARD SCOPE (vocab-2 only): `enforce_guard_scope` rejects a reply in which a guard has a node after it
 (never checked: a guard always routes) or holds a node from prose outside its verdict; the retry quotes
 those nodes' sentences, and the last attempt flattens the guard with a `guard scope:` note.
+DESIGN PRIORITY: fidelity first (Ceryce, 2026-10-02: "The most important part of this whole thing is
+the translation from prose to Jev. It HAS to be right."). A guard takes the faithful answer over a
+cheaper compile, and its cost is measured, not traded away (`docs/prose-to-schema-translator.md` §2).
+CLAUSE COVERAGE (vocab-2 only): `enforce_clause_coverage` rejects a reply in which a rule states only
+part of a condition its prose sentence states, or no rule states it. "Only part" covers a dropped
+clause ("can afford next item -> home" for "...afford my next item and no enemy is in sight..."), a
+split into half-rules, an "or" between the clauses, an inverted clause and a lost number. The retry
+quotes the sentence, never a rule, and only the rewrite's rules for those sentences are spliced into
+the rules that passed (`_spliced`). On the last attempt the rule is dropped with a `clause coverage:`
+note (`docs/vocabulary-spec.md` §8.11).
 Economy P2 added one target selector,
 `highest_bounty_enemy` (`docs/economy-spec.md` §4.2): "go after the enemy worth the most gold".
 VOCABULARIES (`vocab.py`, `docs/vocabulary-spec.md`): `TARGET_SELECTORS` is vocab-1's list. vocab-2
@@ -1639,31 +1649,39 @@ def _polar_words(text: str) -> list[str]:
     return [w[:-2] if w.endswith("'s") else w.rstrip("'") for w in words]
 
 
-def _negated(words: list[str], start: int, end: int, after: bool = True) -> bool:
+def _negated(words: list[str], start: int, end: int, after: bool = True,
+             neg_before: frozenset = _NEG_BEFORE, neg_after: frozenset = _NEG_AFTER) -> bool:
     """A "no"/"not"/"none" up to four words before the mention, or (`after`) "absent"/"gone"/"out" up
     to three after it, inside the same clause ("and", "or", "if" and punctuation end one)."""
     for w in reversed(words[max(0, start - 4):start]):
         if w in _CLAUSE_BREAK:
             break
-        if w in _NEG_BEFORE:
+        if w in neg_before:
             return True
     for w in words[end + 1:end + 4] if after else ():
         if w in _CLAUSE_BREAK:
             break
-        if w in _NEG_AFTER:
+        if w in neg_after:
             return True
     return False
 
 
-def _polarities(text: str, after: bool = True) -> dict[str, set[bool]]:
+_LIST_GLUE = frozenset({",", "or", "nor", "a", "an", "any", "the"})
+
+
+def _polarities(text: str, after: bool = True, neg_before: frozenset = _NEG_BEFORE, neg_after: frozenset = _NEG_AFTER,
+                own: frozenset = _OWN_WORDS, lists: bool = False, self_words: frozenset = frozenset()) -> dict[str, set[bool]]:
     """What `text` asks or says about each thing it names -- "enemy" (an enemy bearbot, or any enemy),
     "enemy tower", "own tower", "enemy minion", "minion" (mine, or my wave), "ally" -- mapped to the
     set of its polarities: False for "is there" ("an enemy is in sight"), True for "is not there" ("no
     enemy is in sight", "none of my minions", "not inside an enemy tower's range"). A thing named both
     ways has both. `after=False` counts only a negation before the thing (for a rule id, where
-    "push_wave_dead_enemy" is a dead enemy, not a dead wave)."""
+    "push_wave_dead_enemy" is a dead enemy, not a dead wave). The word lists default to the negation
+    guard's own; the clause-coverage check passes wider ones (`_COVERAGE_LEXICON`), and `lists`, which
+    carries a negation along a list: "no enemy minion, enemy tower, or enemy bearbot" is none of them."""
     words = _polar_words(text)
     out: dict[str, set[bool]] = {}
+    prev: tuple[int, bool] | None = None  # (end of the last thing named, its polarity)
     i = 0
     while i < len(words):
         w, nxt = words[i], words[i + 1] if i + 1 < len(words) else ""
@@ -1673,7 +1691,7 @@ def _polarities(text: str, after: bool = True) -> dict[str, set[bool]]:
             thing = "enemy tower" if nxt in _TOWER_WORDS else "enemy minion" if nxt in _MINION_WORDS else "enemy"
             end = i + 1 if thing != "enemy" else i
         elif w in _TOWER_WORDS:
-            thing = "own tower" if _OWN_WORDS & before else "enemy tower"
+            thing = "own tower" if own & before or (self_words & before and not _ENEMY_WORDS & before) else "enemy tower"
         elif w in _MINION_WORDS:
             thing = "enemy minion" if {"their", "theirs"} & before else "minion"
         elif w in _TEAMMATE_WORDS or (w in _ALLY_WORDS and nxt not in _MINION_WORDS | _TOWER_WORDS):
@@ -1681,9 +1699,24 @@ def _polarities(text: str, after: bool = True) -> dict[str, set[bool]]:
         else:
             i += 1
             continue
-        out.setdefault(thing, set()).add(_negated(words, i, end, after))
+        negated = _negated(words, i, end, after, neg_before, neg_after)
+        gap = set(words[prev[0] + 1:i]) if prev else set()
+        if lists and gap and gap <= _LIST_GLUE and gap & {",", "or", "nor"}:
+            negated = prev[1]
+        out.setdefault(thing, set()).add(negated)
+        prev = (end, negated)
         i = end + 1
     return out
+
+
+def _own_sentence(rule: TranslatedRule, sentence_tokens: list[set[str]]) -> tuple[set[str], list[int], int | None]:
+    """(the rule's tokens, id and target included; each sentence's overlap with them; the sentence the
+    rule states, or None). That sentence shares the most words with the rule, at least two, and no other
+    sentence shares as many."""
+    tokens = _rule_tokens_v2(rule) | _tokenize(rule.id.replace("_", " "))
+    scores = [len(tokens & t) for t in sentence_tokens]
+    top = max(scores, default=0)
+    return tokens, scores, scores.index(top) if top >= 2 and scores.count(top) == 1 else None
 
 
 def _negation_lost(rule: TranslatedRule, sentences: list[str], sentence_polarities: list[dict[str, set[bool]]],
@@ -1702,11 +1735,8 @@ def _negation_lost(rule: TranslatedRule, sentences: list[str], sentence_polariti
     affirmed = [thing for thing, pols in _polarities(rule.condition).items() if pols == {False}]
     if not affirmed:
         return None
-    tokens = _rule_tokens_v2(rule) | _tokenize(rule.id.replace("_", " "))
     sentence_tokens = [_tokenize(s) for s in sentences]
-    scores = [len(tokens & t) for t in sentence_tokens]
-    top = max(scores, default=0)
-    own = scores.index(top) if top >= 2 and scores.count(top) == 1 else None
+    tokens, scores, own = _own_sentence(rule, sentence_tokens)
     if stated is not None and own not in stated:
         own = None
     id_polarities = _polarities(rule.id, after=False)
@@ -2043,6 +2073,388 @@ def enforce_rule_order(schema: TranslatedSchema, pilot_text: str, drop: bool = F
     return dataclasses.replace(schema, root=new_root, rules=(), validation_notes=schema.validation_notes + tuple(notes))
 
 
+# --- every condition of a sentence is in its rule (vocab-2 only) ------------------------------------
+#
+# "When I can afford my next item and no enemy is in sight, I head home to shop" compiled as "can this
+# bot afford its next item? -> home" in 20 of #87's 35 compiles: the bot left fights to shop. Split into
+# two rules, "no enemy in sight -> home" fired at the base too and could hold the bot there. The
+# translator's design priority is fidelity (Ceryce, 2026-10-02: "the translation from prose to Jev ... HAS
+# to be right"), so under vocab-2 every condition clause of a prose sentence must be in the one rule that
+# states it: in its question, or in the guard questions it is nested under. A rule that leaves a clause
+# out, or splits the sentence so each rule checks only part of it, or joins the clauses with "or", is
+# rejected, and the retry quotes only the prose sentence and its clauses, never the rule (the 9B copies
+# back what it is shown: runs/vocab2-negation-polarity-2026-10-02.md §2). On the last attempt the rule is
+# dropped with a `clause coverage:` note instead of shipping a rule the prose doesn't state. It runs after
+# the negation guard, so a lost "no" is still reported as one. The prompt and vocab-1 are unchanged.
+
+COVERAGE_NOTE_PREFIX = "clause coverage:"
+
+_COND_MARKER = re.compile(r"\b(?:if|when|whenever)\b", re.IGNORECASE)
+# The verbs a consequence starts with: ", move back home", ", I head home", "if I have no minions near me I go home".
+_ACTION_START = frozenset(
+    "move moves go goes head heads back backs recall recalls attack attacks fall falls use uses play plays kick kicks "
+    "push pushes walk walks retreat retreats hold holds wait waits buy buys shop shops spend spends hit hits cast casts "
+    "follow follows stay stays run runs chase chases focus focuses hunt hunts fight fights defend defends return returns "
+    "step steps keep keeps take takes finish finishes avoid avoids flee flees leave leaves don't dont do never always "
+    "target targets".split()
+)
+_SUBJECTS = frozenset({"i", "we", "you"})
+_STATE_AFTER_SUBJECT = frozenset("am are can could have has had see sees was were carry own still".split())
+_JOINERS = frozenset({"and", "or", "but", "if", "when", "whenever"})
+# A piece of a condition with none of these is a list item ("an enemy minion, enemy tower or enemy bearbot is in sight").
+_VERBISH = frozenset(
+    "is are am was were be has have had can could will would does do did drops drop falls opens open see sees "
+    "carry carries carrying i'm we're you're it's".split()
+)
+# Wider than the negation guard's lists, for reading what a clause or a question names: "outside an enemy
+# tower's range" is not inside it, "your tower" and "one of the bot's towers" are the bot's own (but "an enemy
+# bot's tower" is not), and "an enemy bearbot is dead" is about a dead enemy (the "dead" concept below), not
+# about there being no enemy.
+_COVERAGE_LEXICON = dict(neg_before=_NEG_BEFORE | {"outside", "beyond"}, neg_after=_NEG_AFTER - {"dead"},
+                         own=_OWN_WORDS | {"your", "this"}, lists=True, self_words=frozenset({"bot", "bearbot"}))
+# What else a condition can be about, and the words that name it.
+_CONCEPT_WORDS = {
+    "hp": {"hp", "health", "healthy", "life"},
+    "gold": {"gold", "money", "coin", "coins"},
+    "afford": {"afford", "affords", "affordable"},
+    "ready": {"ready", "cooldown", "available", "charged"},
+    "dead": {"dead", "died", "dies", "killed", "respawning"},
+    "time": {"seconds", "minutes", "minute"},
+    "fight": {"fight", "fighting", "stronger", "weaker", "winning", "losing", "outnumbered"},
+    "bandstand": {"bandstand"},
+    "contested": {"contested", "contest", "progress", "capturing"},
+}
+_QUESTION_OR = re.compile(r"\bor\s+(?=(?:is|are|am|can|could|does|do|has|have|will|would)\b)", re.IGNORECASE)
+
+
+@dataclass(frozen=True)
+class _Facts:
+    """What a clause says, or a question asks: the things it names with their polarities (`_polarities`),
+    the concepts it names, and its numbers ("a third" is "third"; 0 and 1 are left out: "one of theirs")."""
+
+    things: dict
+    concepts: frozenset
+    numbers: frozenset
+    any_thing: bool = False  # a clause listing alternatives ("an enemy minion, enemy tower or enemy bearbot")
+
+
+def _facts(text: str, flip: bool = False) -> _Facts:
+    things = _polarities(text, **_COVERAGE_LEXICON)
+    if flip:  # a guard's "no" branch: what it asks is not so
+        things = {t: {not p for p in pols} for t, pols in things.items()}
+    words = set(_polar_words(text))
+    concepts = frozenset(c for c, ws in _CONCEPT_WORDS.items() if ws & words)
+    return _Facts(things, concepts, _numbers(text), any_thing=bool(re.search(r"\bor\b", text, re.IGNORECASE)))
+
+
+def _numbers(text: str) -> frozenset:
+    """The numbers `text` states, a share of a maximum kept apart from an amount: "half" and "50%" are "50%",
+    "a third" and "33%" are "third", "100" is not "100%". 0 and 1 are left out ("one of theirs")."""
+    t = text.lower()
+    t = re.sub(r"\b(?:a|one)\s+third\b|\b33(?:\.3+)?\s*%|\b1/3\b", " ⅓ ", t)
+    t = re.sub(r"\bthree[\s-]quarters?\b", " 75% ", t)
+    t = re.sub(r"\b(?:a\s+|one\s+)?quarter\b", " 25% ", t)
+    t = re.sub(r"\b(?:a\s+|one\s+)?half\b", " 50% ", t)
+    t = normalize_numbers_for_trace(t)
+    found = {m.group(1) + ("%" if m.group(2) else "") for m in re.finditer(r"\b(\d+)\s*(%|percent\b)?", t)}
+    return frozenset(found - {"0", "1"}) | ({"third"} if "⅓" in t else frozenset())
+
+
+def _merge(a: _Facts, b: _Facts) -> _Facts:
+    things = {t: set(p) for t, p in a.things.items()}
+    for t, p in b.things.items():
+        things.setdefault(t, set()).update(p)
+    return _Facts(things, a.concepts | b.concepts, a.numbers | b.numbers)
+
+
+def _asked_of(asked: _Facts, clause: _Facts) -> tuple[int, int]:
+    """(how many of `clause`'s requirements `asked` meets, how many it has). Its things count as one
+    requirement, met when `asked` names every one of them with the same polarity, or any one of them for a
+    list of alternatives; each concept and each number counts as one."""
+    hits = [bool(asked.things.get(t, set()) & pols) for t, pols in clause.things.items()]
+    things_met = (any(hits) if clause.any_thing else all(hits)) if hits else False
+    met = int(things_met) + len(clause.concepts & asked.concepts) + len(clause.numbers & asked.numbers)
+    return met, int(bool(hits)) + len(clause.concepts) + len(clause.numbers)
+
+
+def _covers(asked: _Facts, clause: _Facts) -> bool:
+    """`asked` (a question, with the guards above it) asks everything `clause` states."""
+    met, total = _asked_of(asked, clause)
+    return met == total
+
+
+def _condition_text(rest: str) -> str:
+    """The condition that starts `rest` (the text after "if"/"when"): up to the consequence (", move back
+    home", ", I head home", " I go home", "then ...") or the end of the sentence."""
+    toks = list(re.finditer(r"[A-Za-z']+|[,;:.!?]", rest.replace("’", "'")))
+    words = [m.group().lower() for m in toks] + ["", "", ""]
+    for k, m in enumerate(toks):
+        w, nxt, nxt2 = words[k], words[k + 1], words[k + 2]
+        if w in {";", ":", ".", "!", "?", "then"}:
+            return rest[:m.start()]
+        if w == ",":
+            if nxt in {"and", "then"}:  # ", and spend our gold", ", then I attack"
+                nxt, nxt2 = nxt2, words[k + 3]
+            # ", move back home", ", I head home", ", is to hold your lane" (a clause never starts with a bare "is")
+            # ", I teleport ..." too: after a comma, "I"/"we"/"you" starts the consequence unless a state verb follows
+            # (", I can see an enemy tower", ", we have no minions").
+            if nxt in _ACTION_START | {"is", "are"} or (nxt in _SUBJECTS and nxt2 not in _STATE_AFTER_SUBJECT):
+                return rest[:m.start()]
+        prev = toks[k - 1].group().lower() if k else ""
+        if k and w in _SUBJECTS and prev not in _JOINERS | {","} and nxt in _ACTION_START:
+            return rest[:m.start()]
+    return rest
+
+
+def _clauses(condition: str) -> list[str]:
+    """`condition` split at its commas and at "and"/"but"; a piece with no verb is a list item and joins
+    the next piece ("an enemy minion" + "enemy tower or enemy bearbot is in sight")."""
+    pieces = [p.strip() for p in re.split(r",|\band\b|\bbut\b", condition, flags=re.IGNORECASE) if p.strip()]
+    out: list[str] = []
+    carry = ""
+    for p in pieces:
+        p = f"{carry}, {p}" if carry else p
+        if set(_polar_words(p)) & _VERBISH:
+            out.append(p)
+            carry = ""
+        else:
+            carry = p
+    if carry:
+        if out:
+            out[-1] = f"{out[-1]}, {carry}"
+        else:
+            out.append(carry)
+    return out
+
+
+@dataclass(frozen=True)
+class _Unit:
+    """One condition a prose sentence states: the sentence's index and its clauses, each with its facts."""
+
+    sentence: int
+    clauses: tuple
+
+
+def _condition_units(sentences: list[str]) -> list[_Unit]:
+    """Every condition each sentence states. "Otherwise I walk with my nearest minion, and if I have no
+    minions near me I go home" states two: no minions near me (go home), and, for the walk it overrides,
+    minions near me. So a one-clause condition that follows an action in its sentence states its
+    opposite too."""
+    units = []
+    for i, sentence in enumerate(sentences):
+        flat = " ".join(sentence.split())
+        for m in _COND_MARKER.finditer(flat):
+            clauses = []
+            for c in _clauses(_condition_text(flat[m.end():])):
+                f = _facts(c)
+                if f.things or f.concepts or f.numbers:
+                    clauses.append((c, f))
+            if clauses:
+                units.append(_Unit(i, tuple(clauses)))
+            if len(clauses) == 1 and clauses[0][1].things and set(_polar_words(flat[:m.start()])) & _ACTION_START:
+                units.append(_Unit(i, ((clauses[0][0], _facts(clauses[0][0], flip=True)),)))
+    return units
+
+
+def _or_parts(condition: str) -> list[str]:
+    """A question's "... or is ..." alternatives (each one alone fires the rule); "either ... or ..." is a
+    single condition about one thing."""
+    if re.search(r"\beither\b", condition, re.IGNORECASE):
+        return [condition]
+    return [p for p in _QUESTION_OR.split(condition) if p.strip()] or [condition]
+
+
+def _clause_dropped(rule: TranslatedRule, above: _Facts | None, units: list[_Unit], sentence_tokens: list[set[str]]) -> _Unit | None:
+    """The condition (`_Unit`) `rule` states only part of, or None when it is faithful. Each "or"
+    alternative of the rule's question (`above` adds the guard questions it is nested under) is held to the
+    condition whose requirements it meets the most of (`_asked_of`); it is faithful when one such condition
+    is met in full, and on a tie the sentence the rule states decides (below). So "can this bot afford its
+    next item?" is held to "I can afford my next item and no enemy is in sight" and fails, and "is an
+    enemy tower visible and are minions near this bot?" is not let off by meeting the one-clause "my
+    minions are near me" elsewhere. A condition the model made up for a sentence that states none (a
+    fallback's "no enemy bearbot or minion in sight") is held to whatever it meets most, and is dropped on
+    the last attempt; the default plays that sentence anyway. One that meets no requirement of any condition
+    is left alone: it is not a translation of any condition this check can read."""
+    _, scores, own = _own_sentence(rule, sentence_tokens)
+    bad: list[_Unit] = []
+    for part in _or_parts(rule.condition):
+        asked = _merge(_facts(part), above) if above else _facts(part)
+        tallies = [[_asked_of(asked, f) for _, f in u.clauses] for u in units]
+        met = [sum(m for m, _ in t) for t in tallies]
+        best = max(met, default=0)
+        if best == 0:
+            continue
+        top = [i for i, m in enumerate(met) if m == best]
+        full = [i for i in top if all(m == n for m, n in tallies[i])]
+        part_own = [i for i in top if i not in full and units[i].sentence == own and len(units[i].clauses) >= 2]
+        # A tie between a condition met in full and one met in part goes to the sentence the rule states (its
+        # words, action and target): "is an enemy minion, tower or bearbot in sight? -> go home" is half of "When
+        # your hp is below 100 and an enemy ... is in sight, move back home", not "If an enemy bearbot is in
+        # sight, attack ...".
+        if full and not (part_own and not any(units[i].sentence == own for i in full)):
+            continue
+        bad += [units[i] for i in (part_own or top)]
+    if not bad:
+        return None
+    return max(bad, key=lambda u: (u.sentence == own, scores[u.sentence]))
+
+
+def enforce_clause_coverage(schema: TranslatedSchema, pilot_text: str, drop: bool = False, removed: tuple = ()) -> TranslatedSchema:
+    """vocab-2 only (vocab-1 gets `schema` back). For a rule anywhere in the tree that states only part of a
+    condition its prose sentence states (`_clause_dropped`), or a condition of two or more clauses no rule
+    states, raises `SchemaValidationError`, which `translate_pilot` retries; the message quotes each such
+    sentence and its clauses, never a rule, and the error carries a `_Repair` for the next reply. With `drop`
+    (`translate_pilot`'s last attempt) every such rule is removed instead, and every such condition named,
+    each with a `clause coverage:` note the entrant sees; it raises only if nothing would be left at the root.
+    `removed` is what earlier attempts' repairs took out, so a condition still unstated at the end is noted
+    with the rule that failed it. A schema whose rules are all faithful is returned as it came."""
+    if schema.vocab != VOCAB_2:
+        return schema
+    sentences = _prose_sentences(pilot_text)
+    units = _condition_units(sentences)
+    if not any(len(u.clauses) >= 2 for u in units):
+        return schema
+    sentence_tokens = [_tokenize(s) for s in sentences]
+    found: list[tuple[TranslatedRule, _Unit, list[str]]] = []
+    stated: list[_Facts] = []  # what each kept rule's "or" alternatives ask
+    numbers_lost: list[frozenset] = []
+
+    def walk(cascade: Cascade, above: _Facts | None) -> Cascade:
+        nodes: list[Node] = []
+        for node in cascade.nodes:
+            if isinstance(node, GuardNode):
+                yes, no = _facts(node.condition), _facts(node.condition, flip=True)
+                nodes.append(dataclasses.replace(node, then=walk(node.then, _merge(above, yes) if above else yes),
+                                                 else_=walk(node.else_, _merge(above, no) if above else no)))
+                continue
+            unit = _clause_dropped(node, above, units, sentence_tokens)
+            if unit is None:
+                nodes.append(node)
+                stated.extend(_merge(_facts(p), above) if above else _facts(p) for p in _or_parts(node.condition))
+                continue
+            asked = _merge(_facts(node.condition), above) if above else _facts(node.condition)
+            found.append((node, unit, [c for c, f in unit.clauses if not _covers(asked, f)]))
+            numbers_lost.extend(f.numbers - asked.numbers for _, f in unit.clauses if f.numbers - asked.numbers)
+        return Cascade(nodes=tuple(nodes), default=cascade.default)
+
+    new_root = walk(schema.root, None)
+
+    def key(u: _Unit) -> tuple:
+        return u.sentence, tuple(c for c, _ in u.clauses)
+
+    taken_out = {key(u) for _, u, _ in found}
+    missing = list({key(u): u for u in units if len(u.clauses) >= 2 and key(u) not in taken_out
+                    and not any(all(_covers(a, f) for _, f in u.clauses) for a in stated)}.values())
+    earlier = {k: (rule, left_out) for k, rule, left_out in reversed(removed)}  # the first rule an earlier repair took out
+    if not found and not missing:
+        return schema
+
+    def flat(i: int) -> str:
+        return " ".join(sentences[i].split())
+
+    def listed(clauses) -> str:
+        return " and ".join(f'"{c}"' for c in clauses)
+
+    if not drop or not new_root.nodes:
+        wanted = list({key(u): u for u in [u for _, u, _ in found] + missing}.values())[:4]
+        root_ids = [n.id for n in schema.root.nodes]
+        kept_ids = {n.id for n in new_root.nodes}
+
+        def written_for(n: Node) -> int | None:
+            """The sentence a kept root rule states: the first condition it meets in full, or its own sentence."""
+            if not isinstance(n, TranslatedRule):
+                return None
+            asked = _facts(n.condition)
+            full = [u.sentence for u in units if all(_covers(asked, f) for _, f in u.clauses)]
+            return min(full) if full else _own_sentence(n, sentence_tokens)[2]
+
+        def slot(u: _Unit) -> int:
+            """Where a rule for `u` goes among the kept root rules: where the root rule that failed it was, or else
+            before the first kept rule for a later sentence (the prose's order)."""
+            for rule, unit, _ in found:
+                if key(unit) == key(u) and rule.id in root_ids:
+                    return sum(1 for x in root_ids[:root_ids.index(rule.id)] if x in kept_ids)
+            later = [i for i, n in enumerate(new_root.nodes) if (s := written_for(n)) is not None and s > u.sentence]
+            return later[0] if later else len(new_root.nodes)
+
+        err = SchemaValidationError(
+            "a rule leaves out a condition its prose sentence states, or splits the sentence into rules that each check only "
+            "part of it, or no rule states it at all. Write ONE rule for each sentence below, whose question asks every one of "
+            'its conditions, joined by "and", and no other rule that asks only some of them: '
+            + "; ".join(f'{listed(c for c, _ in unit.clauses)} -- "{flat(unit.sentence)[:200]}"' for unit in wanted)
+            + (". Keep each number exactly as the prose writes it: a plain number is an amount, and only \"%\", \"half\" or "
+               "\"a third\" is a share of the maximum" if numbers_lost else "")
+        )
+        if new_root.nodes:  # what passed, for the next reply to repair (`_spliced`)
+            err.repair = _Repair(dataclasses.replace(schema, root=new_root, rules=()), tuple(wanted), tuple(slot(u) for u in wanted),
+                                 tuple(removed) + tuple((key(u), rule, left_out) for rule, u, left_out in found))
+        raise err
+
+    def removal(rule: TranslatedRule, unit: _Unit, left_out: list[str]) -> str:
+        return (f'{COVERAGE_NOTE_PREFIX} removed rule {rule.id} ("{rule.condition}") -- your prose says "{flat(unit.sentence)[:200]}", '
+                f"which fires only when all of {listed(c for c, _ in unit.clauses)} hold, but this rule "
+                + (f"leaves out {listed(left_out)}" if left_out else 'joins them with "or"')
+                + ", so it would have fired when your prose says not to. Every translation of it left a condition out; rewording "
+                "the sentence may help.")
+
+    notes = tuple(removal(rule, unit, left_out) for rule, unit, left_out in found) + tuple(
+        removal(earlier[key(unit)][0], unit, earlier[key(unit)][1]) if key(unit) in earlier else
+        f'{COVERAGE_NOTE_PREFIX} no rule states "{flat(unit.sentence)[:200]}" -- it fires only when all of '
+        f"{listed(c for c, _ in unit.clauses)} hold, and no translation wrote a rule asking all of them, so this schema has "
+        "no rule for it. Rewording the sentence may help."
+        for unit in missing
+    )
+    return dataclasses.replace(schema, root=new_root, rules=(), validation_notes=schema.validation_notes + notes)
+
+
+@dataclass(frozen=True)
+class _Repair:
+    """What a clause-coverage rejection leaves for the next reply to repair: the schema with the failing rules taken
+    out (every rule left passed every guard so far), the conditions it still needs, and where each one's rule goes
+    among its root rules."""
+
+    kept: TranslatedSchema
+    wanted: tuple
+    slots: tuple
+    removed: tuple = ()  # (condition, rule, clauses it left out) for every rule a repair has taken out so far
+
+
+def _spliced(repair: _Repair, data, reply: str, vocab: str, map_=None) -> TranslatedSchema:
+    """`repair.kept` with, at each wanted condition's slot, the first plain rule of `data` (the next reply, which
+    rewrites the whole schema) that asks all of that condition. Nothing else of the reply is used: a full rewrite
+    after a rejection drops rules the rejected reply had right, and showing the model the kept rules instead made it
+    copy them and leave the wanted rule out (runs/vocab2-clause-coverage-2026-10-02.md §3). A wanted condition no
+    rule of the reply states stays missing, for the guard to name again."""
+    rules = data.get("rules") if isinstance(data, dict) and isinstance(data.get("rules"), list) else []
+    plain = [r for r in rules if isinstance(r, dict) and r.get("type") != "guard" and "then" not in r and "else" not in r]
+    raw, target_notes = normalize_targets({"rules": plain, "default_action": None}, vocab)
+    taken: dict[int, TranslatedRule] = {}
+    for i, r in enumerate(raw["rules"]):
+        try:
+            rule = _parse_node(r, i, vocab, map_)
+        except ValueError:
+            continue
+        parts = [_facts(p) for p in _or_parts(rule.condition)]
+        k = next((k for k, u in enumerate(repair.wanted)
+                  if k not in taken and any(all(_covers(a, f) for _, f in u.clauses) for a in parts)), None)
+        if k is not None:
+            taken[k] = rule
+    ids = {n.id for n in collect_nodes(repair.kept.root)}
+    nodes = list(repair.kept.root.nodes)
+    notes = tuple(n for n in target_notes if any(f"rule {r.id} " in n for r in taken.values()))
+    # Never after a root guard: a guard always routes, so nothing after it is checked (`enforce_guard_scope`).
+    first_guard = next((i for i, n in enumerate(nodes) if isinstance(n, GuardNode)), len(nodes))
+    for k in sorted(taken, key=lambda k: (min(repair.slots[k], first_guard), k), reverse=True):
+        rule = taken[k]
+        while rule.id in ids:
+            rule = dataclasses.replace(rule, id=rule.id + "_2")
+        ids.add(rule.id)
+        nodes.insert(min(repair.slots[k], first_guard), rule)
+    return dataclasses.replace(repair.kept, root=Cascade(nodes=tuple(nodes), default=repair.kept.root.default), rules=(),
+                               raw_model_output=repair.kept.raw_model_output + "\n\n" + reply,
+                               validation_notes=repair.kept.validation_notes + notes)
+
+
 def translate_pilot(
     pilot_text: str,
     pilot_file: str,
@@ -2102,19 +2514,32 @@ def translate_pilot(
     teleport = vocab == VOCAB_2 and map_has_teleport(map_)
     last_err: Exception | None = None
     reordered: TranslatedSchema | None = None  # the first reply wrong only in its order, as a last attempt ships it
+    repair: _Repair | None = None  # after a clause-coverage rejection: what passed, for the next reply to repair
     for attempt in range(max_attempts):
         reply = generate(prompt)
         last = attempt == max_attempts - 1
+        parsed = False
         try:
-            raw_json, guard_notes = enforce_finished_guards(_extract_json_object(reply), vocab, drop=last)
-            schema = parse_schema(raw_json, pilot_file, instrument, reply, vocab, economy=economy, map_=map_)
-            if scope_notes or guard_notes:
-                schema = dataclasses.replace(schema, validation_notes=schema.validation_notes + guard_notes + scope_notes)
+            try:
+                data = _extract_json_object(reply)
+            except (ValueError, json.JSONDecodeError):
+                if not (last and repair is not None):
+                    raise
+                data = {}  # an unreadable last repair supplies no rules; the guard names what is still missing
+            parsed = True
+            if repair is not None:
+                schema = _spliced(repair, data, reply, vocab, map_)
+            else:
+                raw_json, guard_notes = enforce_finished_guards(data, vocab, drop=last)
+                schema = parse_schema(raw_json, pilot_file, instrument, reply, vocab, economy=economy, map_=map_)
+                if scope_notes or guard_notes:
+                    schema = dataclasses.replace(schema, validation_notes=schema.validation_notes + guard_notes + scope_notes)
             schema = enforce_instrument_scope(schema, instrument, primary_ability, ultimate_ability, teleport=teleport)
             schema = enforce_guard_scope(schema, scoped.text, drop=last)
             schema = enforce_shopping_list(schema, scoped.text)
             schema = enforce_identity_rules(schema, scoped.text, drop=last)
             schema = enforce_negation(schema, scoped.text, drop=attempt == max_attempts - 1)
+            schema = enforce_clause_coverage(schema, scoped.text, drop=last, removed=repair.removed if repair else ())
             try:
                 schema = enforce_rule_order(schema, scoped.text, drop=last)
             except RuleOrderError:
@@ -2130,15 +2555,24 @@ def translate_pilot(
             return schema
         except (UnfinishedGuardError, GuardScopeError, RuleOrderError) as err:
             last_err = err
+            repair = None  # as with any other guard's rejection, the next reply is a whole rewrite
             prompt = (
                 _translation_prompt(scoped.text, instrument, primary_ability, ultimate_ability, vocab, economy=economy, map_=map_)
                 + f"\n\nYour previous attempt was invalid: {err}. Output ONLY the JSON object, no other text."
             )
         except (ValueError, json.JSONDecodeError) as err:
             last_err = err
+            # A clause-coverage rejection is repaired: the next reply only supplies the rules it asks for (`_spliced`).
+            # Any other rejection of a parsed reply is rewritten whole, as before; an unreadable reply keeps the repair.
+            if getattr(err, "repair", None) is not None:
+                repair = err.repair
+            elif parsed:
+                repair = None
             prompt = (
                 _translation_prompt(scoped.text, instrument, primary_ability, ultimate_ability, vocab, economy=economy, map_=map_)
-                + f"\n\nYour previous attempt was invalid: {err}. If this mentions a 'guard_'-named "
+                + f"\n\nYour previous attempt was invalid: {err}."
+                + (" Every other rule you wrote passed and is kept as it was." if repair is not None else "")
+                + " If this mentions a 'guard_'-named "
                 "rule, you emitted a plain rule action for something that needed the full guard shape "
                 "(type/then/else) -- either finish the guard shape or use a normal rule instead. "
                 "Output ONLY the JSON object, no other text."
@@ -2267,10 +2701,11 @@ def render_markdown(schema: TranslatedSchema) -> str:
     negation_notes = [n for n in schema.validation_notes if n.startswith(NEGATION_NOTE_PREFIX)]
     guard_scope_notes = [n for n in schema.validation_notes if n.startswith(GUARD_SCOPE_NOTE_PREFIX)]
     order_notes = [n for n in schema.validation_notes if n.startswith(ORDER_NOTE_PREFIX)]
+    coverage_notes = [n for n in schema.validation_notes if n.startswith(COVERAGE_NOTE_PREFIX)]
     priority_notes = [n for n in schema.validation_notes
                       if n not in scope_notes and n not in build_notes and n not in target_notes
                       and n not in identity_notes and n not in unfinished_notes and n not in negation_notes
-                      and n not in guard_scope_notes and n not in order_notes]
+                      and n not in guard_scope_notes and n not in order_notes and n not in coverage_notes]
     if priority_notes:
         lines += ["", "**Automatic priority fixes applied to this schema:**", ""]
         lines += [f"- {note}" for note in priority_notes]
@@ -2289,6 +2724,9 @@ def render_markdown(schema: TranslatedSchema) -> str:
     if negation_notes:
         lines += ["", "**Negations -- what was removed:**", ""]
         lines += [f"- {note}" for note in negation_notes]
+    if coverage_notes:
+        lines += ["", "**Conditions -- what was removed:**", ""]
+        lines += [f"- {note}" for note in coverage_notes]
     if target_notes:
         lines += ["", "**Targets -- what was corrected:**", ""]
         lines += [f"- {note}" for note in target_notes]

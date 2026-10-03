@@ -50,7 +50,9 @@ options:
   --jev-schema URL    tools/jev/schema_server.py endpoint for the schema sides (the Jam backend)
   --map NAME          map variant (src/mapVariant.ts): pvp-1 (the default, DEFAULT_MAP there),
                       v1 (the specimen map), pvp-1r, pvp-1-hp400 (pvp-1 with outer towers at 400 hp
-                      and inner at 600, opt-in), or pvp-2 (opt-in: the world x1.33, new tower
+                      and inner at 600, opt-in), pvp-1-hp300-base700 (towers at 300 / 500 and a
+                      700-hp base tower in front of each nexus that wins when it falls, opt-in;
+                      src/baseTower.ts), or pvp-2 (opt-in: the world x1.33, new tower
                       spots, an out-of-base speed boost and a teleport to a friendly tower; needs
                       the simultaneous-1 resolution, and is meant to be played with --recall
                       recall-2); recorded in the log, applied on --verify
@@ -78,6 +80,10 @@ options:
                       towers start sudden death, structures take x3 damage and the first tower to
                       fall wins) or none (the default: play to 10:00); recorded in the log, applied
                       on --verify
+  --tower-aggro NAME  tower aggro (src/towerAggro.ts): aggro-1 (a bearbot that damages an enemy
+                      bearbot while inside one of that team's tower ranges is shot by that tower
+                      for 3 s, or until it leaves range or dies) or none (the default: the
+                      specimen's minions-first towers); recorded in the log, applied on --verify
   --quiet             no progress lines`;
 
 function parseArgs(argv) {
@@ -110,6 +116,7 @@ function parseArgs(argv) {
       case '--resolution': args.resolution = next(); break;
       case '--targeting': args.targeting = next(); break;
       case '--finale': args.finale = next(); break;
+      case '--tower-aggro': args.towerAggro = next(); break;
       case '--verify': args.verify = next(); break;
       case '--quiet': args.quiet = true; break;
       case '-h': case '--help': args.help = true; break;
@@ -180,6 +187,7 @@ async function main() {
   const resolution = args.resolution === undefined ? headless.DEFAULT_RESOLUTION : headless.resolveResolution(args.resolution);
   const targeting = args.targeting === undefined ? headless.DEFAULT_TARGETING : headless.resolveTargeting(args.targeting);
   const finale = args.finale === undefined ? headless.DEFAULT_FINALE : headless.resolveFinale(args.finale);
+  const towerAggro = args.towerAggro === undefined ? headless.DEFAULT_TOWER_AGGRO : headless.resolveTowerAggro(args.towerAggro);
   if (!(args.cadence >= 0.5)) throw new Error('--cadence must be >= 0.5 (the game asks every 0.5 s)');
   if (args.maxSimSec !== undefined && !(args.maxSimSec > 0)) throw new Error('--max-sim-sec must be a positive number');
 
@@ -208,7 +216,9 @@ async function main() {
   const jevBackend = args.jevSchema ? await probeBackend(args.jevSchema) : null;
   const vocabs = [...new Set(schemaTeams.flatMap((team) => headless.vocabsOf(schemas[team])))].sort();
   const unsupported = jevBackend
-    ? headless.targetingUnsupported(jevBackend.health, targeting) ?? headless.vocabUnsupported(jevBackend.health, vocabs)
+    ? headless.targetingUnsupported(jevBackend.health, targeting) ??
+      headless.vocabUnsupported(jevBackend.health, vocabs) ??
+      headless.towerAggroUnsupported(jevBackend.health, towerAggro?.name ?? null)
     : null;
   if (unsupported) throw new Error(`${args.jevSchema}: ${unsupported}`);
   const decisionPilotFor = jevBackend
@@ -237,7 +247,7 @@ async function main() {
   if (jevBackend && backend !== jevBackend) backend = { ...backend, jevSchema: jevBackend };
 
   if (!args.quiet) {
-    console.error(`match: ${sides.violet.name} (violet) vs ${sides.green.name} (green) seed=${args.seed} cadence=${args.cadence}s map=${map.name} economy=${economy?.name ?? 'none'} objective=${objective?.name ?? 'none'} recall=${recall?.name ?? 'none'} resolution=${resolution}${schemaTeams.length ? ` targeting=${targeting}` : ''} finale=${finale?.name ?? 'none'} backend=${backendLabel(backend)}`);
+    console.error(`match: ${sides.violet.name} (violet) vs ${sides.green.name} (green) seed=${args.seed} cadence=${args.cadence}s map=${map.name} economy=${economy?.name ?? 'none'} objective=${objective?.name ?? 'none'} recall=${recall?.name ?? 'none'} resolution=${resolution}${schemaTeams.length ? ` targeting=${targeting}` : ''} finale=${finale?.name ?? 'none'}${towerAggro ? ` tower-aggro=${towerAggro.name}` : ''} backend=${backendLabel(backend)}`);
   }
   const started = Date.now();
   const log = await headless.runMatch({
@@ -253,6 +263,7 @@ async function main() {
     recall,
     resolution,
     finale,
+    towerAggro,
     ...(schemaTeams.length ? { targeting } : {}),
     maxSimSec: args.maxSimSec,
     backend,
