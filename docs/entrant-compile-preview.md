@@ -61,7 +61,10 @@ documents:
 - a quick-view table: condition → action, in cascade order;
 - per rule: the literal `noul` question Jev is asked, what yes/no mean, why the rule sits where it
   does (including priority-guard promotions), and the prose sentence(s) it traces back to, or
-  `⚠ no strong match`;
+  `⚠ no strong match`. A `vocab-2` rule whose sentence joins conditions with "and" asks one question
+  per condition (an AND rule, [vocabulary-spec §8.13](vocabulary-spec.md)). Its quick-view condition
+  and heading show the questions joined by a bold **and**. Its "What Jev is asked" lists each question
+  with its own yes/no, and says the rule fires only when every one is yes;
 - **Dropped**, quoted, with a reason for each: rule-like sentences no compiled rule traces back to
   (check these by hand), advisory prose Jev's question types can't take, clauses marked for another
   instrument, and voice.

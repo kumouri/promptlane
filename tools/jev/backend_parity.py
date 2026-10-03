@@ -57,7 +57,7 @@ from jam_readiness_report import sample, worksheet  # noqa: E402
 from rules import bind_questions, bucket_for_rule, first_match  # noqa: E402
 from scenarios import all_scenarios, build_observation  # noqa: E402
 from serializer import state_paragraph  # noqa: E402
-from translator import collect_nodes, evaluate_schema  # noqa: E402
+from translator import evaluate_schema, node_answers, schema_questions  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_WORKSHEETS = ROOT / "runs" / "jev-jam-readiness-worksheets-2026-09-25.json"
@@ -90,8 +90,8 @@ def schema_items(tiers: dict[str, Path], teams=("violet", "green")) -> list[dict
         schemas = json.loads(Path(path).read_text(encoding="utf-8"))
         for instrument, raw in schemas.items():
             schema = schema_from_dict(raw)
-            nodes = collect_nodes(schema.root)
-            questions = [BoundQuestion(n.id, n.condition, {"true": n.criteria_true, "false": n.criteria_false}) for n in nodes]
+            questions = [BoundQuestion(qid, q.condition, {"true": q.criteria_true, "false": q.criteria_false})
+                         for qid, q in schema_questions(schema.root)]  # an AND rule asks each of its questions
             for scenario in all_scenarios():
                 for team in teams:
                     obs = build_observation(scenario, team, instrument)
@@ -101,7 +101,7 @@ def schema_items(tiers: dict[str, Path], teams=("violet", "green")) -> list[dict
                         "state": describe_observation(obs),
                         "questions": questions,
                         "yes": lambda v: v > 0.5,
-                        "decide": (lambda s: lambda yes: _action_label(evaluate_schema(s, yes)))(schema),
+                        "decide": (lambda s: lambda yes: _action_label(evaluate_schema(s, node_answers(s.root, yes))))(schema),
                     })
     return items
 
