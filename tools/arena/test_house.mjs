@@ -442,6 +442,45 @@ test('medium (eco, vocab-2): the placement bar shops, closes out at 480 s, steps
   }
 });
 
+// runs/bots-push-to-base-2026-10-02.md: once an enemy inner tower is down the base tower can be hit, and its
+// fall wins. Medium, hard and the siege entrant go for it right after stepping out of a tower's fire (so a
+// tower with no minion of theirs to shoot still turns them back); easy never takes a tower, so never.
+test('push to base (eco): medium, hard and the siege entrant attack the enemy base tower once it can be hit, after the fall-back; easy never', () => {
+  const PUSH = /if the enemy base tower can be hit, attack the enemy base tower\./;
+  const ENTRANT_PUSH = /when the enemy base tower can be hit, I attack the enemy base tower\./;
+  const entrant = JSON.parse(readFileSync(path.join(ROOT, 'prompts/pilots/sample-entrant-siege.schemas.json'), 'utf8'));
+  const entrantProse = readFileSync(path.join(ROOT, 'prompts/pilots/sample-entrant-siege.prose.md'), 'utf8').replace(/\s+/g, ' ');
+  assert.match(entrantProse, ENTRANT_PUSH);
+  const bots = {
+    medium: [sideText(HOUSE_TIERS_ECO.medium), loadHouseSchemas(HOUSE_TIER_ECO_SCHEMAS.medium, ROOT).schemas, PUSH],
+    hard: [sideText(HOUSE_TIERS_ECO.hard), loadHouseSchemas(HOUSE_TIER_ECO_SCHEMAS.hard, ROOT).schemas, PUSH],
+    entrant: [entrantProse, entrant, ENTRANT_PUSH],
+  };
+  const medium = bots.medium[1];
+  for (const [bot, [prose, schemas, sentence]] of Object.entries(bots)) {
+    const flat = prose.replace(/\s+/g, ' ');
+    assert.match(flat, sentence, `${bot}: the prose says it`);
+    assert.ok(flat.search(/fall back to (your|my) own tower/) < flat.search(sentence), `${bot}: after the fall-back sentence`);
+    for (const inst of ['drums', 'keytar', 'violin']) {
+      const s = schemas[inst];
+      const label = `${bot} ${inst}`;
+      const push = s.rules.filter((r) => r.action_target_selector === 'enemy_base_tower');
+      assert.equal(push.length, 1, `${label}: one push rule`);
+      const i = s.rules.indexOf(push[0]);
+      assert.equal(push[0].action_kind, 'attack', label);
+      assert.match(push[0].condition, /^can the enemy base tower be hit/, `${label}: asks what vocab-2 states, not "can this bot hit it"`);
+      assert.match(s.rules[i - 1].condition, /will an enemy tower shoot/, `${label}: right after the fall-back`);
+      assert.match(s.rules[i + 1].condition, /inside an enemy tower's range/, `${label}: right before the siege`);
+      assert.ok(s.rules.slice(0, i).some((r) => /480/.test(r.condition)), `${label}: the 8:00 close-out stays above it`);
+      assert.equal(s.map, 'pvp-1-hp300-base700', `${label}: records the map its rule was compiled for`);
+      if (bot === 'hard') assert.deepEqual(push[0], medium[inst].rules.find((r) => r.action_target_selector === 'enemy_base_tower'), `${label}: medium's rule object`);
+    }
+  }
+  const easy = loadHouseSchemas(HOUSE_TIER_ECO_SCHEMAS.easy, ROOT).schemas;
+  assert.doesNotMatch(sideText(HOUSE_TIERS_ECO.easy), /base tower/);
+  for (const s of Object.values(easy)) assert.ok(!s.rules.some((r) => r.action_target_selector === 'enemy_base_tower') && !('map' in s));
+});
+
 test('easy (eco, vocab-2): holds its lane at its own tower instead of leaving at the sight of an enemy tower', () => {
   const prose = sideText(HOUSE_TIERS_ECO.easy).replace(/\s+/g, ' ');
   assert.match(prose, /If you are inside an enemy tower's range, fall back to your own tower\./);

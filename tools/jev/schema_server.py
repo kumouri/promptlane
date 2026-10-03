@@ -31,6 +31,7 @@ from one that played it.
                       "targeting": [the rules this server resolves],
                       "vocabs": [the vocabularies this server plays],
                       "tower_aggro": [the tower aggro rules its vocab-2 description states],
+                      "base_towers": true (its vocab-2 description states a base-tower map's base towers),
                       "token_source", "token_expires_in_sec", "token_renewals",
                       "jev_fallback_*" (typesafe only)}
     POST /        body: {"schema": <compile.py schema JSON>, "observation": <Observation>,
@@ -167,6 +168,7 @@ class JevSchemaBackend:
                 "targeting": list(TARGETING_RULES),
                 "vocabs": list(VOCABS),
                 "tower_aggro": list(TOWER_AGGRO_RULES),
+                "base_towers": True,
             }
         snap.update(client_status(self.client))
         return snap

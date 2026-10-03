@@ -18,6 +18,9 @@
  *   where base structures can be hit only once a lane is open. Without it, a pushing bot could walk
  *   past both lane towers and win by hitting one 700-hp target, and the "hard towers in front of it
  *   you have to take down" would be optional.
+ * - **What pilots see:** both base towers map-wide, with whether each can be hit now
+ *   (`BaseTowerObservation`), so a bot can push to the enemy's once a lane is open. vocab-2 states
+ *   it, and `enemy_base_tower` targets it (`tools/jev/`).
  * - **The nexus can't be hurt while its base tower stands**, and the match ends the moment the base
  *   tower falls, so on this map the base tower is the only structure that wins. The nexus stays as
  *   the thing the base tower guards, and as the sim's own win path.
@@ -36,7 +39,7 @@
  * A log records the variant whole (`MatchLog.map`), with the base tower in it, so it replays under
  * the rule it was played with. A variant without `baseTower` attaches nothing.
  */
-import type { Team, Vec2 } from './types';
+import type { Observation, Team, Vec2 } from './types';
 import type { Match } from './sim/match';
 import { TICK_DT } from './sim/match';
 import type { Tower } from './sim/entities';
@@ -60,7 +63,8 @@ export function isBaseTower(t: Tower): boolean {
   return (t.tier as number) === BASE_TOWER_TIER;
 }
 
-type Finishable = { finish(winner: Team | null, reason: string): void };
+type PilotStates = Map<string, { pilot: { decide(obs: Observation): Promise<unknown> } }>;
+type Finishable ={ finish(winner: Team | null, reason: string): void };
 type WinCheck = { checkWinConditions(): void };
 
 /** One match's base towers. */
@@ -134,9 +138,29 @@ export class BaseTowers {
     }
   }
 
+  /** `obs` plus both base towers (`BaseTowerObservation`). */
+  observe(obs: Observation): Observation & BaseTowerObservation {
+    const team = obs.self.team;
+    const view = (side: Team) => {
+      const t = this.towers[side];
+      return { id: t.id, pos: { x: t.pos.x, y: t.pos.y }, hp: Math.round(t.hp * 10) / 10, maxHp: t.maxHp, alive: t.alive, canBeHit: t.alive && this.vulnerable(side) };
+    };
+    return { ...obs, baseTowers: { own: view(team), enemy: view(team === 'violet' ? 'green' : 'violet') } };
+  }
+
   summary(): BaseTowerSummary {
     return { openedTick: { ...this.openedTick }, fellTick: { ...this.fellTick } };
   }
+}
+
+/**
+ * What pilots see on a map with base towers (runs/bots-push-to-base-2026-10-02.md): both base
+ * towers, map-wide, and whether each can be hit now. `canBeHit` is `BaseTowers.vulnerable`, the rule
+ * `endOfTick` applies, so the description and the sim can't disagree. A protected base tower's hp
+ * reads full, because it is: its damage is undone every tick.
+ */
+export interface BaseTowerObservation {
+  baseTowers: Record<'own' | 'enemy', { id: string; pos: Vec2; hp: number; maxHp: number; alive: boolean; canBeHit: boolean }>;
 }
 
 /** What `MatchLog.result.baseTower` carries. */
@@ -171,5 +195,10 @@ export function attachBaseTowers(match: Match, rules: BaseTowerRules, range: num
     if (match.ended) return;
     specimenWinCheck();
   };
+  const states = (match as unknown as { pilotState: PilotStates }).pilotState;
+  for (const ps of states.values()) {
+    const inner = ps.pilot;
+    ps.pilot = { decide: (obs: Observation) => inner.decide(bt.observe(obs)) };
+  }
   return bt;
 }

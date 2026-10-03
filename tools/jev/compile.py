@@ -332,8 +332,9 @@ def parse_args(argv=None) -> argparse.Namespace:
                    f"{LEGACY_VOCAB} writes exactly the schema JSON compiles wrote before vocabularies existed")
     p.add_argument("--map", choices=tuple(MAPS), default=None,
                    help="the map the prose is written for (src/mapVariant.ts). pvp-2 offers a vocab-2 compile its teleport "
-                   "(a third ability, aimed by tp_lane_tower or tp_threatened_tower) and its facts, and the schema records "
-                   "\"map\"; no map (the default) or any other compiles exactly as before")
+                   "(a third ability, aimed by tp_lane_tower or tp_threatened_tower) and its facts; a map with base towers "
+                   "(pvp-1-hp300-base700, pvp-2-hp400-base950 and their tunings, vocab.BASE_TOWER_MAPS) offers the enemy_base_tower target and the base towers' fact. "
+                   "Either way the schema records \"map\"; no map (the default) or any other compiles exactly as before")
     return p.parse_args(argv)
 
 

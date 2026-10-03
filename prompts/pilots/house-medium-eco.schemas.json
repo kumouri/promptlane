@@ -58,6 +58,15 @@
     "action_target_selector": "own_tower"
    },
    {
+    "id": "attack_base_tower_if_hitable",
+    "condition": "can the enemy base tower be hit now?",
+    "criteria_true": "enemy base tower can be hit (one of their inner towers is down)",
+    "criteria_false": "enemy base tower cannot be hit yet",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "enemy_base_tower"
+   },
+   {
     "id": "siege_attack_tower",
     "condition": "is this bot inside an enemy tower's range and does that tower have this bot's own minions in its range?",
     "criteria_true": "inside enemy tower range AND enemy tower has allied minions in range",
@@ -124,7 +133,8 @@
    "arpeggiator"
   ],
   "economy": "eco-3-late",
-  "vocab": "vocab-2"
+  "vocab": "vocab-2",
+  "map": "pvp-1-hp300-base700"
  },
  "keytar": {
   "pilot_file": "prompts/pilots/house-medium-eco.prose.md",
@@ -183,6 +193,15 @@
     "action_kind": "move",
     "action_ability": null,
     "action_target_selector": "own_tower"
+   },
+   {
+    "id": "attack_base_tower_available",
+    "condition": "can the enemy base tower be hit now?",
+    "criteria_true": "enemy base tower can be hit (one of their inner towers is down)",
+    "criteria_false": "enemy base tower cannot be hit yet",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "enemy_base_tower"
    },
    {
     "id": "attack_tower_siege",
@@ -251,7 +270,8 @@
    "wall-of-sound"
   ],
   "economy": "eco-3-late",
-  "vocab": "vocab-2"
+  "vocab": "vocab-2",
+  "map": "pvp-1-hp300-base700"
  },
  "violin": {
   "pilot_file": "prompts/pilots/house-medium-eco.prose.md",
@@ -310,6 +330,15 @@
     "action_kind": "move",
     "action_ability": null,
     "action_target_selector": "own_tower"
+   },
+   {
+    "id": "base_tower_hitable",
+    "condition": "can the enemy base tower be hit now?",
+    "criteria_true": "enemy base tower is hittable (one of their inner towers is down)",
+    "criteria_false": "enemy base tower is not hittable",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "enemy_base_tower"
    },
    {
     "id": "inside_enemy_tower_with_minions_attack",
@@ -385,6 +414,7 @@
    "headliner"
   ],
   "economy": "eco-3-late",
-  "vocab": "vocab-2"
+  "vocab": "vocab-2",
+  "map": "pvp-1-hp300-base700"
  }
 }

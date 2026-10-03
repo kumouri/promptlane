@@ -76,7 +76,7 @@ export interface TeleportObservation {
     /** This bot's own channel, if it is in one. */
     channel: { tower: string; leftSec: number } | null;
     /** This bot's team's standing towers, map-wide. */
-    towers: Array<{ id: string; lane: Lane; tier: 1 | 2; hp: number; maxHp: number; enemyBearbots: number }>;
+    towers: Array<{ id: string; lane: Lane; tier: 1 | 2 | 3; hp: number; maxHp: number; enemyBearbots: number }>;
   };
   /** Every teleport channel in progress, both teams'. */
   teleports: Array<{ id: string; team: Team; tower: string; lane: Lane; leftSec: number }>;
