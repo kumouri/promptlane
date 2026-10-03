@@ -172,6 +172,11 @@ weren't merged. So every compiled cascade was checked by hand against its prose.
 | siege entrant | keytar | 6 | 1 | s5 | push rule above the fall-back, and the close-out lost (5) |
 | siege entrant | violin | 3 | 2 | s1 | s3: the push condition became "(its inner towers are down)", meaning all of them |
 
+**#98's clause-coverage check** (`translator.enforce_clause_coverage`) merged after the run. Run over the
+nine shipped schemas, each scoped to its instrument as the translator does, it passes every one
+(`check_coverage.py` in the data kit). The rule-order check (`fix/vocab2-rule-order`) wasn't merged when
+this was written.
+
 **32 of 40 instrument compiles were rejected.** The push rule's target was right in all 40, and its condition
 in 26. The rest of the rejections are order (the push rule above the fall-back, the close-out lost) and
 the shopping rule's clauses.
