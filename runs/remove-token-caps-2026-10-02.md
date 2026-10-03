@@ -140,7 +140,9 @@ cuts a reply that could be valid. OpenRouter's providers stop at the model's con
 ## 5. $0 verification
 
 **Setup.**
-- The code was a frozen merge of this branch with #92, on develop with #90 and #91. #92 was open.
+- The code was a frozen merge of this branch with #92's head (`1112345`), on develop with #90 and
+  #91. #92 was open then, and has since merged. This branch, rebased onto it, has `tools/jev` and
+  `src` byte-identical to the tree measured here.
 - Each prose file was compiled with `compile.py`'s own arguments as #92's batch: `--vocab vocab-2
   --economy eco-3-late --backend ollama`.
 - Every reply was recorded with Ollama's own counts and timings.
