@@ -330,9 +330,9 @@ Ceryce kept the push-lane medium and asked for hard above it.
   right after the shopping pair. Its schemas are medium's rule objects, build and default, byte for
   byte, with the compiled tower rule spliced in. It needs no compile of its own. The rule came from a
   compile of a shortened copy of the first try's prose, because the whole prose then overran the
-  translator's 1,800-token reply (removed by #95). The splice keeps the prose's order and passes the
-  rule-order and negation checks of `runs/vocab2-rule-order-2026-10-02.md` unchanged, so it was not
-  recompiled.
+  translator's 1,800-token reply (removed by #95). The splice keeps the prose's order and passes every
+  vocab-2 check unchanged (guard scope, identity, negation, clause coverage, rule order;
+  `runs/vocab2-rule-order-2026-10-02.md` §9), so it was not recompiled.
 - Medium against itself is a coin flip, so whatever hard gains comes from finishing towers its wave
   has worn down. The Jev result is in the run file.
 

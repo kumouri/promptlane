@@ -772,6 +772,12 @@ guard:
     action and target included (§8.4). "Is an enemy minion, tower or bearbot in sight? → go home" is
     half of "When your hp is below 100 and an enemy … is in sight, move back home". It reads like "If
     an enemy bearbot is in sight, attack …", but that is not its sentence.
+    Since §8.15, when the order check's parts give the rule a clear part of its own, that part's
+    sentences decide instead. The parts weigh rare words more and count a sentence naming another
+    action at half. "Will an enemy tower shoot this bearbot? → my own tower", with criteria saying "inside
+    an enemy tower's range … no minions in range", shares more words with the siege sentence than with
+    "If an enemy tower will shoot you, fall back to your own tower". It was removed as half of the siege
+    sentence in 3 of 54 hard-eco compiles (`runs/vocab2-rule-order-2026-10-02.md` §11).
 - **What is caught:**
   - **A rule that states only part of a condition.** That means a rule that:
     - drops a clause ("can this bot afford its next item?");

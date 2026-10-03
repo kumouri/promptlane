@@ -2382,6 +2382,26 @@ class ClauseCoverageTests(unittest.TestCase):
         self.assertEqual(len(prompts), 1)
         self.assertEqual([r.id for r in schema.rules], ["shop"])
 
+    def test_the_tower_fire_rule_is_its_own_sentences_not_half_the_siege(self):
+        # This job's batches v5 and v6, house-hard-eco, 3 of 54 compiles: "will an enemy tower shoot this bearbot? -> my own
+        # tower" shares more words with the siege sentence than with its own, so it was held to the siege sentence and
+        # removed as half of it. The tie now goes to its own part of the prose (_ProseUnits, which counts the siege
+        # sentence's "attack" against a move rule).
+        prose = T.scope_to_instrument(open(os.path.join(os.path.dirname(__file__), "..", "..", "prompts", "pilots",
+                                                        "house-hard-eco.prose.md"), encoding="utf-8").read(), "violin").text
+        fire = {"id": "enemy_tower_shoot_fallback", "condition": "will an enemy tower shoot this bearbot?",  # v5 s11 violin, as written
+                "criteria": {"true": "this bearbot is inside an enemy tower's range and that tower will shoot it (no minions in range to block)",
+                             "false": "this bearbot is not being targeted by any enemy tower"},
+                "action": {"kind": "move", "ability": None, "target_selector": "own_tower"}}
+        siege = _node("siege_wave_attack", "is this bearbot inside an enemy tower's range and does that tower have this bearbot's "
+                      "own minions in its range?", "attack", target="nearest_tower")
+        recall = _node("afford_recall", "can this bearbot afford the next item on its shopping list and is no enemy in sight?",
+                       "recall", target=None)
+        schema = _tree(recall, fire, siege)
+        out = T.enforce_clause_coverage(schema, prose, drop=True)  # the other sentences have no rule here, so not `is`
+        self.assertEqual([n.id for n in out.root.nodes], ["afford_recall", "enemy_tower_shoot_fallback", "siege_wave_attack"])
+        self.assertFalse([x for x in out.validation_notes if x.startswith("clause coverage: removed")])
+
     def test_the_negation_guard_reads_its_own_words(self):
         # The coverage check reads "your tower" and "an enemy is dead" with wider lists; #87's guard keeps its own. Both
         # read "outside" as a "not" (NegatedClauseKeepsItsNoTests.test_outside_a_towers_range_is_not_inside_it).

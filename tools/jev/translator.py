@@ -2290,7 +2290,8 @@ def _or_parts(condition: str) -> list[str]:
     return [p for p in _QUESTION_OR.split(condition) if p.strip()] or [condition]
 
 
-def _clause_dropped(rule: TranslatedRule, above: _Facts | None, units: list[_Unit], sentence_tokens: list[set[str]]) -> _Unit | None:
+def _clause_dropped(rule: TranslatedRule, above: _Facts | None, units: list[_Unit], sentence_tokens: list[set[str]],
+                    own_sentences: set[int] | None = None) -> _Unit | None:
     """The condition (`_Unit`) `rule` states only part of, or None when it is faithful. Each "or"
     alternative of the rule's question (`above` adds the guard questions it is nested under) is held to the
     condition whose requirements it meets the most of (`_asked_of`); it is faithful when one such condition
@@ -2300,8 +2301,20 @@ def _clause_dropped(rule: TranslatedRule, above: _Facts | None, units: list[_Uni
     minions are near me" elsewhere. A condition the model made up for a sentence that states none (a
     fallback's "no enemy bearbot or minion in sight") is held to whatever it meets most, and is dropped on
     the last attempt; the default plays that sentence anyway. One that meets no requirement of any condition
-    is left alone: it is not a translation of any condition this check can read."""
+    is left alone: it is not a translation of any condition this check can read.
+
+    `own_sentences`, when given: the sentences of the rule's own part of the prose (`_ProseUnits.own`), which
+    then decide the tie instead of `_own_sentence`'s word count. "will an enemy tower shoot this bearbot? ->
+    my own tower" shares more words with the siege sentence ("inside an enemy tower's range and that tower has
+    your own minions in its range to shoot first, attack ...") than with its own ("If an enemy tower will
+    shoot you, fall back to your own tower"), and was removed as half of the siege sentence in 3 of 54
+    hard-eco compiles (runs/vocab2-rule-order-2026-10-02.md §11). The parts discount a sentence naming
+    another action ("attack"), so they place it right."""
     _, scores, own = _own_sentence(rule, sentence_tokens)
+
+    def is_own(i: int) -> bool:
+        return units[i].sentence in own_sentences if own_sentences else units[i].sentence == own
+
     bad: list[_Unit] = []
     for part in _or_parts(rule.condition):
         asked = _merge(_facts(part), above) if above else _facts(part)
@@ -2312,17 +2325,17 @@ def _clause_dropped(rule: TranslatedRule, above: _Facts | None, units: list[_Uni
             continue
         top = [i for i, m in enumerate(met) if m == best]
         full = [i for i in top if all(m == n for m, n in tallies[i])]
-        part_own = [i for i in top if i not in full and units[i].sentence == own and len(units[i].clauses) >= 2]
+        part_own = [i for i in top if i not in full and is_own(i) and len(units[i].clauses) >= 2]
         # A tie between a condition met in full and one met in part goes to the sentence the rule states (its
         # words, action and target): "is an enemy minion, tower or bearbot in sight? -> go home" is half of "When
         # your hp is below 100 and an enemy ... is in sight, move back home", not "If an enemy bearbot is in
         # sight, attack ...".
-        if full and not (part_own and not any(units[i].sentence == own for i in full)):
+        if full and not (part_own and not any(is_own(i) for i in full)):
             continue
         bad += [units[i] for i in (part_own or top)]
     if not bad:
         return None
-    return max(bad, key=lambda u: (u.sentence == own, scores[u.sentence]))
+    return max(bad, key=lambda u: ((u.sentence in own_sentences) if own_sentences else u.sentence == own, scores[u.sentence]))
 
 
 def enforce_clause_coverage(schema: TranslatedSchema, pilot_text: str, drop: bool = False, removed: tuple = ()) -> TranslatedSchema:
@@ -2341,6 +2354,17 @@ def enforce_clause_coverage(schema: TranslatedSchema, pilot_text: str, drop: boo
     if not any(len(u.clauses) >= 2 for u in units):
         return schema
     sentence_tokens = [_tokenize(s) for s in sentences]
+    parts = _ProseUnits(pilot_text)
+    flat = [" ".join(s.split()) for s in sentences]
+
+    def own_sentences(node: TranslatedRule) -> set[int] | None:
+        """The coverage sentences inside the node's own part, when the order check would place it there."""
+        k = parts.own(node) if parts.placed(node) else None
+        if k is None:
+            return None
+        text = " ".join(parts.texts[k].split())
+        return {i for i, s in enumerate(flat) if s and s in text} or None
+
     found: list[tuple[TranslatedRule, _Unit, list[str]]] = []
     stated: list[_Facts] = []  # what each kept rule's "or" alternatives ask
     numbers_lost: list[frozenset] = []
@@ -2353,7 +2377,7 @@ def enforce_clause_coverage(schema: TranslatedSchema, pilot_text: str, drop: boo
                 nodes.append(dataclasses.replace(node, then=walk(node.then, _merge(above, yes) if above else yes),
                                                  else_=walk(node.else_, _merge(above, no) if above else no)))
                 continue
-            unit = _clause_dropped(node, above, units, sentence_tokens)
+            unit = _clause_dropped(node, above, units, sentence_tokens, own_sentences(node))
             if unit is None:
                 nodes.append(node)
                 stated.extend(_merge(_facts(p), above) if above else _facts(p) for p in _or_parts(node.condition))
