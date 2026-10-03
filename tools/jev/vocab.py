@@ -19,7 +19,12 @@ no model call, no sim state the observation doesn't carry.
 Two numbers the observation doesn't carry come from the request's `map` (`src/mapVariant.ts`, the
 variant object a match log records): tower range and the towers' lane fractions. The attack ranges
 are the specimen's static per-instrument table (`src/sim/entities.ts`; items don't change them).
-`tools/match/test_vocab.mjs` holds both mirrors to the TypeScript."""
+`tools/match/test_vocab.mjs` holds both mirrors to the TypeScript.
+
+Tower aggro (`src/towerAggro.ts`, opt-in): when the match has it, the observation carries
+`towerAggro` and each listed tower's `aggro` (the bearbot it is locked on, or null). A tower's lock
+decides whom it shoots, so `will_shoot_me` and `shooting_my_minions` read it; an observation
+without the field reads exactly as before."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -61,6 +66,10 @@ SPECIMEN_LANE_PATHS = {
 }
 # resolveMap(null): a request (like a log) that names no map is on the specimen map.
 NO_MAP = "v1"
+# src/towerAggro.ts TOWER_AGGRO_RULES: the tower aggro rules this checkout describes (`/health`
+# `tower_aggro`, checked by `jevSchemaPilot.ts towerAggroUnsupported`). The description reads the
+# window from the observation, so only the names are mirrored.
+TOWER_AGGRO_RULES = ("aggro-1",)
 
 # The fight verdict (spec §4.1 A3), calibrated on 64,290 recorded pvp-1 decisions by
 # `tools/jev/calibrate_fight.py` (runs/vocab-fight-calibration-2026-10-02.md): a tower over the
@@ -144,20 +153,31 @@ class TowerFact:
     in_range: bool  # this bot stands inside the tower's range
     my_minions_in_range: int  # enemy tower only: this bot's minions it would shoot first
     divers: tuple[str, ...]  # own tower only: visible enemy bearbots inside its range
+    # Tower aggro (src/towerAggro.ts): the bearbot this tower is locked on and the seconds left, or None.
+    aggro_target: str | None = None
+    aggro_left: float = 0.0
+    aggro_on_me: bool = False
 
     @property
     def will_shoot_me(self) -> bool:
         """The sim's tower rule (match.ts updateTowers): minions first, a bearbot only when no minion
         of its team is in range. Judged from the minions this bot can see: one beyond 260 from it
-        but inside the tower's range is missed (stage B makes it exact)."""
-        return (not self.own) and self.tower.get("alive", True) and self.in_range and self.my_minions_in_range == 0
+        but inside the tower's range is missed (stage B makes it exact). Under tower aggro a locked
+        tower shoots the bearbot it is locked on, whatever else is in range."""
+        if self.own or not self.tower.get("alive", True) or not self.in_range:
+            return False
+        if self.aggro_target is not None:
+            return self.aggro_on_me
+        return self.my_minions_in_range == 0
 
     @property
     def shooting_my_minions(self) -> bool:
         """The siege (spec §8.8): this bot stands inside an enemy tower's range while that tower has
         this bot's minions in range, so by the same rule it shoots them and not this bot. Exactly
-        the in-range enemy towers that `will_shoot_me` leaves out, judged from the same minions."""
-        return (not self.own) and self.tower.get("alive", True) and self.in_range and self.my_minions_in_range > 0
+        the in-range enemy towers that `will_shoot_me` leaves out, judged from the same minions,
+        except one locked on another bearbot by tower aggro (it shoots that bearbot)."""
+        return ((not self.own) and self.tower.get("alive", True) and self.in_range and self.my_minions_in_range > 0
+                and self.aggro_target is None)
 
 
 def tower_facts(obs: dict, spec: MapSpec) -> list[TowerFact]:
@@ -169,6 +189,7 @@ def tower_facts(obs: dict, spec: MapSpec) -> list[TowerFact]:
     for t in obs.get("nearbyTowers") or ():
         own = t.get("team") == team
         in_range = dist(me, t["pos"]) <= spec.tower_range
+        lock = t.get("aggro") if t.get("alive", True) else None
         out.append(TowerFact(
             tower=t,
             own=own,
@@ -176,6 +197,9 @@ def tower_facts(obs: dict, spec: MapSpec) -> list[TowerFact]:
             in_range=in_range,
             my_minions_in_range=0 if own else sum(1 for m in mine if dist(m["pos"], t["pos"]) <= spec.tower_range),
             divers=tuple(e["id"] for e in bearbots if dist(e["pos"], t["pos"]) <= spec.tower_range) if own and t.get("alive", True) else (),
+            aggro_target=lock["target"] if lock else None,
+            aggro_left=float(lock["leftSec"]) if lock else 0.0,
+            aggro_on_me=bool(lock) and lock["target"] == self_["id"],
         ))
     return out
 
@@ -292,6 +316,17 @@ FACTS_PVP2 = (
          "bearbots are within 260 units of it", "Your standing towers", when="the map has the teleport"),
     Fact("teleports", "every teleport in progress, either team's: who, to which tower, and how many seconds until it lands",
          "teleporting", when="the map has the teleport"),
+)
+
+
+# What tower aggro adds (`src/towerAggro.ts`). The description states it only when the observation
+# carries `towerAggro`, so a match without the rule reads exactly as before. The translator prompt
+# doesn't list it yet (`facts_for` is unchanged): a compile doesn't know the match's tower rule.
+FACTS_AGGRO = (
+    Fact("tower_aggro", "the tower aggro rule: a tower shoots a bearbot that damages a bearbot of the tower's team from inside the "
+         "tower's range, instead of minions, for a few seconds or until it leaves the range; so an enemy tower will shoot this "
+         "bearbot if it hits that tower's team's bearbot in the tower's range; and which towers are shooting a bearbot because of it",
+         "Towers retarget", when="the match has tower aggro"),
 )
 
 
