@@ -861,7 +861,8 @@ token caps were gone (#95), house-hard-eco's 16-rule prose compiled whole, and i
 translator moved the 480-second tower rule, the tower-fire retreat or the finish kills below "push with
 your wave". The sample entrant's compiles put "afford my next item → go shop" above the back-off and
 the recall in 33 of 36. Nothing checked order. Under `vocab-2`, `translator.enforce_rule_order` runs
-after the negation guard and before the priority guard:
+after the clause-coverage guard (§8.11) and before the priority guard, so order is judged on rules
+that state every clause. An order rejection is a whole rewrite, not a §8.11 splice:
 
 - **Where each node is in the prose.** The prose is cut into parts: each rule sentence, with the label
   sentences that introduce it ("Finish kills.", "Never stand in an enemy tower's fire."). A sentence is
