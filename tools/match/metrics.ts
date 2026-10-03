@@ -52,6 +52,7 @@ import { ECO_1_GOLD_SOURCES, GOLD_SOURCES, attachEconomy, itemTier, totalCost, t
 import { attachObjective, resolveObjective, type Objective } from '../../src/objective';
 import { attachRecall, resolveRecall, type Recall } from '../../src/recall';
 import { attachFinale, resolveFinale } from '../../src/finale';
+import { attachTowerAggro, resolveTowerAggro } from '../../src/towerAggro';
 import { attachResolution, resolveResolution } from '../../src/resolution';
 import { attachMapRules } from '../../src/mapRules';
 import { mapGeometry } from '../../src/geometry';
@@ -380,6 +381,8 @@ export async function measureLog(log: MatchLog, flush: () => Promise<void> = def
   const resolution = resolveResolution(log.resolution);
   attachResolution(match, resolution); // before anything wraps the sim's steps
   attachMapRules(match, variant, resolution); // a map's own layers (pvp-2), inside the recall
+  const towerAggroRules = resolveTowerAggro(log.towerAggro);
+  if (towerAggroRules) attachTowerAggro(match, towerAggroRules, TICK_DT); // replaces the tower step, so before any attribution
   // The layers wrap the instance's `tick` (map, then recall, objective, economy, as the runner
   // attaches them). The loop below calls `p.tick` through the instance every tick, so it always
   // reaches the outermost wrapper.
