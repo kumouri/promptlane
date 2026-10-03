@@ -1027,6 +1027,33 @@ class NegatedClauseKeepsItsNoTests(unittest.TestCase):
                          {"kind": "recall", "ability": None, "target_selector": None})
         self.assertIs(T.enforce_negation(kept, prose), kept)
 
+    def test_outside_a_towers_range_is_not_inside_it(self):
+        # Flagged by #98's job: "outside an enemy tower's range" read as the tower being there, so a correct recall
+        # rule worded that way was rejected for losing the prose's "not inside". "outside" and "beyond" negate, as
+        # they already did for clause coverage (_COVERAGE_LEXICON).
+        prose = ("If I can see an enemy tower and none of my minions are near me, I back off home.\n\n"
+                 "When my hp drops below a third of my max and I'm not inside an enemy tower's range, I recall home to heal.")
+        recall = {"kind": "recall", "ability": None, "target_selector": None}
+        for condition in ("is this bot's hp below a third and is it outside an enemy tower's range?",
+                          "is this bot's hp below a third of max and is it outside the range of every enemy tower?",
+                          "is this bot's hp below a third and is it beyond an enemy tower's reach?",
+                          # "the", "of", "an" no longer push the "not" out of the four-word window
+                          "is this bot's hp below a third and is it not inside the range of an enemy tower?"):
+            for rid in ("recall_heal", "recall_low_hp_outside_tower_range"):
+                schema = _one_rule(rid, condition, recall)
+                self.assertIs(T.enforce_negation(schema, prose), schema, (rid, condition))
+        self.assertEqual(T._polarities("is it outside an enemy tower's range?"), {"enemy tower": {True}})
+        self.assertEqual(T._polarities("recall_outside_enemy_tower", after=False), {"enemy tower": {True}})
+        # Inside still lost the "not".
+        with self.assertRaises(T.SchemaValidationError):
+            T.enforce_negation(_one_rule("recall_heal", "is this bot's hp below a third and is it inside an enemy tower's range?", recall), prose)
+        # And a prose "outside" is a "not" a question can lose.
+        outside = prose.replace("I'm not inside an enemy tower's range", "I'm outside every enemy tower's range")
+        with self.assertRaises(T.SchemaValidationError) as err:
+            T.enforce_negation(_one_rule("recall_heal", "is this bot's hp below a third and is it inside an enemy tower's range?", recall),
+                               outside)
+        self.assertIn("the prose says \"I'm outside every enemy tower's range\"", str(err.exception))
+
     def test_none_of_my_minions_keeps_its_none(self):
         prose = "If I can see an enemy tower and none of my minions are near me, I back off home instead of tanking the tower alone."
         lost = _one_rule("tower_no_minions", "is an enemy tower visible and are my minions near this bot?", {"kind": "move", "ability": None, "target_selector": "home"})
@@ -2287,8 +2314,9 @@ class ClauseCoverageTests(unittest.TestCase):
         self.assertEqual([r.id for r in schema.rules], ["shop"])
 
     def test_the_negation_guard_reads_its_own_words(self):
-        # The coverage check reads "outside", "your tower" and "an enemy is dead" with wider lists; #87's guard keeps its own.
-        self.assertEqual(T._polarities("is it outside an enemy tower's range?"), {"enemy tower": {False}})
+        # The coverage check reads "your tower" and "an enemy is dead" with wider lists; #87's guard keeps its own. Both
+        # read "outside" as a "not" (NegatedClauseKeepsItsNoTests.test_outside_a_towers_range_is_not_inside_it).
+        self.assertEqual(T._polarities("is it outside an enemy tower's range?"), {"enemy tower": {True}})
         self.assertEqual(T._polarities("is an enemy bearbot under your tower?"), {"enemy": {False}, "enemy tower": {False}})
         self.assertEqual(T._polarities("is an enemy bearbot dead?"), {"enemy": {True}})
         self.assertEqual(T._facts("is it outside an enemy tower's range?").things, {"enemy tower": {True}})

@@ -1636,7 +1636,11 @@ def enforce_instrument_scope(schema: TranslatedSchema, instrument: str, primary_
 
 NEGATION_NOTE_PREFIX = "negation:"
 
-_NEG_BEFORE = frozenset("no not none never without zero nobody nothing fewer neither nor isn't aren't can't cannot don't doesn't".split())
+# "outside" and "beyond" negate what follows: "outside an enemy tower's range" is "not inside" it. Without them a
+# correct recall rule worded "outside" was read as losing the prose's "not inside" (flagged by #98's job).
+_NEG_BEFORE = frozenset("no not none never without zero nobody nothing fewer neither nor isn't aren't can't cannot don't doesn't "
+                        "outside beyond".split())
+_UNCOUNTED = frozenset("a an the of any every each all".split())  # words `_negated` looks past before a mention
 _NEG_AFTER = frozenset({"absent", "gone", "missing", "dead", "zero", "out"})  # "out" as in "out of sight / out of range"
 _CLAUSE_BREAK = frozenset("and or but then while when if unless because so , ; : . ? !".split())
 _ENEMY_WORDS = frozenset({"enemy", "enemies", "opponent", "opponents", "foe", "foes"})
@@ -1652,12 +1656,17 @@ def _polar_words(text: str) -> list[str]:
 def _negated(words: list[str], start: int, end: int, after: bool = True,
              neg_before: frozenset = _NEG_BEFORE, neg_after: frozenset = _NEG_AFTER) -> bool:
     """A "no"/"not"/"none" up to four words before the mention, or (`after`) "absent"/"gone"/"out" up
-    to three after it, inside the same clause ("and", "or", "if" and punctuation end one)."""
-    for w in reversed(words[max(0, start - 4):start]):
-        if w in _CLAUSE_BREAK:
+    to three after it, inside the same clause ("and", "or", "if" and punctuation end one). Before the
+    mention, "the", "a", "of", "every" and the like are not counted: "outside the range of every enemy
+    tower" is as negated as "outside an enemy tower's range"."""
+    counted = 0
+    for w in reversed(words[:start]):
+        if w in _CLAUSE_BREAK or counted == 4:
             break
         if w in neg_before:
             return True
+        if w not in _UNCOUNTED:
+            counted += 1
     for w in words[end + 1:end + 4] if after else ():
         if w in _CLAUSE_BREAK:
             break
@@ -2106,11 +2115,10 @@ _VERBISH = frozenset(
     "is are am was were be has have had can could will would does do did drops drop falls opens open see sees "
     "carry carries carrying i'm we're you're it's".split()
 )
-# Wider than the negation guard's lists, for reading what a clause or a question names: "outside an enemy
-# tower's range" is not inside it, "your tower" and "one of the bot's towers" are the bot's own (but "an enemy
-# bot's tower" is not), and "an enemy bearbot is dead" is about a dead enemy (the "dead" concept below), not
-# about there being no enemy.
-_COVERAGE_LEXICON = dict(neg_before=_NEG_BEFORE | {"outside", "beyond"}, neg_after=_NEG_AFTER - {"dead"},
+# Wider than the negation guard's lists, for reading what a clause or a question names: "your tower" and "one
+# of the bot's towers" are the bot's own (but "an enemy bot's tower" is not), and "an enemy bearbot is dead" is
+# about a dead enemy (the "dead" concept below), not about there being no enemy.
+_COVERAGE_LEXICON = dict(neg_before=_NEG_BEFORE, neg_after=_NEG_AFTER - {"dead"},
                          own=_OWN_WORDS | {"your", "this"}, lists=True, self_words=frozenset({"bot", "bearbot"}))
 # What else a condition can be about, and the words that name it.
 _CONCEPT_WORDS = {

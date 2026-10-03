@@ -598,7 +598,11 @@ before the priority guard:
   a first version did, and the translator copied that question back word for word.
 - On the last attempt the rule is dropped instead, with a `negation:` note the entrant sees under
   "Negations — what was removed", so the instrument still compiles.
-- A question that keeps its "no", "not", "none", "zero" or "out of sight" is never touched.
+- A question that keeps its "no", "not", "none", "zero", "out of sight", "outside" or "beyond" is
+  never touched. A "no" counts when it is up to four words before the thing, and "the", "a", "of",
+  "every" and the like are not counted, so "outside the range of every enemy tower" keeps its "not"
+  as "outside an enemy tower's range" does. (Until §8.15 the guard read "outside" as the tower being
+  there, and would have rejected a correct recall rule worded that way.)
 - A sentence that names the thing both ways ("walk with my nearest minion, and if I have no minions
   near me …") decides nothing.
 - Only a sentence of the prose the rule states can decide (§8.15): a "no" in another sentence never
@@ -744,7 +748,7 @@ guard:
 - **What a clause names:**
   - **Its things, with their polarity.** These are read by the negation guard's own reader, with
     wider word lists:
-    - "outside" negates;
+    - "outside" negates (in the guard's own list too since §8.15);
     - "your tower" is the bot's own;
     - "an enemy is dead" is about a dead enemy, not about there being no enemy;
     - a "no" carries along a list: "no enemy minion, enemy tower, or enemy bearbot" is none of them.
@@ -893,6 +897,11 @@ after the negation guard and before the priority guard:
 only if it is in a part the rule may state. In 3 of #95's 36 hard-eco compiles, a correct shopping
 rule was dropped. Its id read `shop_afford_no_enemy_minion_tower`, and the sentence backing the "no"
 was "Never stand in an enemy tower's fire". All of #87's fixtures still pass.
+
+**"Outside" is a "not".** The negation reader now reads "outside" and "beyond" as negating, and looks
+past "the", "a", "of" and "every" when it counts its four words, so "outside an enemy tower's range"
+and "not inside the range of an enemy tower" both keep the prose's "not inside" (§8.6). No recorded
+condition (482) or rule id (509) reads differently; #98's job had flagged it before any compile wrote it.
 
 **vocab-1 sends no reply cap** (Ceryce, 2026-10-02 17:59, "any token cap"). Its request is the one its
 recorded runs used, byte for byte, less `num_predict` 1800. It gains nothing, not even
