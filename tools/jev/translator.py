@@ -103,6 +103,7 @@ import math
 import os
 import re
 import sys
+from collections import Counter
 from dataclasses import dataclass, field
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -1954,23 +1955,28 @@ class _ProseUnits:
         return {j for k in self.candidates(node) for j in self.units[k]}
 
 
-def _rules_per_part(schema: TranslatedSchema, prose: _ProseUnits) -> dict[int, int]:
-    """How many nodes of `schema` state each part of the prose (a node's own part, else its first candidate)."""
-    counts: dict[int, int] = {}
+def _actions_per_part(schema: TranslatedSchema, prose: _ProseUnits) -> dict[int, Counter]:
+    """What the nodes of `schema` do for each part of the prose (a node's own part, else its first candidate): a
+    count of (kind, ability, target) per part, a guard counted as ("guard",)."""
+    out: dict[int, Counter] = {}
     for node in collect_nodes(schema.root):
         parts = prose.candidates(node)
         if parts:
             k = prose.own(node)
             k = min(parts) if k is None else k
-            counts[k] = counts.get(k, 0) + 1
-    return counts
+            act = ("guard",) if isinstance(node, GuardNode) else (node.action_kind, node.action_ability, node.action_target_selector)
+            out.setdefault(k, Counter())[act] += 1
+    return out
 
 
 def keeps_every_rule(schema: TranslatedSchema, earlier: TranslatedSchema, pilot_text: str) -> bool:
-    """True when `schema` states at least as many rules for every part of the prose as `earlier` did."""
+    """True when, for every part of the prose, `schema` still has every action `earlier` had for it. Counting rules
+    was not enough: told to keep the prose's order, the 9B rewrote "Otherwise I walk with my nearest minion, and if I
+    have no minions near me I go home ..." as one rule for its other half ("no minions near -> home", or "-> the
+    nearest ally"), a rule for the same sentence in place of the walk (this job's merged-code batch, sample s8)."""
     prose = _ProseUnits(pilot_text)
-    now = _rules_per_part(schema, prose)
-    return all(now.get(k, 0) >= n for k, n in _rules_per_part(earlier, prose).items())
+    now = _actions_per_part(schema, prose)
+    return all(now.get(k, Counter())[act] >= n for k, acts in _actions_per_part(earlier, prose).items() for act, n in acts.items())
 
 
 def _out_of_order(places: list[set[int]]) -> tuple[set[int], dict[int, int]]:
@@ -2499,8 +2505,8 @@ def translate_pilot(
 
     The first reply wrong only in its order (`enforce_rule_order`) is kept, reordered as the last attempt
     would ship it, and ships instead when every later attempt fails for another reason, or when the reply
-    that passes states fewer rules for some part of the prose (`keeps_every_rule`). The retry for order
-    can put the rules in order but never cost one. Both happened in runs/vocab2-rule-order-2026-10-02.md:
+    that passes lacks an action it had for some part of the prose (`keeps_every_rule`). The retry for order
+    can put the rules in order but never cost or change one. Both happened in runs/vocab2-rule-order-2026-10-02.md:
     a retry got back a shopping-list rule with kind "build" (a parse error) on the last attempt, and
     told to keep the prose's order, the 9B wrote one rule per sentence and dropped "walk with my nearest
     minion", the first half of "Otherwise I walk with my nearest minion, and if I have no minions ..."."""

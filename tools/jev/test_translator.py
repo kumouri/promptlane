@@ -1874,6 +1874,31 @@ class RuleOrderTests(unittest.TestCase):
         self.assertTrue(T.keeps_every_rule(whole, schema, prose))
         self.assertFalse(T.keeps_every_rule(T.parse_schema(in_order, "p.md", "drums", "raw", "vocab-2", economy="eco-3-late"), schema, prose))
 
+    def test_a_retry_that_swaps_a_rule_for_its_sentences_other_half_never_ships(self):
+        # This job's merged-code batch, sample s8 drums and violin: the order retry kept a rule for the walk sentence, but the
+        # wrong half: "are there no minions near? -> home" (or "-> the nearest ally") in place of "walk with my nearest
+        # minion". Counting rules per sentence passed it; what each sentence's rules do does not.
+        in_order = json.loads(self._reply_in_order(8))  # sample entrant, #95 s4 drums
+        for r in in_order["rules"]:
+            if (r.get("action") or {}).get("target_selector") == "nearby_minion":
+                r["id"], r["condition"] = "walk_or_home_no_targets", "are there no minions near this bot?"
+                r["action"] = {"kind": "move", "ability": None, "target_selector": "home"}
+        replies, prompts = [ORDER["cases"][8]["text"], json.dumps(in_order)], []
+
+        def generate(prompt):
+            prompts.append(prompt)
+            return replies[len(prompts) - 1]
+
+        with _without_clause_coverage():  # as in test_a_retry_that_loses_a_rule_never_ships
+            schema = T.translate_pilot(ORDER["prose"]["sample-entrant-eco"], "pilot.md", "drums", "kick", "fill", generate=generate,
+                                       vocab="vocab-2", economy="eco-3-late")
+        self.assertEqual(len(prompts), 2)
+        self.assertIn("nearby_minion", [n.action_target_selector for n in schema.rules])  # the first reply's walk rule
+        self.assertNotIn("walk_or_home_no_targets", [n.id for n in schema.rules])
+        prose = T.scope_to_instrument(ORDER["prose"]["sample-entrant-eco"], "drums").text
+        swapped = T.parse_schema(in_order, "p.md", "drums", "raw", "vocab-2", economy="eco-3-late")
+        self.assertFalse(T.keeps_every_rule(swapped, schema, prose))
+
     def test_a_reply_missing_a_clause_and_out_of_order_is_repaired_then_reordered(self):
         # #95 s4 drums: "can this bot afford its next item and is it at its base?" leaves out "no enemy is in sight", and the
         # cascade puts it above the back-off. Clause coverage runs first and splices the rewrite's afford rule into the

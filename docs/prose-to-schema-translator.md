@@ -253,8 +253,9 @@ decides, so a rule moved below one that nearly always fires rarely runs. Each no
 part of the prose it states; rules from override-worded prose are left to the priority guard. The retry
 lists the prose's rule sentences in order, quoting only prose. On the last attempt each out-of-order
 rule is moved to its own sentence, or removed when no one sentence is clearly its own, with an `order:`
-note. The first reply wrong only in its order is kept, reordered, and ships if no later reply passes
-with as many rules, so the retry can fix the order but never cost a rule. See
+note. The first reply wrong only in its order is kept, reordered, and ships unless a later reply passes
+with every action it had for each sentence, so the retry can fix the order but never cost or change
+a rule. See
 `docs/vocabulary-spec.md` §8.15.
 
 **Guard-scope check, vocab-2 only, added 2026-10-02.** `translator.enforce_guard_scope` rejects a

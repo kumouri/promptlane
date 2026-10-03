@@ -888,11 +888,14 @@ after the negation guard and before the priority guard:
 - **The retry can fix the order, never cost a rule.** The first reply wrong only in its order has
   passed every other check, so it is kept, reordered as above. It ships instead of the retry when:
   - every later attempt fails for another reason; or
-  - the reply that passes states fewer rules for some part of the prose (`keeps_every_rule`).
+  - the reply that passes lacks an action the kept reply had for some part of the prose
+    (`keeps_every_rule`: per part, every (kind, ability, target) the kept reply had).
 
   Told to keep the prose's order, the 9B wrote one rule per sentence. That dropped "walk with my
   nearest minion" from "Otherwise I walk with my nearest minion, and if I have no minions near me
-  I go home …".
+  I go home …". A first version counted rules per part, and in the merged-code batch two retries
+  passed it with a rule for the sentence's other half in place of the walk ("no minions near → home",
+  or "→ the nearest ally").
 - **Known miss.** Two rules whose sentences share a paragraph and every condition word but one, like
   the low-hp "move home" / "recall" pair, can swap unflagged. Their conditions exclude each other,
   so the swap plays the same.
