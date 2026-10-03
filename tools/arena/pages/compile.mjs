@@ -92,7 +92,7 @@ export function compilePage({ user, cfg, usage, draft, compiled, flash, practice
     ? `<h2>Result</h2>
 <div class="card compiled">
 <p class="dim">Compiled with <code>${esc(result.backend)}</code> — ${esc(result.usage.calls)} model call(s),
-${esc(result.usage.total_tokens.toLocaleString('en-US'))} tokens of a ${esc((result.capTokens ?? 0).toLocaleString('en-US'))}-token cap,
+${esc(result.usage.total_tokens.toLocaleString('en-US'))} tokens,
 ${esc(result.usage.wall_seconds)} s. Translation is sampled: compile again and the rules may shift a little —
 wording that compiles the same way every time is wording that plays the way you meant.</p>
 ${Object.entries(result.instruments)

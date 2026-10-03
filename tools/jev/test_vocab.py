@@ -508,7 +508,7 @@ class SchemaVocabPlumbing(unittest.TestCase):
         result = compile_prompt("Hold at my tower.", "pilot.md", ["drums"], None, schemas={"drums": s})
         self.assertEqual(result["vocab"], VOCAB_2)
         self.assertEqual(result["instruments"]["drums"]["schema"]["vocab"], VOCAB_2)
-        head = header_markdown(result, "saved", {"cost_usd": 0, "calls": 0, "total_tokens": 0, "seconds": 0}, None)
+        head = header_markdown(result, "saved", {"cost_usd": 0, "calls": 0, "total_tokens": 0, "seconds": 0})
         self.assertIn("Vocabulary: `vocab-2`", head)
 
     def test_schema_server_plays_the_schemas_own_vocab(self):

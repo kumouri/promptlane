@@ -14,7 +14,8 @@ stdout: one JSON line -- {"ok": true, "prose", "change", "sentence_changes", "at
 "One change" is checked, not trusted: the child's sentences are diffed against the parent's
 (difflib), and more than --max-sentence-changes added+removed sentences is a rejected attempt,
 retried with the reason. The model is any `tools/jev/llm_backends.py` backend -- the same
-module, spend cap and key handling the translator uses; nothing here reads a key itself.
+module and key handling the translator uses, with no token cap on a reply or a call (Ceryce,
+2026-10-02: "Get rid of any fucking token caps."); nothing here reads a key itself.
 Standard library only.
 """
 from __future__ import annotations
@@ -27,7 +28,7 @@ import re
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "jev"))
-from llm_backends import Backend, BackendError, BudgetExceeded, TokenBudget, make_backend  # noqa: E402
+from llm_backends import Backend, BackendError, make_backend  # noqa: E402
 
 GAME = """\
 The game: promptlane, a small three-lane MOBA. Each side is three bearbots that never respawn --
@@ -111,8 +112,6 @@ def mutate(backend: Backend, parent: str, focus: str, diagnostics: str = "", avo
     for attempt in range(1, attempts + 1):
         try:
             reply = backend.generate(build_prompt(parent, focus, diagnostics, avoid or [], reason))
-        except BudgetExceeded as err:
-            return {"ok": False, "error": f"token cap: {err}", "attempts": attempt}
         except BackendError as err:
             return {"ok": False, "error": f"backend: {err}", "attempts": attempt}
         parsed = parse_reply(reply)
@@ -137,7 +136,6 @@ def parse_args(argv=None) -> argparse.Namespace:
     p.add_argument("--model", default=None)
     p.add_argument("--attempts", type=int, default=3)
     p.add_argument("--max-sentence-changes", type=int, default=3)
-    p.add_argument("--max-total-tokens", type=int, default=30000, help="spend cap for this call's attempts; 0 = uncapped")
     p.add_argument("--timeout", type=float, default=180.0)
     return p.parse_args(argv)
 
@@ -151,7 +149,7 @@ def main(argv=None, stdin=None, stdout=None) -> int:
     stdout = stdout or sys.stdout
     req = json.loads(stdin.read())
     try:
-        backend = make_backend(args.backend, args.model, TokenBudget(args.max_total_tokens or None), timeout=args.timeout)
+        backend = make_backend(args.backend, args.model, timeout=args.timeout)
     except (BackendError, ValueError) as err:
         stdout.write(json.dumps({"ok": False, "error": f"backend: {err}", "attempts": 0}) + "\n")
         return 2

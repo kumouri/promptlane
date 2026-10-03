@@ -21,7 +21,7 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(__file__))
 import compile as C  # noqa: E402
-from llm_backends import ScriptedBackend, TokenBudget  # noqa: E402
+from llm_backends import CALL_TIMEOUT_SEC, VOCAB1_MAX_COMPLETION_TOKENS, ScriptedBackend  # noqa: E402
 from translator import TARGET_SELECTORS, TranslatedRule, TranslatedSchema  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
@@ -166,7 +166,7 @@ class EntrantProseTests(unittest.TestCase):
             self.assertEqual(e["labels"], "auto")
             self.assertIn("automatically, by a word list", e["markdown"])
             self.assertIn(f"`entrants/alice/pilot.md` -> Jev decision schema ({inst})", e["markdown"])
-        md = C.full_markdown(result, backend.describe(), backend.usage.as_dict(), 1000)
+        md = C.full_markdown(result, backend.describe(), backend.usage.as_dict())
         self.assertIn("# Jev compile preview: `entrants/alice/pilot.md`", md)
         # the boilerplate tail is never shown; the voice line is quoted under Dropped
         self.assertNotIn("No commentary", md)
@@ -185,13 +185,14 @@ class EntrantProseTests(unittest.TestCase):
         self.assertIn("could not produce a valid schema", e["error"])
         self.assertEqual(backend.usage.calls, 2)
 
-    def test_token_cap_refuses_calls_before_they_are_made(self):
-        backend = ScriptedBackend([_reply(i) for i in C.INSTRUMENTS], budget=TokenBudget(2500))
+    def test_no_token_cap_refuses_a_call(self):
+        """Ceryce, 2026-10-02 17:59 CT: "Get rid of any fucking token caps." A long reply is never refused
+        or cut: every instrument compiles however many tokens it takes."""
+        padded = [_reply(i) + " " * 400_000 for i in C.INSTRUMENTS]  # ~100k tokens of reply each
+        backend = ScriptedBackend(padded)
         result = C.compile_prompt(ENTRANT_PROSE, "p.md", C.INSTRUMENTS, backend)
-        oks = [e["ok"] for e in result["instruments"].values()]
-        self.assertEqual(oks, [False, False, False])  # each call's worst case (prompt + 1800) > 2500
-        self.assertTrue(all(e.get("budget") for e in result["instruments"].values()))
-        self.assertEqual(backend.usage.calls, 0)
+        self.assertEqual([e["ok"] for e in result["instruments"].values()], [True, True, True])
+        self.assertGreater(backend.usage.total_tokens, 300_000)
 
     def test_cli_json_format_and_exit_codes(self):
         with tempfile.TemporaryDirectory() as d:
@@ -199,20 +200,44 @@ class EntrantProseTests(unittest.TestCase):
             f.write_text(ENTRANT_PROSE, encoding="utf-8")
             buf = io.StringIO()
             orig = C.make_backend
-            C.make_backend = lambda *a, **k: ScriptedBackend([_reply(i) for i in C.INSTRUMENTS], budget=a[2])
+            C.make_backend = lambda *a, **k: ScriptedBackend([_reply(i) for i in C.INSTRUMENTS])
             try:
                 with redirect_stdout(buf):
                     rc = C.main([str(f), "--format", "json"])
                 self.assertEqual(rc, 0)
                 data = json.loads(buf.getvalue())
                 self.assertEqual(data["version"], 2)
-                self.assertEqual(data["cap_tokens"], C.DEFAULT_MAX_TOTAL_TOKENS)
+                self.assertNotIn("cap_tokens", data)
+                self.assertNotIn("cap", data["prompts"][0]["markdown"].split("\n")[2])
                 self.assertEqual(data["usage"]["calls"], 3)
                 self.assertEqual(sorted(data["prompts"][0]["instruments"]), sorted(C.INSTRUMENTS))
-                with redirect_stdout(io.StringIO()):
-                    self.assertEqual(C.main([str(f), "--max-total-tokens", "100"]), 3)
+                # the retired per-run cap is still accepted (the entrants' pinned PR bot passes it) and does nothing
+                for value in ("100", "0"):
+                    with redirect_stdout(io.StringIO()):
+                        self.assertEqual(C.main([str(f), "--max-total-tokens", value]), 0)
             finally:
                 C.make_backend = orig
+
+    def test_only_vocab1_sends_a_reply_cap(self):
+        seen = []
+
+        def fake(*a, **k):
+            seen.append((k.get("max_tokens"), k.get("timeout")))
+            return ScriptedBackend([_reply(i) for i in C.INSTRUMENTS])
+
+        with tempfile.TemporaryDirectory() as d:
+            f = Path(d) / "pilot.md"
+            f.write_text(ENTRANT_PROSE, encoding="utf-8")
+            orig = C.make_backend
+            C.make_backend = fake
+            try:
+                for extra in ([], ["--vocab", "vocab-2"], ["--vocab", "vocab-1"], ["--timeout", "5"]):
+                    with redirect_stdout(io.StringIO()):
+                        C.main([str(f), "--format", "json"] + extra)
+            finally:
+                C.make_backend = orig
+        self.assertEqual(seen, [(None, CALL_TIMEOUT_SEC), (None, CALL_TIMEOUT_SEC),
+                                (VOCAB1_MAX_COMPLETION_TOKENS, C.VOCAB1_TIMEOUT_SEC), (None, 5.0)])
 
     def test_missing_file_and_bad_usage(self):
         import contextlib
@@ -302,7 +327,7 @@ class GuardNodesSurviveTheSavePathTests(unittest.TestCase):
             f = Path(d) / "pilot.md"
             f.write_text(GUARD_PROSE, encoding="utf-8")
             orig = C.make_backend
-            C.make_backend = lambda *a, **k: ScriptedBackend([GUARD_REPLY], budget=a[2])
+            C.make_backend = lambda *a, **k: ScriptedBackend([GUARD_REPLY])
             try:
                 with redirect_stdout(io.StringIO()):
                     rc = C.main([str(f), "--instrument", "violin", "--save-schemas", d, "--format", "json"])
@@ -361,7 +386,7 @@ class EconomyFlagTests(unittest.TestCase):
             out = Path(d) / "out.json"
             saved = Path(d) / "saved"
             original = C.make_backend
-            C.make_backend = lambda *a, **k: ScriptedBackend([reply], budget=a[2])
+            C.make_backend = lambda *a, **k: ScriptedBackend([reply])
             try:
                 rc = C.main([str(f), "--format", "json", "--out", str(out), "--save-schemas", str(saved)] + extra)
             finally:
@@ -392,7 +417,7 @@ class EconomyFlagTests(unittest.TestCase):
         for extra in ([], ["--economy", "eco-3"]):
             rc, data, saved = self._main_json(extra, reply)
             self.assertEqual(rc, 0)
-            self.assertEqual(list(data), ["version", "backend", "cap_tokens", "usage", "prompts"])
+            self.assertEqual(list(data), ["version", "backend", "usage", "prompts"])
             self.assertNotIn("economy", data["prompts"][0])
             self.assertNotIn("follow the", data["prompts"][0]["markdown"])
             for s in saved:
@@ -444,7 +469,7 @@ class BuildWireFormatTests(unittest.TestCase):
         reply = json.loads(_reply("keytar"))
         reply["build"] = ["The Amp", "bass strings", "Tip Jar"]
         entry = C.compile_instrument("Buy the Amp, then Bass Strings.", "pilot.md", "keytar",
-                                     ScriptedBackend([json.dumps(reply)], budget=TokenBudget(None)))
+                                     ScriptedBackend([json.dumps(reply)]))
         self.assertTrue(entry["ok"], entry.get("error"))
         self.assertEqual(entry["schema"]["build"], ["amp", "bass-strings"])
         self.assertTrue(any("Tip Jar" in n for n in entry["schema"]["validation_notes"]))

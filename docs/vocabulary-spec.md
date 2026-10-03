@@ -479,8 +479,9 @@ before vocab-2 are unchanged.
 **Left for later, on purpose.** Stage B (B1–B4) and stage C, as §6.1 says. The entrants README fix
 and its "What your prose can say" section live in `jamobair-entrants`, so they ship there with the
 `PROMPTLANE_REF` bump. The qwen side files stay vocab-1 renderings (§4.4 C2). The vocab-2 prompt is
-about 730 tokens longer, so a compile under the arena's 20,000-token cap now has room for two
-retries rather than three.
+about 730 tokens longer, so a compile under the arena's 20,000-token cap had room for two
+retries rather than three. That cap, and every other token cap on the compile path, was removed on
+2026-10-02 (`runs/remove-token-caps-2026-10-02.md`).
 
 ### 8.1 Two target fixes after the first vocab-2 compiles
 

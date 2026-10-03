@@ -33,7 +33,6 @@ import { deriveSeed, pick, sha256 } from './seeds.mjs';
 import { STORE_VERSION } from './store.mjs';
 
 export const INSTRUMENTS = ['drums', 'keytar', 'violin'];
-const MAX_PROSE_BYTES = 16 * 1024; // the arena's compile-panel cap (compile.mjs maxPromptBytes)
 
 /** What a single change may be about; each child slot gets one, seeded, so siblings differ. */
 export const MUTATION_FOCI = [
@@ -62,8 +61,10 @@ export const DEFAULT_CAMPAIGN = {
   population: { parents: 2, childrenPerParent: 2 },
   // hall of fame capped at the last 3 champions: ruled 2026-09-30 01:50 CT (spec §10 Q2)
   epoch: { generations: 3, opponents: 'hall-of-fame', hallOfFameCap: 3, promotionSeeds: 16, confidence: 0.95 },
-  mutation: { backend: 'claude', model: null, maxSentenceChanges: 3, attempts: 3, maxTotalTokens: 30000 },
-  compile: { backend: 'openrouter', model: null, maxTokensPerCompile: 20000 },
+  // No token caps on either (Ceryce, 2026-10-02 17:59 CT). A campaign stored with maxTotalTokens or
+  // maxTokensPerCompile keeps the key, and nothing reads it.
+  mutation: { backend: 'claude', model: null, maxSentenceChanges: 3, attempts: 3 },
+  compile: { backend: 'openrouter', model: null },
   // the campaign's own schema_server.py, never the arena's 8797 (spec §7): its /health is the Jev ledger
   jevSchemaEndpoint: 'http://127.0.0.1:8813/',
   // the spend caps and the blackout, enforced by budget.mjs (ruled 2026-09-30 01:50 and 03:07 CT)
@@ -249,12 +250,11 @@ export function diagnosticsFor(store, parentId, generation) {
   return lines.join('\n');
 }
 
-function validateChild(parentText, outcome, maxBytes = MAX_PROSE_BYTES) {
+function validateChild(parentText, outcome) {
   if (!outcome?.ok) return outcome?.error ?? 'mutator returned no prose';
   if (typeof outcome.prose !== 'string' || !outcome.prose.trim()) return 'empty prose';
   const problems = validatePromptText(outcome.prose);
   if (problems.length) return `prompt rejected: ${problems.join('; ')}`;
-  if (Buffer.byteLength(outcome.prose, 'utf8') > maxBytes) return `prose over ${maxBytes} bytes`;
   if (outcome.prose.replace(/\s+/g, ' ').trim() === parentText.replace(/\s+/g, ' ').trim()) return 'no change';
   return null;
 }
