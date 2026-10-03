@@ -16,7 +16,36 @@ enemy bearbot under that enemy's tower for free while its own wave stands there.
 
 ## Verdict
 
-*Written after the run.*
+*Written after the run. §0 and §1 were committed (`485c6cd`) and pushed at 20:10:42 CT, before the
+first paid match (20:11:57 CT).*
+
+- **Built:** `--tower-aggro aggro-1`, opt-in and off by default everywhere.
+  - **Trigger:** an enemy bearbot damages a bearbot of the tower's team while the **attacker** is
+    inside the tower's range.
+  - **Effect:** the tower shoots that attacker for **3 s** from the hit (refreshed by each further
+    hit), or until it leaves the range or dies.
+  - **Unchanged:** minion damage doesn't count, and everything else is the specimen's.
+  - **Scope:** every tower, including any a map adds. `src/sim` is untouched.
+  - **Replay:** all 74 older paid Jev logs (§0.4) replay byte for byte.
+- **Jev reads it perfectly.** On the 160 asks where a tower was locked on the bot, "will an enemy
+  tower shoot this bot?" came back yes 160 times. On the other 26,386 asks it agreed with the fact every
+  time, as before.
+- **On Jev the rule fires in 18 of 20 matches,** about 11 shots a match on a locked attacker. 70 of
+  the 220 went where today's tower would not have shot (it would have hit a minion or another
+  bearbot), and 8 killed.
+- **It doesn't deter the dive, and nothing in the prose tells the bots to avoid it.** Shielded dives:
+  23 before, 24 after. Their cost went up instead:
+  - deaths under an enemy tower 41 → 53;
+  - tower kills 21 → 34;
+  - the siege entrant's deaths doubled (17 → 34).
+- **Lines:** G1 PASS, G2 PASS, G3 PASS (18 of 20, exactly the bar), G4 PASS, G6 PASS, G7 PASS.
+  **G5 FAIL:**
+  - medium beat easy 4–0;
+  - **hard3 took 1 of 8 against medium** (1–5–2; the baseline was 4 of 8).
+  - That drop doesn't trace to the towers. In the 4 hard3 slots where aggro changed no tower shot
+    at all, hard3 went 1–1–2 against 3–1 before. Both draws had zero aggro shots (§2.3).
+- **Spend: $2.4893 of the $3.00 stop**, 20 paid matches. Everything else was free.
+- **Live arena:** untouched. Turning it on is one config key plus a Jev backend restart (§3).
 
 ## 0. The rule, and what $0 says
 
@@ -144,7 +173,7 @@ maps: 40 matches.
 | hard3 vs medium | 0–4 | 2–2 | 2–2 | 2–2 |
 
 - The rule fires in every stand-in match, about 14 tower shots a match on a locked attacker, 5 of
-  them taken away from a minion. It almost never kills.
+  them at a target today's tower would not have picked. It almost never kills.
 - **Nothing outside the stand-in's ±3/12 noise moves.** The stand-in has no rule that avoids hitting
   under a tower. It can only react: fall back once the lock reads "will shoot you". The Jev house
   tiers and the entrant are in the same position, because their prose has no such rule either.
@@ -248,7 +277,133 @@ equals today's file.
 
 ## 2. Result
 
-*Written after the run.*
+### 2.1 The run
+
+- Blocks A and B played in plan order, 20:11–20:33 CT, in waves of 4. The guard never cut a slot.
+  Nothing was retried, added or replayed.
+- **20 matches for $2.4893** on the server's ledger ($0.124 a match): 29,453 requests, 0 errors,
+  0 failovers. 20 of 20 logs replay-verify, with 0 parse errors and 0 call errors.
+- The free stub smoke (12 matches, 120 s) finished and verified first. Its first pass ran each slot
+  twice because of a relative `--out` path in the scratch runner (stub only, $0). The runner was
+  fixed before any paid match.
+
+| line | result | pass line | |
+|---|---|---|---|
+| **G1** the rule fires | a locked tower fired in **18 of 20** | ≥ 10 | **PASS** |
+| **G2** Jev reads the lock | locked: yes on **160 of 160**; others agree **26,386 of 26,386** | ≥ 90 %; ≥ 98 % | **PASS** |
+| **G3** still decisive | **18 of 20** decided (2 draws at 10:00) | ≥ 18 | **PASS** (at the bar) |
+| **G4** length | median pvp-1 **8:49** (was 8:41), hp400 **8:09** (was 8:01); shortest 8:00 | within 1:00; none before 5:00 | **PASS** |
+| **G5** the ladder | medium beat easy **4–0**; hard3 took **1 of 8** against medium (1–5–2) | ≥ 3 of 4; ≥ 4 of 8 | **FAIL** |
+| **G6** clean | 20 of 20 verify; 0 server errors; 0 parse errors | all | **PASS** |
+| **G7** spend | **$2.4893** | ≤ $3.00 | **PASS** |
+
+### 2.2 Before and after, slot for slot (Jev)
+
+"Off" is §0.7's recorded match in the same slot. "On" is this run, with `aggro-1`. Dives are shielded
+episodes (nexus-guard's counter). "Under a tower" is a bearbot death whose killing hit landed inside a
+living enemy tower's range.
+
+| map | slot (violet–green, seed) | off: winner, end, length | on: winner, end, length | shielded dives off → on | deaths under a tower off → on | aggro shots (retargeted) |
+|---|---|---|---|---:|---:|---:|
+| pvp-1 | entrant3–medium 3 | medium, SD, 8:56 | medium, SD, 8:04 | 2 → 2 | 4 → 5 | 12 (7) |
+| pvp-1 | entrant3–medium 7 | medium, SD, 8:30 | entrant3, SD, 8:06 | 5 → 4 | 3 → 5 | 14 (9) |
+| pvp-1 | medium–entrant3 3 | medium, SD, 8:52 | medium, SD, 8:53 | 1 → 1 | 4 → 3 | 23 (3) |
+| pvp-1 | medium–entrant3 7 | medium, SD, 8:30 | medium, SD, 8:56 | 2 → 3 | 3 → 3 | 19 (1) |
+| pvp-1 | easy–medium 3 | medium, SD, 8:26 | medium, SD, 8:48 | 0 → 0 | 1 → 1 | 18 (2) |
+| pvp-1 | medium–easy 3 | medium, SD, 8:05 | medium, SD, 8:03 | 0 → 0 | 1 → 1 | 23 (3) |
+| pvp-1 | hard3–medium 3 | medium, SD, 8:54 | medium, SD, 8:49 | 2 → 2 | 2 → 2 | 8 (4) |
+| pvp-1 | hard3–medium 7 | medium, SD, 8:18 | medium, SD, 8:10 | 2 → 2 | 1 → 5 | 9 (4) |
+| pvp-1 | medium–hard3 3 | hard3, SD, 8:56 | draw, 10:00, 10:00 | 0 → 0 | 3 → 3 | 0 (0) |
+| pvp-1 | medium–hard3 7 | hard3, SD, 9:32 | hard3, SD, 9:14 | 0 → 0 | 1 → 3 | 1 (0) |
+| pvp-1-hp400 | entrant3–medium 3 | medium, lead, 8:00 | medium, SD, 8:06 | 2 → 2 | 1 → 2 | 8 (7) |
+| pvp-1-hp400 | entrant3–medium 7 | entrant3, SD, 8:02 | medium, SD, 8:10 | 2 → 2 | 5 → 4 | 9 (7) |
+| pvp-1-hp400 | medium–entrant3 3 | entrant3, SD, 8:28 | medium, SD, 8:04 | 1 → 3 | 3 → 2 | 12 (10) |
+| pvp-1-hp400 | medium–entrant3 7 | medium, lead, 8:00 | medium, SD, 8:26 | 4 → 2 | 2 → 3 | 19 (4) |
+| pvp-1-hp400 | easy–medium 3 | medium, lead, 8:00 | medium, lead, 8:00 | 0 → 0 | 1 → 3 | 15 (2) |
+| pvp-1-hp400 | medium–easy 3 | medium, lead, 8:00 | medium, lead, 8:00 | 0 → 0 | 1 → 3 | 15 (2) |
+| pvp-1-hp400 | hard3–medium 3 | hard3, SD, 8:09 | medium, SD, 8:10 | 0 → 0 | 1 → 1 | 5 (0) |
+| pvp-1-hp400 | hard3–medium 7 | medium, lead, 8:00 | medium, SD, 8:23 | 0 → 0 | 2 → 2 | 3 (1) |
+| pvp-1-hp400 | medium–hard3 3 | hard3, SD, 8:32 | medium, SD, 8:08 | 0 → 1 | 2 → 2 | 7 (4) |
+| pvp-1-hp400 | medium–hard3 7 | medium, SD, 9:59 | draw, 10:00, 10:00 | 0 → 0 | 0 → 0 | 0 (0) |
+
+| | pvp-1 off | pvp-1 on | hp400 off | hp400 on |
+|---|---:|---:|---:|---:|
+| decided | 10 | 9 | 10 | 9 |
+| median length | 8:41 | 8:49 | 8:01 | 8:09 |
+| first tower before 8:00 | 0 | 0 | 6 (6:35–7:39) | 3 (5:00, 5:00, 5:13) |
+| shielded dive episodes | 14 | 14 | 9 | 10 |
+| deaths / under an enemy tower / tower kills | 43 / 23 / 15 | 62 / 31 / 22 | 47 / 18 / 6 | 55 / 22 / 12 |
+| aggro shots / retargeted / kills | — | 127 / 33 / 4 | — | 93 / 37 / 4 |
+| medium vs easy | 2–0 | 2–0 | 2–0 | 2–0 |
+| hard3 vs medium | 2–2 | 1–2–1 | 2–2 | 0–3–1 |
+| entrant3 vs medium | 0–4 | 1–3 | 2–2 | 0–4 |
+
+### 2.3 Reading it
+
+- **The mechanic works as specified, on Jev.**
+  - Qualifying hits locked a tower 205 times. 25 of those locks were shielded dives, the free hit the
+    rule exists for.
+  - Every one of the 160 asks taken under a lock said "an enemy tower will shoot you". So the house
+    tiers' and the entrant's existing fall-back rule fires on it.
+- **Deterrence: none.** Shielded dives were 23 before and 24 after, and none of those divers died
+  within 5 s, before or after. Nothing in medium's, hard's or the entrant's prose says "don't hit
+  their bearbot under their tower". So nothing avoids the dive in advance; a bot only falls back once
+  it is already locked. The rule sentence alone didn't change that. The punishment lands elsewhere:
+  - deaths under an enemy tower rose 41 → 53;
+  - tower kills rose 21 → 34, 8 of them by a locked tower;
+  - **the siege entrant took most of it:** 17 → 34 deaths across its 8 matches. It went 1–7 against
+    medium (was 2–6). It stands in the enemy lane with its wave, which is where locks happen.
+- **hard3's 1 of 8 isn't the towers.**
+  - In 4 of the 8 hard3 slots, aggro moved no tower shot at all (0 retargeted), so the sim's tower
+    fire was the specimen's. In those 4, hard3 went 1–1–2, against 3–1 before.
+  - Both draws (medium–hard3 3 on pvp-1, medium–hard3 7 on hp400) had **zero** locks. In each, the
+    towers were level at the Chorus (6–6). Then one tower per side fell on the same tick in sudden
+    death, which keeps the towers level (`src/finale.ts`), and the match ran to the 10:00 tiebreak
+    level.
+  - What differs in those slots is Jev itself: it is not deterministic (PR #37), and every
+    description carries one more sentence. Eight matches can't tell those two apart.
+  - hard3 and medium were already level (2–2, 2–2, #94). The pre-registered line fails, and the
+    likeliest reading is noise around level, not a ladder the rule broke.
+- **pvp-1-hp400 dropped fewer first towers before 8:00, but earlier ones** (3 at 5:00–5:13, against
+  6 at 6:35–7:39). The two 5:00 falls are the easy–medium mirror pair, which Jev plays near-identically;
+  the third is entrant3–medium 7, at 5:13.
+  A locked tower shoots a bearbot instead of a minion, so a wave lives longer, which should push a
+  tower down sooner, not later. Two slots moving the same way at once is weak evidence either way.
+- **Length and decisiveness hold.** All 20 baseline matches were decided. Neither of the two draws
+  here involved the rule (zero locks).
+
+### 2.4 Caveats
+
+- 20 matches, against 20 recorded ones that were played hours earlier. Jev isn't deterministic, so
+  a slot's "off" and "on" are two draws of Jev, not one match with and without the rule.
+- Every "on" description carries the rule sentence whether or not a lock is ever drawn. A
+  sentence-only block (the sentence stated, the towers unchanged) would split Jev's reading from the
+  mechanic. That wasn't pre-registered, and it wasn't run.
+- The stand-in (§0.6) overstates fights, and it ranks; it is never a result.
+
+## 3. What Ceryce may want to decide
+
+1. **Keep `aggro-1` as specified, or change one constant first.** It does what she asked. On Jev it
+   costs the attacker (more deaths under towers), but it doesn't stop the dive, because no bot's
+   prose avoids one. If the goal is fewer dives rather than costlier ones, the next lever is in the
+   prose, not the tower:
+   - the house tiers (and the entrant template) could learn "don't hit an enemy bearbot while you
+     are inside its tower's range";
+   - or the vocabulary could give that its own fact ("you are inside the range of a tower that would
+     lock on you if you hit its bearbot").
+2. **The other readings,** unmeasured:
+   - the victim in range instead of the attacker (§0.1);
+   - a sticky lock until the attacker leaves range (§0.2's alternative).
+3. **Turning it on:**
+   - the arena: `tournament.towerAggro: "aggro-1"`, plus a restart of the arena's Jev backend from
+     the same checkout so its `/health` lists the rule;
+   - the Jam stack's CLI: `--tower-aggro aggro-1`.
+
+   Off by default, like every ruleset layer before it.
+4. **hard3 against medium:** if G5 matters for the ladder, an 8-match re-run with the rule **off** on
+   today's code would show whether 1 of 8 is Jev's variance. About $1.
+5. **The translator** doesn't list the fact yet (§0.3). Wiring it in is a small change for whichever
+   translator job is open once theirs land.
 
 ## Files
 
@@ -261,3 +416,13 @@ equals today's file.
   `fidelity_harness.py` (the tower lines), `schema_server.py` (`/health` `tower_aggro`).
 - Tests: `tools/match/test_tower_aggro.mjs` (in `npm run test:match`), `tools/jev/test_tower_aggro.py`.
 - Docs: `docs/vocabulary-spec.md` §8.12, `docs/arena-runbook.md` (`tournament.towerAggro`).
+- **Logs, not in git.** On the
+  [`data-tower-aggro-2026-10-02`](https://github.com/kumouri/promptlane/releases/tag/data-tower-aggro-2026-10-02)
+  prerelease:
+  - the 20 paid logs, `runs/tower-aggro-2026-10-02-<A|B>-<violet>-<green>-seed<N>.json`, and the 12
+    stub smokes;
+  - the 40 stand-in matches, the probe, dive and counterfactual outputs, the scratch kit, the run log
+    and the server's final `/health`.
+
+  The 20 "off" logs are on `data-tower-hp-2026-10-02` and #90's data (`kit/baseline-map.json` maps
+  each slot). To check a log, unzip at the repo root and run `npm run match -- --verify <log>`.

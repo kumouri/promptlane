@@ -90,7 +90,7 @@ export interface TowerAggroCounts {
   triggersWithMinions: number;
   /** Tower shots fired at a locked attacker. */
   aggroShots: number;
-  /** Of those, the shots the specimen's tower would have fired at something else (a minion). */
+  /** Of those, the shots the specimen's tower would have fired at something else (a minion, or another bearbot), or not at all. */
   retargetedShots: number;
   /** Bearbots killed by a shot at a locked attacker. */
   kills: number;
