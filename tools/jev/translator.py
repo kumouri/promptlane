@@ -79,11 +79,11 @@ quotes the sentence, never a rule, and only the rewrite's rules for those senten
 the rules that passed (`_spliced`). On the last attempt the rule is dropped with a `clause coverage:`
 note (`docs/vocabulary-spec.md` §8.11).
 AND NODE (vocab-2 only): a rule whose prose states several conditions that must all hold asks one question
-per condition, `TranslatedRule.all_of` (the reply's "all" list), and fires only when every one answers yes;
-TypeSafe's Noul guidance asks for one condition per question, combined in code. Each is its own `noul` in
-the decision's one Jev call (`schema_questions`, `node_answers`). The clause-coverage check reads such a rule
-clause by clause, and while a retry is left also asks for a faithful rule that holds two clauses in one
-question to be rewritten so (`docs/vocabulary-spec.md` §8.13).
+per condition, `TranslatedRule.all_of`, and fires only when every one answers yes; TypeSafe's Noul guidance
+asks for one condition per question, combined in code. Each is its own `noul` in the decision's one Jev call
+(`schema_questions`, `node_answers`). The prompt is unchanged: the clause-coverage check splits a faithful
+rule's "A and B" question into an AND rule (`_split_compound`), reads every rule clause by clause, and a
+reply's own "all" list parses too (`docs/vocabulary-spec.md` §8.13).
 Economy P2 added one target selector,
 `highest_bounty_enemy` (`docs/economy-spec.md` §4.2): "go after the enemy worth the most gold".
 VOCABULARIES (`vocab.py`, `docs/vocabulary-spec.md`): `TARGET_SELECTORS` is vocab-1's list. vocab-2
@@ -463,41 +463,13 @@ _CONDITION_DESC = {
     VOCAB_2: """  "condition": one yes/no question about the bot's current game state, asked about the FACTS THE
       GAME STATES listed below (a threshold comparison or a presence check -- e.g. "is this bot's hp
       below a quarter of its max?", "is an enemy bearbot in this bot's attack range?", "is this bot
-      under its own tower?"). Never a question that needs a text answer. ONE condition per question:
-      when the prose joins two or more conditions with "and", the rule has "all" (below) instead.""",
+      under its own tower?"). Never a question that needs a text answer.""",
 }
 
 
-# vocab-2's AND rule (AND NODE): one question per condition, the shape TypeSafe's Noul guidance asks for.
-# The example is not a sentence of any checked-in prose, so a measured compile is not copying it. vocab-1 adds nothing.
-_CONJUNCTION_DESC = {
-    VOCAB_1: "",
-    VOCAB_2: """
-When the prose makes a rule wait for TWO OR MORE conditions that must all hold ("when my hp is above half
-and an allied bearbot is fighting near me, I join in"), the rule asks ONE question per condition: in place
-of "condition" and "criteria" it has "all", a list of those questions, each one whole condition with its
-own "criteria". The rule fires only when every question in "all" is true:
-  {"id": "join_ally_fight", "all": [
-      {"condition": "is this bot's hp above half of its max?", "criteria": {"true": "hp above half", "false": "hp at or below half"}},
-      {"condition": "is an allied bearbot fighting near this bot?", "criteria": {"true": "an ally is fighting nearby", "false": "no ally is fighting nearby"}}],
-   "action": {"kind": "attack", "ability": null, "target_selector": "nearest_enemy"}}
-Never put two conditions joined by "and" into one "condition", and never split one condition across two
-questions: each question must make sense alone. Alternatives joined by "or" ("an enemy minion or an enemy
-tower is in sight") are one condition, asked as one question.""",
-}
-
-
-# The JSON shape the prompt ends on. vocab-1's is byte for byte the one before vocabularies; vocab-2's shows both rule
-# shapes, a one-condition rule and an AND rule, since the 9B writes the shape this skeleton shows.
-_SKELETON = {
-    VOCAB_1: """{"rules": [{"id": "...", "condition": "...", "criteria": {"true": "...", "false": "..."}, "action": {"kind": "...", "ability": null, "target_selector": null}}],
- "default_action": {"kind": "...", "ability": null, "target_selector": null}}""",
-    VOCAB_2: """{"rules": [{"id": "...", "condition": "...", "criteria": {"true": "...", "false": "..."}, "action": {"kind": "...", "ability": null, "target_selector": null}},
-           {"id": "...", "all": [{"condition": "...", "criteria": {"true": "...", "false": "..."}}, {"condition": "...", "criteria": {"true": "...", "false": "..."}}], "action": {"kind": "...", "ability": null, "target_selector": null}}],
- "default_action": {"kind": "...", "ability": null, "target_selector": null}}
-A rule with ONE condition has "condition"; a rule with two or more conditions that must all hold has "all", one question
-per condition, and no "condition" of its own.""",
-}
+# The prompt does not ask for "all" (AND NODE). Asked to (batch A1 of runs/vocab2-and-node-2026-10-02.md), the 9B wrote
+# AND rules whose questions turned a "not" positive and lost whole sentences on retry: 7 of 42 conditions unstated
+# against develop's 0 of 42. It writes "A and B" in one question as #98 measured, and `_split_compound` splits that.
 
 
 # How many top-level nodes the prompt asks for. vocab-1 keeps "3 and 8" byte for byte (golden-tested).
@@ -560,7 +532,7 @@ bottom, FIRST MATCH WINS -- exactly like a priority list. Most nodes are RULES. 
   "criteria": {{"true": "one short clause describing what 'true' looks like in the state",
       "false": "one short clause describing what 'false' looks like in the state"}}
   "action": {{"kind": one of {ACTION_KINDS}, "ability": one of [{abilities}],
-      "target_selector": one of {list(selectors)} or null}}{_CONJUNCTION_DESC[vocab]}
+      "target_selector": one of {list(selectors)} or null}}
 
 target_selector meanings (pick the closest match to what the prose says; do not invent a new one):
 {selectors_desc}{facts_block}
@@ -598,7 +570,8 @@ the prose's priority order calls for:
 {_NODE_COUNT[vocab]} Output ONLY this JSON object, nothing else, no markdown fences.
 If the prose has NO strategic-verdict content, output only plain rules -- do not force a guard in:
 
-{_SKELETON[vocab]}
+{{"rules": [{{"id": "...", "condition": "...", "criteria": {{"true": "...", "false": "..."}}, "action": {{"kind": "...", "ability": null, "target_selector": null}}}}],
+ "default_action": {{"kind": "...", "ability": null, "target_selector": null}}}}
 
 {items_block}
 
@@ -2236,12 +2209,11 @@ def _clause_dropped(rule: TranslatedRule, above: _Facts | None, units: list[_Uni
 
 # --- one question per condition (AND NODE) -------------------------------------------------------------
 #
-# TypeSafe's Noul guidance is one condition per question, combined in code. The prompt asks for an AND rule ("all")
-# whenever the prose joins conditions with "and", and the 9B mostly writes one, but some replies still join two in one
-# question, almost always as "<question> and is/are/can ...?" with criteria "<yes> and <yes>" / "<no> or <no>". A
-# faithful rule written so is split here, at those joints, into an AND rule of the pieces, and only when each piece
-# asks a clause of the condition on its own and the AND still states every clause (`_split_compound`): no model call,
-# and nothing is asked that the question didn't ask. Two clauses about one thing ("inside an enemy tower's range and
+# TypeSafe's Noul guidance is one condition per question, combined in code. The 9B writes a sentence's conditions in one
+# question, as #98 measured ("<question> and is ...?", "... and no enemy is in sight?", criteria "<yes> and <yes>" /
+# "<no> or <no>"); asking it for "all" instead cost fidelity (the prompt note above). So a faithful rule written so is
+# split here into an AND rule of the pieces, only when each piece asks one condition and the AND still states every
+# clause (`_split_compound`): no model call, and nothing is asked that the question didn't ask. Two clauses about one thing ("inside an enemy tower's range and
 # THAT tower has your own minions in its range") stay one question: two questions answered alone could each be about a
 # different tower. An AND rule the model wrote with such a question is joined back the same way (`_rejoined`).
 
@@ -2455,8 +2427,8 @@ def enforce_clause_coverage(schema: TranslatedSchema, pilot_text: str, drop: boo
 
         err = SchemaValidationError(
             "a rule leaves out a condition its prose sentence states, or splits the sentence into rules that each check only "
-            "part of it, or no rule states it at all. Write ONE rule for each sentence below that asks every one of its "
-            'conditions -- with "all", one question for each condition -- and no other rule that asks only some of them: '
+            "part of it, or no rule states it at all. Write ONE rule for each sentence below, whose question asks every one of "
+            'its conditions, joined by "and", and no other rule that asks only some of them: '
             + "; ".join(f'{listed(c for c, _ in unit.clauses)} -- "{flat(unit.sentence)[:200]}"' for unit in wanted)
             + (". Keep each number exactly as the prose writes it: a plain number is an amount, and only \"%\", \"half\" or "
                "\"a third\" is a share of the maximum" if numbers_lost else "")

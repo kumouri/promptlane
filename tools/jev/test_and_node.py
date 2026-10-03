@@ -83,12 +83,11 @@ class ParseTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "missing/invalid condition"):
             _schema(AFFORD_AND, vocab="vocab-1")
 
-    def test_the_vocab2_prompt_asks_for_all_and_vocab1_does_not(self):
-        v2 = T._translation_prompt("prose", "drums", "kick", "fill", "vocab-2")
-        v1 = T._translation_prompt("prose", "drums", "kick", "fill", "vocab-1")
-        self.assertIn('"all"', v2)
-        self.assertIn("ONE condition per question", v2)
-        self.assertNotIn('"all"', v1)
+    def test_no_prompt_asks_for_all(self):
+        # Asked for "all", the 9B lost negations and whole sentences (runs/vocab2-and-node-2026-10-02.md, batch A1): it
+        # writes "A and B" in one question, as #98 measured, and the clause-coverage guard splits that (SplitTests).
+        for vocab in ("vocab-1", "vocab-2"):
+            self.assertNotIn('"all"', T._translation_prompt("prose", "drums", "kick", "fill", vocab))
 
 
 class SchemaJsonTests(unittest.TestCase):
