@@ -1783,6 +1783,28 @@ class RuleOrderTests(unittest.TestCase):
         self.assertIn("order: moved rule close_match_attack_tower to where your prose states it", md)
         self.assertNotIn("Automatic priority fixes", md)
 
+    def test_a_retry_that_loses_a_rule_never_ships(self):
+        # this branch's batch: told to keep the prose's order, the 9B wrote one rule per sentence and dropped "walk with my
+        # nearest minion" from "Otherwise I walk with my nearest minion, and if I have no minions near me I go home ..."
+        in_order = json.loads(self._reply_in_order(8))  # sample entrant, #95 s4 drums
+        in_order["rules"] = [r for r in in_order["rules"] if (r.get("action") or {}).get("target_selector") != "nearby_minion"]
+        replies, prompts = [ORDER["cases"][8]["text"], json.dumps(in_order)], []
+
+        def generate(prompt):
+            prompts.append(prompt)
+            return replies[len(prompts) - 1]
+
+        schema = T.translate_pilot(ORDER["prose"]["sample-entrant-eco"], "pilot.md", "drums", "kick", "fill", generate=generate,
+                                   vocab="vocab-2", economy="eco-3-late")
+        self.assertEqual(len(prompts), 2)
+        self.assertIn("nearby_minion", [n.action_target_selector for n in schema.rules])  # the first reply's walk rule
+        self.assertEqual([n.id for n in schema.root.nodes][:3], ["enemy_tower_no_minions", "low_hp_no_tower_diver", "shopping_order"])
+        self.assertTrue([n for n in schema.validation_notes if n.startswith("order: moved rule")])
+        prose = T.scope_to_instrument(ORDER["prose"]["sample-entrant-eco"], "drums").text
+        whole = T.parse_schema(json.loads(self._reply_in_order(8)), "p.md", "drums", "raw", "vocab-2", economy="eco-3-late")
+        self.assertTrue(T.keeps_every_rule(whole, schema, prose))
+        self.assertFalse(T.keeps_every_rule(T.parse_schema(in_order, "p.md", "drums", "raw", "vocab-2", economy="eco-3-late"), schema, prose))
+
     def test_a_reply_wrong_only_in_its_order_ships_reordered_when_the_retries_break_something_else(self):
         # this branch's batch, sample s12 violin: both order retries came back with a "build"-kind rule, a parse error
         broken = T._extract_json_object(ORDER["cases"][0]["text"])

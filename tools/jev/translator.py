@@ -1914,6 +1914,25 @@ class _ProseUnits:
         return {j for k in self.candidates(node) for j in self.units[k]}
 
 
+def _rules_per_part(schema: TranslatedSchema, prose: _ProseUnits) -> dict[int, int]:
+    """How many nodes of `schema` state each part of the prose (a node's own part, else its first candidate)."""
+    counts: dict[int, int] = {}
+    for node in collect_nodes(schema.root):
+        parts = prose.candidates(node)
+        if parts:
+            k = prose.own(node)
+            k = min(parts) if k is None else k
+            counts[k] = counts.get(k, 0) + 1
+    return counts
+
+
+def keeps_every_rule(schema: TranslatedSchema, earlier: TranslatedSchema, pilot_text: str) -> bool:
+    """True when `schema` states at least as many rules for every part of the prose as `earlier` did."""
+    prose = _ProseUnits(pilot_text)
+    now = _rules_per_part(schema, prose)
+    return all(now.get(k, 0) >= n for k, n in _rules_per_part(earlier, prose).items())
+
+
 def _out_of_order(places: list[set[int]]) -> tuple[set[int], dict[int, int]]:
     """`places[i]`: the parts of the prose node i may state, by position (empty: not judged). The longest run of
     nodes that can each take one of their parts without any going back in the prose, as {node: part}, and every
@@ -2057,10 +2076,13 @@ def translate_pilot(
     guard reads the same scoped text -- another instrument's "no exceptions" clause must not demand a
     rule in this schema.
 
-    A reply wrong only in its order (`enforce_rule_order`) is kept, reordered as the last attempt would
-    ship it: if every later attempt fails for another reason, that one ships instead of the instrument
-    failing. A retry for order once got back a shopping-list rule with kind "build", a parse error, on
-    the last attempt (runs/vocab2-rule-order-2026-10-02.md)."""
+    The first reply wrong only in its order (`enforce_rule_order`) is kept, reordered as the last attempt
+    would ship it, and ships instead when every later attempt fails for another reason, or when the reply
+    that passes states fewer rules for some part of the prose (`keeps_every_rule`). The retry for order
+    can put the rules in order but never cost one. Both happened in runs/vocab2-rule-order-2026-10-02.md:
+    a retry got back a shopping-list rule with kind "build" (a parse error) on the last attempt, and
+    told to keep the prose's order, the 9B wrote one rule per sentence and dropped "walk with my nearest
+    minion", the first half of "Otherwise I walk with my nearest minion, and if I have no minions ..."."""
     vocab = resolve_vocab(vocab)
     if generate is None:
         url = resolve_ollama_url(ollama_url)
@@ -2079,7 +2101,7 @@ def translate_pilot(
     prompt = _translation_prompt(scoped.text, instrument, primary_ability, ultimate_ability, vocab, economy=economy, map_=map_)
     teleport = vocab == VOCAB_2 and map_has_teleport(map_)
     last_err: Exception | None = None
-    reordered: TranslatedSchema | None = None  # the latest reply wrong only in its order, as a last attempt ships it
+    reordered: TranslatedSchema | None = None  # the first reply wrong only in its order, as a last attempt ships it
     for attempt in range(max_attempts):
         reply = generate(prompt)
         last = attempt == max_attempts - 1
@@ -2096,12 +2118,16 @@ def translate_pilot(
             try:
                 schema = enforce_rule_order(schema, scoped.text, drop=last)
             except RuleOrderError:
-                try:
-                    reordered = enforce_absolute_priority(enforce_rule_order(schema, scoped.text, drop=True), scoped.text)
-                except SchemaValidationError:
-                    pass
+                if reordered is None:
+                    try:
+                        reordered = enforce_absolute_priority(enforce_rule_order(schema, scoped.text, drop=True), scoped.text)
+                    except SchemaValidationError:
+                        pass
                 raise
-            return enforce_absolute_priority(schema, scoped.text)
+            schema = enforce_absolute_priority(schema, scoped.text)
+            if reordered is not None and not keeps_every_rule(schema, reordered, scoped.text):
+                return reordered  # the retry for order lost a rule the reply it corrects had
+            return schema
         except (UnfinishedGuardError, GuardScopeError, RuleOrderError) as err:
             last_err = err
             prompt = (
