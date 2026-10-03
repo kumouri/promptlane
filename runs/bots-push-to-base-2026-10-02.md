@@ -284,6 +284,41 @@ their lines change because of it.
 - **No match is re-played.** §1.3's results stand as played, with this defect named beside them.
 - **Spend:** the server's ledger stops at $4.90 as before. These arms cost about $0.06.
 
+### 1.5 Amendment: P1 and P0′ as measured, a resolver fallback, and E′ (committed after P1/P0′ were read, before E′'s paid calls)
+
+Post hoc, like §1.4. Nothing in §1.3 or §1.4 is changed by it.
+
+- **P1** (60 states, no enemy listed, clock 540 s, hp 40 %):
+
+  | arm | close-out yes (truth no) | low-hp walk yes (truth no) | low-hp recall yes (truth yes) |
+  |---|---:|---:|---:|
+  | A: no base-tower line | 0 | 0 | 60 |
+  | B: §0.2's line, as played | 28 | 7 | 60 |
+  | C: §1.4's fix | 6 | 0 | 60 |
+
+  **C fails §1.4's line** on the close-out (10 points over A; the line was 5). It passes the walk and the
+  recall. All 6 of C's yeses are the 6 states whose enemy base tower could be hit; it said no in all 54
+  where it couldn't (`p1_states.mjs`). So once the base tower is open, Jev counts it as an enemy tower in
+  sight.
+- **P0′ under C: PASS.** Open 54 of 60 (90 %), shut 0 of 60, absent 0 of 60. P0 under B had been 53, 0, 0.
+- **That residual is the case that matters.** An opening comes late (§0.5, §2), and after 8:00 the
+  close-out sits above the push rule. So with the base tower open, the close-out wins and, finding no
+  tower listed, attacks nothing.
+  - Moving the push rule above the close-out would move it above the fall-back too, and the close-out sits
+    above the fall-back on purpose (#88's sudden-death rush).
+- **The fix, in the resolver:** on a base-tower map, a vocab-2 `nearest_tower` that finds no enemy tower
+  listed resolves to the enemy base tower when it can be hit. That is the one enemy tower the description
+  names. Shut, or on any other map, it resolves to nothing, as before (tests in
+  `test_base_tower_vocab.py`). The close-out's misread then sends the bot to the base tower, which is
+  what the push rule would have done.
+- **E′, the only paid block of this amendment:**
+  - E's two slots whose base tower opened (entrant3–easy 3 and medium–easy 3), re-played on this
+    commit's code (C's wording and the fallback), arenaeco, `pvp-1-hp300-base700`.
+  - Reported beside E: when the base tower opened, which rules won after it, the base tower's hp lost,
+    and the end.
+  - Never extended. The private server's cap is the room left under $4.90 ($0.86 at the restart).
+  - Jev replays easy's matches near-identically (#88, #91), so an opening is likely to recur, not certain.
+
 ## Files
 
 - `src/baseTower.ts`: `baseTowers` in the observation (`BaseTowerObservation`).
