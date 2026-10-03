@@ -206,7 +206,19 @@ class SplitTests(unittest.TestCase):
 
     def test_a_piece_that_asks_no_clause_is_not_split_off(self):
         out = T.enforce_clause_coverage(_schema(_rule("shop", "can this bot afford its next item and is no enemy in sight and is it daytime?")), AFFORD)
-        self.assertEqual(out.rules[0].all_of, ())
+        # "is it daytime" asks no clause, so it is never a question of its own; it stays with the piece it was joined to.
+        self.assertEqual(T.rule_conditions(out.rules[0]), ("can this bot afford its next item?", "is no enemy in sight and is it daytime?"))
+
+    def test_a_piece_with_no_verb_is_a_statement_and_a_list_is_not_cut(self):
+        easy = ("When your hp is below 100 and an enemy minion, enemy tower or enemy bearbot is in sight, move back home. "
+                "When your hp is below 100 and no enemy is in sight, recall home to heal.")
+        out = T.enforce_clause_coverage(_schema(
+            _rule("heal", "is this bot's hp below 100 and no enemy is in sight?", true="hp below 100 and no enemy", false="hp 100+ or an enemy"),
+            _rule("back", "is this bot's hp below 100 and is an enemy minion, enemy tower, and enemy bearbot in sight?")), easy)
+        self.assertEqual([(q.condition, q.criteria_true) for q in out.rules[0].all_of],
+                         [("is this bot's hp below 100?", "hp below 100"), ("no enemy is in sight", "no enemy")])
+        self.assertEqual(T.rule_conditions(out.rules[1]),
+                         ("is this bot's hp below 100?", "is an enemy minion, enemy tower, and enemy bearbot in sight?"))
 
     def test_an_and_question_that_refers_back_is_joined_to_the_one_before(self):
         prose = "If you are inside an enemy tower's range and that tower has your own minions in its range to shoot first, attack the nearest enemy tower."

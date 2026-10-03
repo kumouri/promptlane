@@ -2245,8 +2245,11 @@ def _clause_dropped(rule: TranslatedRule, above: _Facts | None, units: list[_Uni
 # THAT tower has your own minions in its range") stay one question: two questions answered alone could each be about a
 # different tower. An AND rule the model wrote with such a question is joined back the same way (`_rejoined`).
 
-# Where the 9B joins two conditions in one question: "... and is ...", "..., and are ...".
-_QUESTION_AND = re.compile(r"\s*,?\s+and\s+(?=(?:is|are|am|was|were|can|could|does|do|did|has|have|had|will|would)\b)", re.IGNORECASE)
+# Where the 9B joins two conditions in one question: "... and is ...", "... and no enemy is in sight?", "..., and ...".
+_QUESTION_AND = re.compile(r"\s*,?\s+and\s+", re.IGNORECASE)
+# A piece that starts so is a question; any other piece ("no enemy is in sight") is asked as a statement, which a Noul
+# judges the same way (https://docs.typesafe.ai/primitives/noul.md: "A statement works as well as a question").
+_QUESTION_START = re.compile(r"^(?:is|are|am|was|were|can|could|does|do|did|has|have|had|will|would|should)\b", re.IGNORECASE)
 # A condition that names a thing an earlier condition named: "that tower", "those minions", "the same tower".
 _BACK_REFERENCE = re.compile(
     r"\b(?:that|those|these)\s+(?:same\s+)?(?:enemy\s+|allied\s+|own\s+)?(?:towers?|bearbots?|bots?|enem(?:y|ies)|minions?|waves?|"
@@ -2279,21 +2282,42 @@ def _compound_unit(rule: TranslatedRule, above: _Facts | None, units: list[_Unit
     return None
 
 
-def _split_question(q: Question) -> list[Question] | None:
-    """`q` cut at its "... and is ..." joints (`_QUESTION_AND`), or None when it has none, when an "or" alternative
-    spans them (`_or_parts`), or when a piece refers back to another ("does that tower ..."). Each piece keeps its own
-    criteria when the criteria split the same way ("<yes> and <yes>", "<no> or <no>"), else the plain ones a rule
-    with no criteria gets (`_parse_node`)."""
+def _split_question(q: Question, unit: _Unit) -> list[Question] | None:
+    """`q` cut at "and" joints (`_QUESTION_AND`) into one piece per condition of `unit`, or None when no cut gives
+    pieces that each ask clauses of exactly one condition (`_clause_groups`), together every clause `q` asked. The
+    cut with the most pieces wins. Never when an "or" alternative spans the joints (`_or_parts`), or when a piece
+    refers back to another ("does that tower ..."). A piece keeps its own criteria when the criteria split the same
+    way ("<yes> and <yes>", "<no> or <no>"), else the plain ones a rule with no criteria gets (`_parse_node`)."""
     if len(_or_parts(q.condition)) > 1:
         return None
-    pieces = [p.strip(" ,?") for p in _QUESTION_AND.split(q.condition)]
-    if len(pieces) < 2 or not all(pieces) or any(_BACK_REFERENCE.search(p) for p in pieces[1:]):
+    text = q.condition.strip().rstrip("?").strip()
+    joints = list(_QUESTION_AND.finditer(text))
+    if not joints or len(joints) > 6:
+        return None
+    groups = _clause_groups(unit)
+    asked = {k for k, (_, f) in enumerate(unit.clauses) if _covers(_facts(q.condition), f)}
+    best: list[str] | None = None
+    for mask in range(1, 1 << len(joints)):
+        cuts = [m for i, m in enumerate(joints) if mask >> i & 1]
+        if best is not None and len(cuts) + 1 <= len(best):
+            continue
+        bounds = [0] + [x for m in cuts for x in (m.start(), m.end())] + [len(text)]
+        pieces = [text[bounds[i]:bounds[i + 1]].strip(" ,") for i in range(0, len(bounds), 2)]
+        if not all(pieces) or any(_BACK_REFERENCE.search(p) for p in pieces[1:]):
+            continue
+        covered = [{k for k, (_, f) in enumerate(unit.clauses) if _covers(_facts(p), f)} for p in pieces]
+        conditions = [{groups[k] for k in c} for c in covered]
+        # each piece one condition, no two pieces the same one (a list "minion, tower, and bearbot" is not cut), all asked
+        if (all(len(g) == 1 for g in conditions) and len(set().union(*conditions)) == len(pieces)
+                and set().union(*covered) >= asked):
+            best = pieces
+    if best is None:
         return None
     trues = re.split(r"\s+and\s+", q.criteria_true.strip(), flags=re.IGNORECASE)
     falses = re.split(r"\s+or\s+", q.criteria_false.strip(), flags=re.IGNORECASE)
-    fits = len(trues) == len(pieces) == len(falses)
-    return [Question(p + "?", trues[k].strip(" .") if fits else "the condition holds",
-                     falses[k].strip(" .") if fits else "the condition does not hold") for k, p in enumerate(pieces)]
+    fits = len(trues) == len(best) == len(falses)
+    return [Question(p + ("?" if _QUESTION_START.match(p) else ""), trues[k].strip(" .") if fits else "the condition holds",
+                     falses[k].strip(" .") if fits else "the condition does not hold") for k, p in enumerate(best)]
 
 
 def _as_rule(rule: TranslatedRule, questions: list[Question]) -> TranslatedRule:
@@ -2307,17 +2331,14 @@ def _as_rule(rule: TranslatedRule, questions: list[Question]) -> TranslatedRule:
 def _split_compound(rule: TranslatedRule, above: _Facts | None, units: list[_Unit], sentence_tokens: list[set[str]]) -> TranslatedRule | None:
     """`rule` as an AND rule of one question per condition (`_split_question`), when it states a condition in full but
     asks two of its clauses in one question (`_compound_unit`); None when it doesn't, or when no split keeps every clause
-    stated, clause by clause, with each piece asking a clause of that condition on its own."""
+    stated, clause by clause."""
     unit = _compound_unit(rule, above, units)
     if unit is None:
         return None
     questions: list[Question] = []
     for _, q in rule_questions(rule):
-        pieces = _split_question(q) if _conditions_asked(_facts(q.condition), unit) >= 2 else None
-        if pieces and all(any(_covers(_facts(p.condition), f) for _, f in unit.clauses) for p in pieces):
-            questions.extend(pieces)
-        else:
-            questions.append(q)
+        pieces = _split_question(q, unit) if _conditions_asked(_facts(q.condition), unit) >= 2 else None
+        questions.extend(pieces or [q])
     if len(questions) == len(rule_questions(rule)):
         return None
     new = _as_rule(rule, questions)
