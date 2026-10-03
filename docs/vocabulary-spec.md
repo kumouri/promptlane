@@ -598,9 +598,16 @@ before the priority guard:
   a first version did, and the translator copied that question back word for word.
 - On the last attempt the rule is dropped instead, with a `negation:` note the entrant sees under
   "Negations — what was removed", so the instrument still compiles.
-- A question that keeps its "no", "not", "none", "zero" or "out of sight" is never touched.
+- A question that keeps its "no", "not", "none", "zero", "out of sight", "outside" or "beyond" is
+  never touched. A "no" counts when it is up to four words before the thing, and "the", "a", "of",
+  "every" and the like are not counted, so "outside the range of every enemy tower" keeps its "not"
+  as "outside an enemy tower's range" does. (Until §8.15 the guard read "outside" as the tower being
+  there, and would have rejected a correct recall rule worded that way.)
 - A sentence that names the thing both ways ("walk with my nearest minion, and if I have no minions
-  near me …") decides nothing.
+  near me …") decides nothing. Since §8.15 that holds for the id path too: a correct walk rule whose
+  id read `walk_or_home_no_wave` was once rejected on that sentence.
+- Only a sentence of the prose the rule states can decide (§8.15): a "no" in another sentence never
+  vetoes it.
 
 The prompt is unchanged, and vocab-1 is unchanged. The evidence and the free recompiles are in
 `runs/vocab2-negation-polarity-2026-10-02.md`.
@@ -716,10 +723,13 @@ Under `vocab-2`, `translator.enforce_guard_scope` runs right after the instrumen
     question. So are nodes whose sentence is unclear, and the branches' own defaults.
 - A guard that holds only its verdict's rules, at the end of its cascade, is returned as it came.
 
-**Known strictness.** `prompts/pilots/violin.md` ends its verdict paragraph with "you only take fights
-you can win in one phrase", and puts Staccato and Solo in the next paragraph. That paragraph does not
-restate the verdict, so a guard holding them is rejected. A rule placed under a verdict has to say so
-in its own paragraph, or restate the verdict's words ("when my side is stronger in the fight …").
+**A rule placed under a verdict has to say so** in its own paragraph, or restate the verdict's words
+("when my side is stronger in the fight …"). `prompts/pilots/violin.md` ends its verdict paragraph
+with "you only take fights you can win in one phrase", and puts Staccato and Solo in the next one,
+which at first did not restate it, so the guards spec's own worked tree was rejected. Ceryce ruled
+(2026-10-02 17:59) to fix the prose, not the check: that paragraph now opens "In a fight you can
+win, Staccato …", and the tree is accepted (§8.15's run file). A recall rule from another paragraph
+inside the same guard is still rejected.
 
 The prompt is unchanged, and vocab-1 is unchanged. The evidence and the free recompiles are in
 `runs/vocab2-guard-scope-2026-10-02.md`.
@@ -742,7 +752,7 @@ guard:
 - **What a clause names:**
   - **Its things, with their polarity.** These are read by the negation guard's own reader, with
     wider word lists:
-    - "outside" negates;
+    - "outside" negates (in the guard's own list too since §8.15);
     - "your tower" is the bot's own;
     - "an enemy is dead" is about a dead enemy, not about there being no enemy;
     - a "no" carries along a list: "no enemy minion, enemy tower, or enemy bearbot" is none of them.
@@ -762,6 +772,12 @@ guard:
     action and target included (§8.4). "Is an enemy minion, tower or bearbot in sight? → go home" is
     half of "When your hp is below 100 and an enemy … is in sight, move back home". It reads like "If
     an enemy bearbot is in sight, attack …", but that is not its sentence.
+    Since §8.15, when the order check's parts give the rule a clear part of its own, that part's
+    sentences decide instead. The parts weigh rare words more and count a sentence naming another
+    action at half. "Will an enemy tower shoot this bearbot? → my own tower", with criteria saying "inside
+    an enemy tower's range … no minions in range", shares more words with the siege sentence than with
+    "If an enemy tower will shoot you, fall back to your own tower". It was removed as half of the siege
+    sentence in 3 of 54 hard-eco compiles (`runs/vocab2-rule-order-2026-10-02.md` §11).
 - **What is caught:**
   - **A rule that states only part of a condition.** That means a rule that:
     - drops a clause ("can this bot afford its next item?");
@@ -843,3 +859,81 @@ server that doesn't list it (`jevSchemaPilot.towerAggroUnsupported`): an older s
 the tower shoots minions first. The translator prompt doesn't list the fact yet (`facts_for` is
 unchanged). A compile doesn't know the match's tower rule, and two translator jobs were open in
 `translator.py` when this landed.
+
+### 8.15 A cascade keeps the prose's order
+
+A cascade is first-match-wins: a rule placed below one that nearly always fires rarely runs. Once the
+token caps were gone (#95), house-hard-eco's 16-rule prose compiled whole, and in 16 of 36 schemas the
+translator moved the 480-second tower rule, the tower-fire retreat or the finish kills below "push with
+your wave". The sample entrant's compiles put "afford my next item → go shop" above the back-off and
+the recall in 33 of 36. Nothing checked order. Under `vocab-2`, `translator.enforce_rule_order` runs
+after the clause-coverage guard (§8.11) and before the priority guard, so order is judged on rules
+that state every clause. An order rejection is a whole rewrite, not a §8.11 splice:
+
+- **Where each node is in the prose.** The prose is cut into parts: each rule sentence, with the label
+  sentences that introduce it ("Finish kills.", "Never stand in an enemy tower's fire."). A sentence is
+  a rule sentence when it has "if", "when", "unless", "otherwise", "while", "until" or a ":".
+- **Scoring.** A node scores against each part by the share of that part's words it uses:
+  - the words are weighted by how few parts use them;
+  - the node's words are its question, action, target, id, and the target's vocab-2 meaning;
+  - "see" and "visible" count as "sight", and "none" as "no";
+  - a part that names a different action ("attack" for an ability rule) counts half. "Attack range"
+    is a distance, not the attack; "leave", "retreat" and "walk" name a move. keytar.md's "if a
+    visible enemy is inside your attack range, that is too close … you should be leaving" is a move
+    part, so a basic-attack rule is not placed there and moved above Chord.
+- **Candidate parts.** Every part scoring at least 75% of the node's best is one it may state. A node
+  that shares fewer than two words with every part is not judged.
+- **A rule the prose states nowhere is not judged.** The order check places a node only when its best
+  part scores at least 0.8. On violin.md, whose paragraphs are mostly not conditional, a model-invented
+  "enemy bearbot in attack range → attack" scored 0.61 against the voice line "you exist to end one
+  enemy …" and was moved up to rule 2, above the Staccato opener. Every rule the batches' signatures
+  tie to a sentence (2,778) scored at least 0.88. Negation attribution keeps the plain candidates.
+- **Override language.** A node from a part using override language ("no exceptions") is not judged
+  either. The prose takes it out of order itself, and the priority guard puts it first.
+- **Out of order.** The fewest nodes whose removal leaves the rest in the prose's order are out of
+  order. Every cascade in the tree is checked, guard branches included.
+- **Rejected:** a reply with any node out of order. The retry lists, numbered in the prose's order,
+  every sentence the reply's nodes state. It quotes only prose, never a rule. A first message that
+  quoted only the misplaced pairs came back out of order 10 of 11 times; the list came back in order
+  11 of 11.
+- **On the last attempt** each out-of-order node is moved to its own part, with an `order:` note the
+  entrant sees under "Rule order — what was moved or removed":
+  - its own part is the one that beats every other by 20%;
+  - with no such part it is removed instead, with a note saying so.
+- **The retry can fix the order, never cost a rule.** The first reply wrong only in its order has
+  passed every other check, so it is kept, reordered as above. It ships instead of the retry when:
+  - every later attempt fails for another reason; or
+  - the reply that passes lacks an action the kept reply had for some part of the prose
+    (`keeps_every_rule`: per part, every (kind, ability, target) the kept reply had).
+
+  Told to keep the prose's order, the 9B wrote one rule per sentence. That dropped "walk with my
+  nearest minion" from "Otherwise I walk with my nearest minion, and if I have no minions near me
+  I go home …". A first version counted rules per part, and in the merged-code batch two retries
+  passed it with a rule for the sentence's other half in place of the walk ("no minions near → home",
+  or "→ the nearest ally").
+- **Descriptive prose is ordered literally.** drums.md says "Retreat only when you're really hurt —
+  below a quarter health" in its last paragraph, after "Push the lane". So its low-hp recall is
+  moved below the push and the attacks, where it rarely fires, with an `order:` note. That is "prose
+  order unless the prose reorders", and whether a character sketch should be read that way awaits a
+  ruling (`runs/vocab2-rule-order-2026-10-02.md` §8.1).
+- **Known miss.** Two rules whose sentences share a paragraph and every condition word but one, like
+  the low-hp "move home" / "recall" pair, can swap unflagged. Their conditions exclude each other,
+  so the swap plays the same.
+
+**Negation attribution.** `enforce_negation` (§8.6) uses the same parts. A sentence can decide a rule
+only if it is in a part the rule may state. In 3 of #95's 36 hard-eco compiles, a correct shopping
+rule was dropped. Its id read `shop_afford_no_enemy_minion_tower`, and the sentence backing the "no"
+was "Never stand in an enemy tower's fire". All of #87's fixtures still pass.
+
+**"Outside" is a "not".** The negation reader now reads "outside" and "beyond" as negating, and looks
+past "the", "a", "of" and "every" when it counts its four words, so "outside an enemy tower's range"
+and "not inside the range of an enemy tower" both keep the prose's "not inside" (§8.6). No recorded
+condition (482) or rule id (509) reads differently; #98's job had flagged it before any compile wrote it.
+
+**vocab-1 sends no reply cap** (Ceryce, 2026-10-02 17:59, "any token cap"). Its request is the one its
+recorded runs used, byte for byte, less `num_predict` 1800. It gains nothing, not even
+`"truncate": false`. Its prompts and its golden (`tools/jev/testdata/vocab1_golden.json`) are
+unchanged.
+
+The prompt is unchanged. The evidence, the free recompiles and the measurement of the part scoring
+are in `runs/vocab2-rule-order-2026-10-02.md`.

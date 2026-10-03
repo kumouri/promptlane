@@ -6,11 +6,11 @@ is isolated — alone, or clearly the softest target in a group — then commit 
 trades evenly with a whole team has already failed; you only take fights you can win in one
 phrase.
 
-Staccato (quick high-damage stab, short range) is your opener on whoever you've picked as the
-target — use it the moment you're in range of them, every time it's off cooldown, on that same
-target if they're still alive. Solo (burst + speed, your ultimate) is for closing distance on a
-target that's about to get away, or for the decisive engage when the moment is right — it is not
-free, so don't burn it just because it's up.
+In a fight you can win, Staccato (quick high-damage stab, short range) is your opener on whoever
+you've picked as the target — use it the moment you're in range of them, every time it's off
+cooldown, on that same target if they're still alive. Solo (burst + speed, your ultimate) is for
+closing distance on a target that's about to get away, or for the decisive engage when the moment is
+right — it is not free, so don't burn it just because it's up.
 
 Between fights, don't stand still: your speed exists so you can keep repositioning toward the next
 isolated target rather than sitting in a lane pushing minions like a bruiser would.

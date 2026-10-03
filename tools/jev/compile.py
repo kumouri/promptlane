@@ -30,8 +30,8 @@ stays 2.
 NO TOKEN CAPS (Ceryce, 2026-10-02 17:59 CT: "Get rid of any fucking token caps."). No reply is cut
 at a token count and no run is refused for its token total (`llm_backends`, NO TOKEN CAPS). The old
 per-run cap, --max-total-tokens, is still accepted so a caller pinned to an older promptlane (the
-entrants' PR bot) keeps working, and it does nothing. A vocab-1 compile alone still sends the
-1,800-token reply cap its recorded runs used, so its request is byte-identical. --timeout (seconds
+entrants' PR bot) keeps working, and it does nothing. A vocab-1 compile sends no cap either: its
+request is the one its recorded runs used less their 1,800-token reply cap. --timeout (seconds
 per model call) is not a length limit: the default is long enough to fill the model's whole context
 window (`llm_backends.CALL_TIMEOUT_SEC`).
 
@@ -60,7 +60,7 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from economy_rules import DEFAULT_ECONOMY, known_economies  # noqa: E402
-from llm_backends import CALL_TIMEOUT_SEC, VOCAB1_MAX_COMPLETION_TOKENS, Backend, BackendError, make_backend  # noqa: E402
+from llm_backends import CALL_TIMEOUT_SEC, Backend, BackendError, make_backend  # noqa: E402
 from scenarios import ABILITIES  # noqa: E402
 from segment import auto_segments, hand_segments_for  # noqa: E402
 from transparency import build_report, render_report_markdown  # noqa: E402
@@ -363,14 +363,14 @@ def main(argv=None) -> int:
             schemas[s.instrument] = s
         instruments = tuple(i for i in instruments if i in schemas)
 
-    legacy = args.vocab == LEGACY_VOCAB  # vocab-1 keeps its recorded reply cap and timeout; nothing else is capped
+    legacy = args.vocab == LEGACY_VOCAB  # vocab-1 keeps its recorded request (less its cap) and timeout
     timeout = args.timeout or (VOCAB1_TIMEOUT_SEC if legacy else CALL_TIMEOUT_SEC)
     backend = None
     backend_desc = "saved schema (no model call)"
     if schemas is None:
         try:
-            backend = make_backend(args.backend, args.model, max_tokens=VOCAB1_MAX_COMPLETION_TOKENS if legacy else None,
-                                   ollama_url=args.ollama_url, api_key_env=args.api_key_env, timeout=timeout)
+            backend = make_backend(args.backend, args.model, ollama_url=args.ollama_url, api_key_env=args.api_key_env,
+                                   timeout=timeout, vocab1=legacy)
         except (BackendError, ValueError) as err:
             print(f"compile: {err}", file=sys.stderr)
             return 2
