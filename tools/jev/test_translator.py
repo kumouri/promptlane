@@ -1635,16 +1635,20 @@ class RuleOrderTests(unittest.TestCase):
                 for quoted in re.findall(r'"([^"]+)"', msg):
                     self.assertIn(quoted, " ".join(prose.split()))
 
-    def test_the_hard_eco_retry_names_the_moved_rules_prose(self):
+    def test_the_retry_lists_the_whole_order_in_the_prose(self):
         schema, prose = _order_case(0)  # #95 §6's s7 keytar
         with self.assertRaises(T.RuleOrderError) as err:
             T.enforce_rule_order(schema, prose)
         msg = str(err.exception)
-        # every moved rule's prose, in the prose's order, under the rule it must come before
-        self.assertIn('states "Close out the match. If it is more than 480 seconds into the match and you can see an enemy tower, attack '
-                      'the nearest enemy tower." and "Never stand in an enemy tower\'s fire. If an enemy tower will shoot you, fall back to '
-                      'your own tower." and "Finish kills.', msg)
-        self.assertIn('lowest hp." before "Siege with your wave. If you are inside', msg)
+        self.assertIn("Write the rules in this order, the order of these sentences of the prose: 1. \"Recall with discipline.", msg)
+        # the moved rules' sentences in their places: 480 s, tower fire, the finish kills, then the siege
+        listed = re.findall(r'(\d+)\. "([^"]+)"', msg)
+        self.assertEqual([n for n, _ in listed], [str(i) for i in range(1, len(listed) + 1)])
+        texts = [t for _, t in listed]
+        at = {key: next(i for i, t in enumerate(texts) if key in t) for key in
+              ("480 seconds", "will shoot you", "use your primary ability", "less than 100 hp, attack", "Siege with your wave", "Bandstand is open")}
+        self.assertEqual(sorted(at, key=at.get), ["480 seconds", "will shoot you", "use your primary ability", "less than 100 hp, attack",
+                                                 "Siege with your wave", "Bandstand is open"])
 
     def test_on_the_last_attempt_every_moved_rule_goes_back_to_its_place(self):
         for i in OUT_OF_ORDER:
@@ -1769,6 +1773,29 @@ class RuleOrderTests(unittest.TestCase):
         self.assertIn("**Rule order -- what was moved or removed:**", md)
         self.assertIn("order: moved rule close_match_attack_tower to where your prose states it", md)
         self.assertNotIn("Automatic priority fixes", md)
+
+    def test_a_reply_wrong_only_in_its_order_ships_reordered_when_the_retries_break_something_else(self):
+        # this branch's batch, sample s12 violin: both order retries came back with a "build"-kind rule, a parse error
+        broken = T._extract_json_object(ORDER["cases"][0]["text"])
+        broken["rules"][0] = {**broken["rules"][0], "action": {"kind": "build", "ability": None, "target_selector": None}}
+        replies, prompts = [ORDER["cases"][0]["text"], json.dumps(broken), json.dumps(broken)], []
+
+        def generate(prompt):
+            prompts.append(prompt)
+            return replies[len(prompts) - 1]
+
+        schema = T.translate_pilot(ORDER["prose"]["house-hard-eco"], "pilot.md", "keytar", "chord", "glissando", generate=generate,
+                                   vocab="vocab-2", economy="eco-3-late")
+        self.assertEqual(len(prompts), 3)
+        self.assertEqual([n.id for n in schema.root.nodes], HARD_S7_KEYTAR_FIXED)
+        self.assertTrue([n for n in schema.validation_notes if n.startswith("order: moved rule close_match_attack_tower")])
+
+        def always_broken(prompt):
+            return json.dumps(broken)
+
+        with self.assertRaises(RuntimeError):  # nothing wrong only in its order: it still fails
+            T.translate_pilot(ORDER["prose"]["house-hard-eco"], "pilot.md", "keytar", "chord", "glissando", generate=always_broken,
+                              vocab="vocab-2", economy="eco-3-late")
 
 
 class NegationAttributionTests(unittest.TestCase):

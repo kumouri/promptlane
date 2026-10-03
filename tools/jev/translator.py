@@ -64,7 +64,11 @@ branches but no "type" and no action, asking for plain rules; the last attempt d
 NEGATION (vocab-2 only): `enforce_negation` rejects a reply in which a rule asks whether a thing IS
 there while the rule's id or its prose sentence says it is NOT ("no enemy is in sight"), and the
 retry quotes the sentence; on the last attempt it drops the rule with a `negation:` note instead.
-The prompt is unchanged here too.
+Only a sentence of the prose the rule states can decide (`_ProseUnits`). The prompt is unchanged here too.
+RULE ORDER (vocab-2 only): `enforce_rule_order` rejects a reply whose cascade (any cascade in the tree)
+leaves the order the prose states its rules in, first-match-wins; the retry quotes only prose, and the
+last attempt moves each such rule to its own sentence, or removes it when no one sentence is clearly its
+own, with an `order:` note. Rules from override-worded prose are left to `enforce_absolute_priority`.
 GUARD SCOPE (vocab-2 only): `enforce_guard_scope` rejects a reply in which a guard has a node after it
 (never checked: a guard always routes) or holds a node from prose outside its verdict; the retry quotes
 those nodes' sentences, and the last attempt flattens the guard with a `guard scope:` note.
@@ -1787,9 +1791,9 @@ def enforce_negation(schema: TranslatedSchema, pilot_text: str, drop: bool = Fal
 # keep the order the prose states them in. A node the prose states nowhere is never judged, and neither is one
 # from a part using override language ("no exceptions", `ABSOLUTE_OVERRIDE_PHRASES`): the prose itself takes
 # that rule out of its order, and `enforce_absolute_priority` puts it first, as it always has. The fewest nodes whose removal leaves the rest in order are the ones
-# out of order (`_out_of_order`); the reply is rejected and the retry quotes, for each, its own prose and the
-# prose of the node placed above it that the prose puts after it, never the model's rules (the 9B copies back
-# what it is shown: #87, #89). On the last attempt each such node is moved to where its prose is, when one
+# out of order (`_out_of_order`); the reply is rejected and the retry lists, numbered in the prose's order, every
+# sentence the cascade's nodes state: only prose, never the model's rules (the 9B copies back what it is shown:
+# #87, #89). On the last attempt each such node is moved to where its prose is, when one
 # part of the prose is clearly its own, and removed otherwise, each with an `order:` note. The same
 # attribution decides which sentence a rule states for `enforce_negation`. vocab-1 is unchanged.
 
@@ -1946,8 +1950,7 @@ class _Misplaced:
 def enforce_rule_order(schema: TranslatedSchema, pilot_text: str, drop: bool = False) -> TranslatedSchema:
     """vocab-2 only (vocab-1 gets `schema` back). When any cascade in the tree has nodes out of the prose's order
     (`_out_of_order` over `_ProseUnits`), raises `RuleOrderError`, which `translate_pilot` retries; the message
-    quotes each such node's prose and the prose of a node placed above it that the prose puts after it, never a
-    rule. With `drop` (`translate_pilot`'s last attempt) each such node is moved to where its own part of the
+    lists, numbered in the prose's order, the sentences the tree's nodes state, never a rule. With `drop` (`translate_pilot`'s last attempt) each such node is moved to where its own part of the
     prose is instead, or removed when it has no one part, each with an `order:` note the entrant sees. A schema
     in the prose's order is returned as it came."""
     if schema.vocab != VOCAB_2:
@@ -1992,17 +1995,13 @@ def enforce_rule_order(schema: TranslatedSchema, pilot_text: str, drop: bool = F
         return '"' + " ".join(prose.texts[part(node)].split()) + '"'
 
     if not drop or not new_root.nodes:
-        before: dict[int, list[int]] = {}  # each part placed too low, under the part it was placed below
-        for m in found:
-            firsts = before.setdefault(part(m.then), [])
-            if part(m.first) not in firsts:
-                firsts.append(part(m.first))
-        said = "; ".join(" and ".join(f'"{" ".join(prose.texts[k].split())}"' for k in sorted(firsts))
-                         + f' before "{" ".join(prose.texts[then].split())}"' for then, firsts in sorted(before.items()))
+        # The whole order, not the pairs out of it: a retry quoting only the misplaced pairs ("X" before "Y") came back
+        # out of order 10 of 11 times on the sample entrant, this list 0 of 11 (runs/vocab2-rule-order-2026-10-02.md §4).
+        parts = sorted({part(n) for n in collect_nodes(schema.root) if prose.candidates(n)})
+        listed = " ".join(f'{i}. "{" ".join(prose.texts[k].split())}"' for i, k in enumerate(parts, 1))
         raise RuleOrderError(
-            "the first rule whose question is true decides, so the rules must keep the order the prose gives them. The prose "
-            f"states {said}, but the rules for these were placed below the rule for the sentence after \"before\". Write "
-            "every rule in the prose's order"
+            "the first rule whose question is true decides, so the rules must keep the order the prose gives them. Write the "
+            f"rules in this order, the order of these sentences of the prose: {listed}"
         )
     notes = []
     for m in found:
@@ -2054,7 +2053,12 @@ def translate_pilot(
 
     The model only ever sees `scope_to_instrument(pilot_text, instrument).text`, and the priority
     guard reads the same scoped text -- another instrument's "no exceptions" clause must not demand a
-    rule in this schema."""
+    rule in this schema.
+
+    A reply wrong only in its order (`enforce_rule_order`) is kept, reordered as the last attempt would
+    ship it: if every later attempt fails for another reason, that one ships instead of the instrument
+    failing. A retry for order once got back a shopping-list rule with kind "build", a parse error, on
+    the last attempt (runs/vocab2-rule-order-2026-10-02.md)."""
     vocab = resolve_vocab(vocab)
     if generate is None:
         url = resolve_ollama_url(ollama_url)
@@ -2073,6 +2077,7 @@ def translate_pilot(
     prompt = _translation_prompt(scoped.text, instrument, primary_ability, ultimate_ability, vocab, economy=economy, map_=map_)
     teleport = vocab == VOCAB_2 and map_has_teleport(map_)
     last_err: Exception | None = None
+    reordered: TranslatedSchema | None = None  # the latest reply wrong only in its order, as a last attempt ships it
     for attempt in range(max_attempts):
         reply = generate(prompt)
         last = attempt == max_attempts - 1
@@ -2086,7 +2091,14 @@ def translate_pilot(
             schema = enforce_shopping_list(schema, scoped.text)
             schema = enforce_identity_rules(schema, scoped.text, drop=last)
             schema = enforce_negation(schema, scoped.text, drop=attempt == max_attempts - 1)
-            schema = enforce_rule_order(schema, scoped.text, drop=last)
+            try:
+                schema = enforce_rule_order(schema, scoped.text, drop=last)
+            except RuleOrderError:
+                try:
+                    reordered = enforce_absolute_priority(enforce_rule_order(schema, scoped.text, drop=True), scoped.text)
+                except SchemaValidationError:
+                    pass
+                raise
             return enforce_absolute_priority(schema, scoped.text)
         except (UnfinishedGuardError, GuardScopeError, RuleOrderError) as err:
             last_err = err
@@ -2103,6 +2115,8 @@ def translate_pilot(
                 "(type/then/else) -- either finish the guard shape or use a normal rule instead. "
                 "Output ONLY the JSON object, no other text."
             )
+    if reordered is not None:  # a retry for order broke something else: ship the order-only reply, reordered
+        return reordered
     raise RuntimeError(f"translation failed after {max_attempts} attempts: {last_err}")
 
 
