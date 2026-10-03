@@ -45,7 +45,9 @@ export { jevTracingPilot } from './jevPilot';
 export { jevTeamTracingPilot } from './jevTeamPilot';
 export { DEFAULT_TARGETING, FIRST_MIN, OWN_LANE_1, TARGETINGS, jevSchemaTracingPilot, resolveTargeting, targetingUnsupported } from './jevSchemaPilot';
 export { DEFAULT_VOCAB, VOCAB_1, VOCAB_2, VOCABS, approachOutOfRange, schemaVocab, vocabUnsupported, vocabsOf } from './jevSchemaPilot';
-export { DEFAULT_MAP, MAP_VARIANTS, PVP_MAP, PVP_2_MAP, SPECIMEN_MAP, laneCoverage, resolveMap, towerPos, variantGeometry } from '../../src/mapVariant';
+export { DEFAULT_MAP, MAP_VARIANTS, PVP_MAP, PVP_2_MAP, PVP_BASE_TOWER_MAP, SPECIMEN_MAP, laneCoverage, resolveMap, towerPos, variantGeometry } from '../../src/mapVariant';
+export { BASE_TOWER_TIER, getBaseTowers, isBaseTower } from '../../src/baseTower';
+export { attachAttribution } from '../../src/attribution';
 export { attachMapRules } from '../../src/mapRules';
 export { attachHomeguard, getHomeguard, homeguardTotals } from '../../src/homeguard';
 export { TELEPORT_ABILITY, attachTeleport, getTeleport } from '../../src/teleport';
@@ -316,7 +318,7 @@ export async function runMatch(opts: RunOptions): Promise<MatchLog> {
   // finale: the map's layers and the recall hug the sim's own tick (src/recall.ts), the economy's
   // steps run after the objective's update (§9.6), and the finale reads the finished tick.
   attachResolution(match, resolution);
-  const { homeguard, teleport } = attachMapRules(match, map, resolution);
+  const { homeguard, teleport, baseTowers } = attachMapRules(match, map, resolution);
   const recall = recallRules ? attachRecall(match, recallRules, TICK_DT) : null;
   const objective = objectiveRules ? attachObjective(match, objectiveRules, TICK_DT) : null;
   const economy = economyRules && builds ? attachEconomy(match, economyRules, builds, TICK_DT) : null;
@@ -383,6 +385,7 @@ export async function runMatch(opts: RunOptions): Promise<MatchLog> {
   if (finale) log.result.finale = finale.summary();
   if (homeguard) log.result.homeguard = homeguard.summary();
   if (teleport) log.result.teleport = teleport.summary();
+  if (baseTowers) log.result.baseTower = baseTowers.summary();
   return log;
 }
 

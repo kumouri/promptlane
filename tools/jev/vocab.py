@@ -44,6 +44,9 @@ MAPS = {
     "pvp-1r": (120, (0.20, 0.34)),
     "pvp-2": (160, (0.16, 0.35)),
     "pvp-1-hp400": (160, (0.16, 0.30)),  # pvp-1's towers at lower hp; hp is in the observation, not here
+    # pvp-1's lane towers at lower hp plus a base tower per team (src/baseTower.ts). The base tower is in the
+    # observation's own tower list like any tower, so nothing here needs it.
+    "pvp-1-hp300-base700": (160, (0.16, 0.30)),
 }
 # src/mapVariant.ts: a variant's `scale` and `laneTowerFractions`, for the maps that have them.
 MAP_GEOMETRY = {

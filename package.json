@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "match": "node tools/match/cli.mjs",
     "metrics": "node tools/match/metrics.mjs",
-    "test:match": "node --test tools/match/test_metrics.mjs tools/match/test_economy.mjs tools/match/test_late_game.mjs tools/match/test_objective.mjs tools/match/test_measure_economy.mjs tools/match/test_recall.mjs tools/match/test_resolution.mjs tools/match/test_targeting.mjs tools/match/test_finale.mjs tools/match/test_tower_hp.mjs tools/match/test_vocab.mjs tools/match/test_pvp2.mjs",
+    "test:match": "node --test tools/match/test_metrics.mjs tools/match/test_economy.mjs tools/match/test_late_game.mjs tools/match/test_objective.mjs tools/match/test_measure_economy.mjs tools/match/test_recall.mjs tools/match/test_resolution.mjs tools/match/test_targeting.mjs tools/match/test_finale.mjs tools/match/test_tower_hp.mjs tools/match/test_base_tower.mjs tools/match/test_vocab.mjs tools/match/test_pvp2.mjs",
     "compile": "python tools/jev/compile.py",
     "model-server": "python tools/model_server.py",
     "test:tools": "python -m unittest discover -s tools -p \"test_*.py\"",

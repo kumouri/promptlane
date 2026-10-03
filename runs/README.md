@@ -105,6 +105,14 @@ prose-to-Jev path removed: house-hard-eco 0/12 → 12/12 on the local 9B, $0, no
 replies, and the two fidelity defects whole long compiles now show. Replies, probes and scripts are
 on the
 [`data-remove-token-caps-2026-10-02`](https://github.com/kumouri/promptlane/releases/tag/data-remove-token-caps-2026-10-02)
-prerelease).
+prerelease), and
+[nexus-guard-2026-10-02.md](nexus-guard-2026-10-02.md). It covers the opt-in `pvp-1-hp300-base700`:
+towers at 300 / 500, plus a 700-hp base tower in front of each nexus whose fall wins. That map is
+measured against `pvp-1` and `pvp-1-hp400` on Jev, under the Jam ruleset and as the live arena runs.
+No base tower fell in 20 matches on it, and the arena's `pvp-1` drew 5 of 8. The run was 36
+pre-registered matches for $3.43, and it adds a $0 count of tower dives on 74 recorded matches. The
+logs and the analysis kit are on the
+[`data-nexus-guard-2026-10-02`](https://github.com/kumouri/promptlane/releases/tag/data-nexus-guard-2026-10-02)
+prerelease.
 The bulky captures those documents hash live under ignored `artifacts/<run>-evidence/` and
 `artifacts/<run>-reviewed/`.
