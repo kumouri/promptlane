@@ -1874,6 +1874,33 @@ class RuleOrderTests(unittest.TestCase):
         self.assertTrue(T.keeps_every_rule(whole, schema, prose))
         self.assertFalse(T.keeps_every_rule(T.parse_schema(in_order, "p.md", "drums", "raw", "vocab-2", economy="eco-3-late"), schema, prose))
 
+    def test_a_rule_the_prose_states_nowhere_is_not_moved(self):
+        # This job's violin.md compile s1: "is an enemy bearbot in attack range? -> attack" is the model's own rule. It shares
+        # "enemy" and "bearbot" with the voice line "you exist to end one enemy ..." (score 0.61), and the check moved it up
+        # to rule 2, above the Staccato opener and "wait until one enemy is isolated". Below _ORDER_STATED_FLOOR the prose
+        # states a rule nowhere, and it is not judged.
+        prose = T.scope_to_instrument(open(os.path.join(os.path.dirname(__file__), "..", "..", "prompts", "pilots", "violin.md"),
+                                           encoding="utf-8").read(), "violin").text
+        spec = [("recall_low_hp", "is this bearbot's hp below a quarter of its max?", "recall", None, "none"),
+                ("engage_isolated_target", "is there exactly one isolated enemy bearbot visible (alone or clearly the softest target in a group)?",
+                 "move", None, "isolated_enemy"),
+                ("use_staccato_on_target", "is the selected target within this bearbot's attack range and is staccato ready?", "ability",
+                 "staccato", "nearest_enemy_bearbot"),
+                ("use_solo_for_engage_or_escape", "is a target about to get away or is the moment right for a decisive engage?", "ability",
+                 "solo", "nearest_enemy_bearbot"),
+                ("move_toward_isolated_target", "is there an isolated enemy bearbot visible?", "move", None, "isolated_enemy"),
+                ("attack_nearest_enemy", "is there an enemy bearbot within this bearbot's attack range?", "attack", None, "nearest_enemy_bearbot"),
+                ("hold_position", "is there no fight near this bearbot and no isolated target?", "hold", None, "none")]
+        schema = T.parse_schema({"rules": [{"id": i, "condition": c, "criteria": {"true": "yes", "false": "no"},
+                                            "action": {"kind": k, "ability": a, "target_selector": t}} for i, c, k, a, t in spec],
+                                 "default_action": {"kind": "hold", "ability": None, "target_selector": "none"}}, "violin.md", "violin", "raw", "vocab-2")
+        P = T._ProseUnits(prose)
+        attack = next(n for n in schema.root.nodes if n.id == "attack_nearest_enemy")
+        self.assertLess(max(P.scores(attack)), T._ORDER_STATED_FLOOR)
+        self.assertEqual(P.placed(attack), set())
+        self.assertTrue(P.candidates(attack))  # negation attribution still sees its candidates
+        self.assertIs(T.enforce_rule_order(schema, prose), schema)
+
     def test_a_retry_that_swaps_a_rule_for_its_sentences_other_half_never_ships(self):
         # This job's merged-code batch, sample s8 drums and violin: the order retry kept a rule for the walk sentence, but the
         # wrong half: "are there no minions near? -> home" (or "-> the nearest ally") in place of "walk with my nearest

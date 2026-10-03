@@ -873,6 +873,11 @@ after the negation guard and before the priority guard:
   - a part that names a different action ("attack" for an ability rule) counts half.
 - **Candidate parts.** Every part scoring at least 75% of the node's best is one it may state. A node
   that shares fewer than two words with every part is not judged.
+- **A rule the prose states nowhere is not judged.** The order check places a node only when its best
+  part scores at least 0.8. On violin.md, whose paragraphs are mostly not conditional, a model-invented
+  "enemy bearbot in attack range → attack" scored 0.61 against the voice line "you exist to end one
+  enemy …" and was moved up to rule 2, above the Staccato opener. Every rule the batches' signatures
+  tie to a sentence (2,778) scored at least 0.88. Negation attribution keeps the plain candidates.
 - **Override language.** A node from a part using override language ("no exceptions") is not judged
   either. The prose takes it out of order itself, and the priority guard puts it first.
 - **Out of order.** The fewest nodes whose removal leaves the rest in the prose's order are out of

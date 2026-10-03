@@ -1858,6 +1858,13 @@ _ORDER_PLACE_SHARE = 0.8
 # A part that names an action ("attack", "recall", "move", an ability) but not the node's scores this share: "use
 # your primary ability on ..." and "attack the enemy bearbot with the lowest hp" share every other word.
 _OTHER_ACTION_SHARE = 0.5
+# The order check judges a node only when its best part scores at least this: below it the prose states the rule
+# nowhere, and two shared words ("enemy", "bearbot") placed it anyway. On violin.md, whose paragraphs are mostly not
+# conditional, a model-invented "is an enemy bearbot in attack range? -> attack" scored 0.61 against the voice line
+# "you exist to end one enemy ..." and was moved up to rule 2, above the Staccato opener (runs/vocab2-rule-order-
+# 2026-10-02.md §8). Of 2,778 rules the batches' signatures say a sentence states (hard-eco, sample entrant), the
+# lowest scored 0.88. Negation attribution and `keeps_every_rule` keep the plain candidates.
+_ORDER_STATED_FLOOR = 0.8
 _ACTION_WORDS = {"attack": frozenset({"attack", "attacks"}), "recall": frozenset({"recall", "recalls"}),
                  "move": frozenset({"move", "moves"}),
                  "ability": frozenset({"ability", "abilities", *(a for pair in ABILITIES.values() for a in pair)})}
@@ -1945,6 +1952,10 @@ class _ProseUnits:
         top = max(scores, default=0.0)
         return {k for k, s in enumerate(scores) if top > 0 and s >= share * top}
 
+    def placed(self, node: Node) -> set[int]:
+        """`candidates`, for the order check: empty unless the best part scores `_ORDER_STATED_FLOOR`."""
+        return self.candidates(node) if max(self.scores(node), default=0.0) >= _ORDER_STATED_FLOOR else set()
+
     def own(self, node: Node) -> int | None:
         """The one part `node` states, when one beats every other by `_ORDER_PLACE_SHARE`; None otherwise."""
         close = self.candidates(node, _ORDER_PLACE_SHARE)
@@ -2026,7 +2037,7 @@ def enforce_rule_order(schema: TranslatedSchema, pilot_text: str, drop: bool = F
     def walk(cascade: Cascade) -> Cascade:
         nodes = [dataclasses.replace(n, then=walk(n.then), else_=walk(n.else_)) if isinstance(n, GuardNode) else n
                  for n in cascade.nodes]
-        places = [set() if (ks := prose.candidates(n)) & prose.override else ks for n in nodes]
+        places = [set() if (ks := prose.placed(n)) & prose.override else ks for n in nodes]
         out, kept = _out_of_order(places)
         if not out:
             return Cascade(nodes=tuple(nodes), default=cascade.default)
@@ -2054,7 +2065,7 @@ def enforce_rule_order(schema: TranslatedSchema, pilot_text: str, drop: bool = F
 
     def part(node: Node) -> int:
         own = prose.own(node)
-        return own if own is not None else min(prose.candidates(node))
+        return own if own is not None else min(prose.placed(node))
 
     def quote(node: Node) -> str:
         return '"' + " ".join(prose.texts[part(node)].split()) + '"'
@@ -2064,7 +2075,7 @@ def enforce_rule_order(schema: TranslatedSchema, pilot_text: str, drop: bool = F
         # out of order 10 of 11 times on the sample entrant, this list 0 of 11 (runs/vocab2-rule-order-2026-10-02.md §4).
         # Every part a node may state is listed, not one per node: listing "walk with my nearest minion" only under
         # "push the tower with the wave", its first candidate, left its own sentence out, and 13 of 36 retries dropped it.
-        parts = sorted({k for n in collect_nodes(schema.root) for k in prose.candidates(n)})
+        parts = sorted({k for n in collect_nodes(schema.root) for k in prose.placed(n)})
         listed = " ".join(f'{i}. "{" ".join(prose.texts[k].split())}"' for i, k in enumerate(parts, 1))
         raise RuleOrderError(
             "the first rule whose question is true decides, so the rules must keep the order the prose gives them. Write the "
