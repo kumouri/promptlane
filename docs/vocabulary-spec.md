@@ -766,11 +766,16 @@ sim applies (`BaseTowers.vulnerable`: one of that team's inner towers is down), 
 the sim can't disagree. vocab-2 states it only when the observation carries it, so every other
 description is unchanged; vocab-1 never does (`fidelity_harness._base_tower_lines`, `vocab.FACTS_BASE`,
 lead "base tower"):
-- "The enemy base tower tw-13 can be hit now: one of their inner towers is down. It has 412/700 hp, at
-  (829,171), 183 units away, and destroying it wins the match." Or: "…can't be hit yet: it takes no
-  damage until one of their inner towers is down. It is at (829,171), 183 units away."
-- "Your base tower tw-12 can be hit now: one of your inner towers is down. It has 700/700 hp, and if it
-  falls your team loses." Or "…can't be hit yet…".
+- "Out of sight, map-wide: the enemy base tower tw-13 can be hit now (one of their inner towers is down;
+  412/700 hp), and destroying it wins the match." Or: "…can't be hit yet: it takes no damage until one
+  of their inner towers is down." Within 390 units, where the tower lines already place it: "The enemy
+  base tower is tw-13, listed above: it can be hit now…".
+- **No position or distance, and "out of sight" first.** Stated with them ("…at (829,171), 1000 units
+  away"), Jev read a far base tower as an enemy tower in sight. With no enemy tower listed, "is an enemy
+  tower visible?" got a yes 28 times in 60, against 0 without the line, and the 8:00 close-out then
+  attacked nothing (the run's §1.4).
+- "Your base tower tw-12 can be hit now: one of your inner towers is down, and if it falls your team
+  loses." Or "Your base tower tw-12 can't be hit yet."
 - The base tower's own line in the tower facts says so: "Enemy tower tw-13 (mid, base tower, 700/700
   hp)…". A protected base tower reads full hp, because its damage is undone every tick.
 

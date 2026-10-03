@@ -469,25 +469,27 @@ def _base_tower_lines(obs: dict) -> list[str]:
     bt = obs.get("baseTowers")
     if not bt:
         return []
-    me = obs["self"]["pos"]
     lines: list[str] = []
     e = bt["enemy"]
+    # No position or distance, and "out of sight" first unless the tower lines list it: stated with them, Jev
+    # read the far base tower as an enemy tower in sight ("is an enemy tower visible?" yes 28 of 60 with none
+    # listed; runs/bots-push-to-base-2026-10-02.md §1.4). When listed, its own tower line places it.
+    listed = any(t["id"] == e["id"] and t.get("alive", True) for t in obs.get("nearbyTowers") or ())
+    head = f"The enemy base tower is {e['id']}, listed above: it" if listed else f"Out of sight, map-wide: the enemy base tower {e['id']}"
     if not e["alive"]:
         lines.append(f"The enemy base tower {e['id']} is destroyed.")
     elif e["canBeHit"]:
-        lines.append(f"The enemy base tower {e['id']} can be hit now: one of their inner towers is down. It has "
-                     f"{e['hp']:.0f}/{e['maxHp']:.0f} hp, at {_xy(e['pos'])}, {_units(dist(me, e['pos']))}, and destroying it wins the match.")
+        lines.append(f"{head} can be hit now (one of their inner towers is down; {e['hp']:.0f}/{e['maxHp']:.0f} hp), "
+                     f"and destroying it wins the match.")
     else:
-        lines.append(f"The enemy base tower {e['id']} can't be hit yet: it takes no damage until one of their inner towers is down. "
-                     f"It is at {_xy(e['pos'])}, {_units(dist(me, e['pos']))}.")
+        lines.append(f"{head} can't be hit yet: it takes no damage until one of their inner towers is down.")
     o = bt["own"]
     if not o["alive"]:
         lines.append(f"Your base tower {o['id']} is destroyed.")
     elif o["canBeHit"]:
-        lines.append(f"Your base tower {o['id']} can be hit now: one of your inner towers is down. It has {o['hp']:.0f}/{o['maxHp']:.0f} hp, "
-                     f"and if it falls your team loses.")
+        lines.append(f"Your base tower {o['id']} can be hit now: one of your inner towers is down, and if it falls your team loses.")
     else:
-        lines.append(f"Your base tower {o['id']} can't be hit yet: it takes no damage until one of your inner towers is down.")
+        lines.append(f"Your base tower {o['id']} can't be hit yet.")
     return lines
 
 

@@ -343,8 +343,8 @@ FACTS_AGGRO = (
 # unchanged. "Can be hit" is the sim's own rule (`BaseTowers.vulnerable`), sent in the observation.
 FACTS_BASE = (
     Fact("base_towers", "both base towers, map-wide (destroying the enemy's wins the match, losing this bearbot's own loses it): "
-         "whether each can be hit now (a base tower takes no damage until one of its team's inner towers is down), its hp, "
-         "and the enemy's distance from this bearbot", "base tower", when="the map has base towers"),
+         "whether each can be hit now (a base tower takes no damage until one of its team's inner towers is down), the enemy's "
+         "hp once it can be hit, and whether the enemy's is out of sight", "base tower", when="the map has base towers"),
 )
 
 

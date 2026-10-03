@@ -55,16 +55,24 @@ class Description(unittest.TestCase):
         self.assertNotIn("base tower", plain)
         shut = describe_observation(obs(baseTowers=base_block()), VOCAB_2, MAP)
         self.assertTrue(shut.startswith(plain + " "), "the lines are appended; every other sentence is unchanged")
-        self.assertIn("The enemy base tower tw-13 can't be hit yet: it takes no damage until one of their inner towers is down.", shut)
-        self.assertIn("Your base tower tw-12 can't be hit yet", shut)
+        self.assertIn("Out of sight, map-wide: the enemy base tower tw-13 can't be hit yet: it takes no damage until one of their inner "
+                      "towers is down.", shut)
+        self.assertIn("Your base tower tw-12 can't be hit yet.", shut)
         self.assertNotIn("can be hit now", shut)
 
-    def test_open_states_hp_distance_and_the_win(self):
-        text = describe_observation(obs(baseTowers=base_block(enemy_open=True, enemy_hp=412.5)), VOCAB_2, MAP)
-        self.assertIn("The enemy base tower tw-13 can be hit now: one of their inner towers is down. It has 412/700 hp, at (829,171), "
-                      "183 units away, and destroying it wins the match.", text)
+    def test_open_states_hp_and_the_win_but_no_position(self):
+        # §1.4: with a position and a distance, Jev read the far base tower as "an enemy tower in sight"
+        far = describe_observation(obs(pos=(300, 700), baseTowers=base_block(enemy_open=True, enemy_hp=412.5)), VOCAB_2, MAP)
+        self.assertIn("Out of sight, map-wide: the enemy base tower tw-13 can be hit now (one of their inner towers is down; 412/700 hp), "
+                      "and destroying it wins the match.", far)
+        self.assertNotIn("(829,171)", far)
+        self.assertNotIn("units away, and destroying", far)
+        listed = {"id": "tw-13", "team": "green", "lane": "mid", "pos": P(829.3, 170.7), "hp": 412.5, "maxHp": 700, "alive": True}
+        near = describe_observation(obs(nearbyTowers=[listed], baseTowers=base_block(enemy_open=True, enemy_hp=412.5)), VOCAB_2, MAP)
+        self.assertIn("The enemy base tower is tw-13, listed above: it can be hit now (one of their inner towers is down; 412/700 hp), "
+                      "and destroying it wins the match.", near)
         own = describe_observation(obs(baseTowers=base_block(own_open=True)), VOCAB_2, MAP)
-        self.assertIn("Your base tower tw-12 can be hit now: one of your inner towers is down. It has 700/700 hp, and if it falls your team loses.", own)
+        self.assertIn("Your base tower tw-12 can be hit now: one of your inner towers is down, and if it falls your team loses.", own)
 
     def test_destroyed(self):
         text = describe_observation(obs(baseTowers=base_block(enemy_open=True, enemy_alive=False, enemy_hp=0)), VOCAB_2, MAP)
