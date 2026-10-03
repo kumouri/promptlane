@@ -244,6 +244,46 @@ a few matches and opens a base tower that isn't finished.
 - Jev is not deterministic (PR #37), and seeds 3 and 7 are near-replays. The blocks are directions, not
   rates.
 
+### 1.4 Amendment: the base-tower line reads as "an enemy tower in sight" (committed after §1.3's blocks were played and read, before its own paid calls)
+
+This amendment is post hoc. §1.3's 32 matches were played and read before it was written, and none of
+their lines change because of it.
+
+- **What the blocks showed.** After 8:00, the close-out rule ("more than 480 s and you can see an
+  enemy tower → attack the nearest enemy tower") won with **no target** in 36 % of its wins in E, 45 % in
+  J and 66 % in P. Jev said an enemy tower was in sight, and the resolver found none listed within 390.
+  So the bot attacked nothing and stood still for 2 s.
+  - On #96's logs (the same map, the same rule, no base-tower line), that was 0 % in N and NF and 1 % in
+    AN (`pb_closeout.py`).
+  - The difference is §0.2's line: "The enemy base tower tw-13 … at (829,171), 1000 units away". It
+    names an enemy tower with a position and a distance, map-wide.
+- **The fix, fixed here before it is measured:** the status line no longer gives the position or the
+  distance. When the base tower is beyond the 390 units towers are listed within, it says so first:
+  - far: "Out of sight, map-wide: the enemy base tower tw-13 can be hit now (one of their inner towers
+    is down; 412/700 hp), and destroying it wins the match." Or: "Out of sight, map-wide: the enemy base
+    tower tw-13 can't be hit yet: it takes no damage until one of their inner towers is down."
+  - near (listed above in the tower lines): "The enemy base tower is tw-13, listed above: it can be hit
+    now (one of their inner towers is down), and destroying it wins the match." Or "…: it can't be hit
+    yet: it takes no damage until one of their inner towers is down."
+  - own: "Your base tower tw-12 can be hit now: one of your inner towers is down, and if it falls your
+    team loses." Or "Your base tower tw-12 can't be hit yet."
+  - The tower line's "(mid, base tower, …)" stays.
+- **P1, the sight read** (`probe.mjs sight`, ~$0.02 each arm):
+  - The states: 60 base-map states (20 per instrument, fixed seed) with no enemy bearbot, minion or
+    tower listed. Clock set to 540 s and hp to 40 % of max, so:
+    - the close-out is truly no;
+    - "hp below half and an enemy minion, tower or bearbot in sight" is truly no;
+    - "hp below half and no enemy in sight" is truly yes.
+  - Asked with medium's whole schema under three descriptions:
+    - **A:** no base-tower line, as before this job;
+    - **B:** §0.2's wording, as played in §1.3;
+    - **C:** the fix.
+  - **The line:** C passes iff its yes rates on the close-out and the low-hp walk are each within 5
+    points of A's, and its yes rate on the low-hp recall is no more than 5 points below A's.
+- **P0′:** §1.3's P0 again, under C, with the same line (open ≥ 90 %; shut and absent ≤ 10 %).
+- **No match is re-played.** §1.3's results stand as played, with this defect named beside them.
+- **Spend:** the server's ledger stops at $4.90 as before. These arms cost about $0.06.
+
 ## Files
 
 - `src/baseTower.ts`: `baseTowers` in the observation (`BaseTowerObservation`).
