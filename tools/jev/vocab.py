@@ -54,16 +54,25 @@ MAPS = {
     # (`BASE_TOWER_MAPS` below), so nothing here needs its numbers.
     "pvp-1-hp300-base700": (160, (0.16, 0.30)),
     "pvp-2-hp400-base950": (160, (0.16, 0.35)),  # pvp-2's towers at lower hp plus the base tower
+    # the same two maps with every tier's hp cut, or a bot's damage to structures x 1.33 (src/structureDamage.ts;
+    # runs/tower-tune-2026-10-02.md): hp is in the observation and the multiplier is the sim's, so only the layout is here
+    "pvp-1-hp200-400-base600": (160, (0.16, 0.30)),
+    "pvp-1-hp300-base700-sd133": (160, (0.16, 0.30)),
+    "pvp-2-hp260-560-base810": (160, (0.16, 0.35)),
+    "pvp-2-hp400-base950-sd133": (160, (0.16, 0.35)),
 }
 # src/mapVariant.ts: a variant's `scale` and `laneTowerFractions`, for the maps that have them.
 MAP_GEOMETRY = {
     "pvp-2": (1.33, {"mid": (0.16, 0.375)}),
     "pvp-2-hp400-base950": (1.33, {"mid": (0.16, 0.375)}),
+    "pvp-2-hp260-560-base810": (1.33, {"mid": (0.16, 0.375)}),
+    "pvp-2-hp400-base950-sd133": (1.33, {"mid": (0.16, 0.375)}),
 }
 # The maps that bring pvp-2's teleport and speed boost, and the maps with a base tower whose fall wins
 # (src/mapVariant.ts `teleport`, `baseTower`).
-TELEPORT_MAPS = ("pvp-2", "pvp-2-hp400-base950")
-BASE_TOWER_MAPS = ("pvp-1-hp300-base700", "pvp-2-hp400-base950")
+TELEPORT_MAPS = ("pvp-2", "pvp-2-hp400-base950", "pvp-2-hp260-560-base810", "pvp-2-hp400-base950-sd133")
+BASE_TOWER_MAPS = ("pvp-1-hp300-base700", "pvp-2-hp400-base950", "pvp-1-hp200-400-base600", "pvp-1-hp300-base700-sd133",
+                   "pvp-2-hp260-560-base810", "pvp-2-hp400-base950-sd133")
 # src/sim/map.ts BASE and LANE_PATHS: the specimen's 1000 x 1000 world, violet base -> green base.
 SPECIMEN_BASE = {"violet": (100, 900), "green": (900, 100)}
 SPECIMEN_LANE_PATHS = {

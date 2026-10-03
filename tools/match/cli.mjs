@@ -55,8 +55,12 @@ options:
                       src/baseTower.ts), pvp-2 (opt-in: the world x1.33, new tower
                       spots, an out-of-base speed boost and a teleport to a friendly tower; needs
                       the simultaneous-1 resolution, and is meant to be played with --recall
-                      recall-2), or pvp-2-hp400-base950 (pvp-2 with towers at 400 / 700 and a
-                      950-hp base tower, opt-in); recorded in the log, applied on --verify
+                      recall-2), pvp-2-hp400-base950 (pvp-2 with towers at 400 / 700 and a
+                      950-hp base tower, opt-in), or the opt-in tunings of the two base-tower
+                      maps (runs/tower-tune-2026-10-02.md): pvp-1-hp200-400-base600 and
+                      pvp-2-hp260-560-base810 (every tier's hp cut), pvp-1-hp300-base700-sd133 and
+                      pvp-2-hp400-base950-sd133 (a bot's damage to towers, base towers and nexuses
+                      x1.33; src/structureDamage.ts); recorded in the log, applied on --verify
   --economy NAME      economy ruleset (src/economy.ts): eco-2 (the tuned one), eco-3 (§13.6's
                       pass on it), eco-3-late (eco-3 plus recipes, tier-3 upgrades and levels to 8;
                       docs/late-game-economy-spec.md), eco-1 (P1's starting values), respawn-1, or none (the default until the go/no-go gate, docs/arena-runbook.md §6). Respawn, gold, levels, items; each schema side buys the
