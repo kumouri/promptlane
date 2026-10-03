@@ -13,7 +13,7 @@ Nothing here is new translation logic: `translator.translate_pilot` (prompt, par
 priority guard) and `transparency.render_report_markdown` are used unchanged. What this file adds is
 the plumbing an entrant needs -- any prose (not just the three hand-labelled reference pilots:
 `segment.auto_segments` labels it), all three instruments (one prompt drives drums, keytar and
-violin, so each is compiled separately), a choice of backend, and a hard token cap.
+violin, so each is compiled separately), and a choice of backend.
 
 BACKENDS (`llm_backends.py`) -- same model either way, so every door compiles alike:
     --backend ollama      host Ollama, qwen3.5:9b, free. $OLLAMA_HOST (default 127.0.0.1:11434).
@@ -27,9 +27,13 @@ its output is unchanged. Under a ruleset with recipes (`eco-3-late`) the compile
 as declared and the match fills in parts (`docs/late-game-economy-spec.md` §7.4): FORMAT_VERSION
 stays 2.
 
-SPEND CAP. --max-total-tokens (default 60000, roughly 8 compiles' worth) bounds prompt+completion
-tokens across the whole invocation; a call that could cross it is refused before it is made
-(`llm_backends.TokenBudget`), and the instruments it would have compiled are reported as skipped.
+NO TOKEN CAPS (Ceryce, 2026-10-02 17:59 CT: "Get rid of any fucking token caps."). No reply is cut
+at a token count and no run is refused for its token total (`llm_backends`, NO TOKEN CAPS). The old
+per-run cap, --max-total-tokens, is still accepted so a caller pinned to an older promptlane (the
+entrants' PR bot) keeps working, and it does nothing. A vocab-1 compile alone still sends the
+1,800-token reply cap its recorded runs used, so its request is byte-identical. --timeout (seconds
+per model call) is not a length limit: the default is long enough to fill the model's whole context
+window (`llm_backends.CALL_TIMEOUT_SEC`).
 
 VOCABULARY. --vocab (default `vocab.DEFAULT_VOCAB`, vocab-2) is what the prose compiles under: the
 facts Jev is told each decision and the targets a rule can name (`vocab.py`, `docs/vocabulary-spec.md`).
@@ -37,8 +41,8 @@ A vocab-2 schema names it in a "vocab" key and plays under it wherever it goes; 
 writes exactly the schema JSON a compile wrote before vocabularies existed.
 
 EXIT STATUS. 0 every instrument compiled; 1 at least one failed to compile (the model never produced
-a valid schema -- the view says which); 2 bad usage or backend unreachable; 3 the token cap stopped
-the run.
+a valid schema -- the view says which); 2 bad usage or backend unreachable. (3, "the token cap
+stopped the run", is retired with the cap.)
 
 Standard library only.
 """
@@ -56,7 +60,7 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from economy_rules import DEFAULT_ECONOMY, known_economies  # noqa: E402
-from llm_backends import Backend, BackendError, BudgetExceeded, TokenBudget, make_backend  # noqa: E402
+from llm_backends import CALL_TIMEOUT_SEC, VOCAB1_MAX_COMPLETION_TOKENS, Backend, BackendError, make_backend  # noqa: E402
 from scenarios import ABILITIES  # noqa: E402
 from segment import auto_segments, hand_segments_for  # noqa: E402
 from transparency import build_report, render_report_markdown  # noqa: E402
@@ -72,7 +76,8 @@ from translator import (  # noqa: E402
 from vocab import DEFAULT_VOCAB, LEGACY_VOCAB, MAPS, VOCABS, resolve_vocab  # noqa: E402
 
 INSTRUMENTS = ("drums", "keytar", "violin")
-DEFAULT_MAX_TOTAL_TOKENS = 60_000
+# vocab-1's per-call timeout before the caps went; kept with its reply cap so a vocab-1 compile runs as recorded.
+VOCAB1_TIMEOUT_SEC = 120.0
 # 2: schemas carry "build" (the entrant's shopping list, or null for the instrument default).
 # A version-1 schema has no "build" and reads as null, so v1 files still load. An optional
 # "economy" key (absent = the default ruleset) names the ruleset "build" was checked against.
@@ -210,8 +215,6 @@ def compile_instrument(text: str, display_name: str, instrument: str, backend: B
         entry.update(ok=True, schema=schema_to_dict(schema), markdown=render_report_markdown(report),
                      dropped=[{"label": d.label, "text": d.text.strip()} for d in report.dropped if d.text.strip()],
                      unmatched_rules=[rp.rule.id for rp in report.rules if not rp.source_segments])
-    except BudgetExceeded as err:
-        entry.update(error=f"skipped: {err}", budget=True)
     except BackendError as err:
         entry.update(error=str(err), backend_error=True)
     except (RuntimeError, ValueError) as err:
@@ -245,14 +248,13 @@ def compile_prompt(text: str, display_name: str, instruments, backend: Backend |
 
 # --- rendering the whole preview ------------------------------------------------------------------
 
-def header_markdown(result: dict, backend_desc: str, usage: dict, cap: int | None) -> str:
+def header_markdown(result: dict, backend_desc: str, usage: dict) -> str:
     cost = f"${usage['cost_usd']:.4f}"
     lines = [
         f"# Jev compile preview: `{result['name']}`",
         "",
         f"Compiled by promptlane's prose-to-schema translator with `{backend_desc}` -- "
         f"{usage['calls']} model call(s), {usage['total_tokens']:,} tokens"
-        + (f" of a {cap:,}-token cap" if cap else "")
         + f", {cost}, {usage['seconds']:.1f} s.",
         "",
         "At the jam your prose is not run by a chat model: it is compiled once into the rule cascade "
@@ -288,8 +290,8 @@ def header_markdown(result: dict, backend_desc: str, usage: dict, cap: int | Non
     return "\n".join(lines) + "\n"
 
 
-def full_markdown(result: dict, backend_desc: str, usage: dict, cap: int | None) -> str:
-    parts = [header_markdown(result, backend_desc, usage, cap)]
+def full_markdown(result: dict, backend_desc: str, usage: dict) -> str:
+    parts = [header_markdown(result, backend_desc, usage)]
     for e in result["instruments"].values():
         if e["ok"]:
             parts.append("---\n\n" + e["markdown"])
@@ -311,10 +313,13 @@ def parse_args(argv=None) -> argparse.Namespace:
     p.add_argument("--model", default=None, help="override the model (default qwen3.5:9b / qwen/qwen3.5-9b)")
     p.add_argument("--ollama-url", default=None, help="Ollama base URL (default $OLLAMA_HOST, else http://127.0.0.1:11434)")
     p.add_argument("--api-key-env", default="OPENROUTER_API_KEY", help="env var holding the OpenRouter key")
-    p.add_argument("--max-total-tokens", type=int, default=DEFAULT_MAX_TOTAL_TOKENS, help="spend cap across this whole run (prompt+completion tokens); 0 = uncapped")
+    # Retired with the token caps; accepted and ignored so a caller pinned to an older promptlane keeps working.
+    p.add_argument("--max-total-tokens", type=int, default=None, help=argparse.SUPPRESS)
     p.add_argument("--attempts", type=int, default=3, help="translation attempts per instrument before giving up")
     p.add_argument("--parallel", type=int, default=None, help="instruments compiled at once (default 1 for ollama, 3 for openrouter)")
-    p.add_argument("--timeout", type=float, default=120.0, help="seconds per model call")
+    p.add_argument("--timeout", type=float, default=None,
+                   help=f"seconds per model call, not a length limit (default {CALL_TIMEOUT_SEC:.0f}: enough to fill the model's "
+                   f"whole context window; {VOCAB1_TIMEOUT_SEC:.0f} under vocab-1)")
     p.add_argument("--format", choices=("markdown", "json"), default="markdown")
     p.add_argument("--out", default=None, help="write the output here instead of stdout")
     p.add_argument("--economy", choices=known_economies(), default=DEFAULT_ECONOMY,
@@ -358,13 +363,14 @@ def main(argv=None) -> int:
             schemas[s.instrument] = s
         instruments = tuple(i for i in instruments if i in schemas)
 
-    cap = args.max_total_tokens or None
+    legacy = args.vocab == LEGACY_VOCAB  # vocab-1 keeps its recorded reply cap and timeout; nothing else is capped
+    timeout = args.timeout or (VOCAB1_TIMEOUT_SEC if legacy else CALL_TIMEOUT_SEC)
     backend = None
     backend_desc = "saved schema (no model call)"
     if schemas is None:
         try:
-            backend = make_backend(args.backend, args.model, TokenBudget(cap), ollama_url=args.ollama_url,
-                                   api_key_env=args.api_key_env, timeout=args.timeout)
+            backend = make_backend(args.backend, args.model, max_tokens=VOCAB1_MAX_COMPLETION_TOKENS if legacy else None,
+                                   ollama_url=args.ollama_url, api_key_env=args.api_key_env, timeout=timeout)
         except (BackendError, ValueError) as err:
             print(f"compile: {err}", file=sys.stderr)
             return 2
@@ -390,13 +396,12 @@ def main(argv=None) -> int:
             "version": FORMAT_VERSION,
             **({"economy": economy} if economy is not None else {}),
             "backend": backend_desc,
-            "cap_tokens": cap,
             "usage": usage,
-            "prompts": [{**r, "markdown": full_markdown(r, backend_desc, usage, cap)} for r in results],
+            "prompts": [{**r, "markdown": full_markdown(r, backend_desc, usage)} for r in results],
         }
         out = json.dumps(payload, indent=1) + "\n"
     else:
-        out = "\n\n".join(full_markdown(r, backend_desc, usage, cap) for r in results)
+        out = "\n\n".join(full_markdown(r, backend_desc, usage) for r in results)
 
     if args.out:
         Path(args.out).write_text(out, encoding="utf-8")
@@ -406,8 +411,6 @@ def main(argv=None) -> int:
         sys.stdout.write(out)
 
     entries = [e for r in results for e in r["instruments"].values()]
-    if any(e.get("budget") for e in entries):
-        return 3
     if any(e.get("backend_error") for e in entries):
         return 2
     return 0 if all(e["ok"] for e in entries) else 1

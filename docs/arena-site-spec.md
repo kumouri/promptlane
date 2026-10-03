@@ -966,7 +966,7 @@ without schemas fails the job. The cases:
 
 | What goes wrong | What the ladder does |
 |---|---|
-| The compile fails: an instrument got no valid schema, the backend is down, or the token cap hit | The job ends `failed`, with `compile failed — <instrument>: <error>` on the match page. It is re-queued once. Nothing is cached and nothing is played. |
+| The compile fails: an instrument got no valid schema, the backend is down, or it ran past `compile.timeoutSec` | The job ends `failed`, with `compile failed — <instrument>: <error>` on the match page. It is re-queued once. Nothing is cached and nothing is played. |
 | The schema server is down, or its `/health` isn't `jev-schema` (e.g. the qwen model server on that port) | The worker doesn't start the match. It **holds** that backend and checks again every 30 s. The reason is shown on `/matches` and in `/api/matches` → `holds`. Queued matches keep their place. |
 | Jev stops answering mid-match: `maxConsecutiveUnanswered` (30) unanswered decisions in a row | The match is stopped early and ends `failed` ("Jev stopped answering…"). The log is kept and the job is re-queued once. |
 | A side's unanswered decisions exceed `maxUnansweredRate` (5%) by the end | The match ends `failed`. It is not counted, the log is kept, and it is re-queued once. |

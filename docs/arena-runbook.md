@@ -140,8 +140,9 @@ default and compiles with host Ollama; nothing to start.
 
 - **Hosted compiles:** set `"compile": {"backend": "openrouter"}` and start the arena with
   `OPENROUTER_API_KEY` in its environment. The key stays in the arena process and its
-  `compile.py` child; the browser only ever gets the rendered view. ≈$0.0006 per compile, capped at
-  `maxTokensPerCompile` (20k) each.
+  `compile.py` child; the browser only ever gets the rendered view. A compile costs about
+  $0.0015–$0.0037. There is no token cap (ruling 2026-10-02 17:59 CT): the wall clock
+  `timeoutSec` (900 s) is the only limit on one compile.
 - **Limits:** `perIpPerMinute` 3, `perIpPerDay` 20, `globalPerDay` 400, `maxConcurrent` 1 — in
   memory, so a restart resets them. **Behind the tunnel set `"ipHeader": "cf-connecting-ip"`**, or
   every visitor arrives as 127.0.0.1 and shares one bucket.

@@ -31,9 +31,9 @@ json` as a child process. The PR bot checks out promptlane at a pinned ref and r
 - `translator.translate_pilot` (prompt, parse, retries, instrument scope, priority guard) and
   `transparency.render_report_markdown` are used unchanged.
 - `translate_pilot` gained one optional `generate` argument, so the same translation can run on
-  OpenRouter or under a token cap.
+  OpenRouter.
 - `compile.py` supplies what entrants need on top: arbitrary prose, all three instruments, a
-  choice of backend, a spend cap, and JSON output.
+  choice of backend, and JSON output.
 
 **The ladder uses the same file.** Since 2026-09-30 Elysium's ladder plays merged prose on Jev
 ([`arena-site-spec.md` §9](arena-site-spec.md)). It runs this same `compile.py` on `compile.backend`
@@ -90,24 +90,32 @@ false alarm the entrant can dismiss. A rule sentence misfiled as voice would hid
 instruction, and that is the failure this view exists to prevent. `test_segment.py` fails the build
 if rule recall on any reference pilot drops below 85%.
 
-## Backends, spend caps, keys
+## Backends, keys, no token caps
 
 | | Ollama (default) | OpenRouter |
 |---|---|---|
 | model | `qwen3.5:9b` (the translator's measured model) | `qwen/qwen3.5-9b` (same model, hosted) |
 | key | none | `$OPENROUTER_API_KEY`, read from the environment only; never logged, echoed or sent to a browser |
-| cost per compile (3 instruments) | $0 | ≈$0.0006 (measured: $0.0005–$0.0011) |
+| cost per compile (3 instruments) | $0 | ≈$0.0015–$0.0037 under vocab-2, from the token counts of 32 local compiles (2026-10-02); ≈$0.0006 under vocab-1 (2026-09-25) |
 | select | `--backend ollama` (`$OLLAMA_HOST`, default `127.0.0.1:11434`) | `--backend openrouter` |
 
 `$JEV_COMPILE_BACKEND` sets the default backend.
 
-**Spend caps:**
+**No token caps.** Ceryce ruled on 2026-10-02 at 17:59 CT: "Get rid of any fucking token caps."
 
-- `compile.py --max-total-tokens` (default 60,000) is a hard cap. A call is refused *before* it is
-  made unless the tokens already spent, plus that call's worst case (prompt estimate + 1,800
-  completion tokens), fit under the cap. So a run never overshoots the cap.
-- The arena passes `compile.maxTokensPerCompile` (20,000).
-- The PR bot passes its own per-run cap (see the entrants repo's workflow).
+- No reply is cut at a token count, and no run is refused for its token total.
+- The old 1,800-token reply cap cut every reply of house-hard-eco's 16-rule cascade before any check
+  ran. The per-run caps were 60,000 for `compile.py` and the PR bot, and 20,000 for the arena. All
+  three are gone. The evidence is in
+  [`runs/remove-token-caps-2026-10-02.md`](../runs/remove-token-caps-2026-10-02.md).
+- What guards a reply now is wall-clock time, not a token count. Each model call gets `--timeout`
+  seconds: 900 by default, which is long enough for the model to fill its whole context window. On
+  Ollama, a prompt over the context window is an error rather than silently losing its first lines
+  (`"truncate": false`). The guard's reasons and measurements are in `tools/jev/llm_backends.py`.
+- `--max-total-tokens` is still accepted, and does nothing, so the PR bot's pinned promptlane keeps
+  working.
+- `--vocab vocab-1` alone still sends the 1,800-token reply cap. That keeps its request
+  byte-identical to the research runs it was measured in.
 
 **Exit status:**
 
@@ -116,7 +124,8 @@ if rule recall on any reference pilot drops below 85%.
 | 0 | everything compiled |
 | 1 | an instrument failed to compile; the view says which |
 | 2 | bad usage, or the backend was unreachable |
-| 3 | the token cap stopped the run |
+
+(3, "the token cap stopped the run", went with the cap.)
 
 ## Door B in Elysium: limits and the practice match
 
@@ -132,7 +141,12 @@ model). All calls happen server-side.
 | per client IP, Central day | 20 | 429 |
 | everyone, Central day | 400 | 429 |
 | compiles at once | 1 | 503 |
-| tokens per compile | 20,000 | passed to `compile.py` as its cap |
+| wall clock per compile | `timeoutSec`, 900 s | 504 |
+
+There is no token cap and no prose-size cap. The server's transport limit on any request body
+(`readBody`, 64 KB) still applies. `timeoutSec` is long enough for a whole valid compile: 3
+instruments x 3 attempts x the slowest measured call (50 s), doubled. The slowest whole compile
+measured was 222 s, which the old 240 s default would only just have allowed.
 
 Invalid prose (same validator as the entrants repo) and "busy" refusals don't spend quota.
 
@@ -180,8 +194,8 @@ Lives in [kumouri/jamobair-entrants](https://github.com/kumouri/jamobair-entrant
   (a concurrency group with cancel-in-progress).
 - Reads the changed pilot files from the PR head through the GitHub API, as data only. It never
   checks out or executes PR code.
-- Runs this repo's `tools/jev/compile.py`, checked out at a pinned SHA, on OpenRouter under a
-  per-run token cap.
+- Runs this repo's `tools/jev/compile.py`, checked out at a pinned SHA, on OpenRouter, with no
+  token cap.
 - Upserts one sticky comment, found by a hidden marker.
 
 It reads the repository secret `OPENROUTER_API_KEY`. Until an organizer adds it, the bot posts a

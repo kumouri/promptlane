@@ -611,7 +611,7 @@ House tiers come in two kinds:
 |---|---|---|---|
 | easy | none at first: it bought only when it happened to be at base (low-hp recall, respawn). On Jev that left it 550 gold unspent, so since 2026-10-02 it recalls to shop when it can afford its next item and no enemy is in sight, and never walks home to shop ([`runs/better-bots-2026-10-02.md`](../runs/better-bots-2026-10-02.md)). | none | default |
 | medium | `next` is not null **and** `gold ≥ next` **and** `foe` is null → recall. Since 2026-10-02 it is prose: can afford the next item and no enemy bearbot in sight, with an enemy minion or tower in sight walk home, with no enemy in sight recall ([`runs/siege-fact-medium-bar-2026-10-02.md`](../runs/siege-fact-medium-bar-2026-10-02.md)). | — | default |
-| hard | the medium rule, **plus** `gold ≥ 300` **and** foe is a bearbot with more hp than you → go home | `foe` = highest-bounty visible bearbot, not lowest-hp | per instrument, tuned in §7 P4 |
+| hard | the medium rule, **plus** `gold ≥ 300` **and** foe is a bearbot with more hp than you → go home. Since 2026-10-02 the economy-aware hard is the prose medium rule for rule, plus one tower rule, so it shops exactly as medium does ([`runs/hard-above-medium-2026-10-02.md`](../runs/hard-above-medium-2026-10-02.md)). | `foe` = highest-bounty visible bearbot, not lowest-hp (the economy-aware hard: medium's nearest bearbot, since 2026-10-02) | per instrument, tuned in §7 P4; the economy-aware hard plays medium's ladder since 2026-10-02 |
 
 **Code changes that go with it:**
 - `rules.py` and `team_rules.py` gain `gold`, `next` and `home` on `Worksheet`.

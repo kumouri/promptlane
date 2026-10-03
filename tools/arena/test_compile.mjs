@@ -41,7 +41,7 @@ function fakeCompileOutput(ok = true) {
           markdown: `# Transparency report: \`pilot.md\` -> Jev decision schema (${inst})\n\n| # | Condition | Then |\n|---|---|---|\n| 1 | is hp < 25%? | **recall** home |\n\n> <script>alert(1)</script>\n` }
       : { instrument: inst, ok: false, labels: 'auto', error: 'the translator could not produce a valid schema for violin: nope' };
   }
-  return { exitCode: ok ? 0 : 1, data: { version: 1, backend: 'fake:model', cap_tokens: 20000, usage: { calls: 3, total_tokens: 4500, cost_usd: 0, wall_seconds: 0.1 }, prompts: [{ name: 'pilot.md', sha256: 'x', markdown: '# x', instruments }] } };
+  return { exitCode: ok ? 0 : 1, data: { version: 1, backend: 'fake:model', usage: { calls: 3, total_tokens: 4500, cost_usd: 0, wall_seconds: 0.1 }, prompts: [{ name: 'pilot.md', sha256: 'x', markdown: '# x', instruments }] } };
 }
 
 // --- renderer ---------------------------------------------------------------------------------
@@ -92,7 +92,6 @@ test('makeCompiler: validation and busy refusals do not spend quota; results are
   const c = makeCompiler({ config: { perIpPerMinute: 5, perIpPerDay: 5 }, run: async () => { await gate; return fakeCompileOutput(); } });
   await assert.rejects(c.compile('see https://evil.example', 'ip'), (e) => e.status === 400);
   await assert.rejects(c.compile('   ', 'ip'), (e) => e.status === 400);
-  await assert.rejects(c.compile('x'.repeat(17 * 1024), 'ip'), (e) => e.status === 413);
   const first = c.compile(DRUMS, 'ip');
   await assert.rejects(c.compile(DRUMS, 'ip'), (e) => e.status === 503);
   release();
@@ -103,17 +102,29 @@ test('makeCompiler: validation and busy refusals do not spend quota; results are
   assert.equal(practiceSchemas(fakeCompileOutput(false).data.prompts[0]), null, 'one failed instrument → no practice');
 });
 
+test('makeCompiler: no prose-size cap — long prose compiles (Ceryce, 2026-10-02: no token caps)', async () => {
+  const c = makeCompiler({ config: { perIpPerMinute: 5, perIpPerDay: 5 }, run: async () => fakeCompileOutput() });
+  const long = `${DRUMS}\n\n${'Hold the lane while the wave is near and the tower is safe. '.repeat(600)}`;
+  assert.ok(Buffer.byteLength(long, 'utf8') > 32 * 1024);
+  const { result } = await c.compile(long, 'ip');
+  assert.equal(result.exitCode, 0);
+  assert.equal('maxPromptBytes' in COMPILE_DEFAULTS, false);
+  assert.equal('maxTokensPerCompile' in COMPILE_DEFAULTS, false);
+});
+
 // --- the real compile.py child process, against a fake Ollama ------------------------------------
 
 test('spawnCompile: runs tools/jev/compile.py for real and parses its JSON (fake Ollama on 127.0.0.1)', async () => {
   const calls = [];
+  const bodies = [];
   const ollama = createServer((req, res) => {
     let body = '';
     req.on('data', (c) => (body += c));
     req.on('end', () => {
-      const { prompt } = JSON.parse(body);
-      const inst = /The bot plays (\w+)\./.exec(prompt)[1];
+      const sent = JSON.parse(body);
+      const inst = /The bot plays (\w+)\./.exec(sent.prompt)[1];
       calls.push(inst);
+      bodies.push(sent);
       const s = schemaFor(inst);
       const reply = JSON.stringify({
         rules: s.rules.map((r) => ({ id: r.id, condition: r.condition, criteria: { true: r.criteria_true, false: r.criteria_false }, action: { kind: r.action_kind, ability: r.action_ability, target_selector: r.action_target_selector } })),
@@ -133,7 +144,13 @@ test('spawnCompile: runs tools/jev/compile.py for real and parses its JSON (fake
     assert.equal(data.backend, 'ollama:qwen3.5:9b');
     assert.equal(data.usage.calls, 3);
     assert.equal(data.usage.total_tokens, 3 * 1150);
-    assert.equal(data.cap_tokens, COMPILE_DEFAULTS.maxTokensPerCompile);
+    assert.equal('cap_tokens' in data, false);
+    for (const b of bodies) {
+      // no reply cap; a prompt over the context window is an error, not cut (tools/jev/llm_backends.py)
+      assert.deepEqual(b.options, { temperature: 0.2 });
+      assert.equal('shift' in b, false);
+      assert.equal(b.truncate, false);
+    }
     const p = data.prompts[0];
     assert.deepEqual(Object.keys(p.instruments), ['drums', 'keytar', 'violin']);
     assert.ok(p.instruments.keytar.markdown.includes('use **chord** targeting'));

@@ -68,7 +68,7 @@ export function schemasFromCompile(prompt) {
 /**
  * @param opts.dir      runs/arena/schemas
  * @param opts.root     the repo (for compile.py and the version hash)
- * @param opts.config   `config.compile` (backend, model, python, timeoutSec, maxTokensPerCompile)
+ * @param opts.config   `config.compile` (backend, model, python, timeoutSec)
  * @param opts.run      test seam: `(text) => Promise<{exitCode, data}>`, compile.py's JSON
  * @param opts.version  test seam: the compiler version
  */
