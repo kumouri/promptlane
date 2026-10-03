@@ -7,9 +7,18 @@ import os
 import re
 import sys
 import unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.dirname(__file__))
 import translator as T  # noqa: E402
+
+
+def _order_check_off(test):
+    """For a test of another check through `translate_pilot` whose recorded replies are also out of the prose's
+    order (#84-#87's sample-entrant compiles put "shop" above the back-off and the recall): `enforce_rule_order`
+    would retry them too, and the test's reply count is about its own check. Order has its own tests
+    (`RuleOrderTests`)."""
+    return mock.patch.object(T, "enforce_rule_order", lambda schema, *args, **kwargs: schema)(test)
 
 
 VALID_SCHEMA = {
@@ -252,6 +261,7 @@ class VocabTwoPriorityGuardTests(unittest.TestCase):
             fixed = T.enforce_absolute_priority(dataclasses.replace(schema, vocab="vocab-1"), prose)
             self.assertEqual(fixed.rules[0].id, want[i], case["sample"])
 
+    @_order_check_off
     def test_translate_pilot_retries_and_the_retry_names_the_sentence(self):
         dropped = LOOKALIKE["schemas"][0]["reply"]
         back_off = {"id": "back_off_tower", "condition": "is an enemy tower visible and are none of this bot's minions near it?",
@@ -397,6 +407,7 @@ class ShoppingListIsNotARuleTests(unittest.TestCase):
         self.assertIn("Violin: Amp, then Bass Strings, then Road Case.", prompts[1].split("Your previous attempt was invalid:")[1])
         self.assertEqual(schema.build, ("amp", "bass-strings", "road-case"))
 
+    @_order_check_off
     def test_translate_pilot_drops_them_without_a_retry_when_build_is_there(self):
         prompts = []
 
@@ -1024,6 +1035,7 @@ class NegatedClauseKeepsItsNoTests(unittest.TestCase):
         schema = _one_rule("go_no_enemy", "is an enemy bearbot in sight?", {"kind": "attack", "ability": None, "target_selector": "nearest_enemy"})
         self.assertIs(T.enforce_negation(schema, "If an enemy bearbot is in sight, I attack the nearest enemy."), schema)
 
+    @_order_check_off
     def test_translate_pilot_retries_with_the_sentence_and_keeps_the_fixed_reply(self):
         bad = _negation_reply(0)  # #85 s1 violin
         good = json.loads(json.dumps(bad))
@@ -1196,6 +1208,7 @@ class IdentityRuleTests(unittest.TestCase):
         schema = _rule_on("is this bot's instrument 'Violin'?", vocab="vocab-1")
         self.assertIs(T.enforce_identity_rules(schema, VIOLIN_LINE), schema)
 
+    @_order_check_off
     def test_translate_pilot_retries_and_keeps_the_fixed_reply(self):
         bad = _identity_reply(0)  # #87 s1 violin
         fixed = {**bad, "rules": [r for r in bad["rules"] if r["id"] != "shop_order_violin"]}
@@ -1537,6 +1550,7 @@ class GuardScopeTests(unittest.TestCase):
         self.assertIs(T.enforce_guard_scope(schema, prose), schema)
         self.assertIs(T.enforce_guard_scope(schema, prose, drop=True), schema)
 
+    @_order_check_off
     def test_translate_pilot_retries_without_the_generic_guard_line_and_keeps_the_flat_reply(self):
         bad = GUARD_SCOPE["replies"][0]["reply"]  # #89's A/B: a typed guard holding every rule
         flat = json.loads(json.dumps(_negation_reply(0)))  # a flat reply that passes every check after its fix
@@ -1573,6 +1587,218 @@ class GuardScopeTests(unittest.TestCase):
         self.assertFalse([n for n in T.collect_nodes(schema.root) if isinstance(n, T.GuardNode)])
         self.assertIn("recall_if_hp_low_or_tower_threat", [n.id for n in schema.rules])
         self.assertTrue([n for n in schema.validation_notes if n.startswith("guard scope: removed the guard guard_shop_or_fight")])
+
+
+ORDER = json.loads(open(os.path.join(os.path.dirname(__file__), "testdata", "rule_order.json"), encoding="utf-8").read())
+
+
+def _order_case(index: int) -> tuple[T.TranslatedSchema, str]:
+    """A recorded reply of `rule_order.json`, parsed and through the checks that run before the order check's
+    input matters (the shopping list, and the negation check's last-attempt drop), with its scoped prose."""
+    case = ORDER["cases"][index]
+    prose = T.scope_to_instrument(ORDER["prose"][case["prose"]], case["instrument"]).text
+    schema = T.parse_schema(T._extract_json_object(case["text"]), "pilot.md", case["instrument"], case["text"], "vocab-2",
+                            economy="eco-3-late")
+    schema = T.enforce_shopping_list(schema, prose)
+    return T.enforce_negation(schema, prose, drop=True), prose
+
+
+OUT_OF_ORDER = (0, 1, 2, 3, 8, 9, 10)  # rule_order.json's cases that leave the prose's order
+IN_ORDER = (4, 5, 6, 7)
+HARD_S7_KEYTAR_FIXED = [
+    "recall_low_hp_enemy_present", "recall_low_hp_no_enemy", "recall_shop_afford_enemy_present", "recall_shop_afford_no_enemy",
+    "retreat_wealthy_weak_fight", "punish_tower_diver", "close_match_attack_tower", "fall_back_tower_shoots",
+    "finish_kill_ability_ready_low_hp", "attack_lowest_hp_no_ability", "siege_tower_wave_present", "retreat_weak_fight_own_tower",
+    "hunt_highest_bounty", "attack_lowest_hp_minion_present", "move_to_nearest_ally", "bandstand_open_no_enemy_hp_ok",
+    "bandstand_contested_hp_ok", "bandstand_upcoming_close", "default_push_lane",
+]
+
+
+class RuleOrderTests(unittest.TestCase):
+    """vocab-2: a cascade keeps the prose's order. #95's whole house-hard-eco compiles moved the 480 s tower rule, the
+    tower-fire retreat and the finish kills below "push with your wave" in 16 of 36 schemas, and the sample entrant and
+    siege put "afford -> go shop" above the back-off and the recall (runs/vocab2-rule-order-2026-10-02.md)."""
+
+    def test_the_out_of_order_replies_are_rejected_and_the_retry_quotes_only_prose(self):
+        for i in OUT_OF_ORDER:
+            schema, prose = _order_case(i)
+            case = ORDER["cases"][i]
+            with self.subTest(f"{case['prose']} {case['run']} {case['instrument']}"):
+                with self.assertRaises(T.RuleOrderError) as err:
+                    T.enforce_rule_order(schema, prose)
+                msg = str(err.exception)
+                self.assertTrue(msg.startswith("the first rule whose question is true decides"), msg)
+                # never the model's own rules: the 9B copies back what it is shown (#87, #89)
+                for node in T.collect_nodes(schema.root):
+                    self.assertNotIn(node.condition, msg)
+                    self.assertNotIn(node.id, msg)
+                for quoted in re.findall(r'"([^"]+)"', msg):
+                    self.assertIn(quoted, " ".join(prose.split()))
+
+    def test_the_hard_eco_retry_names_the_moved_rules_prose(self):
+        schema, prose = _order_case(0)  # #95 §6's s7 keytar
+        with self.assertRaises(T.RuleOrderError) as err:
+            T.enforce_rule_order(schema, prose)
+        msg = str(err.exception)
+        # every moved rule's prose, in the prose's order, under the rule it must come before
+        self.assertIn('states "Close out the match. If it is more than 480 seconds into the match and you can see an enemy tower, attack '
+                      'the nearest enemy tower." and "Never stand in an enemy tower\'s fire. If an enemy tower will shoot you, fall back to '
+                      'your own tower." and "Finish kills.', msg)
+        self.assertIn('lowest hp." before "Siege with your wave. If you are inside', msg)
+
+    def test_on_the_last_attempt_every_moved_rule_goes_back_to_its_place(self):
+        for i in OUT_OF_ORDER:
+            schema, prose = _order_case(i)
+            case = ORDER["cases"][i]
+            with self.subTest(f"{case['prose']} {case['run']} {case['instrument']}"):
+                fixed = T.enforce_rule_order(schema, prose, drop=True)
+                self.assertEqual(sorted(n.id for n in fixed.root.nodes), sorted(n.id for n in schema.root.nodes))  # none removed
+                self.assertIs(T.enforce_rule_order(fixed, prose), fixed)
+                notes = fixed.validation_notes[len(schema.validation_notes):]
+                self.assertTrue(notes)
+                self.assertTrue(all(n.startswith("order: moved rule ") for n in notes), notes)
+                self.assertEqual(fixed.root.default, schema.root.default)
+                self.assertEqual(fixed.build, schema.build)
+        fixed = T.enforce_rule_order(*_order_case(0), drop=True)
+        self.assertEqual([n.id for n in fixed.root.nodes], HARD_S7_KEYTAR_FIXED)
+
+    def test_the_afford_rule_goes_below_the_rules_the_prose_states_first(self):
+        fixed = T.enforce_rule_order(*_order_case(8), drop=True)  # sample entrant, #95 s4 drums
+        self.assertEqual([n.id for n in fixed.root.nodes][:3], ["enemy_tower_no_minions", "low_hp_no_tower_diver", "shopping_order"])
+        fixed = T.enforce_rule_order(*_order_case(10), drop=True)  # siege, #95 s1 drums
+        self.assertEqual([n.id for n in fixed.root.nodes][:3], ["retreat_low_hp_enemy_present", "retreat_low_hp_no_enemy", "shop_if_affordable"])
+
+    def test_in_order_compiles_are_returned_untouched(self):
+        for i in IN_ORDER:
+            schema, prose = _order_case(i)
+            with self.subTest(ORDER["cases"][i]["run"] + " " + ORDER["cases"][i]["instrument"]):
+                self.assertIs(T.enforce_rule_order(schema, prose), schema)
+
+    def test_a_rule_with_no_one_sentence_of_its_own_is_removed_not_guessed(self):
+        prose = ("When my hp is below half of my max, I recall home to heal.\n\n"
+                 "If I carry at least 300 gold, I move back home to spend it.\n\n"
+                 "If an enemy tower is in sight, I attack the nearest enemy tower.\n\n"
+                 "If an enemy tower is in sight, I attack the nearest enemy tower.")  # said twice: no one place is its own
+        tower = {"id": "tower", "condition": "is an enemy tower in sight?", "criteria": {"true": "y", "false": "n"},
+                 "action": {"kind": "attack", "ability": None, "target_selector": "nearest_tower"}}
+        recall = {"id": "heal", "condition": "is this bot's hp below half of its max?", "criteria": {"true": "y", "false": "n"},
+                  "action": {"kind": "recall", "ability": None, "target_selector": None}}
+        spend = {"id": "spend", "condition": "does this bot carry at least 300 gold?", "criteria": {"true": "y", "false": "n"},
+                 "action": {"kind": "move", "ability": None, "target_selector": "home"}}
+        schema = T.parse_schema({"rules": [tower, recall, spend], "default_action": {"kind": "move", "ability": None,
+                                 "target_selector": "push_lane"}}, "p.md", "drums", "raw", "vocab-2")
+        with self.assertRaises(T.RuleOrderError):
+            T.enforce_rule_order(schema, prose)
+        fixed = T.enforce_rule_order(schema, prose, drop=True)
+        self.assertEqual([n.id for n in fixed.root.nodes], ["heal", "spend"])
+        note = fixed.validation_notes[-1]
+        self.assertTrue(note.startswith('order: removed rule tower ("is an enemy tower in sight?"). It was above heal'), note)
+        self.assertIn("no one sentence of your prose is clearly its own", note)
+
+    def test_a_rule_the_prose_puts_first_with_override_words_is_left_to_the_priority_guard(self):
+        dropped = LOOKALIKE["schemas"][0]["reply"]  # #84's sample entrant with "no matter what else is going on"
+        back_off = {"id": "back_off_tower", "condition": "is an enemy tower visible and are none of this bot's minions near it?",
+                    "criteria": {"true": "y", "false": "n"}, "action": {"kind": "move", "ability": None, "target_selector": "home"}}
+        rules = [r for r in dropped["rules"] if r["id"] in ("recall_low_hp", "shop_first")]  # in the prose's order but for the override
+        rules = sorted(rules, key=lambda r: r["id"] != "recall_low_hp") + [back_off]
+        schema = T.parse_schema({**dropped, "rules": rules}, "p.md", "keytar", "raw", "vocab-2", economy="eco-3-late")
+        prose = T.scope_to_instrument(LOOKALIKE["prose"], "keytar").text
+        self.assertIs(T.enforce_rule_order(schema, prose), schema)
+        self.assertEqual(T.enforce_absolute_priority(schema, prose).rules[0].id, "back_off_tower")
+
+    def test_a_guard_branch_keeps_the_prose_order_too(self):
+        prose = ORDER["prose"]["house-hard-eco"]
+        soon = {"id": "soon", "condition": "will the Bandstand open within 10 seconds and is it less than 400 units from this bot?",
+                "criteria": {"true": "y", "false": "n"}, "action": {"kind": "move", "ability": None, "target_selector": "bandstand"}}
+        contested = {"id": "contested", "condition": "is the Bandstand contested or is the enemy team making progress on it, "
+                     "and is this bot's hp above 40% of its max?", "criteria": {"true": "y", "false": "n"},
+                     "action": {"kind": "move", "ability": None, "target_selector": "bandstand"}}
+        guard = {"id": "guard_bandstand", "type": "guard", "condition": "is the Bandstand open?", "criteria": {"true": "y", "false": "n"},
+                 "then": {"nodes": [soon, contested], "default_action": {"kind": "move", "ability": None, "target_selector": "bandstand"}},
+                 "else": {"nodes": [], "default_action": {"kind": "move", "ability": None, "target_selector": "push_lane"}}}
+        schema = T.parse_schema({"rules": [guard], "default_action": {"kind": "move", "ability": None, "target_selector": "push_lane"}},
+                                "p.md", "drums", "raw", "vocab-2", economy="eco-3-late")
+        scoped = T.scope_to_instrument(prose, "drums").text
+        with self.assertRaises(T.RuleOrderError):
+            T.enforce_rule_order(schema, scoped)
+        fixed = T.enforce_rule_order(schema, scoped, drop=True)
+        self.assertEqual([n.id for n in fixed.root.nodes[0].then.nodes], ["contested", "soon"])
+
+    def test_vocab1_is_unchanged(self):
+        schema, prose = _order_case(0)
+        schema = dataclasses.replace(schema, vocab="vocab-1")
+        self.assertIs(T.enforce_rule_order(schema, prose), schema)
+
+    @staticmethod
+    def _reply_in_order(index: int) -> str:
+        """`rule_order.json`'s reply `index` with its rules in the order the last attempt puts them."""
+        reply = T._extract_json_object(ORDER["cases"][index]["text"])
+        order = [n.id for n in T.enforce_rule_order(*_order_case(index), drop=True).root.nodes]
+        reply["rules"] = sorted(reply["rules"], key=lambda r: order.index(r["id"]) if r["id"] in order else len(order))
+        return json.dumps(reply)
+
+    def test_translate_pilot_retries_with_the_prose_and_keeps_the_reordered_reply(self):
+        replies, prompts = [ORDER["cases"][0]["text"], self._reply_in_order(0)], []
+
+        def generate(prompt):
+            prompts.append(prompt)
+            return replies[len(prompts) - 1]
+
+        schema = T.translate_pilot(ORDER["prose"]["house-hard-eco"], "pilot.md", "keytar", "chord", "glissando", generate=generate,
+                                   vocab="vocab-2", economy="eco-3-late")
+        self.assertEqual(len(prompts), 2)
+        retry = prompts[1].split("Your previous attempt was invalid:")[1]
+        self.assertIn("Close out the match. If it is more than 480 seconds", retry)
+        self.assertNotIn("finish the guard shape", retry)
+        self.assertNotIn("close_match_attack_tower", retry)
+        self.assertEqual([n.id for n in schema.root.nodes], HARD_S7_KEYTAR_FIXED)
+        self.assertFalse([n for n in schema.validation_notes if n.startswith("order:")])
+
+    def test_translate_pilot_reorders_on_its_last_attempt_instead_of_failing(self):
+        prompts = []
+
+        def generate(prompt):
+            prompts.append(prompt)
+            return ORDER["cases"][0]["text"]
+
+        schema = T.translate_pilot(ORDER["prose"]["house-hard-eco"], "pilot.md", "keytar", "chord", "glissando", generate=generate,
+                                   vocab="vocab-2", economy="eco-3-late")
+        self.assertEqual(len(prompts), 3)
+        self.assertEqual([n.id for n in schema.root.nodes], HARD_S7_KEYTAR_FIXED)
+        md = T.render_markdown(schema)
+        self.assertIn("**Rule order -- what was moved or removed:**", md)
+        self.assertIn("order: moved rule close_match_attack_tower to where your prose states it", md)
+        self.assertNotIn("Automatic priority fixes", md)
+
+
+class NegationAttributionTests(unittest.TestCase):
+    """vocab-2: a "no" in another sentence never vetoes a rule. #87's check removed a correct shopping rule in 3 of #95's
+    36 hard-eco compiles: its id read "shop_afford_no_enemy_minion_tower", and "Never stand in an enemy tower's fire" was
+    the sentence that said "no enemy tower"."""
+
+    def test_the_shopping_rules_95_dropped_are_kept(self):
+        for i in (3, 4, 5):  # #95's s6, s5 and s10 keytar, each rejected three times and dropped
+            case = ORDER["cases"][i]
+            prose = T.scope_to_instrument(ORDER["prose"][case["prose"]], case["instrument"]).text
+            schema = T.enforce_shopping_list(T.parse_schema(T._extract_json_object(case["text"]), "pilot.md", case["instrument"],
+                                                            case["text"], "vocab-2", economy="eco-3-late"), prose)
+            with self.subTest(case["run"]):
+                self.assertIs(T.enforce_negation(schema, prose), schema)
+                afford = next(r for r in schema.rules if "afford_no_enemy" in r.id and "minion_tower" in r.id)
+                sentences = T._ProseUnits(prose).sentences
+                polarities = [T._polarities(s) for s in sentences]
+                # the attribution #87 shipped: the id's "no" read onto the minion and the tower, backed by another sentence
+                self.assertEqual(T._negation_lost(afford, sentences, polarities)[1], "Never stand in an enemy tower's fire.")
+                self.assertIsNone(T._negation_lost(afford, sentences, polarities, T._ProseUnits(prose).sentences_of(afford)))
+
+    def test_a_real_lost_no_is_still_caught(self):
+        schema, prose = _order_case(9)  # the sample entrant's #95 s6 keytar, first reply, before its negation drop
+        case = ORDER["cases"][9]
+        schema = T.enforce_shopping_list(T.parse_schema(T._extract_json_object(case["text"]), "pilot.md", case["instrument"],
+                                                        case["text"], "vocab-2", economy="eco-3-late"), prose)
+        with self.assertRaises(T.SchemaValidationError) as err:
+            T.enforce_negation(schema, prose)
+        self.assertIn('rule no_enemy_sight_shop lost a "no" the prose states: the prose says "no enemy is in sight"', str(err.exception))
 
 
 if __name__ == "__main__":

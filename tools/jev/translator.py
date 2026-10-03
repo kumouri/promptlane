@@ -85,6 +85,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import math
 import os
 import re
 import sys
@@ -92,7 +93,7 @@ from dataclasses import dataclass, field
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ground_truth import _ollama_generate, resolve_ollama_url  # noqa: E402
-from llm_backends import CALL_TIMEOUT_SEC, VOCAB1_MAX_COMPLETION_TOKENS  # noqa: E402
+from llm_backends import CALL_TIMEOUT_SEC  # noqa: E402
 from economy_rules import NOTE_PREFIX, format_build, items, items_prompt_block, normalize_build  # noqa: E402
 from number_normalize import normalize_numbers_for_trace  # noqa: E402
 from scenarios import ABILITIES  # noqa: E402
@@ -1681,7 +1682,8 @@ def _polarities(text: str, after: bool = True) -> dict[str, set[bool]]:
     return out
 
 
-def _negation_lost(rule: TranslatedRule, sentences: list[str], sentence_polarities: list[dict[str, set[bool]]]) -> tuple[str, str] | None:
+def _negation_lost(rule: TranslatedRule, sentences: list[str], sentence_polarities: list[dict[str, set[bool]]],
+                   stated: set[int] | None = None) -> tuple[str, str] | None:
     """(the thing, the prose sentence) when `rule`'s question asks only whether the thing IS there, but
     the sentence the rule states says it is NOT, or the rule's own id does ("shop_no_enemy") and a
     sentence of the prose says so. The sentence the rule states is the one sharing the most words with
@@ -1689,6 +1691,9 @@ def _negation_lost(rule: TranslatedRule, sentences: list[str], sentence_polariti
     both ways ("walk with my nearest minion, and if I have no minions ...") decides nothing, and neither
     does it when another sentence names the thing as there and gives the rule words of its own (a rule
     merging "afford my next item" with "300 gold and an enemy in sight" took its enemy from the second).
+    `stated`, when given: the only sentences that may decide, those of the prose the rule states
+    (`_ProseUnits.sentences_of`). A "no" in another sentence never vetoes a rule: "Never stand in an enemy
+    tower's fire" once removed a correct shopping rule whose id read "no_enemy_minion_tower" (#95 §6).
     None when the question keeps the negation, or nothing says there was one."""
     affirmed = [thing for thing, pols in _polarities(rule.condition).items() if pols == {False}]
     if not affirmed:
@@ -1698,6 +1703,8 @@ def _negation_lost(rule: TranslatedRule, sentences: list[str], sentence_polariti
     scores = [len(tokens & t) for t in sentence_tokens]
     top = max(scores, default=0)
     own = scores.index(top) if top >= 2 and scores.count(top) == 1 else None
+    if stated is not None and own not in stated:
+        own = None
     id_polarities = _polarities(rule.id, after=False)
     for thing in affirmed:
         if own is not None and sentence_polarities[own].get(thing) == {True} and not any(
@@ -1706,7 +1713,8 @@ def _negation_lost(rule: TranslatedRule, sentences: list[str], sentence_polariti
         ):
             return thing, sentences[own]
         if id_polarities.get(thing) == {True}:
-            saying = [i for i, pols in enumerate(sentence_polarities) if True in pols.get(thing, ()) and scores[i] >= 2]
+            saying = [i for i, pols in enumerate(sentence_polarities) if True in pols.get(thing, ()) and scores[i] >= 2
+                      and (stated is None or i in stated)]
             if saying:
                 return thing, sentences[max(saying, key=lambda i: scores[i])]
     return None
@@ -1733,7 +1741,8 @@ def enforce_negation(schema: TranslatedSchema, pilot_text: str, drop: bool = Fal
     such rule is returned as it came."""
     if schema.vocab != VOCAB_2:
         return schema
-    sentences = _prose_sentences(pilot_text)
+    prose = _ProseUnits(pilot_text)
+    sentences = prose.sentences
     polarities = [_polarities(s) for s in sentences]
     found: list[tuple[TranslatedRule, str, str]] = []
 
@@ -1743,7 +1752,7 @@ def enforce_negation(schema: TranslatedSchema, pilot_text: str, drop: bool = Fal
             if isinstance(node, GuardNode):
                 nodes.append(dataclasses.replace(node, then=walk(node.then), else_=walk(node.else_)))
                 continue
-            lost = _negation_lost(node, sentences, polarities)
+            lost = _negation_lost(node, sentences, polarities, prose.sentences_of(node))
             if lost:
                 found.append((node, _negated_clause(lost[1], lost[0]), " ".join(lost[1].split())))
             else:
@@ -1768,6 +1777,252 @@ def enforce_negation(schema: TranslatedSchema, pilot_text: str, drop: bool = Fal
     return dataclasses.replace(schema, root=new_root, rules=(), validation_notes=schema.validation_notes + notes)
 
 
+# --- a cascade keeps the prose's order (vocab-2 only) ------------------------------------------------
+#
+# A cascade is first-match-wins, so a rule placed below one that nearly always fires rarely runs. Once the
+# token caps were gone (#95) house-hard-eco's 16-rule prose compiled whole, and in 16 of 36 compiles the 9B
+# moved the 480-second tower rule, the tower-fire retreat or the finish-kill rules below "push with your wave
+# (if an allied minion is near you)" (runs/remove-token-caps-2026-10-02.md §6). Nothing checked order.
+# Under vocab-2 each node is placed at the part of the prose it states (`_ProseUnits`), and the cascade must
+# keep the order the prose states them in. A node the prose states nowhere is never judged, and neither is one
+# from a part using override language ("no exceptions", `ABSOLUTE_OVERRIDE_PHRASES`): the prose itself takes
+# that rule out of its order, and `enforce_absolute_priority` puts it first, as it always has. The fewest nodes whose removal leaves the rest in order are the ones
+# out of order (`_out_of_order`); the reply is rejected and the retry quotes, for each, its own prose and the
+# prose of the node placed above it that the prose puts after it, never the model's rules (the 9B copies back
+# what it is shown: #87, #89). On the last attempt each such node is moved to where its prose is, when one
+# part of the prose is clearly its own, and removed otherwise, each with an `order:` note. The same
+# attribution decides which sentence a rule states for `enforce_negation`. vocab-1 is unchanged.
+
+ORDER_NOTE_PREFIX = "order:"
+
+# A label sentence ("Finish kills.", "Never stand in an enemy tower's fire.") has none of these; it joins the
+# rule sentence after it in its paragraph (or, at a paragraph's end, the one before it) as one part.
+_CONDITIONAL = re.compile(r"\b(?:if|when|whenever|unless|otherwise|while|until)\b|:", re.IGNORECASE)
+# `_tokenize`'s stopwords that tell apart two parts of a prose about the same things ("hp below half" and
+# "hp above half", "no enemy" and "an enemy").
+_ORDER_KEEP = frozenset("no not none never without below above under over more less than most least before after".split())
+# A part is one of a node's candidates when it scores at least this share of the node's best part. Measured on
+# #95's 72 hard-eco and sample-entrant compiles (995 rules) against hand-written signatures of which rule is which
+# sentence (runs/vocab2-rule-order-2026-10-02.md): from 0.7 to 0.8 the verdict matched the signatures' on all 72
+# and no rule was placed at a wrong part. Below that, rules moved out of order went unflagged because a look-alike
+# part counted (a tower-fire rule moved below "fall back to your own tower"); above it, correctly placed rules were
+# flagged and some flagged rules had no one part to be moved to.
+_ORDER_CANDIDATE_SHARE = 0.75
+# A node is placed only at a part that beats every other by this much; otherwise it has no one part of its own.
+_ORDER_PLACE_SHARE = 0.8
+# A part that names an action ("attack", "recall", "move", an ability) but not the node's scores this share: "use
+# your primary ability on ..." and "attack the enemy bearbot with the lowest hp" share every other word.
+_OTHER_ACTION_SHARE = 0.5
+_ACTION_WORDS = {"attack": frozenset({"attack", "attacks"}), "recall": frozenset({"recall", "recalls"}),
+                 "move": frozenset({"move", "moves"}),
+                 "ability": frozenset({"ability", "abilities", *(a for pair in ABILITIES.values() for a in pair)})}
+
+
+class RuleOrderError(SchemaValidationError):
+    """A cascade that leaves the prose's order (`enforce_rule_order`). `translate_pilot` retries it without the
+    generic "finish the guard shape" line: nothing about a guard is wrong."""
+
+
+# The prose's "I can see an enemy tower" is the translator's "is an enemy tower visible?" or "... in sight?".
+_SIGHT_WORDS = frozenset({"see", "seen", "sees", "visible", "visibly", "spot", "spotted"})
+
+
+def _order_tokens(text: str) -> set[str]:
+    """`_stems`, with seeing folded into "sight", plus `_ORDER_KEEP`'s words ("none" as "no"), less "1": `normalize_numbers_for_trace`
+    makes every "one" a 1, and "at least one minion" is not "one of theirs is dead"."""
+    stems = {"sight" if t in _SIGHT_WORDS else t for t in _stems(text)} - {"1"}
+    return stems | {"no" if w == "none" else w for w in re.findall(r"[a-z]+", text.lower()) if w in _ORDER_KEEP}
+
+
+def _node_tokens(node: Node) -> set[str]:
+    """What a node says, for placing it in the prose: its question, action and target, and its id; and the target's
+    vocab-2 meaning, without its parenthesised examples (which name other phrasings) or numbers (its "one of this
+    bearbot's own wave" is not the prose's "one of theirs is dead")."""
+    if isinstance(node, GuardNode):
+        return _order_tokens(f"{node.condition} {node.id.replace('_', ' ')}")
+    meanings = {**SELECTOR_DESCRIPTIONS, **VOCAB2_MEANINGS, **PVP2_SELECTORS}
+    selector = node.action_target_selector or ""
+    meaning = re.sub(r"\([^)]*\)", " ", meanings.get(selector, ""))
+    said = " ".join(f for f in (node.condition, node.action_kind, node.action_ability, selector.replace("_", " "),
+                                node.id.replace("_", " ")) if f)
+    return _order_tokens(said) | {t for t in _order_tokens(meaning) if not t.isdigit()}
+
+
+class _ProseUnits:
+    """The prose cut into the parts a rule can state: each rule sentence with the label sentences that introduce
+    it (`_CONDITIONAL`), in prose order. `units[k]` is the indices, in `sentences`, of part k's sentences;
+    `override` holds the parts using override language, whose rules `enforce_absolute_priority` places. A node's
+    score against a part is the idf-weighted share of the part's words it uses (words most parts use, "enemy",
+    "bearbot", "sight", count least)."""
+
+    def __init__(self, pilot_text: str):
+        paragraphs = _prose_paragraphs(pilot_text)
+        self.sentences = [s for para in paragraphs for s in para]
+        self.units: list[list[int]] = []
+        i = 0
+        for para in paragraphs:
+            start, pending = len(self.units), []
+            for _ in para:
+                if _CONDITIONAL.search(self.sentences[i]):
+                    self.units.append(pending + [i])
+                    pending = []
+                else:
+                    pending.append(i)
+                i += 1
+            if pending and len(self.units) > start:
+                self.units[-1].extend(pending)
+            elif pending:
+                self.units.append(pending)
+        self.texts = [" ".join(self.sentences[j] for j in unit) for unit in self.units]
+        self.override = {k for k, t in enumerate(self.texts) if any(p in t.lower() for p in ABSOLUTE_OVERRIDE_PHRASES)}
+        self._tokens = [_order_tokens(t) for t in self.texts]
+        counts: dict[str, int] = {}
+        for tokens in self._tokens:
+            for t in tokens:
+                counts[t] = counts.get(t, 0) + 1
+        self._idf = {t: math.log((len(self.units) + 1) / c) for t, c in counts.items()}
+        self._norm = [math.sqrt(sum(self._idf[t] for t in tokens)) or 1.0 for tokens in self._tokens]
+        words = [set(re.findall(r"[a-z]+", t.lower())) for t in self.texts]
+        self._actions = [{kind for kind, said in _ACTION_WORDS.items() if said & w} for w in words]
+
+    def scores(self, node: Node) -> list[float]:
+        mine = _node_tokens(node)
+        if max((len(mine & tokens) for tokens in self._tokens), default=0) < 2:
+            return [0.0] * len(self.units)  # two shared words at least, as `_node_sentences` asks
+        kind = getattr(node, "action_kind", None)
+        return [sum(self._idf[t] for t in mine & tokens) / norm
+                * (_OTHER_ACTION_SHARE if kind and actions and kind not in actions else 1.0)
+                for tokens, norm, actions in zip(self._tokens, self._norm, self._actions)]
+
+    def candidates(self, node: Node, share: float = _ORDER_CANDIDATE_SHARE) -> set[int]:
+        """The parts `node` may state: every part scoring at least `share` of its best; empty when none fits."""
+        scores = self.scores(node)
+        top = max(scores, default=0.0)
+        return {k for k, s in enumerate(scores) if top > 0 and s >= share * top}
+
+    def own(self, node: Node) -> int | None:
+        """The one part `node` states, when one beats every other by `_ORDER_PLACE_SHARE`; None otherwise."""
+        close = self.candidates(node, _ORDER_PLACE_SHARE)
+        return next(iter(close)) if len(close) == 1 else None
+
+    def sentences_of(self, node: Node) -> set[int]:
+        """The sentences of every part `node` may state."""
+        return {j for k in self.candidates(node) for j in self.units[k]}
+
+
+def _out_of_order(places: list[set[int]]) -> tuple[set[int], dict[int, int]]:
+    """`places[i]`: the parts of the prose node i may state, by position (empty: not judged). The longest run of
+    nodes that can each take one of their parts without any going back in the prose, as {node: part}, and every
+    other judged node (the fewest that leave the prose's order). Ties keep the run that ends earliest in the
+    cascade, so a rule moved down is the one named, not every rule it was moved past."""
+    best: dict[tuple[int, int], tuple[int, tuple[int, int] | None]] = {}
+    for i, parts in enumerate(places):
+        for r in sorted(parts):
+            length, prev = 1, None
+            for (j, q), (n, _) in best.items():
+                if j < i and q <= r and n + 1 > length:
+                    length, prev = n + 1, (j, q)
+            best[(i, r)] = (length, prev)
+    kept: dict[int, int] = {}
+    end = max(best, key=lambda k: (best[k][0], -k[0], -k[1]), default=None)
+    while end is not None:
+        kept[end[0]] = end[1]
+        end = best[end][1]
+    return {i for i, parts in enumerate(places) if parts and i not in kept}, kept
+
+
+@dataclass(frozen=True)
+class _Misplaced:
+    """A node out of the prose's order. `first` and `then`: two nodes of its cascade, the node itself one of them,
+    that the prose states in that order and the cascade has the other way round. `own`: the node's one part of
+    the prose (None: no one part is clearly its own)."""
+
+    node: Node
+    first: Node
+    then: Node
+    own: int | None
+
+
+def enforce_rule_order(schema: TranslatedSchema, pilot_text: str, drop: bool = False) -> TranslatedSchema:
+    """vocab-2 only (vocab-1 gets `schema` back). When any cascade in the tree has nodes out of the prose's order
+    (`_out_of_order` over `_ProseUnits`), raises `RuleOrderError`, which `translate_pilot` retries; the message
+    quotes each such node's prose and the prose of a node placed above it that the prose puts after it, never a
+    rule. With `drop` (`translate_pilot`'s last attempt) each such node is moved to where its own part of the
+    prose is instead, or removed when it has no one part, each with an `order:` note the entrant sees. A schema
+    in the prose's order is returned as it came."""
+    if schema.vocab != VOCAB_2:
+        return schema
+    prose = _ProseUnits(pilot_text)
+    found: list[_Misplaced] = []
+
+    def walk(cascade: Cascade) -> Cascade:
+        nodes = [dataclasses.replace(n, then=walk(n.then), else_=walk(n.else_)) if isinstance(n, GuardNode) else n
+                 for n in cascade.nodes]
+        places = [set() if (ks := prose.candidates(n)) & prose.override else ks for n in nodes]
+        out, kept = _out_of_order(places)
+        if not out:
+            return Cascade(nodes=tuple(nodes), default=cascade.default)
+        keys: list[tuple[int, int]] = []  # (part, cascade index) to sort the kept and moved nodes by
+        last = -1  # a node the prose states nowhere stays right after the kept node above it
+        for i, node in enumerate(nodes):
+            if i not in out:
+                last = kept.get(i, last)
+                keys.append((last, i))
+                continue
+            own = prose.own(node)
+            above = next((j for j in range(i) if j in kept and kept[j] > min(places[i])), None)
+            if above is not None:
+                found.append(_Misplaced(node, node, nodes[above], own))
+            else:  # placed too high: a node below it is one the prose states first
+                below = next(j for j in range(i + 1, len(nodes)) if j in kept and kept[j] < max(places[i]))
+                found.append(_Misplaced(node, nodes[below], node, own))
+            if own is not None:
+                keys.append((own, i))
+        return Cascade(nodes=tuple(nodes[i] for _, i in sorted(keys)), default=cascade.default)
+
+    new_root = walk(schema.root)
+    if not found:
+        return schema
+
+    def part(node: Node) -> int:
+        own = prose.own(node)
+        return own if own is not None else min(prose.candidates(node))
+
+    def quote(node: Node) -> str:
+        return '"' + " ".join(prose.texts[part(node)].split()) + '"'
+
+    if not drop or not new_root.nodes:
+        before: dict[int, list[int]] = {}  # each part placed too low, under the part it was placed below
+        for m in found:
+            firsts = before.setdefault(part(m.then), [])
+            if part(m.first) not in firsts:
+                firsts.append(part(m.first))
+        said = "; ".join(" and ".join(f'"{" ".join(prose.texts[k].split())}"' for k in sorted(firsts))
+                         + f' before "{" ".join(prose.texts[then].split())}"' for then, firsts in sorted(before.items()))
+        raise RuleOrderError(
+            "the first rule whose question is true decides, so the rules must keep the order the prose gives them. The prose "
+            f"states {said}, but the rules for these were placed below the rule for the sentence after \"before\". Write "
+            "every rule in the prose's order"
+        )
+    notes = []
+    for m in found:
+        where = (f"below {m.then.id}, which your prose puts after it" if m.first is m.node
+                 else f"above {m.first.id}, which your prose puts before it")
+        if m.own is not None:
+            notes.append(
+                f'{ORDER_NOTE_PREFIX} moved rule {m.node.id} to where your prose states it ({quote(m.node)}). It was {where}, '
+                "and the first rule whose question is true decides. Every translation left your prose's order; rewording the "
+                "prose may help."
+            )
+        else:
+            notes.append(
+                f'{ORDER_NOTE_PREFIX} removed rule {m.node.id} ("{m.node.condition}"). It was {where}, and no one sentence of '
+                "your prose is clearly its own, so it could not be moved. Every translation left your prose's order; rewording "
+                "the prose may help."
+            )
+    return dataclasses.replace(schema, root=new_root, rules=(), validation_notes=schema.validation_notes + tuple(notes))
+
+
 def translate_pilot(
     pilot_text: str,
     pilot_file: str,
@@ -1785,9 +2040,10 @@ def translate_pilot(
     """`generate`, when given, is a `prompt -> reply text` callable that replaces the host-Ollama
     call (`llm_backends.Backend.generate` -- how `compile.py` runs the same translation on
     OpenRouter). The prompt, parsing, retries and guards are the same either way. The host-Ollama
-    call sends no reply cap (`llm_backends`, NO TOKEN CAPS), except under vocab-1, which keeps the
-    1,800-token cap and 90 s timeout its recorded runs used. `economy` names the ruleset whose items the prompt lists and `build` is checked
-    against (None = `economy_rules.DEFAULT_ECONOMY`); every backend gets the same prompt.
+    call sends no reply cap (`llm_backends`, NO TOKEN CAPS) under any vocabulary; vocab-1's is the request
+    and 90 s timeout its recorded runs used, less their 1,800-token cap. `economy` names the ruleset whose
+    items the prompt lists and `build` is checked against (None = `economy_rules.DEFAULT_ECONOMY`); every
+    backend gets the same prompt.
 
     `map_` (a map name, `compile.py --map`): pvp-2 offers vocab-2 compiles its teleport (`TELEPORT_ABILITY`,
     `PVP2_SELECTORS`) and its facts (`vocab.FACTS_PVP2`); any other map, or none, changes nothing.
@@ -1803,7 +2059,7 @@ def translate_pilot(
     if generate is None:
         url = resolve_ollama_url(ollama_url)
         if vocab == VOCAB_1:
-            generate = lambda p: _ollama_generate(url, model, p, timeout=90.0, max_tokens=VOCAB1_MAX_COMPLETION_TOKENS)  # noqa: E731
+            generate = lambda p: _ollama_generate(url, model, p, timeout=90.0, max_tokens=None, vocab1=True)  # noqa: E731
         else:
             generate = lambda p: _ollama_generate(url, model, p, timeout=CALL_TIMEOUT_SEC, max_tokens=None)  # noqa: E731
     scoped = scope_to_instrument(pilot_text, instrument)
@@ -1830,8 +2086,9 @@ def translate_pilot(
             schema = enforce_shopping_list(schema, scoped.text)
             schema = enforce_identity_rules(schema, scoped.text, drop=last)
             schema = enforce_negation(schema, scoped.text, drop=attempt == max_attempts - 1)
+            schema = enforce_rule_order(schema, scoped.text, drop=last)
             return enforce_absolute_priority(schema, scoped.text)
-        except (UnfinishedGuardError, GuardScopeError) as err:
+        except (UnfinishedGuardError, GuardScopeError, RuleOrderError) as err:
             last_err = err
             prompt = (
                 _translation_prompt(scoped.text, instrument, primary_ability, ultimate_ability, vocab, economy=economy, map_=map_)
@@ -1967,13 +2224,17 @@ def render_markdown(schema: TranslatedSchema) -> str:
     unfinished_notes = [n for n in schema.validation_notes if n.startswith(UNFINISHED_GUARD_NOTE_PREFIX)]
     negation_notes = [n for n in schema.validation_notes if n.startswith(NEGATION_NOTE_PREFIX)]
     guard_scope_notes = [n for n in schema.validation_notes if n.startswith(GUARD_SCOPE_NOTE_PREFIX)]
+    order_notes = [n for n in schema.validation_notes if n.startswith(ORDER_NOTE_PREFIX)]
     priority_notes = [n for n in schema.validation_notes
                       if n not in scope_notes and n not in build_notes and n not in target_notes
                       and n not in identity_notes and n not in unfinished_notes and n not in negation_notes
-                      and n not in guard_scope_notes]
+                      and n not in guard_scope_notes and n not in order_notes]
     if priority_notes:
         lines += ["", "**Automatic priority fixes applied to this schema:**", ""]
         lines += [f"- {note}" for note in priority_notes]
+    if order_notes:
+        lines += ["", "**Rule order -- what was moved or removed:**", ""]
+        lines += [f"- {note}" for note in order_notes]
     if unfinished_notes:
         lines += ["", "**Unfinished guards -- what was removed:**", ""]
         lines += [f"- {note}" for note in unfinished_notes]

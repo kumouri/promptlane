@@ -21,7 +21,7 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(__file__))
 import compile as C  # noqa: E402
-from llm_backends import CALL_TIMEOUT_SEC, VOCAB1_MAX_COMPLETION_TOKENS, ScriptedBackend  # noqa: E402
+from llm_backends import CALL_TIMEOUT_SEC, ScriptedBackend  # noqa: E402
 from translator import TARGET_SELECTORS, TranslatedRule, TranslatedSchema  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
@@ -218,11 +218,11 @@ class EntrantProseTests(unittest.TestCase):
             finally:
                 C.make_backend = orig
 
-    def test_only_vocab1_sends_a_reply_cap(self):
+    def test_no_vocabulary_sends_a_reply_cap(self):
         seen = []
 
         def fake(*a, **k):
-            seen.append((k.get("max_tokens"), k.get("timeout")))
+            seen.append((k.get("max_tokens"), k.get("timeout"), k.get("vocab1")))
             return ScriptedBackend([_reply(i) for i in C.INSTRUMENTS])
 
         with tempfile.TemporaryDirectory() as d:
@@ -236,8 +236,8 @@ class EntrantProseTests(unittest.TestCase):
                         C.main([str(f), "--format", "json"] + extra)
             finally:
                 C.make_backend = orig
-        self.assertEqual(seen, [(None, CALL_TIMEOUT_SEC), (None, CALL_TIMEOUT_SEC),
-                                (VOCAB1_MAX_COMPLETION_TOKENS, C.VOCAB1_TIMEOUT_SEC), (None, 5.0)])
+        self.assertEqual(seen, [(None, CALL_TIMEOUT_SEC, False), (None, CALL_TIMEOUT_SEC, False),
+                                (None, C.VOCAB1_TIMEOUT_SEC, True), (None, 5.0, False)])
 
     def test_missing_file_and_bad_usage(self):
         import contextlib
