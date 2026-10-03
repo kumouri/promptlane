@@ -37,7 +37,9 @@ byte-for-byte against the checked-in files in #25). It adds, per rule, three thi
   "no strong match" is more useful to an entrant checking their schema than a wrong attribution.
 - **What Jev is literally asked** — the condition string *is* the `noul` question verbatim (this
   pipeline asks Jev exactly one yes/no question per rule, per `docs/prose-to-schema-translator.md`
-  §2's design), spelled out with what each answer maps to.
+  §2's design), spelled out with what each answer maps to. A `vocab-2` AND rule asks one question
+  per condition; each is listed with its own yes/no, and the rule fires only when all are yes
+  (`docs/vocabulary-spec.md` §8.13).
 - **Order, and why** — position in the cascade, and, for any rule the priority guard moved, the exact
   reason (unconditional-override language in the prose) instead of leaving the entrant to infer it
   from the validation-notes footer alone.
