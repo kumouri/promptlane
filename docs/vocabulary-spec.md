@@ -877,7 +877,10 @@ that state every clause. An order rejection is a whole rewrite, not a §8.11 spl
   - the words are weighted by how few parts use them;
   - the node's words are its question, action, target, id, and the target's vocab-2 meaning;
   - "see" and "visible" count as "sight", and "none" as "no";
-  - a part that names a different action ("attack" for an ability rule) counts half.
+  - a part that names a different action ("attack" for an ability rule) counts half. "Attack range"
+    is a distance, not the attack; "leave", "retreat" and "walk" name a move. keytar.md's "if a
+    visible enemy is inside your attack range, that is too close … you should be leaving" is a move
+    part, so a basic-attack rule is not placed there and moved above Chord.
 - **Candidate parts.** Every part scoring at least 75% of the node's best is one it may state. A node
   that shares fewer than two words with every part is not judged.
 - **A rule the prose states nowhere is not judged.** The order check places a node only when its best
@@ -908,6 +911,11 @@ that state every clause. An order rejection is a whole rewrite, not a §8.11 spl
   I go home …". A first version counted rules per part, and in the merged-code batch two retries
   passed it with a rule for the sentence's other half in place of the walk ("no minions near → home",
   or "→ the nearest ally").
+- **Descriptive prose is ordered literally.** drums.md says "Retreat only when you're really hurt —
+  below a quarter health" in its last paragraph, after "Push the lane". So its low-hp recall is
+  moved below the push and the attacks, where it rarely fires, with an `order:` note. That is "prose
+  order unless the prose reorders", and whether a character sketch should be read that way awaits a
+  ruling (`runs/vocab2-rule-order-2026-10-02.md` §8.1).
 - **Known miss.** Two rules whose sentences share a paragraph and every condition word but one, like
   the low-hp "move home" / "recall" pair, can swap unflagged. Their conditions exclude each other,
   so the swap plays the same.

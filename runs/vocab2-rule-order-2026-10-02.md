@@ -26,8 +26,11 @@ showed:
   call was made.
 - **Two jobs.** The first job (Margo job 20261003-004053-7602) built the check and its retry in four
   rounds (§2, §4), committed 2dec3e6–63eff78, and hit its 6-hour limit with the docs uncommitted and
-  no write-up. This resumed job merged develop (#96–#98), finished items 2–5, ran the merged code at $0,
-  and fixed three more defects that batch found (§3, §6, §8).
+  no write-up. This resumed job:
+  - merged develop (#96–#98) and finished items 2–5;
+  - ran the merged code at $0, which found five more defects, and fixed them (§3.3, §6.3, §8, §11.1);
+  - confirmed on a last live batch (c476d27, §6.4). The two fixes after it (b1fead0, 69e0471) were
+    checked by replaying that batch's recorded replies.
 
 ## Verdict
 
@@ -56,13 +59,20 @@ showed:
    - a retry may write fewer rules, or a different rule for a sentence. So the first reply that is
      wrong only in its order is kept, reordered. It ships unless a later reply keeps every action it
      had for every sentence.
-6. **Three defects found by this job's batch, all fixed** (§3.3, §6.3, §8):
+6. **Five defects found by this job's batches, all fixed** (§3.3, §6.3, §8, §11.1):
    - the id-path negation false drop;
    - a retry that swapped the walk rule for its sentence's other half;
    - violin.md, the reference prose that is mostly not conditional: the check moved a rule the prose
      states nowhere up to rule 2. A rule now needs a best part score of 0.8 to be judged. Every rule a
-     sentence states scored at least 0.88 (2,778 rules).
-   Each fix was replayed on the batch's recorded replies, which reproduce all 72 shipped schemas.
+     sentence states scored at least 0.88 (2,778 rules);
+   - keytar.md: "inside your attack range … you should be leaving" read as the attack action. That
+     moved a basic attack above Chord;
+   - #98's clause coverage removed the correct tower-fire rule as half of the siege sentence in 3 of 54
+     hard-eco compiles. Its tie-break now uses the same parts.
+
+   Each fix was replayed on the batches' recorded replies, which reproduce every shipped schema under
+   the code that ran. After all four, the replayed merged-code batches have **every hard-eco prose rule
+   in 54 of 54** schemas.
 7. **vocab-1 sends no reply cap** (item 3, §7.1). Its request is the recorded one less `num_predict`
    1800.
 8. **violin.md** (item 5, §7.2). Its Staccato paragraph now opens "In a fight you can win, …". The
@@ -77,11 +87,19 @@ showed:
     - Sample entrant: 8.7 model calls a compile (#98: 7.2; #95: 3.7).
     - House-hard-eco: 5.2 calls (#95: 3.5).
     - Wall time: median 136 s and 92 s on a quiet GPU.
-    - In 10 of 15 sample compiles traced (§10), the retry's reply lost to the kept one, so the third call
-      bought nothing. Skipping the retry when the reorder is clean would save it, but the brief asks
-      for a retry. **Needs a ruling.**
-11. **Open (§11):** a #98 clause-coverage misattribution lost the tower-fire rule in 1 of 36 hard-eco
-    compiles. Neither batch's guard tree reached the live check (0 guards in 7 violin compiles).
+    - In 36 of the 42 sample compiles where the order retry ran (§10), the kept reply shipped. In the
+      other 6 the retry shipped the same rules. The third call never bought a better schema. Skipping
+      the retry when the reorder is clean would save it, but the brief asks for a retry. **Needs a
+      ruling.**
+11. **Needs a ruling: descriptive prose (§8.1).** drums.md states "Retreat only when you're really
+    hurt — below a quarter health" in its *last* paragraph, after "Push the lane". In 3 of 3 compiles,
+    prose order moved the model's low-hp recall from the top to the bottom, below push-the-lane, where it
+    rarely fires. That is the brief's rule ("prose order unless the prose explicitly reorders"), and the
+    entrant sees an `order:` note. But a drums.md-style entrant would rarely retreat.
+12. **Confirmation (§6.4).** The final code ran 6 sample-entrant, 6 hard-eco and 9 reference-pilot
+    compiles. None regressed against #98's table (every p ≥ 0.07). No hard-eco or sample schema was out of
+    order, except one swap where both rules attack the nearest tower. The 9B wrote no guard in any of the
+    7 violin compiles, so the guard-tree path was tested by replay only.
 
 ## 1. What the translator wrote
 
@@ -300,9 +318,49 @@ In batch v5 sample s8, drums and violin:
   - none gets worse.
 - #98's table on the replay is the one above, except "home: no minions" 14/36 (p = 0.80 vs #98).
 
-### 6.4 Confirmation on the final code: batch v6 (c476d27)
+### 6.4 Confirmation: batch v6 (c476d27), and replays of the two fixes after it
 
-*(pending: 6 sample-entrant + 6 house-hard-eco + 3 each of violin.md, drums.md, keytar.md)*
+c476d27 is v5's code plus §3.3, §6.3 and §8's floor. The batch ran 6 sample-entrant and 6
+house-hard-eco compiles interleaved, then 3 each of violin.md, drums.md and keytar.md, with
+`--instrument`.
+
+| | hard-eco, live | **hard-eco, final code (replayed)** | sample, live | **sample, final code (replayed)** |
+|---|---:|---:|---:|---:|
+| compiled | 18 of 18 | 18 of 18 | 18 of 18 | 18 of 18 |
+| shipped out of order (oracle) | 0 | **0** | 1 | 1 |
+| every prose rule present | 16 | **18** | 16 | 16 |
+| shipped with a negation drop | 0 | 0 | 0 | 0 |
+
+- **Hard-eco 16 → 18.** The two missing rules were both the tower-fire retreat, lost to #98's coverage
+  (§11.1). The fix keeps them.
+- **The order check's 3 hard-eco removals** were duplicates: a second hurt-recall rule that #98's splice
+  had taken from the rewrite. No prose rule was lost to them.
+- **The sample schema out of order** (s6 keytar) is a near-tie. The model wrote the dead-enemy push
+  sentence as "attack the nearest tower", and its best part became the enemy-minion sentence, so it
+  sits one place below the two-minions tower rule. Both rules attack the nearest tower, so the swap
+  plays the same.
+- **The two sample schemas missing a rule:**
+  - s3 keytar never reached the order check. A guard tree, then shopping-list rules, used up its
+    attempts. The last reply lacked the back-off, and coverage removed two partial rules with notes.
+    That is develop's existing path.
+  - s6 drums: the order check removed "gold ≥ 300 and an enemy bearbot visible" (id `shop_order`),
+    which it could not place between the 300-gold and afford sentences. That is the brief's "else drop
+    with a note".
+- **One sample negation drop on a last attempt** was a genuine inversion: "are there **any** minions
+  near?" for "none of my minions". It didn't ship, because the kept reply did.
+
+**#98's table, v6 sample (6 runs):** every row p ≥ 0.07 against #98's v3. Back-off before recall is
+17 of 18. 122 of 126 conditions are stated in full, none in part; the 4 not stated are s3 keytar's.
+The batch is too small to show more than "no regression".
+
+**Replays of the two fixes after c476d27**, on v5's and v6's 108 recorded compiles. Each reproduces every
+shipped schema under the code that ran, and no replay needed an attempt the live run never made:
+- b1fead0 (coverage tie-break, §11.1): 3 change, each now with the tower-fire rule. Hard-eco has every
+  prose rule in 54 of 54.
+- 69e0471 (the part's action, §8.2): no hard-eco or sample compile changes.
+
+**Reference pilots** (§8): 0 guards written in 3 violin compiles. drums.md moved its recall to the
+bottom in 3 of 3 (§8.1). keytar s3's basic attack was moved above Chord; that was fixed in 69e0471.
 
 ## 7. vocab-1's cap and violin.md
 
@@ -360,6 +418,50 @@ conditional.
   - s4 still moves "wait until one enemy is isolated" above the Staccato opener, which is a real
     prose-order fix.
 
+### 8.1 drums.md: descriptive prose, where prose order may not be the priority order (needs a ruling)
+
+drums.md is written as a character sketch. Its paragraphs are:
+1. who you are;
+2. "BE the fight";
+3. Kick and Fill;
+4. "Push the lane … Attack whatever's nearest and threatening an ally first …";
+5. "**Retreat only when you're really hurt — below a quarter health** — because your whole reason for
+   existing is to be the thing that's still standing …".
+
+- **What happened.** In 3 of 3 batch-v6 compiles the model put the low-hp recall first, as a human
+  reader would. The order check moved it to the bottom, to the paragraph that states it. There it sits
+  below "push the lane" and the attacks, which nearly always fire. A drums bot compiled this way rarely
+  retreats.
+- **That is the brief's rule:** prose order, unless the prose explicitly reorders. "Only when" limits
+  when to retreat, not where it ranks, and drums.md has no override words. The entrant sees "order:
+  moved rule retreat_if_low_hp to where your prose states it … rewording the prose may help".
+- **The ruling it needs.** A literal compiler that tells the entrant is defensible. But an entrant who
+  writes like drums.md gets a bot that doesn't retreat, unless they read the note. Options:
+  - keep it literal (this PR);
+  - treat a low-hp retreat or recall as implicitly first, like override words;
+  - judge order only for prose that states one ("first", "after that", "otherwise", numbered lists).
+
+  Not changed here.
+
+### 8.2 keytar.md: "attack range" is a distance
+
+In batch v6 keytar s3, the model's "is a visible enemy bearbot or minion within attack range? → attack"
+was moved above Chord. That goes against keytar.md's "Chord first, basic-attack second".
+- **Why.** The check placed the rule at "If a visible enemy is inside your **attack range**, that is too
+  close; … you should be leaving" (score 1.47). That part counted as naming the attack action, so it got
+  no other-action discount.
+- **Fix (69e0471).** A part's actions read "attack range" as a distance, and "leave/leaving",
+  "retreat/retreating" and "walk/walks" as moves. That paragraph is now a move part. The basic attack
+  scores 0.73 there, under the floor, and stays where the model put it.
+- **Measured, no model call:**
+  - §2's agreement is unchanged;
+  - the floor still leaves every stated rule judged;
+  - no hard-eco or sample compile changes;
+  - every committed schema's verdict is unchanged;
+  - of the reference-pilot compiles, only keytar s3 (fixed) and violin v6 s1 change. In violin s1 two
+    rules of the same paragraph swap.
+- Test: `test_attack_range_is_a_distance_not_the_attack`.
+
 ## 9. The committed schemas (item 4)
 
 Every checked-in `prompts/pilots/*.schemas.json` with a prose file was run through all five vocab-2
@@ -384,44 +486,82 @@ checks: guard scope, identity, negation, clause coverage and order (`check_commi
 
 ## 10. Cost and wall time
 
-| per three-instrument compile | #95 hard-eco | v4 hard-eco | **v5 hard-eco** | #95 sample | #98 v3 sample | v4 sample | **v5 sample** |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| model calls, mean | 3.5 | 4.5 | **5.2** | 3.7 | 7.2 | 6.3 | **8.7** |
-| tokens, median (max) | 18,783 (31,521) | 28,708 (39,290) | **27,430 (44,200)** | 17,032 (26,426) | 33,939 (44,033) | 30,585 (39,171) | **44,744 (45,395)** |
-| wall time, median (max) | 121 s (222) | 143 s (226) | **92 s (141)** | 95 s (152) | 132 s (243) | 300 s (358) | **136 s (143)** |
-| wall per model call, median | 38 s | 26 s | **18 s** | 28 s | | 44 s | **15 s** |
+| per three-instrument compile | #95 | v4 | **v5** | **v6** |
+|---|---:|---:|---:|---:|
+| **hard-eco:** model calls, mean | 3.5 | 4.5 | **5.2** | **5.3** |
+| hard-eco: tokens, median (max) | 18,783 (31,521) | 28,708 (39,290) | **27,430 (44,200)** | **26,966 (44,648)** |
+| hard-eco: wall time, median (max) | 121 s (222) | 143 s (226) | **92 s (141)** | **85 s (143)** |
+| **sample:** model calls, mean | 3.7 | 6.3 | **8.7** | **8.5** |
+| sample: tokens, median (max) | 17,032 (26,426) | 30,585 (39,171) | **44,744 (45,395)** | **44,474 (45,042)** |
+| sample: wall time, median (max) | 95 s (152) | 300 s (358) | **136 s (143)** | **130 s (139)** |
+| wall per model call, median | 28–38 s | 26–44 s | **15–18 s** | **15–18 s** |
 
-- **Wall time follows the shared GPU.** It ran quiet for v5, at 15–18 s a call against 26–44 s for
-  earlier batches. Calls and tokens are the measure that doesn't depend on load.
+#98's v3 sample: 7.2 calls, 33,939 tokens, 132 s. The reference pilots compile in 9–24 s, in 1–3
+calls.
+
+- **Wall time follows the shared GPU.** It ran quiet for v5 and v6, at 15–18 s a call against
+  26–44 s for earlier batches. Calls and tokens are the measure that doesn't depend on load.
 - **Money:** $0 locally. On OpenRouter (≈$0.0006 per compile at develop's token counts) the sample
   entrant would be about $0.0015.
-- **Why the sample entrant takes 3 attempts.** Traced per instrument (`sequences.py`, 15 compiles), the
-  usual sequence is:
+- **Why the sample entrant takes 3 attempts.** Traced per instrument (`sequences.py`), the usual
+  sequence is:
   1. clause coverage rejects the first reply;
   2. the splice passes coverage, but keeps the first reply's order, so the order check rejects it;
   3. the whole rewrite passes, but loses or changes a rule against the kept reply, which ships
      reordered.
-
-  That was 10 of 15. The third call bought nothing in those.
+- **How often.** The order retry ran in 42 of 54 sample instrument compiles (v5: 27 of 36; v6: 15 of
+  18), and the kept reply shipped in **36 of the 42**. In the other 6 the retry kept every action of
+  the kept reply, in prose order, so it shipped the same rules. The third call never bought a better
+  schema.
 - **Not changed, needs a ruling.** When the kept reply's reorder is clean (nothing removed), skipping
-  the order retry would save about one call per instrument with no loss seen in these batches. The
-  brief specifies a retry before the deterministic reorder, so it stays.
+  the order retry would save about one call per order-rejected instrument with no loss seen in these
+  batches. The brief specifies a retry before the deterministic reorder, so it stays.
 
-## 11. Limits and follow-ups
+## 11. Beyond the brief, and follow-ups
 
-1. **#98's clause coverage misattributed a rule** (v5 hard-eco s11 violin):
-   - It read the tower-fire rule ("will an enemy tower shoot this bearbot?") as half of the siege
-     sentence ("inside an enemy tower's range and that tower has your own minions in its range to shoot
-     first"), removed it, and spliced in the rewrite's siege rule.
-   - The tower-fire sentence has one clause, so no "no rule states it" note fired.
-   - 1 of 36. §2's part attribution would place that rule correctly, but this PR doesn't touch #98's
-     reader.
-2. **The order retry's cost** (§10): about one wasted call per sample instrument. Ruling needed.
-3. **Known miss** (spec §8.15): two rules whose sentences share a paragraph and every condition word but
-   one (the low-hp move-home / recall pair) can swap unflagged. Their conditions exclude each other.
-4. **Typed guards stay rare live.** 0 guards were written in 7 violin compiles. The guard-scope check and
+### 11.1 #98's clause coverage lost the tower-fire rule (fixed, b1fead0)
+
+- **What happened.** In 3 of 54 hard-eco compiles (v5 s11 violin, v6 s3 violin, v6 s6 keytar), #98's
+  coverage removed a correct "will an enemy tower shoot this bearbot? → my own tower". It read the rule
+  as half of the siege sentence ("inside an enemy tower's range and that tower has your own minions in
+  its range to shoot first, attack …"), and spliced in the rewrite's siege rule.
+- **No note.** The tower-fire sentence has one clause, so no "no rule states it" note fired, and the
+  retreat shipped with no rule.
+- **Cause.** The rule's criteria ("inside an enemy tower's range … no minions in range to block") share
+  more words with the siege sentence. #98's tie-break went by word count.
+- **Fix.** The tie now goes to the rule's own part of the prose when the order check's parts give it
+  one (`_ProseUnits.own`, above the order floor). The parts weigh rare words more, and count a sentence
+  naming another action ("attack") at half, as negation attribution already does. With no clear part,
+  #98's word count decides as before.
+- **Replayed coverage's removals on all 745 recorded replies: 26 change.**
+  - 23 are false removals fixed:
+    - the tower-fire rule;
+    - "afford the next item and no enemy in sight → recall", which is the second hard-eco shopping
+      sentence word for word.
+  - 2 new removals merge two sentences ("one enemy dead and at least two minions → attack the tower").
+  - 1 is arguable: "alone with no minions near → home" now reads as half of the back-off sentence,
+    which says "alone".
+- **End to end,** 3 of the 108 v5/v6 compiles change, all now with the tower-fire rule. Nothing else
+  moves.
+- Test: `test_the_tower_fire_rule_is_its_own_sentences_not_half_the_siege`, with the batch's exact rule.
+  It fails without the fix.
+
+### 11.2 Limits and follow-ups
+
+1. **drums.md-style prose** (§8.1): prose order ranks a low-hp retreat last. Ruling needed.
+2. **The order retry's cost** (§10): the kept reply shipped in 36 of 42 order retries. Ruling needed on
+   skipping the retry when the reorder is clean.
+3. **Known misses** (spec §8.15):
+   - two rules whose sentences share a paragraph and every condition word but one (the low-hp
+     move-home / recall pair) can swap unflagged. Their conditions exclude each other;
+   - a rule the model rewrote across two sentences can be placed at a third, near-tie (v6 s6 keytar).
+     Its swap plays the same.
+4. **The order check's "else drop" can lose a mis-id'd rule.** v6 s6 drums lost "gold ≥ 300 and an enemy
+   bearbot visible" (id `shop_order`), which it could not place. 1 of 54 sample instrument compiles. The
+   entrant sees the `order: removed` note.
+5. **Typed guards stay rare live.** 0 guards were written in 7 violin compiles. The guard-scope check and
    order inside branches are tested by replay and unit tests, not live.
-5. **After merge:**
+6. **After merge:**
    - bump the entrants' `PROMPTLANE_REF`, because `translator.py` and `violin.md` change the compiler
      version;
    - recompile `house-hard-eco` and `house-medium-eco` after #99/#100 if their new prose wants it;
@@ -432,8 +572,12 @@ checks: guard scope, identity, negation, clause coverage and order (`check_commi
 - **Translator:** `tools/jev/translator.py`.
   - New: `_ProseUnits`, `enforce_rule_order`, `RuleOrderError`, `_out_of_order`, `_Misplaced`,
     `keeps_every_rule`, `_actions_per_part`, `ORDER_NOTE_PREFIX`.
-  - Changed: the negation reader (`_NEG_BEFORE`, `_UNCOUNTED`, `_negated`, `_negation_lost`), and the
-    attempt loop in `translate_pilot`.
+  - Also new: `_ORDER_STATED_FLOOR`, `_ProseUnits.placed`, and the part's action words
+    (`_ACTION_WORDS`, "attack range").
+  - Changed:
+    - the negation reader (`_NEG_BEFORE`, `_UNCOUNTED`, `_negated`, `_negation_lost`);
+    - #98's coverage tie-break (`_clause_dropped`'s `own_sentences`, from `enforce_clause_coverage`);
+    - the attempt loop in `translate_pilot`.
 - **Transparency:** `tools/jev/transparency.py` renders the "Rule order — what was moved or removed"
   section.
 - **Request:** `tools/jev/llm_backends.py`, `ground_truth.py` and `compile.py` (vocab-1 sends no cap).
