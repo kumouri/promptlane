@@ -1901,6 +1901,32 @@ class RuleOrderTests(unittest.TestCase):
         self.assertTrue(P.candidates(attack))  # negation attribution still sees its candidates
         self.assertIs(T.enforce_rule_order(schema, prose), schema)
 
+    def test_attack_range_is_a_distance_not_the_attack(self):
+        # This job's keytar.md compile s3 (batch v6): "If a visible enemy is inside your attack range, that is too close ...
+        # you should be leaving" was read as naming the attack, so the model's basic-attack rule placed there and was moved
+        # above Chord, against "Chord first, basic-attack second". That paragraph is a move ("leaving"); the basic attack
+        # now scores under the order floor there and stays where the model put it.
+        prose = T.scope_to_instrument(open(os.path.join(os.path.dirname(__file__), "..", "..", "prompts", "pilots", "keytar.md"),
+                                           encoding="utf-8").read(), "keytar").text
+        spec = [("avoid_melee_range", "is there a visible enemy bearbot within melee range of this bot?", "move", None, "nearest_enemy_bearbot"),
+                ("avoid_attack_range", "is there a visible enemy bearbot inside this bot's attack range?", "move", None, "nearest_enemy_bearbot"),
+                ("dash_in_for_angle", "is this bot in range of an enemy but not close enough to attack them directly (needs angle)?", "move",
+                 None, "nearest_enemy_bearbot"),
+                ("use_chord_if_ready", "is the 'chord' ability ready?", "ability", "chord", "densest_cluster_enemy"),
+                ("attack_minions_or_enemies", "is there a visible enemy bearbot or minion within this bot's attack range?", "attack", None,
+                 "nearest_enemy_bearbot"),
+                ("recall_low_hp", "is this bot's hp below a quarter of its max?", "recall", None, "none"),
+                ("push_lane_default", "is there no immediate threat or opportunity to fight?", "move", None, "push_lane")]
+        schema = T.parse_schema({"rules": [{"id": i, "condition": c, "criteria": {"true": "yes", "false": "no"},
+                                            "action": {"kind": k, "ability": a, "target_selector": t}} for i, c, k, a, t in spec],
+                                 "default_action": {"kind": "move", "ability": None, "target_selector": "push_lane"}}, "keytar.md", "keytar", "raw",
+                                "vocab-2")
+        P = T._ProseUnits(prose)
+        keep_away = next(k for k, t in enumerate(P.texts) if "attack range, that is too" in " ".join(t.split()))
+        self.assertEqual(P._actions[keep_away], {"move"})
+        ids = [n.id for n in T.enforce_rule_order(schema, prose, drop=True).root.nodes]
+        self.assertLess(ids.index("use_chord_if_ready"), ids.index("attack_minions_or_enemies"))
+
     def test_a_retry_that_swaps_a_rule_for_its_sentences_other_half_never_ships(self):
         # This job's merged-code batch, sample s8 drums and violin: the order retry kept a rule for the walk sentence, but the
         # wrong half: "are there no minions near? -> home" (or "-> the nearest ally") in place of "walk with my nearest

@@ -1866,7 +1866,7 @@ _OTHER_ACTION_SHARE = 0.5
 # lowest scored 0.88. Negation attribution and `keeps_every_rule` keep the plain candidates.
 _ORDER_STATED_FLOOR = 0.8
 _ACTION_WORDS = {"attack": frozenset({"attack", "attacks"}), "recall": frozenset({"recall", "recalls"}),
-                 "move": frozenset({"move", "moves"}),
+                 "move": frozenset({"move", "moves", "leave", "leaving", "retreat", "retreating", "walk", "walks"}),
                  "ability": frozenset({"ability", "abilities", *(a for pair in ABILITIES.values() for a in pair)})}
 
 
@@ -1934,7 +1934,9 @@ class _ProseUnits:
                 counts[t] = counts.get(t, 0) + 1
         self._idf = {t: math.log((len(self.units) + 1) / c) for t, c in counts.items()}
         self._norm = [math.sqrt(sum(self._idf[t] for t in tokens)) or 1.0 for tokens in self._tokens]
-        words = [set(re.findall(r"[a-z]+", t.lower())) for t in self.texts]
+        # "attack range" names a distance, not the attack: keytar.md's "If a visible enemy is inside your attack range,
+        # that is too close ... you should be leaving" is a move (runs/vocab2-rule-order-2026-10-02.md §8.2).
+        words = [set(re.findall(r"[a-z]+", re.sub(r"\battack range\b", "range", t.lower()))) for t in self.texts]
         self._actions = [{kind for kind, said in _ACTION_WORDS.items() if said & w} for w in words]
 
     def scores(self, node: Node) -> list[float]:
