@@ -76,6 +76,12 @@ PR #88's easy house tier uses the same sentence.
    - **All 126 sample and all 54 easy multi-clause conditions stated in full, none in part.**
    - Every checked-in vocab-2 schema passes the guard untouched: house easy, medium and hard, and the
      siege and pvp-2 entrants.
+   - The branch was then rebased once more, onto 4c0bd26. #96 and #97 add a base tower and tower aggro,
+     and change no translator code. It was re-checked at $0:
+     - every Python suite passes;
+     - the prompt (276 compared) and the other guards' results (1,344 compared) are identical to
+       develop's;
+     - the replay is unchanged, and the 15 checked-in schema sets are untouched.
 
 ## 1. What the translator wrote
 
