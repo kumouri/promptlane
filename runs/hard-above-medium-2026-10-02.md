@@ -14,6 +14,27 @@ Also reported: hard against the siege sample entrant, which has never played on 
   lines are below.
 - **Out of bounds:** medium (byte for byte), easy, the entrants, the translator, and the live arena.
 
+## Verdict
+
+*Written after the run. §1 was committed (`0969def`) before the first paid match. §3's amendment
+(`f47d123`) was committed after §2's results and before its own first paid match.*
+
+- **Hard is not above the push-lane medium on Jev.** Two pre-registered tries, both FAIL:
+
+| hard | outer 400 (`pvp-1-hp400`) | pvp-1 (today) |
+|---|---:|---:|
+| develop's hard, for reference | 0–2 | 0–2 (#90) |
+| **hard2** = develop's hard + "an enemy tower in sight under 150 hp → attack it" (§2) | 2–4 | 1–3 |
+| **hard3** = medium, rule for rule, + that rule (§3, on this branch) | **2–2** | **2–2** |
+
+- **easy < medium holds on both maps** (2–0 each). medium < hard does not: hard3 is level.
+- **Hard against the siege entrant,** never played on Jev before: hard2 beat it **3–1** on outer 400.
+- **The rule itself works.** Jev agrees with its fact on 99.3–99.7 % of asks. It lands 52–69 % of the
+  structure damage of the hard carrying it on outer 400. It just doesn't produce an edge over a
+  medium that pushes as well.
+- **Spend: $3.7638 of the $4.00 stop,** for both write-ups.
+- **Ceryce decides which hard ships** (§4). This branch carries hard3.
+
 ## 0. Diagnosis, at $0
 
 ### 0.1 Where medium beats hard (#90 §4's two Jev matches, replayed)
@@ -200,3 +221,81 @@ block is pre-registered here before its first paid match. §2's results stand as
   write-up says hard is not above medium, and Ceryce chooses between hard3, §2's hard2 (`0969def`) and
   develop's hard.
 - Matches cut by the guard count as not played. Nothing is added after a result is seen.
+
+### 3.3 Result (hard3)
+
+*Written after the run.* §3 was pushed at 19:21:36 CT (`f47d123`). The first HD match started at
+19:21:56 CT.
+
+- **The block:** 8 matches, 19:21–19:27 CT, for **$1.0318**: 12,260 requests, 0 errors, 0
+  failovers. The guard didn't cut. 8 of 8 verify, with 0 parse errors.
+
+| line | result | pass line | |
+|---|---|---|---|
+| H1′ hard3 above medium, outer 400 (HD-a) | **2–2** | hard3 ≥ 3 | **FAIL** (medium 2) |
+| H2′ hard3 above medium, pvp-1 (HD-b) | **2–2** | hard3 ≥ 3 | **FAIL** (medium 2) |
+| H4′ clean | 8 of 8 verify; 0 errors | all | **PASS** |
+
+- **Hard3 is level with medium, not above it.** That is what a near-mirror with one rarely firing
+  rule gives on 4 matches a map.
+  - The rule took 1.4 % of hard3's time on outer 400 and dealt **69 %** of its structure damage
+    there (27 % on pvp-1).
+  - Jev agreed with its fact on 99.7 % of 6,126 asks.
+  - In this sample, the rule finished towers medium would also have finished by playing on.
+- **On pvp-1 the green side won all four**, two of them by each bot. Both cascades are near-identical,
+  so the side decided it. In HD-a, each side won two.
+- Two matches ran long: medium–hard3 s7 on outer 400 ended at 9:59.9 in sudden death.
+
+## 4. The ladder, and what Ceryce may want to decide
+
+**Ladder, Jev, every match measured on the Jam stack** (W–L, the first-named tier's wins):
+
+| pairing | `pvp-1-hp400` | pvp-1 (today's default) |
+|---|---|---|
+| medium vs easy | **2–0** (T) | **2–0** (#90 §4 M3) |
+| medium vs develop's hard | 2–0 (T) | 2–0 (#90 §4 M2) |
+| medium vs hard2 (§2) | 4–2 (HA) | 3–1 (HB) |
+| medium vs hard3 (§3, this branch) | **2–2** (HD-a) | **2–2** (HD-b) |
+| hard2 vs entrant3 (never played on Jev before) | **3–1** (HC) | — |
+| medium vs entrant3 | 2–2 (T) | 4–0 (#90 §4 M1) |
+
+- **easy < medium holds on both maps.** **medium < hard does not.** The best hard measured, hard3, is
+  level with medium (4–4 over both maps). Every earlier hard lost to this medium.
+- **Hard against the siege entrant** (asked for, never played on Jev): hard2 beat it 3–1 on outer
+  400. Hard3 didn't play it.
+- **Spend: $3.7638 of the $4.00 stop**, on the one server's ledger: 30 paid matches, 43,132 requests,
+  0 errors, 0 failovers. Blocks T/HA/HC/HB cost $2.7320 and HD $1.0318. Compiles, smokes and
+  stand-in sims were free.
+
+**What Ceryce may want to decide:**
+1. **Which hard ships.** This branch carries hard3, which is level with medium and above everything
+   else measured. The other options:
+   - §2's hard2 (`0969def`): lost to medium on both maps, beat the entrant 3–1;
+   - develop's hard: lost to medium 0–2 on each map.
+2. **Whether hard must be above this medium at all.** With the push-lane medium as the bar,
+   no hard tried here clears it on Jev. The next lever is likely bigger than one rule, for example
+   medium's cascade with the keytar's chord and pushing kept, and the low-hp walk-out lowered. It
+   needs its own funded check. A rate needs more than 4 matches a map, because seeds 3 and 7 are
+   near-replays.
+3. **The ladder's top for the arena.** The arena plays without the Chorus, and nothing here measured
+   that stack. Nothing in the arena was touched. After any merge that changes a house schema, the
+   arena needs a restart, because the `house` ledger row hashes the files.
+
+## Files
+
+- `prompts/pilots/house-hard-eco.prose.md` and `house-hard-eco.schemas.json`: hard3.
+- `tools/arena/test_house.mjs`: hard is medium plus the rule. The Bandstand and ladder tests follow.
+- `prompts/pilots/README.md` ("Hard is medium plus a weakened-tower rule"), `docs/economy-spec.md`
+  §4.4's hard row.
+- **Logs, not in git.** On the
+  [`data-tower-hp-2026-10-02`](https://github.com/kumouri/promptlane/releases/tag/data-tower-hp-2026-10-02)
+  prerelease, shared with `runs/tower-hp-2026-10-02.md`:
+  - all 30 paid logs (`runs/tower-hp-2026-10-02-<block>-<violet>-<green>-seed<N>.json`) and the
+    smokes;
+  - the compiles (n1, m1), `splice_hard.py`, `make_hard3.py`;
+  - the stand-in kit and its sims, the run logs, and the server's final `/health`.
+
+  To check a log, unzip at the repo root and run `npm run match -- --verify <log>`.
+  - A replay plays the recorded decisions, so no schema is needed.
+  - A `pvp-1-hp400` log needs `feat/tower-hp-tune`'s `towerHp` code, so verify it on that branch or
+    after it merges. A pvp-1 log verifies anywhere.
