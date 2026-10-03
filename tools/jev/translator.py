@@ -78,6 +78,12 @@ split into half-rules, an "or" between the clauses, an inverted clause and a los
 quotes the sentence, never a rule, and only the rewrite's rules for those sentences are spliced into
 the rules that passed (`_spliced`). On the last attempt the rule is dropped with a `clause coverage:`
 note (`docs/vocabulary-spec.md` §8.11).
+AND NODE (vocab-2 only): a rule whose prose states several conditions that must all hold asks one question
+per condition, `TranslatedRule.all_of` (the reply's "all" list), and fires only when every one answers yes;
+TypeSafe's Noul guidance asks for one condition per question, combined in code. Each is its own `noul` in
+the decision's one Jev call (`schema_questions`, `node_answers`). The clause-coverage check reads such a rule
+clause by clause, and while a retry is left also asks for a faithful rule that holds two clauses in one
+question to be rewritten so (`docs/vocabulary-spec.md` §8.13).
 Economy P2 added one target selector,
 `highest_bounty_enemy` (`docs/economy-spec.md` §4.2): "go after the enemy worth the most gold".
 VOCABULARIES (`vocab.py`, `docs/vocabulary-spec.md`): `TARGET_SELECTORS` is vocab-1's list. vocab-2
@@ -94,6 +100,7 @@ The instrument-scope prompt itself is deliberately unchanged: telling the model 
 from __future__ import annotations
 
 import dataclasses
+import itertools
 import json
 import os
 import re
@@ -240,7 +247,14 @@ def _rule_text(raw: dict) -> str:
     """What a rule says about its own target: its id, its question, and what "yes" looks like (not
     what "no" looks like, which is all negations)."""
     criteria = raw.get("criteria") if isinstance(raw.get("criteria"), dict) else {}
-    return " ".join(str(x) for x in (raw.get("id") or "", raw.get("condition") or "", criteria.get("true") or ""))
+    text = " ".join(str(x) for x in (raw.get("id") or "", raw.get("condition") or "", criteria.get("true") or ""))
+    for q in raw.get("all") if isinstance(raw.get("all"), list) else ():  # an AND rule's questions (AND NODE)
+        if isinstance(q, dict):
+            c = q.get("criteria") if isinstance(q.get("criteria"), dict) else {}
+            text += " " + " ".join(str(x) for x in (q.get("condition") or "", c.get("true") or ""))
+        elif isinstance(q, str):
+            text += " " + q
+    return text
 
 
 def normalize_targets(raw_json: dict, vocab: str) -> tuple[dict, tuple[str, ...]]:
@@ -294,7 +308,21 @@ def normalize_targets(raw_json: dict, vocab: str) -> tuple[dict, tuple[str, ...]
 
 
 @dataclass(frozen=True)
+class Question:
+    """One `noul` question: what Jev is asked, verbatim, and what yes and no look like."""
+
+    condition: str
+    criteria_true: str
+    criteria_false: str
+
+
+@dataclass(frozen=True)
 class TranslatedRule:
+    """A rule: one question, or (vocab-2) an AND of questions -- `all_of`, two or more, which fires only
+    when every one of them answers yes (AND NODE below). For an AND rule `condition`, `criteria_true` and
+    `criteria_false` are derived from `all_of` (each joined with " and "), so a check that reads a rule's
+    text reads all of its questions; Jev is never asked the joined text (`rule_questions`)."""
+
     id: str
     condition: str
     criteria_true: str
@@ -302,6 +330,13 @@ class TranslatedRule:
     action_kind: str
     action_ability: str | None
     action_target_selector: str | None
+    all_of: tuple[Question, ...] = ()
+
+    def __post_init__(self):
+        if self.all_of:
+            object.__setattr__(self, "condition", " and ".join(q.condition for q in self.all_of))
+            object.__setattr__(self, "criteria_true", " and ".join(q.criteria_true for q in self.all_of))
+            object.__setattr__(self, "criteria_false", " or ".join(q.criteria_false for q in self.all_of))
 
 
 @dataclass(frozen=True)
@@ -428,7 +463,40 @@ _CONDITION_DESC = {
     VOCAB_2: """  "condition": one yes/no question about the bot's current game state, asked about the FACTS THE
       GAME STATES listed below (a threshold comparison or a presence check -- e.g. "is this bot's hp
       below a quarter of its max?", "is an enemy bearbot in this bot's attack range?", "is this bot
-      under its own tower?"). Never a question that needs a text answer.""",
+      under its own tower?"). Never a question that needs a text answer. ONE condition per question:
+      when the prose joins two or more conditions with "and", the rule has "all" (below) instead.""",
+}
+
+
+# vocab-2's AND rule (AND NODE): one question per condition, the shape TypeSafe's Noul guidance asks for.
+# The example is not a sentence of any checked-in prose, so a measured compile is not copying it. vocab-1 adds nothing.
+_CONJUNCTION_DESC = {
+    VOCAB_1: "",
+    VOCAB_2: """
+When the prose makes a rule wait for TWO OR MORE conditions that must all hold ("when my hp is above half
+and an allied bearbot is fighting near me, I join in"), the rule asks ONE question per condition: in place
+of "condition" and "criteria" it has "all", a list of those questions, each one whole condition with its
+own "criteria". The rule fires only when every question in "all" is true:
+  {"id": "join_ally_fight", "all": [
+      {"condition": "is this bot's hp above half of its max?", "criteria": {"true": "hp above half", "false": "hp at or below half"}},
+      {"condition": "is an allied bearbot fighting near this bot?", "criteria": {"true": "an ally is fighting nearby", "false": "no ally is fighting nearby"}}],
+   "action": {"kind": "attack", "ability": null, "target_selector": "nearest_enemy"}}
+Never put two conditions joined by "and" into one "condition", and never split one condition across two
+questions: each question must make sense alone. Alternatives joined by "or" ("an enemy minion or an enemy
+tower is in sight") are one condition, asked as one question.""",
+}
+
+
+# The JSON shape the prompt ends on. vocab-1's is byte for byte the one before vocabularies; vocab-2's shows both rule
+# shapes, a one-condition rule and an AND rule, since the 9B writes the shape this skeleton shows.
+_SKELETON = {
+    VOCAB_1: """{"rules": [{"id": "...", "condition": "...", "criteria": {"true": "...", "false": "..."}, "action": {"kind": "...", "ability": null, "target_selector": null}}],
+ "default_action": {"kind": "...", "ability": null, "target_selector": null}}""",
+    VOCAB_2: """{"rules": [{"id": "...", "condition": "...", "criteria": {"true": "...", "false": "..."}, "action": {"kind": "...", "ability": null, "target_selector": null}},
+           {"id": "...", "all": [{"condition": "...", "criteria": {"true": "...", "false": "..."}}, {"condition": "...", "criteria": {"true": "...", "false": "..."}}], "action": {"kind": "...", "ability": null, "target_selector": null}}],
+ "default_action": {"kind": "...", "ability": null, "target_selector": null}}
+A rule with ONE condition has "condition"; a rule with two or more conditions that must all hold has "all", one question
+per condition, and no "condition" of its own.""",
 }
 
 
@@ -492,7 +560,7 @@ bottom, FIRST MATCH WINS -- exactly like a priority list. Most nodes are RULES. 
   "criteria": {{"true": "one short clause describing what 'true' looks like in the state",
       "false": "one short clause describing what 'false' looks like in the state"}}
   "action": {{"kind": one of {ACTION_KINDS}, "ability": one of [{abilities}],
-      "target_selector": one of {list(selectors)} or null}}
+      "target_selector": one of {list(selectors)} or null}}{_CONJUNCTION_DESC[vocab]}
 
 target_selector meanings (pick the closest match to what the prose says; do not invent a new one):
 {selectors_desc}{facts_block}
@@ -530,8 +598,7 @@ the prose's priority order calls for:
 {_NODE_COUNT[vocab]} Output ONLY this JSON object, nothing else, no markdown fences.
 If the prose has NO strategic-verdict content, output only plain rules -- do not force a guard in:
 
-{{"rules": [{{"id": "...", "condition": "...", "criteria": {{"true": "...", "false": "..."}}, "action": {{"kind": "...", "ability": null, "target_selector": null}}}}],
- "default_action": {{"kind": "...", "ability": null, "target_selector": null}}}}
+{_SKELETON[vocab]}
 
 {items_block}
 
@@ -562,8 +629,33 @@ def _validate_action(action: dict, context: str, vocab: str = VOCAB_1, map_=None
     return kind, ability, selector
 
 
+def _parse_question(raw, where: str) -> Question:
+    """One question of an AND rule's "all" list: {"condition", "criteria": {"true", "false"}}, or a bare string."""
+    if isinstance(raw, str):
+        raw = {"condition": raw}
+    cond = raw.get("condition") if isinstance(raw, dict) else None
+    if not cond or not isinstance(cond, str):
+        raise ValueError(f'{where}: every entry of "all" needs its own "condition" question')
+    criteria = raw.get("criteria") if isinstance(raw.get("criteria"), dict) else {}
+    return Question(cond, criteria.get("true", "the condition holds"), criteria.get("false", "the condition does not hold"))
+
+
 def _parse_node(raw: dict, idx: int, vocab: str = VOCAB_1, map_=None) -> Node:
     rid = raw.get("id") or f"r{idx+1}"
+    # vocab-2's AND rule (AND NODE): "all", a list of one-condition questions, in place of "condition" and
+    # "criteria". A list of one is a plain rule. vocab-1 never reads "all", so its replies parse as they did.
+    conj = raw.get("all") if vocab == VOCAB_2 and raw.get("type") != "guard" else None
+    if conj is not None:
+        if not isinstance(conj, list) or not conj:
+            raise ValueError(f'rule {rid}: "all" must be a list of questions, one for each condition')
+        questions = tuple(_parse_question(q, f"rule {rid}") for q in conj)
+        kind, ability, selector = _validate_action(raw.get("action") or {}, f"rule {rid}", vocab, map_)
+        if len(questions) == 1:
+            q = questions[0]
+            return TranslatedRule(rid, q.condition, q.criteria_true, q.criteria_false, kind, ability, selector)
+        return TranslatedRule(rid, "", "", "", kind, ability, selector, all_of=questions)
+    if vocab == VOCAB_2 and raw.get("type") == "guard" and raw.get("all") is not None and not raw.get("condition"):
+        raise ValueError(f'guard {rid}: a guard asks one judgment question, in "condition"; "all" is for rules only')
     cond = raw.get("condition")
     if not cond or not isinstance(cond, str):
         raise ValueError(f"node {rid}: missing/invalid condition")
@@ -708,6 +800,66 @@ def collect_nodes(cascade: Cascade) -> list[Node]:
             out.extend(collect_nodes(node.then))
             out.extend(collect_nodes(node.else_))
     return out
+
+
+# --- the AND node (vocab-2 only) ---------------------------------------------------------------------
+#
+# TypeSafe's Noul guidance: "Ask one yes/no question per Noul. If a question has two conditions ... the
+# model has to judge both at once and the value means less. Ask two Nouls and combine them in code."
+# (https://docs.typesafe.ai/primitives/noul.md, "Writing a Noul question"). A vocab-2 rule whose prose
+# states several conditions that must all hold is therefore an AND of single-condition questions
+# (`TranslatedRule.all_of`). Each is its own `noul` in the decision's one Jev call (`schema_questions`),
+# and the rule matches when EVERY one of them passes the same threshold a single question uses (`noul >
+# 0.5`, `fidelity_harness.run_prediction`). The probabilities are not multiplied: the docs threshold each
+# Noul in code ("Handling multiple Noul answers in code") and say nothing for a product, and a product
+# would set a stricter bar the more conditions a sentence has. `docs/vocabulary-spec.md` §8.13.
+
+
+def rule_questions(rule: TranslatedRule) -> tuple[tuple[str, Question], ...]:
+    """(question id, question) for each question `rule` asks Jev: its own id for a one-question rule, as
+    always, and `<id>.1`, `<id>.2`, ... for the questions of an AND rule."""
+    if rule.all_of:
+        return tuple((f"{rule.id}.{k}", q) for k, q in enumerate(rule.all_of, 1))
+    return ((rule.id, Question(rule.condition, rule.criteria_true, rule.criteria_false)),)
+
+
+def rule_conditions(rule: TranslatedRule) -> tuple[str, ...]:
+    """The questions' text: one for a one-question rule, one per question of an AND rule."""
+    return tuple(q.condition for _, q in rule_questions(rule))
+
+
+def schema_questions(cascade: Cascade) -> list[tuple[str, Question]]:
+    """Every question the tree asks, depth-first, root first (a guard's one question, each rule's own) --
+    what a caller sends as one `systemone` call. Raises ValueError when two share an id."""
+    out: list[tuple[str, Question]] = []
+    for node in collect_nodes(cascade):
+        if isinstance(node, GuardNode):
+            out.append((node.id, Question(node.condition, node.criteria_true, node.criteria_false)))
+        else:
+            out.extend(rule_questions(node))
+    ids = [qid for qid, _ in out]
+    if len(set(ids)) != len(ids):
+        raise ValueError(f"two questions share an id: {sorted({i for i in ids if ids.count(i) > 1})}")
+    return out
+
+
+def node_answers(cascade: Cascade, question_answers: dict[str, bool]) -> dict[str, bool]:
+    """Each node's answer from its questions' (`schema_questions`): a guard's and a one-question rule's
+    is their question's; an AND rule's is True only when every one of its questions is."""
+    out: dict[str, bool] = {}
+    for node in collect_nodes(cascade):
+        if isinstance(node, GuardNode):
+            out[node.id] = bool(question_answers.get(node.id))
+        else:
+            out[node.id] = all(question_answers.get(qid) for qid, _ in rule_questions(node))
+    return out
+
+
+def display_condition(node: Node) -> str:
+    """A node's condition as an entrant reads it: an AND rule's questions joined with a bold **and**."""
+    if isinstance(node, TranslatedRule) and node.all_of:
+        return " **and** ".join(q.condition for q in node.all_of)
+    return node.condition
 
 
 def evaluate_cascade(cascade: Cascade, answers: dict[str, bool], trace: list[dict] | None = None) -> Action | None:
@@ -1365,6 +1517,7 @@ def enforce_identity_rules(schema: TranslatedSchema, pilot_text: str, drop: bool
         return schema
     sentences = _prose_sentences(pilot_text)
     found: list[tuple[TranslatedRule, str, str | None]] = []
+    always_yes: list[str] = []
 
     def walk(cascade: Cascade) -> Cascade:
         nodes: list[Node] = []
@@ -1372,7 +1525,15 @@ def enforce_identity_rules(schema: TranslatedSchema, pilot_text: str, drop: bool
             if isinstance(node, GuardNode):
                 nodes.append(dataclasses.replace(node, then=walk(node.then), else_=walk(node.else_)))
                 continue
-            what = _identity_only(node.condition)
+            if node.all_of:  # an AND rule (AND NODE): each question is checked alone
+                node, dropped = _without_own_instrument(node, schema.instrument)
+                always_yes.extend(
+                    f'{IDENTITY_NOTE_PREFIX} took the question "{q.condition}" out of rule {node.id} -- it asks only whether this '
+                    f"bearbot is the {schema.instrument}, which it always is in this schema, so it was always yes; the rule asks "
+                    "its other questions." for q in dropped)
+                what = next((w for w in map(_identity_only, rule_conditions(node)) if w), None)
+            else:
+                what = _identity_only(node.condition)
             if what:
                 found.append((node, what, _identity_sentence(node, sentences)))
             else:
@@ -1381,7 +1542,9 @@ def enforce_identity_rules(schema: TranslatedSchema, pilot_text: str, drop: bool
 
     new_root = walk(schema.root)
     if not found:
-        return schema
+        if not always_yes:
+            return schema
+        return dataclasses.replace(schema, root=new_root, rules=(), validation_notes=schema.validation_notes + tuple(always_yes))
     if not drop or not new_root.nodes:
         rule, what, sentence = found[0]
         msg = (f"rule {rule.id} asks only about this bearbot's own {what}, which never changes during a match, so it would "
@@ -1400,7 +1563,30 @@ def enforce_identity_rules(schema: TranslatedSchema, pilot_text: str, drop: bool
         + (f' It came from "{sentence[:200]}"; rewording that line may help.' if sentence else "")
         for rule, what, sentence in found
     )
-    return dataclasses.replace(schema, root=new_root, rules=(), validation_notes=schema.validation_notes + notes)
+    return dataclasses.replace(schema, root=new_root, rules=(), validation_notes=schema.validation_notes + tuple(always_yes) + notes)
+
+
+_INSTRUMENT_OF = {"keytar": "keytar", "keytars": "keytar", "violin": "violin", "violins": "violin", "drum": "drums", "drums": "drums"}
+
+
+def _without_own_instrument(rule: TranslatedRule, instrument: str) -> tuple[TranslatedRule, list[Question]]:
+    """An AND rule without its questions that ask only whether this bearbot is `instrument` ("is this bot the
+    keytar?" in the keytar schema): always yes here, so the AND means the same without them. Returns the rule
+    (a one-question rule if one is left; unchanged if none or all of them are such) and the questions taken out.
+    A question about another instrument or a team is left for `enforce_identity_rules` to reject."""
+    def own(q: Question) -> bool:
+        if _identity_only(q.condition) != "instrument":
+            return False
+        return {_INSTRUMENT_OF[w] for w in re.findall(r"[a-z]+", q.condition.lower()) if w in _INSTRUMENT_OF} == {instrument}
+
+    dropped = [q for q in rule.all_of if own(q)]
+    kept = tuple(q for q in rule.all_of if not own(q))
+    if not dropped or not kept:
+        return rule, []
+    if len(kept) == 1:
+        q = kept[0]
+        return dataclasses.replace(rule, condition=q.condition, criteria_true=q.criteria_true, criteria_false=q.criteria_false, all_of=()), dropped
+    return dataclasses.replace(rule, all_of=kept), dropped
 
 
 # --- instrument scope (spec §10) --------------------------------------------------------------------
@@ -1989,9 +2175,34 @@ def _or_parts(condition: str) -> list[str]:
     return [p for p in _QUESTION_OR.split(condition) if p.strip()] or [condition]
 
 
+def _alternatives(rule: TranslatedRule, above: _Facts | None = None) -> list[tuple[_Facts, ...]]:
+    """Each way `rule` can fire, as the facts of the questions that must all hold then, `above` (the guard
+    questions it is nested under) merged into each: one 1-tuple per "or" alternative of a one-question rule's
+    question, and for an AND rule (AND NODE) every combination of its questions' alternatives."""
+    per_question = [[_facts(p) for p in _or_parts(c)] for c in rule_conditions(rule)]
+    return [tuple(_merge(f, above) if above else f for f in combo) for combo in itertools.product(*per_question)]
+
+
+def _whole(rule: TranslatedRule, above: _Facts | None = None) -> tuple[_Facts, ...]:
+    """The facts of each of `rule`'s questions, whole ("or" alternatives together), `above` merged into each."""
+    return tuple(_merge(_facts(c), above) if above else _facts(c) for c in rule_conditions(rule))
+
+
+def _tally(alt: tuple[_Facts, ...], clause: _Facts) -> tuple[int, int]:
+    """`_asked_of` for the questions `alt`, clause by clause: the one question that meets the most of `clause`.
+    A clause is met only by a question that asks all of it; two questions that each ask part of one ("is an
+    enemy bearbot in sight?" + "does it have less than 100 hp?") do not, as Jev answers each question alone."""
+    return max((_asked_of(f, clause) for f in alt), key=lambda t: t[0])
+
+
+def _alt_covers(alt: tuple[_Facts, ...], clause: _Facts) -> bool:
+    return any(_covers(f, clause) for f in alt)
+
+
 def _clause_dropped(rule: TranslatedRule, above: _Facts | None, units: list[_Unit], sentence_tokens: list[set[str]]) -> _Unit | None:
     """The condition (`_Unit`) `rule` states only part of, or None when it is faithful. Each "or"
-    alternative of the rule's question (`above` adds the guard questions it is nested under) is held to the
+    alternative of the rule's question (`above` adds the guard questions it is nested under; an AND rule's
+    alternatives are `_alternatives`, each clause met by one of its questions, `_tally`) is held to the
     condition whose requirements it meets the most of (`_asked_of`); it is faithful when one such condition
     is met in full, and on a tie the sentence the rule states decides (below). So "can this bot afford its
     next item?" is held to "I can afford my next item and no enemy is in sight" and fails, and "is an
@@ -2002,9 +2213,8 @@ def _clause_dropped(rule: TranslatedRule, above: _Facts | None, units: list[_Uni
     is left alone: it is not a translation of any condition this check can read."""
     _, scores, own = _own_sentence(rule, sentence_tokens)
     bad: list[_Unit] = []
-    for part in _or_parts(rule.condition):
-        asked = _merge(_facts(part), above) if above else _facts(part)
-        tallies = [[_asked_of(asked, f) for _, f in u.clauses] for u in units]
+    for alt in _alternatives(rule, above):
+        tallies = [[_tally(alt, f) for _, f in u.clauses] for u in units]
         met = [sum(m for m, _ in t) for t in tallies]
         best = max(met, default=0)
         if best == 0:
@@ -2024,6 +2234,114 @@ def _clause_dropped(rule: TranslatedRule, above: _Facts | None, units: list[_Uni
     return max(bad, key=lambda u: (u.sentence == own, scores[u.sentence]))
 
 
+# --- one question per condition (AND NODE) -------------------------------------------------------------
+#
+# TypeSafe's Noul guidance is one condition per question, combined in code. The prompt asks for an AND rule ("all")
+# whenever the prose joins conditions with "and", and the 9B mostly writes one, but some replies still join two in one
+# question, almost always as "<question> and is/are/can ...?" with criteria "<yes> and <yes>" / "<no> or <no>". A
+# faithful rule written so is split here, at those joints, into an AND rule of the pieces, and only when each piece
+# asks a clause of the condition on its own and the AND still states every clause (`_split_compound`): no model call,
+# and nothing is asked that the question didn't ask. Two clauses about one thing ("inside an enemy tower's range and
+# THAT tower has your own minions in its range") stay one question: two questions answered alone could each be about a
+# different tower. An AND rule the model wrote with such a question is joined back the same way (`_rejoined`).
+
+# Where the 9B joins two conditions in one question: "... and is ...", "..., and are ...".
+_QUESTION_AND = re.compile(r"\s*,?\s+and\s+(?=(?:is|are|am|was|were|can|could|does|do|did|has|have|had|will|would)\b)", re.IGNORECASE)
+# A condition that names a thing an earlier condition named: "that tower", "those minions", "the same tower".
+_BACK_REFERENCE = re.compile(
+    r"\b(?:that|those|these)\s+(?:same\s+)?(?:enemy\s+|allied\s+|own\s+)?(?:towers?|bearbots?|bots?|enem(?:y|ies)|minions?|waves?|"
+    r"ones?|all(?:y|ies)|items?|fights?)\b|\bthe\s+same\b", re.IGNORECASE)
+
+
+def _clause_groups(unit: _Unit) -> list[int]:
+    """Per clause of `unit`, the condition it is part of: a clause that refers back to an earlier one (`_BACK_REFERENCE`)
+    is part of the same condition."""
+    groups: list[int] = []
+    for k, (text, _) in enumerate(unit.clauses):
+        groups.append(groups[-1] if k and _BACK_REFERENCE.search(text) else (groups[-1] + 1 if groups else 0))
+    return groups
+
+
+def _conditions_asked(q: _Facts, unit: _Unit) -> int:
+    """How many of `unit`'s conditions (`_clause_groups`) the one question `q` asks a clause of."""
+    return len({g for g, (_, f) in zip(_clause_groups(unit), unit.clauses) if _covers(q, f)})
+
+
+def _compound_unit(rule: TranslatedRule, above: _Facts | None, units: list[_Unit]) -> _Unit | None:
+    """A condition of two or more clauses that `rule` states in full but with two of them in one question: "can this bot
+    afford its next item and is no enemy in sight?" for "When I can afford my next item and no enemy is in sight". None
+    when no question of the rule asks more than one of a condition's clauses (clauses about one thing count as one,
+    `_clause_groups`). A guard question above the rule is not one of its questions."""
+    for own, alt in zip(_alternatives(rule), _alternatives(rule, above)):
+        for u in units:
+            if len(u.clauses) >= 2 and all(_alt_covers(alt, f) for _, f in u.clauses) and any(_conditions_asked(q, u) >= 2 for q in own):
+                return u
+    return None
+
+
+def _split_question(q: Question) -> list[Question] | None:
+    """`q` cut at its "... and is ..." joints (`_QUESTION_AND`), or None when it has none, when an "or" alternative
+    spans them (`_or_parts`), or when a piece refers back to another ("does that tower ..."). Each piece keeps its own
+    criteria when the criteria split the same way ("<yes> and <yes>", "<no> or <no>"), else the plain ones a rule
+    with no criteria gets (`_parse_node`)."""
+    if len(_or_parts(q.condition)) > 1:
+        return None
+    pieces = [p.strip(" ,?") for p in _QUESTION_AND.split(q.condition)]
+    if len(pieces) < 2 or not all(pieces) or any(_BACK_REFERENCE.search(p) for p in pieces[1:]):
+        return None
+    trues = re.split(r"\s+and\s+", q.criteria_true.strip(), flags=re.IGNORECASE)
+    falses = re.split(r"\s+or\s+", q.criteria_false.strip(), flags=re.IGNORECASE)
+    fits = len(trues) == len(pieces) == len(falses)
+    return [Question(p + "?", trues[k].strip(" .") if fits else "the condition holds",
+                     falses[k].strip(" .") if fits else "the condition does not hold") for k, p in enumerate(pieces)]
+
+
+def _as_rule(rule: TranslatedRule, questions: list[Question]) -> TranslatedRule:
+    """`rule` asking `questions`: an AND rule, or a one-question rule when there is one."""
+    if len(questions) == 1:
+        q = questions[0]
+        return dataclasses.replace(rule, condition=q.condition, criteria_true=q.criteria_true, criteria_false=q.criteria_false, all_of=())
+    return dataclasses.replace(rule, all_of=tuple(questions))
+
+
+def _split_compound(rule: TranslatedRule, above: _Facts | None, units: list[_Unit], sentence_tokens: list[set[str]]) -> TranslatedRule | None:
+    """`rule` as an AND rule of one question per condition (`_split_question`), when it states a condition in full but
+    asks two of its clauses in one question (`_compound_unit`); None when it doesn't, or when no split keeps every clause
+    stated, clause by clause, with each piece asking a clause of that condition on its own."""
+    unit = _compound_unit(rule, above, units)
+    if unit is None:
+        return None
+    questions: list[Question] = []
+    for _, q in rule_questions(rule):
+        pieces = _split_question(q) if _conditions_asked(_facts(q.condition), unit) >= 2 else None
+        if pieces and all(any(_covers(_facts(p.condition), f) for _, f in unit.clauses) for p in pieces):
+            questions.extend(pieces)
+        else:
+            questions.append(q)
+    if len(questions) == len(rule_questions(rule)):
+        return None
+    new = _as_rule(rule, questions)
+    if _clause_dropped(new, above, units, sentence_tokens) is not None or not any(
+            all(_alt_covers(a, f) for _, f in unit.clauses) for a in _alternatives(new, above)):
+        return None
+    return new
+
+
+def _rejoined(rule: TranslatedRule) -> TranslatedRule:
+    """An AND rule with each question that refers back to an earlier one ("does that tower have this bot's minions in its
+    range?") joined onto it with "and": answered alone it has nothing to refer to. Any other rule comes back as it came."""
+    if not rule.all_of or not any(_BACK_REFERENCE.search(q.condition) for q in rule.all_of[1:]):
+        return rule
+    out = [rule.all_of[0]]
+    for q in rule.all_of[1:]:
+        if _BACK_REFERENCE.search(q.condition):
+            p = out.pop()
+            q = Question(f"{p.condition.rstrip(' ?')} and {q.condition}", f"{p.criteria_true} and {q.criteria_true}",
+                         f"{p.criteria_false} or {q.criteria_false}")
+        out.append(q)
+    return _as_rule(rule, out)
+
+
 def enforce_clause_coverage(schema: TranslatedSchema, pilot_text: str, drop: bool = False, removed: tuple = ()) -> TranslatedSchema:
     """vocab-2 only (vocab-1 gets `schema` back). For a rule anywhere in the tree that states only part of a
     condition its prose sentence states (`_clause_dropped`), or a condition of two or more clauses no rule
@@ -2032,7 +2350,11 @@ def enforce_clause_coverage(schema: TranslatedSchema, pilot_text: str, drop: boo
     (`translate_pilot`'s last attempt) every such rule is removed instead, and every such condition named,
     each with a `clause coverage:` note the entrant sees; it raises only if nothing would be left at the root.
     `removed` is what earlier attempts' repairs took out, so a condition still unstated at the end is noted
-    with the rule that failed it. A schema whose rules are all faithful is returned as it came."""
+    with the rule that failed it. A schema whose rules are all faithful is returned as it came, but with each
+    rule asking one question per condition (AND NODE): a question that joins two of a condition's clauses is
+    split (`_split_compound`), and a question of an AND rule that refers back to another is joined to it
+    (`_rejoined`). A clause is stated when ONE question of the rule asks all of it (with the guard questions above
+    it), so an AND rule is held to its sentence clause by clause."""
     if schema.vocab != VOCAB_2:
         return schema
     sentences = _prose_sentences(pilot_text)
@@ -2041,8 +2363,9 @@ def enforce_clause_coverage(schema: TranslatedSchema, pilot_text: str, drop: boo
         return schema
     sentence_tokens = [_tokenize(s) for s in sentences]
     found: list[tuple[TranslatedRule, _Unit, list[str]]] = []
-    stated: list[_Facts] = []  # what each kept rule's "or" alternatives ask
+    stated: list[tuple[_Facts, ...]] = []  # what each kept rule's alternatives ask, question by question
     numbers_lost: list[frozenset] = []
+    reshaped = [False]  # a rule was split or joined
 
     def walk(cascade: Cascade, above: _Facts | None) -> Cascade:
         nodes: list[Node] = []
@@ -2052,14 +2375,21 @@ def enforce_clause_coverage(schema: TranslatedSchema, pilot_text: str, drop: boo
                 nodes.append(dataclasses.replace(node, then=walk(node.then, _merge(above, yes) if above else yes),
                                                  else_=walk(node.else_, _merge(above, no) if above else no)))
                 continue
+            joined = _rejoined(node)
+            if joined is not node:
+                node, reshaped[0] = joined, True
             unit = _clause_dropped(node, above, units, sentence_tokens)
             if unit is None:
+                split = _split_compound(node, above, units, sentence_tokens)
+                if split is not None:
+                    node, reshaped[0] = split, True
                 nodes.append(node)
-                stated.extend(_merge(_facts(p), above) if above else _facts(p) for p in _or_parts(node.condition))
+                stated.extend(_alternatives(node, above))
                 continue
-            asked = _merge(_facts(node.condition), above) if above else _facts(node.condition)
-            found.append((node, unit, [c for c, f in unit.clauses if not _covers(asked, f)]))
-            numbers_lost.extend(f.numbers - asked.numbers for _, f in unit.clauses if f.numbers - asked.numbers)
+            whole = _whole(node, above)
+            found.append((node, unit, [c for c, f in unit.clauses if not _alt_covers(whole, f)]))
+            asked_numbers = frozenset().union(*(f.numbers for f in whole))
+            numbers_lost.extend(f.numbers - asked_numbers for _, f in unit.clauses if f.numbers - asked_numbers)
         return Cascade(nodes=tuple(nodes), default=cascade.default)
 
     new_root = walk(schema.root, None)
@@ -2069,10 +2399,10 @@ def enforce_clause_coverage(schema: TranslatedSchema, pilot_text: str, drop: boo
 
     taken_out = {key(u) for _, u, _ in found}
     missing = list({key(u): u for u in units if len(u.clauses) >= 2 and key(u) not in taken_out
-                    and not any(all(_covers(a, f) for _, f in u.clauses) for a in stated)}.values())
+                    and not any(all(_alt_covers(a, f) for _, f in u.clauses) for a in stated)}.values())
     earlier = {k: (rule, left_out) for k, rule, left_out in reversed(removed)}  # the first rule an earlier repair took out
     if not found and not missing:
-        return schema
+        return dataclasses.replace(schema, root=new_root, rules=()) if reshaped[0] else schema
 
     def flat(i: int) -> str:
         return " ".join(sentences[i].split())
@@ -2089,8 +2419,8 @@ def enforce_clause_coverage(schema: TranslatedSchema, pilot_text: str, drop: boo
             """The sentence a kept root rule states: the first condition it meets in full, or its own sentence."""
             if not isinstance(n, TranslatedRule):
                 return None
-            asked = _facts(n.condition)
-            full = [u.sentence for u in units if all(_covers(asked, f) for _, f in u.clauses)]
+            whole = _whole(n)
+            full = [u.sentence for u in units if all(_alt_covers(whole, f) for _, f in u.clauses)]
             return min(full) if full else _own_sentence(n, sentence_tokens)[2]
 
         def slot(u: _Unit) -> int:
@@ -2104,8 +2434,8 @@ def enforce_clause_coverage(schema: TranslatedSchema, pilot_text: str, drop: boo
 
         err = SchemaValidationError(
             "a rule leaves out a condition its prose sentence states, or splits the sentence into rules that each check only "
-            "part of it, or no rule states it at all. Write ONE rule for each sentence below, whose question asks every one of "
-            'its conditions, joined by "and", and no other rule that asks only some of them: '
+            "part of it, or no rule states it at all. Write ONE rule for each sentence below that asks every one of its "
+            'conditions -- with "all", one question for each condition -- and no other rule that asks only some of them: '
             + "; ".join(f'{listed(c for c, _ in unit.clauses)} -- "{flat(unit.sentence)[:200]}"' for unit in wanted)
             + (". Keep each number exactly as the prose writes it: a plain number is an amount, and only \"%\", \"half\" or "
                "\"a third\" is a share of the maximum" if numbers_lost else "")
@@ -2146,10 +2476,11 @@ class _Repair:
 
 def _spliced(repair: _Repair, data, reply: str, vocab: str, map_=None) -> TranslatedSchema:
     """`repair.kept` with, at each wanted condition's slot, the first plain rule of `data` (the next reply, which
-    rewrites the whole schema) that asks all of that condition. Nothing else of the reply is used: a full rewrite
-    after a rejection drops rules the rejected reply had right, and showing the model the kept rules instead made it
-    copy them and leave the wanted rule out (runs/vocab2-clause-coverage-2026-10-02.md §3). A wanted condition no
-    rule of the reply states stays missing, for the guard to name again."""
+    rewrites the whole schema) that asks all of that condition, clause by clause (an AND rule's questions together).
+    Nothing else of the reply is used: a full rewrite after a rejection drops rules the rejected reply had right, and
+    showing the model the kept rules instead made it copy them and leave the wanted rule out
+    (runs/vocab2-clause-coverage-2026-10-02.md §3). A wanted condition no rule of the reply states stays missing, for
+    the guard to name again."""
     rules = data.get("rules") if isinstance(data, dict) and isinstance(data.get("rules"), list) else []
     plain = [r for r in rules if isinstance(r, dict) and r.get("type") != "guard" and "then" not in r and "else" not in r]
     raw, target_notes = normalize_targets({"rules": plain, "default_action": None}, vocab)
@@ -2159,9 +2490,9 @@ def _spliced(repair: _Repair, data, reply: str, vocab: str, map_=None) -> Transl
             rule = _parse_node(r, i, vocab, map_)
         except ValueError:
             continue
-        parts = [_facts(p) for p in _or_parts(rule.condition)]
+        alts = _alternatives(rule)
         k = next((k for k, u in enumerate(repair.wanted)
-                  if k not in taken and any(all(_covers(a, f) for _, f in u.clauses) for a in parts)), None)
+                  if k not in taken and any(all(_alt_covers(a, f) for _, f in u.clauses) for a in alts)), None)
         if k is not None:
             taken[k] = rule
     ids = {n.id for n in collect_nodes(repair.kept.root)}
@@ -2365,7 +2696,7 @@ def display_rows(root: Cascade) -> list[dict]:
                         "branch": branch_ctx,
                         "kind": "rule",
                         "node": node,
-                        "condition": node.condition,
+                        "condition": display_condition(node),
                         "then": _describe_action(node.action_kind, node.action_ability, node.action_target_selector),
                     }
                 )

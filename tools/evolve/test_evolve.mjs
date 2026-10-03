@@ -738,3 +738,16 @@ test('defaults carry the budget rulings: $15 for epoch 1, $25 in all, two epochs
   assert.equal(Date.parse(b.blackouts[0].start), Date.parse('2026-10-16T05:00:00Z'));
   assert.doesNotMatch(DEFAULT_CAMPAIGN.jevSchemaEndpoint, /:8797\//);
 });
+
+test('diagnosticsFor: a vocab-2 AND rule lists each of its questions (tools/jev/translator.py AND NODE)', () => {
+  const { store, cleanup } = tempStore();
+  try {
+    const rule = { id: 'shop', all: [{ condition: 'can this bot afford its next item?' }, { condition: 'is no enemy in sight?' }], action_kind: 'move' };
+    const schema = { rules: [rule], default_action: { kind: 'move' } };
+    const instruments = Object.fromEntries(['drums', 'keytar', 'violin'].map((i) => [i, { ok: true, schema }]));
+    store.writeJson('compiled/p1.json', { prompts: [{ instruments }] });
+    assert.match(diagnosticsFor(store, 'p1', 0), /shop: if can this bot afford its next item\? AND is no enemy in sight\? -> move/);
+  } finally {
+    cleanup();
+  }
+});

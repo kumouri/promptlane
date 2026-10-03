@@ -58,8 +58,10 @@ from translator import (  # noqa: E402
     TranslatedSchema,
     collect_nodes,
     evaluate_schema,
+    node_answers,
     parse_schema,
     render_markdown,
+    schema_questions,
     translate_pilot,
 )
 
@@ -569,16 +571,20 @@ def _bandstand_lines(obs: dict) -> list[str]:
 
 
 def run_prediction(client, schema: TranslatedSchema, obs: dict, targeting: str = DEFAULT_TARGETING, map_: str | dict | None = None) -> dict:
-    """One systemone call, EVERY node's condition anywhere in the tree batched together (spec §2.2:
+    """One systemone call, EVERY question anywhere in the tree batched together (spec §2.2:
     "evaluation stays one systemone call per decision" no matter how deep the tree gets --
     `translator.collect_nodes`), then the tree-walk in Python (`translator.evaluate_schema`) --
     same posture as `rules.first_match` and as house-violet.md's own prose ("Take the FIRST rule
     that matches"), generalized to guards. For a schema with zero guards this is exactly the old
     flat first-match behavior; `all_nodes == schema.rules` in that case. The winning rule's target
     resolves under `targeting` (`target_resolve.TARGETING_RULES`). The description and the target
-    are both in the schema's own vocabulary (`schema.vocab`, `vocab.py`), on the match's `map_`."""
-    all_nodes = collect_nodes(schema.root)
-    questions = [BoundQuestion(n.id, n.condition, {"true": n.criteria_true, "false": n.criteria_false}) for n in all_nodes]
+    are both in the schema's own vocabulary (`schema.vocab`, `vocab.py`), on the match's `map_`.
+
+    A vocab-2 AND rule (`translator` AND NODE) asks each of its questions as its own `noul`, ids `<rule>.1`,
+    `<rule>.2`, ...; each passes at the same `> 0.5` a one-question rule does, and the rule matches only when
+    every one passes. `per_question` is keyed by question id, so it names each of them."""
+    asked = schema_questions(schema.root)  # an AND rule asks each of its questions (`translator` AND NODE)
+    questions = [BoundQuestion(qid, q.condition, {"true": q.criteria_true, "false": q.criteria_false}) for qid, q in asked]
     state = describe_observation(obs, schema.vocab, map_)
     start = time.perf_counter()
     # Which Jev door answered: `FallbackJevClient` says per call; any other client is one door.
@@ -591,15 +597,17 @@ def run_prediction(client, schema: TranslatedSchema, obs: dict, targeting: str =
     usage = response.get("usage", {})
 
     per_question = {}
-    bool_answers = {}
-    for n in all_nodes:
-        cell = answers.get(n.id)
+    question_answers = {}
+    for qid, _ in asked:
+        cell = answers.get(qid)
         if cell is None or "noul" not in cell:
-            raise ValueError(f"systemone response missing a noul answer for {n.id!r}: {response!r}")
+            raise ValueError(f"systemone response missing a noul answer for {qid!r}: {response!r}")
         val = cell["noul"]
         answered = val > 0.5
-        per_question[n.id] = {"noul": val, "answered": answered}
-        bool_answers[n.id] = answered
+        per_question[qid] = {"noul": val, "answered": answered}
+        question_answers[qid] = answered
+    # Each question passes or fails alone at the one threshold; an AND rule matches when all of its pass (no product).
+    bool_answers = node_answers(schema.root, question_answers)
 
     guard_trace: list[dict] = []
     result_action = evaluate_schema(schema, bool_answers, trace=guard_trace)
