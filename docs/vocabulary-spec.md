@@ -754,3 +754,32 @@ server that doesn't list it (`jevSchemaPilot.towerAggroUnsupported`): an older s
 the tower shoots minions first. The translator prompt doesn't list the fact yet (`facts_for` is
 unchanged). A compile doesn't know the match's tower rule, and two translator jobs were open in
 `translator.py` when this landed.
+
+### 8.14 A map with base towers states them, and offers `enemy_base_tower`
+
+(§8.13 is left for `fix/vocab2-rule-order`, open when this landed.)
+
+A map with base towers (`pvp-1-hp300-base700`, `pvp-2-hp400-base950`; `src/baseTower.ts`;
+[`runs/bots-push-to-base-2026-10-02.md`](../runs/bots-push-to-base-2026-10-02.md)) puts `baseTowers` in
+the observation: both base towers, map-wide, each with its hp and `canBeHit`. `canBeHit` is the rule the
+sim applies (`BaseTowers.vulnerable`: one of that team's inner towers is down), so the description and
+the sim can't disagree. vocab-2 states it only when the observation carries it, so every other
+description is unchanged; vocab-1 never does (`fidelity_harness._base_tower_lines`, `vocab.FACTS_BASE`,
+lead "base tower"):
+- "The enemy base tower tw-13 can be hit now: one of their inner towers is down. It has 412/700 hp, at
+  (829,171), 183 units away, and destroying it wins the match." Or: "…can't be hit yet: it takes no
+  damage until one of their inner towers is down. It is at (829,171), 183 units away."
+- "Your base tower tw-12 can be hit now: one of your inner towers is down. It has 700/700 hp, and if it
+  falls your team loses." Or "…can't be hit yet…".
+- The base tower's own line in the tower facts says so: "Enemy tower tw-13 (mid, base tower, 700/700
+  hp)…". A protected base tower reads full hp, because its damage is undone every tick.
+
+A compile told such a map (`compile.py --map pvp-1-hp300-base700`, vocab-2 only) is offered the fact
+and one target, `enemy_base_tower`: the enemy base tower's id, wherever it is. The sim's `attack` walks
+to it from anywhere. The schema records the map. Without `--map`, or with any other map, the prompt and
+the parse are byte for byte what they were. On `pvp-2-hp400-base950`, `tp_lane_tower` never picks a
+base tower (it is no lane's tower).
+
+`/health` says `"base_towers": true`. A match on such a map refuses a schema server that doesn't
+(`jevSchemaPilot.baseTowerUnsupported`): an older server would leave the status out, so a push-to-base
+rule could never fire.

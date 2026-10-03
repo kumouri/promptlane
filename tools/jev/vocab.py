@@ -50,13 +50,20 @@ MAPS = {
     "pvp-2": (160, (0.16, 0.35)),
     "pvp-1-hp400": (160, (0.16, 0.30)),  # pvp-1's towers at lower hp; hp is in the observation, not here
     # pvp-1's lane towers at lower hp plus a base tower per team (src/baseTower.ts). The base tower is in the
-    # observation's own tower list like any tower, so nothing here needs it.
+    # observation's own tower list like any tower, and its status in the observation's `baseTowers`
+    # (`BASE_TOWER_MAPS` below), so nothing here needs its numbers.
     "pvp-1-hp300-base700": (160, (0.16, 0.30)),
+    "pvp-2-hp400-base950": (160, (0.16, 0.35)),  # pvp-2's towers at lower hp plus the base tower
 }
 # src/mapVariant.ts: a variant's `scale` and `laneTowerFractions`, for the maps that have them.
 MAP_GEOMETRY = {
     "pvp-2": (1.33, {"mid": (0.16, 0.375)}),
+    "pvp-2-hp400-base950": (1.33, {"mid": (0.16, 0.375)}),
 }
+# The maps that bring pvp-2's teleport and speed boost, and the maps with a base tower whose fall wins
+# (src/mapVariant.ts `teleport`, `baseTower`).
+TELEPORT_MAPS = ("pvp-2", "pvp-2-hp400-base950")
+BASE_TOWER_MAPS = ("pvp-1-hp300-base700", "pvp-2-hp400-base950")
 # src/sim/map.ts BASE and LANE_PATHS: the specimen's 1000 x 1000 world, violet base -> green base.
 SPECIMEN_BASE = {"violet": (100, 900), "green": (900, 100)}
 SPECIMEN_LANE_PATHS = {
@@ -330,13 +337,33 @@ FACTS_AGGRO = (
 )
 
 
+# What a map with a base tower adds (`src/baseTower.ts`; runs/bots-push-to-base-2026-10-02.md). The
+# description states it only when the observation carries `baseTowers`, and a compile lists it only when
+# it is told such a map (`compile.py --map pvp-1-hp300-base700`), so every other prompt and description is
+# unchanged. "Can be hit" is the sim's own rule (`BaseTowers.vulnerable`), sent in the observation.
+FACTS_BASE = (
+    Fact("base_towers", "both base towers, map-wide (destroying the enemy's wins the match, losing this bearbot's own loses it): "
+         "whether each can be hit now (a base tower takes no damage until one of its team's inner towers is down), its hp, "
+         "and the enemy's distance from this bearbot", "base tower", when="the map has base towers"),
+)
+
+
 def map_has_teleport(map_: str | dict | None) -> bool:
     """Whether a compile's map brings the teleport (and the speed boost): pvp-2's do."""
     if isinstance(map_, dict):
         return bool(map_.get("teleport"))
-    return map_ == "pvp-2"
+    return map_ in TELEPORT_MAPS
+
+
+def map_has_base_tower(map_: str | dict | None) -> bool:
+    """Whether a compile's map has a base tower whose fall wins (`src/baseTower.ts`)."""
+    if isinstance(map_, dict):
+        return bool(map_.get("baseTower"))
+    return map_ in BASE_TOWER_MAPS
 
 
 def facts_for(vocab: str, map_: str | dict | None = None) -> tuple[Fact, ...]:
     facts = FACTS[resolve_vocab(vocab)]
-    return facts + FACTS_PVP2 if facts and map_has_teleport(map_) else facts
+    if not facts:
+        return facts
+    return facts + (FACTS_PVP2 if map_has_teleport(map_) else ()) + (FACTS_BASE if map_has_base_tower(map_) else ())

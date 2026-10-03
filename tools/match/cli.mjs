@@ -52,10 +52,11 @@ options:
                       v1 (the specimen map), pvp-1r, pvp-1-hp400 (pvp-1 with outer towers at 400 hp
                       and inner at 600, opt-in), pvp-1-hp300-base700 (towers at 300 / 500 and a
                       700-hp base tower in front of each nexus that wins when it falls, opt-in;
-                      src/baseTower.ts), or pvp-2 (opt-in: the world x1.33, new tower
+                      src/baseTower.ts), pvp-2 (opt-in: the world x1.33, new tower
                       spots, an out-of-base speed boost and a teleport to a friendly tower; needs
                       the simultaneous-1 resolution, and is meant to be played with --recall
-                      recall-2); recorded in the log, applied on --verify
+                      recall-2), or pvp-2-hp400-base950 (pvp-2 with towers at 400 / 700 and a
+                      950-hp base tower, opt-in); recorded in the log, applied on --verify
   --economy NAME      economy ruleset (src/economy.ts): eco-2 (the tuned one), eco-3 (§13.6's
                       pass on it), eco-3-late (eco-3 plus recipes, tier-3 upgrades and levels to 8;
                       docs/late-game-economy-spec.md), eco-1 (P1's starting values), respawn-1, or none (the default until the go/no-go gate, docs/arena-runbook.md §6). Respawn, gold, levels, items; each schema side buys the
@@ -218,7 +219,8 @@ async function main() {
   const unsupported = jevBackend
     ? headless.targetingUnsupported(jevBackend.health, targeting) ??
       headless.vocabUnsupported(jevBackend.health, vocabs) ??
-      headless.towerAggroUnsupported(jevBackend.health, towerAggro?.name ?? null)
+      headless.towerAggroUnsupported(jevBackend.health, towerAggro?.name ?? null) ??
+      headless.baseTowerUnsupported(jevBackend.health, map)
     : null;
   if (unsupported) throw new Error(`${args.jevSchema}: ${unsupported}`);
   const decisionPilotFor = jevBackend

@@ -126,6 +126,21 @@ export const PVP_BASE_TOWER_MAP: MapVariant = {
   baseTower: { hp: 700, standoff: 100, needsInnerDown: true },
 };
 
+/**
+ * pvp-2 with pvp-1-hp300-base700's base-tower rule (opt-in, 2026-10-02; Ceryce: "we should try it on
+ * pvp-2"). pvp-2's layout, boost and teleport, with outer towers 400, inner 700 and a 950-hp base
+ * tower 100 units (× 1.33) in front of each nexus, damageable once one of its team's inner towers
+ * has fallen. The hp are pvp-1-hp300-base700's × 1.37: on #88's 20 matches re-played on pvp-2 by #91,
+ * slot for slot, the weakest outer tower lost a median 1.37× as much by 7:59, and outer 400 drops a
+ * tower before 8:00 in 16 of 20 there, as 300 does on pvp-1. See runs/bots-push-to-base-2026-10-02.md §0.3.
+ */
+export const PVP_2_BASE_TOWER_MAP: MapVariant = {
+  ...PVP_2_MAP,
+  name: 'pvp-2-hp400-base950',
+  towerHp: [700, 400],
+  baseTower: { hp: 950, standoff: 100, needsInnerDown: true },
+};
+
 export const MAP_VARIANTS: Record<string, MapVariant> = {
   [SPECIMEN_MAP.name]: SPECIMEN_MAP,
   [PVP_MAP.name]: PVP_MAP,
@@ -133,6 +148,7 @@ export const MAP_VARIANTS: Record<string, MapVariant> = {
   [PVP_2_MAP.name]: PVP_2_MAP,
   [PVP_TOWER_HP_MAP.name]: PVP_TOWER_HP_MAP,
   [PVP_BASE_TOWER_MAP.name]: PVP_BASE_TOWER_MAP,
+  [PVP_2_BASE_TOWER_MAP.name]: PVP_2_BASE_TOWER_MAP,
 };
 
 /**
