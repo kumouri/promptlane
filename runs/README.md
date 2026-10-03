@@ -99,6 +99,12 @@ spots, a speed boost and a teleport, with couriers deferred. It is measured agai
 20 matches on Jev, pre-registered, plus teleport and drift blocks: 42 matches, $4.61. The logs and the
 stand-in kit are on the
 [`data-pvp-2-2026-10-02`](https://github.com/kumouri/promptlane/releases/tag/data-pvp-2-2026-10-02)
+prerelease), and
+[remove-token-caps-2026-10-02.md](remove-token-caps-2026-10-02.md) (every token cap on the
+prose-to-Jev path removed: house-hard-eco 0/12 → 12/12 on the local 9B, $0, no runaway in 375
+replies, and the two fidelity defects whole long compiles now show. Replies, probes and scripts are
+on the
+[`data-remove-token-caps-2026-10-02`](https://github.com/kumouri/promptlane/releases/tag/data-remove-token-caps-2026-10-02)
 prerelease).
 The bulky captures those documents hash live under ignored `artifacts/<run>-evidence/` and
 `artifacts/<run>-reviewed/`.

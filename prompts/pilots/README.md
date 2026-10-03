@@ -107,7 +107,8 @@ home when no rule applied, and dealt a third of medium's structure damage. Only
 - **The fallback pushes the lane** (`push_lane`) instead of going home.
 - **How the schemas changed.** The edited prose was compiled three times with `compile.py --backend
   ollama`, with the Bandstand paragraph left out. Those rules are the plain tier's, spliced byte for
-  byte, and with them the cascade overruns the translator's 1,800-token reply. From the first
+  byte, and with them the cascade overran the translator's 1,800-token reply. That cap was removed
+  on 2026-10-02 (`runs/remove-token-caps-2026-10-02.md`), and the whole prose now compiles. From the first
   sample, the low-hp pair, the 480-second rule, the one-minion tower rule and the root default were
   taken. Every other rule object is byte for byte. All three samples compiled the same rules.
 - **On Jev, pre-registered (Final Chorus on): hard won all 14 decided medium–hard matches of 18**,

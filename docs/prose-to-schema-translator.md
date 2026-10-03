@@ -171,6 +171,11 @@ compute — wall-clock and token counts are still measured; see §4.1). *(2026-0
 without a GPU, `tools/jev/compile.py --backend openrouter` runs the same translation on the same
 model hosted, `qwen/qwen3.5-9b`, ≈$0.0006 per three-instrument compile — see
 [`entrant-compile-preview.md`](entrant-compile-preview.md).)*
+*(2026-10-02: no token caps. Ceryce ruled at 17:59 CT: "Get rid of any fucking token caps." A reply
+is no longer cut at 1,800 tokens, and no compile is refused for its token total. vocab-1 alone keeps
+the 1,800 it was measured with, so its request is byte-identical. A reply that never ends is stopped
+by a wall-clock timeout instead (`tools/jev/llm_backends.py`). Evidence:
+[`runs/remove-token-caps-2026-10-02.md`](../runs/remove-token-caps-2026-10-02.md).)*
 
 **Target vocabulary — the one place prose nuance is deliberately flattened.** Jev's questions judge
 *conditions*, but nothing in this pipeline asks Jev to pick *which entity*. Once a rule fires, its
