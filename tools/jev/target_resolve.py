@@ -41,7 +41,9 @@ Under vocab-1 it reads `visibleEnemies` as it always has.
 
 Map targets, vocab-2 only: pvp-2's teleport has two (`PVP2_SELECTORS`), and a map with base towers
 has `enemy_base_tower` (`BASE_SELECTORS`), the enemy base tower's id from the observation's
-`baseTowers`, which lists it map-wide, so an `attack` on it walks there from anywhere."""
+`baseTowers`, which lists it map-wide, so an `attack` on it walks there from anywhere. On such a map,
+`nearest_tower` with no enemy tower listed is that base tower once it can be hit, not nothing (the
+vocabulary spec's §8.14)."""
 from __future__ import annotations
 
 import sys
@@ -265,7 +267,13 @@ def _resolve_vocab2(selector: str, obs: dict, targeting: str, spec: MapSpec) -> 
         towers = [e for e in enemies if e.get("kind") in ("tower", "nexus")]
         seen = {e["id"] for e in towers}
         towers += [f.tower for f in tower_facts(obs, spec) if not f.own and f.tower.get("alive", True) and f.tower["id"] not in seen]
-        return nearest(towers)["id"] if towers else None
+        if towers:
+            return nearest(towers)["id"]
+        # A base-tower map with none listed: the description still names one enemy tower, the base tower, and once
+        # it can be hit Jev reads "an enemy tower in sight?" as yes (6 of 6 such states; runs/bots-push-to-base-
+        # 2026-10-02.md §1.5). That tower, not nothing: an `attack` walks to it.
+        enemy_base = (obs.get("baseTowers") or {}).get("enemy")
+        return enemy_base["id"] if enemy_base and enemy_base.get("alive", True) and enemy_base.get("canBeHit") else None
     if selector == "nearest_ally":
         allies = obs.get("allies", [])
         if allies:

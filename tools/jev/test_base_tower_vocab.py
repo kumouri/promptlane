@@ -124,6 +124,17 @@ class Target(unittest.TestCase):
         with self.assertRaises(ValueError):
             resolve_target("enemy_base_tower", obs(baseTowers=base_block()), "own-lane-1", VOCAB_1, MAP)
 
+    def test_nearest_tower_with_none_listed_is_the_open_enemy_base_tower(self):
+        # §1.5: with the base tower open, "is an enemy tower in sight?" read yes with none listed; the rule gets that tower
+        self.assertEqual(resolve_target("nearest_tower", obs(baseTowers=base_block(enemy_open=True)), "own-lane-1", VOCAB_2, MAP), "tw-13")
+        self.assertIsNone(resolve_target("nearest_tower", obs(baseTowers=base_block()), "own-lane-1", VOCAB_2, MAP), "shut: nothing, as before")
+        self.assertIsNone(resolve_target("nearest_tower", obs(), "own-lane-1", VOCAB_2, "pvp-1"), "no base towers: nothing, as before")
+        lane_tower = {"id": "tw-9", "team": "green", "lane": "mid", "pos": P(772, 228), "hp": 500, "maxHp": 500, "alive": True}
+        self.assertEqual(resolve_target("nearest_tower", obs(nearbyTowers=[lane_tower], baseTowers=base_block(enemy_open=True)), "own-lane-1",
+                                        VOCAB_2, MAP), "tw-9", "a listed tower still wins")
+        self.assertIsNone(resolve_target("nearest_tower", obs(baseTowers=base_block(enemy_open=True)), "own-lane-1", VOCAB_1, MAP),
+                          "vocab-1 reads visibleEnemies only, as it always has")
+
     def test_tp_lane_tower_never_picks_a_base_tower(self):
         towers = [{"id": "tw-12", "lane": "mid", "tier": 3, "hp": 950, "maxHp": 950, "enemyBearbots": 0},
                   {"id": "tw-5", "lane": "mid", "tier": 1, "hp": 700, "maxHp": 700, "enemyBearbots": 0}]

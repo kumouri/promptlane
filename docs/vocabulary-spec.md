@@ -779,6 +779,12 @@ lead "base tower"):
 - The base tower's own line in the tower facts says so: "Enemy tower tw-13 (mid, base tower, 700/700
   hp)…". A protected base tower reads full hp, because its damage is undone every tick.
 
+**`nearest_tower` with none listed:** on such a map, once the enemy base tower can be hit, Jev reads "is
+an enemy tower in sight?" as yes even with none within 390 (6 of 6 such states, the run's §1.5). So a
+vocab-2 `nearest_tower` that finds no enemy tower listed resolves to the enemy base tower when it can be
+hit, the one enemy tower the description names, instead of to nothing. Shut, or on any other map, it is
+nothing, as before.
+
 A compile told such a map (`compile.py --map pvp-1-hp300-base700`, vocab-2 only) is offered the fact
 and one target, `enemy_base_tower`: the enemy base tower's id, wherever it is. The sim's `attack` walks
 to it from anywhere. The schema records the map. Without `--map`, or with any other map, the prompt and
