@@ -184,11 +184,16 @@ enemy bearbot):
 
 ### 1.1 What is compared
 
-- **Code:** `feat/map-nexus-guard` at this commit.
+- **Code:** `feat/map-nexus-guard` at this commit (develop with #94 and #95 merged in).
 - **Sides:** #93's, byte for byte (schema hashes match the logs):
   - `entrant3` = `sample-entrant-siege`;
   - `medium` = `house-medium-eco`;
-  - `easy` and `hard` = today's eco schemas.
+  - `easy` = `house-easy-eco`;
+  - `hard` = #93's `house-hard-eco`, schemas `b95e59ca`.
+    - #94 merged into develop while this job ran and replaced that schema with hard3.
+    - This branch merges develop. So the paid runner reads #93's hard from the schemas and prose that
+      block T's log recorded, not from `prompts/pilots/`. The other three still read from
+      `prompts/pilots/`, unchanged by #94/#95.
 - **Slots, every block:** #90 §4's block M = #93's block T, slot for slot (violet–green, seed):
   - entrant3–medium 3, 7;
   - medium–entrant3 3, 7;
