@@ -82,6 +82,19 @@ export function vocabUnsupported(health: { vocabs?: unknown } | null | undefined
     : null;
 }
 
+/**
+ * Why a schema server's /health says it can't describe the tower aggro rule `name`
+ * (`src/towerAggro.ts`), or null when it can or the match has none. A server from before the rule
+ * would leave Jev's description saying an enemy tower shoots minions first while it shoots this bot.
+ */
+export function towerAggroUnsupported(health: { tower_aggro?: unknown } | null | undefined, name: string | null): string | null {
+  if (!name) return null;
+  const known = Array.isArray(health?.tower_aggro) ? (health.tower_aggro as string[]) : [];
+  return known.includes(name)
+    ? null
+    : `the schema server doesn't describe tower aggro ${name} (it knows: ${known.join(', ') || 'none'}); restart tools/jev/schema_server.py from this checkout`;
+}
+
 export interface JevSchemaPilotConfig {
   /** The schema-server endpoint, e.g. http://127.0.0.1:8797/ */
   endpoint: string;

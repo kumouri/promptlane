@@ -30,6 +30,7 @@ from one that played it.
                       "avg_seconds", "tokens_in", "cost_usd", "budget_usd", "jev_backend",
                       "targeting": [the rules this server resolves],
                       "vocabs": [the vocabularies this server plays],
+                      "tower_aggro": [the tower aggro rules its vocab-2 description states],
                       "token_source", "token_expires_in_sec", "token_renewals",
                       "jev_fallback_*" (typesafe only)}
     POST /        body: {"schema": <compile.py schema JSON>, "observation": <Observation>,
@@ -93,7 +94,7 @@ from client import (  # noqa: E402
 from compile import schema_from_dict  # noqa: E402
 from fidelity_harness import DumbStubJevClient, run_prediction  # noqa: E402
 from target_resolve import TARGETING_FIRST_MIN, TARGETING_RULES  # noqa: E402
-from vocab import VOCABS, map_spec, resolve_vocab  # noqa: E402
+from vocab import TOWER_AGGRO_RULES, VOCABS, map_spec, resolve_vocab  # noqa: E402
 from local_http import BurstTolerantHTTPServer  # noqa: E402
 
 DEFAULT_PORT = 8797
@@ -165,6 +166,7 @@ class JevSchemaBackend:
                 "budget_usd": self.budget_usd,
                 "targeting": list(TARGETING_RULES),
                 "vocabs": list(VOCABS),
+                "tower_aggro": list(TOWER_AGGRO_RULES),
             }
         snap.update(client_status(self.client))
         return snap

@@ -24,6 +24,7 @@ import { attachRecall, resolveRecall, type RecallRules } from './recall';
 import { attachResolution, resolveResolution } from './resolution';
 import { attachMapRules } from './mapRules';
 import { attachFinale, resolveFinale, type FinaleRules } from './finale';
+import { attachTowerAggro, resolveTowerAggro, type TowerAggroRules } from './towerAggro';
 import {
   JAM_ROSTER,
   ReplayPilot,
@@ -60,6 +61,8 @@ export interface LiveMeta {
   resolution?: string;
   /** The log's finale (`src/finale.ts`); absent = none, the match runs to 10:00. */
   finale?: FinaleRules;
+  /** The log's tower aggro rule (`src/towerAggro.ts`); absent = the specimen's towers. */
+  towerAggro?: TowerAggroRules;
   backend: Record<string, unknown>;
   sides: Record<Team, LogSide>;
   createdAt?: string;
@@ -146,7 +149,7 @@ export class LiveFeed {
   /** A finished log, loaded whole: everything is known up front. */
   static fromLog(log: MatchLog): LiveFeed {
     const f = new LiveFeed();
-    f.apply({ event: 'meta', data: { seed: log.seed, tickDt: log.tickDt, cadenceSec: log.cadenceSec, idBase: log.idBase, ...(log.map ? { map: log.map } : {}), ...(log.economy ? { economy: log.economy } : {}), ...(log.objective ? { objective: log.objective } : {}), ...(log.recall ? { recall: log.recall } : {}), ...(log.resolution ? { resolution: log.resolution } : {}), ...(log.finale ? { finale: log.finale } : {}), backend: log.backend, sides: log.sides, createdAt: log.createdAt, finished: true } });
+    f.apply({ event: 'meta', data: { seed: log.seed, tickDt: log.tickDt, cadenceSec: log.cadenceSec, idBase: log.idBase, ...(log.map ? { map: log.map } : {}), ...(log.economy ? { economy: log.economy } : {}), ...(log.objective ? { objective: log.objective } : {}), ...(log.recall ? { recall: log.recall } : {}), ...(log.resolution ? { resolution: log.resolution } : {}), ...(log.finale ? { finale: log.finale } : {}), ...(log.towerAggro ? { towerAggro: log.towerAggro } : {}), backend: log.backend, sides: log.sides, createdAt: log.createdAt, finished: true } });
     for (const d of log.decisions) f.apply({ event: 'decision', data: d });
     for (const c of log.checkpoints) f.apply({ event: 'checkpoint', data: c });
     f.apply({ event: 'result', data: log.result });
@@ -171,7 +174,7 @@ class CountingPilot implements Pilot {
 
 /**
  * Build the match for a feed: six `ReplayPilot`s over the feed's buffers, with the log's map
- * variant, tick resolution, recall rule, river objective, economy and finale applied in the runner's order. `onDecision` receives each
+ * variant, tick resolution, tower aggro, recall rule, river objective, economy and finale applied in the runner's order. `onDecision` receives each
  * non-cached decision as the sim consumes it (for the side panel's "last reply").
  */
 export function buildMatch(feed: LiveFeed, onDecision?: (botIndex: number, decision: LogDecision, action: Action) => void): { match: Match; asks: { count: number } } {
@@ -197,10 +200,12 @@ export function buildMatch(feed: LiveFeed, onDecision?: (botIndex: number, decis
   match = new Match(meta.seed, roster);
   const map = resolveMap(meta.map);
   applyMapVariant(match, map);
-  // map, then resolution, then the map's own layers, then recall, then objective, then economy, then finale, exactly as the runner does; a log without one attaches nothing
+  // map, then resolution, then the map's own layers, then tower aggro, then recall, then objective, then economy, then finale, exactly as the runner does; a log without one attaches nothing
   const resolution = resolveResolution(meta.resolution);
   attachResolution(match, resolution);
   attachMapRules(match, map, resolution);
+  const towerAggro = resolveTowerAggro(meta.towerAggro);
+  if (towerAggro) attachTowerAggro(match, towerAggro, TICK_DT);
   const recall = resolveRecall(meta.recall);
   if (recall) attachRecall(match, recall, TICK_DT);
   const objective = resolveObjective(meta.objective);

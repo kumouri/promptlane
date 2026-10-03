@@ -723,3 +723,34 @@ in its own paragraph, or restate the verdict's words ("when my side is stronger 
 
 The prompt is unchanged, and vocab-1 is unchanged. The evidence and the free recompiles are in
 `runs/vocab2-guard-scope-2026-10-02.md`.
+
+### 8.12 Tower aggro is stated when the match has it
+
+The opt-in tower aggro rule (`--tower-aggro aggro-1`, `src/towerAggro.ts`;
+[`runs/tower-aggro-2026-10-02.md`](../runs/tower-aggro-2026-10-02.md)) lets a tower retarget. A bearbot
+that damages a bearbot of the tower's team from inside the tower's range is shot by it for 3 s, or until
+it leaves the range or dies. The observation then carries `towerAggro` (the rule) and an `aggro` entry
+on every listed tower (`{target, leftSec}`, or null). vocab-2 reads them; vocab-1 never does. An
+observation without them reads byte for byte as before:
+
+- **A tower's lock decides whom it shoots** (`vocab.TowerFact`): `will_shoot_me` is true for an
+  in-range enemy tower locked on this bot, whatever minions are in range, and false for one locked on an
+  ally. `shooting_my_minions` (the siege, §8.8) is false for a locked tower. So "will an enemy tower
+  shoot this bot?" reads true while a tower is locked on it.
+- **Per tower:** an enemy tower locked on this bot says "it is shooting you, not your minions, because
+  you hit its team's bearbot inside its range (for up to 2.4 s more, or until you leave its range)".
+  One locked on an ally names the ally. An own tower names the enemy bearbot it is shooting.
+- **The siege summary** keeps its true reading under a lock: "…while it has your own minions in its
+  range, but it is shooting you, not your minions (tw-9)." It doesn't fall back to "You are not inside
+  the range…".
+- **The rule itself**, stated every decision while the match has it (`vocab.FACTS_AGGRO`, lead
+  "Towers retarget"): "a tower shoots a bearbot that damages a bearbot of the tower's team while standing
+  inside the tower's range, instead of minions, for 3 s after the hit or until it leaves the range. So an
+  enemy tower will shoot you if you hit its team's bearbot while you are inside its range, and your tower
+  will shoot an enemy bearbot that hits you or an ally inside its range."
+
+`/health` lists the rules a server describes (`tower_aggro`). A match with the rule refuses a schema
+server that doesn't list it (`jevSchemaPilot.towerAggroUnsupported`): an older server would keep saying
+the tower shoots minions first. The translator prompt doesn't list the fact yet (`facts_for` is
+unchanged). A compile doesn't know the match's tower rule, and two translator jobs were open in
+`translator.py` when this landed.

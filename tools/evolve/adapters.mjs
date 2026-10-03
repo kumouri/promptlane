@@ -92,6 +92,7 @@ export function makePlayMatch(campaign) {
     if (shape.objective !== undefined) args.push('--objective', shape.objective);
     if (shape.recall !== undefined) args.push('--recall', shape.recall);
     if (shape.finale !== undefined) args.push('--finale', shape.finale);
+    if (shape.towerAggro !== undefined) args.push('--tower-aggro', shape.towerAggro);
     // A campaign from before the resolution was recorded was cached under the sequential order; keep it.
     args.push('--resolution', shape.resolution ?? 'sequential');
     // Likewise a campaign from before the targeting rule was recorded was cached under first-min.

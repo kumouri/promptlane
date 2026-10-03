@@ -21,6 +21,7 @@ import { DEFAULT_OBJECTIVE, attachObjective, resolveObjective, type ObjectiveRul
 import { DEFAULT_RECALL, attachRecall, resolveRecall, type RecallRules } from '../../src/recall';
 import { DEFAULT_RESOLUTION, SEQUENTIAL, attachResolution, resolveResolution } from '../../src/resolution';
 import { attachMapRules } from '../../src/mapRules';
+import { DEFAULT_TOWER_AGGRO, attachTowerAggro, resolveTowerAggro, type TowerAggroRules } from '../../src/towerAggro';
 import { DEFAULT_FINALE, attachFinale, resolveFinale, type EndReason, type FinaleRules } from '../../src/finale';
 import type { CallModel } from '../../src/pilots/callModel';
 import type { TracingDecision, TracingPilot } from './jevPilot';
@@ -44,7 +45,7 @@ export { mockCallModel } from '../../src/pilots/callModel';
 export { jevTracingPilot } from './jevPilot';
 export { jevTeamTracingPilot } from './jevTeamPilot';
 export { DEFAULT_TARGETING, FIRST_MIN, OWN_LANE_1, TARGETINGS, jevSchemaTracingPilot, resolveTargeting, targetingUnsupported } from './jevSchemaPilot';
-export { DEFAULT_VOCAB, VOCAB_1, VOCAB_2, VOCABS, approachOutOfRange, schemaVocab, vocabUnsupported, vocabsOf } from './jevSchemaPilot';
+export { DEFAULT_VOCAB, VOCAB_1, VOCAB_2, VOCABS, approachOutOfRange, schemaVocab, towerAggroUnsupported, vocabUnsupported, vocabsOf } from './jevSchemaPilot';
 export { DEFAULT_MAP, MAP_VARIANTS, PVP_MAP, PVP_2_MAP, SPECIMEN_MAP, laneCoverage, resolveMap, towerPos, variantGeometry } from '../../src/mapVariant';
 export { attachMapRules } from '../../src/mapRules';
 export { attachHomeguard, getHomeguard, homeguardTotals } from '../../src/homeguard';
@@ -56,7 +57,8 @@ export { DEFAULT_RECALL, RECALL_2, RECALL_RULES, attachRecall, getRecall, recall
 export { setRewardSink } from '../../src/ruleset/rewards';
 export { DEFAULT_RESOLUTION, RESOLUTIONS, SEQUENTIAL, SIMULTANEOUS_1, attachResolution, getResolution, resolveResolution } from '../../src/resolution';
 export { DEFAULT_FINALE, FINALES, FINAL_CHORUS_1, attachFinale, endReasonLabel, getFinale, resolveFinale } from '../../src/finale';
-/** For the economy's, the objective's, the recall's, the finale's and pvp-2's rule tests (`test_economy.mjs`, `test_objective.mjs`, `test_recall.mjs`, `test_finale.mjs`, `test_pvp2.mjs`), which build matches by hand. */
+export { AGGRO_1, DEFAULT_TOWER_AGGRO, TOWER_AGGRO_RULES, attachTowerAggro, getTowerAggro, resolveTowerAggro } from '../../src/towerAggro';
+/** For the economy's, the objective's, the recall's, the finale's, pvp-2's and the tower aggro's rule tests (`test_economy.mjs`, `test_objective.mjs`, `test_recall.mjs`, `test_finale.mjs`, `test_pvp2.mjs`, `test_tower_aggro.mjs`), which build matches by hand. */
 export { Match, TICK_DT, applyMapVariant, checkpointOf };
 export { BASE, LANE_PATHS, pointAlongPath } from '../../src/sim/map';
 export { INSTRUMENTS } from '../../src/sim/entities';
@@ -123,6 +125,12 @@ export interface RunOptions {
    * `finale` field, so its log is exactly what it was before.
    */
   finale?: string | FinaleRules | null;
+  /**
+   * Tower aggro (`src/towerAggro.ts`) — a name such as `'aggro-1'`, a rule object, or `'none'` (the
+   * specimen's towers). Default: `DEFAULT_TOWER_AGGRO` (none). Recorded in the log as `towerAggro`;
+   * a match without one writes no `towerAggro` field, so its log is exactly what it was before.
+   */
+  towerAggro?: string | TowerAggroRules | null;
   /**
    * Tick resolution (`src/resolution.ts`): `'simultaneous-1'` or `'sequential'` (the specimen's own
    * order). Default: `DEFAULT_RESOLUTION`. Recorded in the log as `resolution` unless sequential, so
@@ -258,6 +266,7 @@ export async function runMatch(opts: RunOptions): Promise<MatchLog> {
   const recallRules = opts.recall === undefined ? DEFAULT_RECALL : resolveRecall(opts.recall);
   const resolution = opts.resolution === undefined ? DEFAULT_RESOLUTION : resolveResolution(opts.resolution);
   const finaleRules = opts.finale === undefined ? DEFAULT_FINALE : resolveFinale(opts.finale);
+  const towerAggroRules = opts.towerAggro === undefined ? DEFAULT_TOWER_AGGRO : resolveTowerAggro(opts.towerAggro);
   const targeting = resolveTargeting(opts.targeting);
   const stats: Record<Team, SideStats> = { violet: emptyStats(), green: emptyStats() };
   const totalMs: Record<Team, { value: number }> = { violet: { value: 0 }, green: { value: 0 } };
@@ -274,6 +283,7 @@ export async function runMatch(opts: RunOptions): Promise<MatchLog> {
     ...(objectiveRules ? { objective: objectiveRules } : {}),
     ...(recallRules ? { recall: recallRules } : {}),
     ...(finaleRules ? { finale: finaleRules } : {}),
+    ...(towerAggroRules ? { towerAggro: towerAggroRules } : {}),
     ...(resolution === SEQUENTIAL ? {} : { resolution }),
     ...(targeting === FIRST_MIN ? {} : { targeting }),
     backend: opts.backend,
@@ -312,11 +322,13 @@ export async function runMatch(opts: RunOptions): Promise<MatchLog> {
   match = new Match(opts.seed, roster);
   applyMapVariant(match, map);
   // Map, then resolution (before anything wraps the sim's steps), then the map's own layers (pvp-2's
-  // speed boost and teleport, src/mapRules.ts), then recall, then objective, then economy, then
+  // speed boost and teleport, src/mapRules.ts), then tower aggro (it replaces the tower step, so
+  // before anything attaches attribution), then recall, then objective, then economy, then
   // finale: the map's layers and the recall hug the sim's own tick (src/recall.ts), the economy's
   // steps run after the objective's update (§9.6), and the finale reads the finished tick.
   attachResolution(match, resolution);
   const { homeguard, teleport } = attachMapRules(match, map, resolution);
+  const towerAggro = towerAggroRules ? attachTowerAggro(match, towerAggroRules, TICK_DT) : null;
   const recall = recallRules ? attachRecall(match, recallRules, TICK_DT) : null;
   const objective = objectiveRules ? attachObjective(match, objectiveRules, TICK_DT) : null;
   const economy = economyRules && builds ? attachEconomy(match, economyRules, builds, TICK_DT) : null;
@@ -383,6 +395,7 @@ export async function runMatch(opts: RunOptions): Promise<MatchLog> {
   if (finale) log.result.finale = finale.summary();
   if (homeguard) log.result.homeguard = homeguard.summary();
   if (teleport) log.result.teleport = teleport.summary();
+  if (towerAggro) log.result.towerAggro = towerAggro.summary();
   return log;
 }
 
@@ -442,6 +455,8 @@ export async function verifyReplay(
   const resolution = resolveResolution(log.resolution);
   attachResolution(match, resolution);
   attachMapRules(match, map, resolution);
+  const towerAggroRules = resolveTowerAggro(log.towerAggro);
+  if (towerAggroRules) attachTowerAggro(match, towerAggroRules, TICK_DT);
   const recallRules = resolveRecall(log.recall);
   if (recallRules) attachRecall(match, recallRules, TICK_DT);
   const objectiveRules = resolveObjective(log.objective);

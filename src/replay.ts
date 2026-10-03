@@ -17,6 +17,7 @@ import { getRecall, type RecallRules, type RecallSummary } from './recall';
 import type { EndReason, FinaleRules, FinaleSummary } from './finale';
 import { getHomeguard, type HomeguardSummary } from './homeguard';
 import { getTeleport, type TeleportSummary } from './teleport';
+import { getTowerAggro, type TowerAggroRules, type TowerAggroSummary } from './towerAggro';
 
 export const MATCH_LOG_SCHEMA = 'promptlane-match-log-1';
 
@@ -106,6 +107,8 @@ export interface MatchResult {
   homeguard?: HomeguardSummary;
   /** The map's teleport (pvp-2, `src/teleport.ts`), when its map has one. */
   teleport?: TeleportSummary;
+  /** What the towers' retargeting did, when the match had a tower aggro rule (`src/towerAggro.ts`). */
+  towerAggro?: TowerAggroSummary;
 }
 
 export interface MatchLog {
@@ -143,6 +146,11 @@ export interface MatchLog {
    * runs to 10:00 and the timeout tiebreak, which is every log written before the Final Chorus existed.
    */
   finale?: FinaleRules;
+  /**
+   * The tower aggro rule (`src/towerAggro.ts`, e.g. `aggro-1`), recorded whole. Absent = the
+   * specimen's towers (minions first, never retargeting), which is every log written before it existed.
+   */
+  towerAggro?: TowerAggroRules;
   /**
    * How a tick resolves its bearbot and minion steps (`src/resolution.ts`), e.g. `simultaneous-1`.
    * Absent = the specimen's sequential order, which is every log written before the field existed;
@@ -190,7 +198,7 @@ export function remapId(id: string, offset: number): string {
  * Compact, rounded snapshot of everything that decides a match. Equal strings ⇒ same state. With an
  * economy attached it adds each bot's `[atRisk, safe, xp, items]` as `e`; with a river objective
  * attached, the objective's state as `o`; with a recall rule (`src/recall.ts`), each bot's channel
- * start as `r`. Without them the string is exactly what it was before any existed, so every older
+ * start as `r`; with a tower aggro rule (`src/towerAggro.ts`), each tower's lock as `a`. Without them the string is exactly what it was before any existed, so every older
  * log still verifies.
  */
 export function checkpointOf(match: Match): string {
@@ -200,6 +208,7 @@ export function checkpointOf(match: Match): string {
   const recall = getRecall(match);
   const homeguard = getHomeguard(match);
   const teleport = getTeleport(match);
+  const towerAggro = getTowerAggro(match);
   return JSON.stringify({
     b: match.bearbots.map((b) => [r(b.hp), r(b.pos.x), r(b.pos.y), b.alive ? 1 : 0, b.recalling ? 1 : 0]),
     t: match.towers.map((t) => r(t.hp)),
@@ -210,6 +219,7 @@ export function checkpointOf(match: Match): string {
     ...(recall ? { r: recall.checkpoint() } : {}),
     ...(homeguard ? { g: homeguard.checkpoint() } : {}),
     ...(teleport ? { p: teleport.checkpoint() } : {}),
+    ...(towerAggro ? { a: towerAggro.checkpoint() } : {}),
   });
 }
 
