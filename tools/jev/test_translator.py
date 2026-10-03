@@ -1069,6 +1069,17 @@ class NegatedClauseKeepsItsNoTests(unittest.TestCase):
         schema = _one_rule("walk_with_minion", "is an allied minion near this bot?", {"kind": "move", "ability": None, "target_selector": "nearby_minion"})
         self.assertIs(T.enforce_negation(schema, prose), schema)
 
+    def test_an_id_saying_no_is_not_backed_by_a_sentence_naming_the_thing_both_ways(self):
+        # This job's merged-code batch (v5 s1 keytar, last attempt): "walk_or_home_no_wave" merges both halves of the walk
+        # sentence in its id, and its question and action are the first half's, correctly. The sentence names minions both
+        # ways, so, as for the rule's own sentence, it decides nothing.
+        prose = ("If an enemy minion is in sight, I attack the nearest enemy.\n\n"
+                 "Otherwise I walk with my nearest minion, and if I have no minions near me I go home and wait for the next wave.")
+        schema = _one_rule("walk_or_home_no_wave", "is there at least one minion near me?",
+                           {"kind": "move", "ability": None, "target_selector": "nearby_minion"})
+        self.assertIs(T.enforce_negation(schema, prose), schema)
+        self.assertIs(T.enforce_negation(schema, prose, drop=True), schema)
+
     def test_an_id_saying_no_needs_a_prose_sentence_saying_no(self):
         schema = _one_rule("go_no_enemy", "is an enemy bearbot in sight?", {"kind": "attack", "ability": None, "target_selector": "nearest_enemy"})
         self.assertIs(T.enforce_negation(schema, "If an enemy bearbot is in sight, I attack the nearest enemy."), schema)

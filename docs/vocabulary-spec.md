@@ -604,7 +604,8 @@ before the priority guard:
   as "outside an enemy tower's range" does. (Until §8.15 the guard read "outside" as the tower being
   there, and would have rejected a correct recall rule worded that way.)
 - A sentence that names the thing both ways ("walk with my nearest minion, and if I have no minions
-  near me …") decides nothing.
+  near me …") decides nothing. Since §8.15 that holds for the id path too: a correct walk rule whose
+  id read `walk_or_home_no_wave` was once rejected on that sentence.
 - Only a sentence of the prose the rule states can decide (§8.15): a "no" in another sentence never
   vetoes it.
 

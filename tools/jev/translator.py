@@ -1734,7 +1734,8 @@ def _negation_lost(rule: TranslatedRule, sentences: list[str], sentence_polariti
     the sentence the rule states says it is NOT, or the rule's own id does ("shop_no_enemy") and a
     sentence of the prose says so. The sentence the rule states is the one sharing the most words with
     it (id and target included), at least two, and no other sentence as many; one that names the thing
-    both ways ("walk with my nearest minion, and if I have no minions ...") decides nothing, and neither
+    both ways ("walk with my nearest minion, and if I have no minions ...") decides nothing, for the
+    sentence path or the id's ("walk_or_home_no_wave" asking for a minion near, correctly), and neither
     does it when another sentence names the thing as there and gives the rule words of its own (a rule
     merging "afford my next item" with "300 gold and an enemy in sight" took its enemy from the second).
     `stated`, when given: the only sentences that may decide, those of the prose the rule states
@@ -1756,7 +1757,7 @@ def _negation_lost(rule: TranslatedRule, sentences: list[str], sentence_polariti
         ):
             return thing, sentences[own]
         if id_polarities.get(thing) == {True}:
-            saying = [i for i, pols in enumerate(sentence_polarities) if True in pols.get(thing, ()) and scores[i] >= 2
+            saying = [i for i, pols in enumerate(sentence_polarities) if pols.get(thing) == {True} and scores[i] >= 2
                       and (stated is None or i in stated)]
             if saying:
                 return thing, sentences[max(saying, key=lambda i: scores[i])]
