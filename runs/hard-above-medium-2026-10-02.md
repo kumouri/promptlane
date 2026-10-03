@@ -116,3 +116,87 @@ this commit. `medium`, `easy` and `entrant3` are develop's, unchanged.
 
 Matches cut by the spend guard count as not played, and a line short of its matches is
 INCONCLUSIVE.
+
+## 2. Result (hard2)
+
+*Written after the run.* Plan commits, then pushed: tower-hp `662b405`, this branch `0969def`, both
+18:41 CT. The first paid match started 18:42:52 CT.
+
+- **The block:** T, HA, HC and HB all played, in plan order, 18:42–19:08 CT. The guard never cut a
+  slot, and nothing was retried, added or replayed.
+  - 22 matches for **$2.7320** on the server's ledger, 30,872 requests, 0 errors, 0 failovers.
+  - 22 of 22 logs replay-verify, with 0 parse errors on either side.
+
+| line | result | pass line | |
+|---|---|---|---|
+| H1 hard above medium, outer 400 (HA) | hard2 **2–4** | hard2 ≥ 4 | **FAIL** (medium ≥ 3) |
+| H2 hard above medium, pvp-1 (HB) | hard2 **1–3** | hard2 ≥ 3 | **FAIL** (medium ≥ 2) |
+| H3 medium above easy, outer 400 (T) | medium **2–0** | medium both | **PASS** |
+| H4 clean | 14 of 14 verify; 0 errors | all | **PASS** |
+
+- **Reported:**
+  - HC: hard2 beat entrant3 **3–1**.
+  - Block T's old hard lost both to medium on outer 400 (0–2).
+- **The new rule did its job.** Jev answered its question yes on 1.9 % of 9,852 asks, where the
+  stated fact (an enemy tower listed within 390, under 150 hp) held on 2.6 %. Agreement was 99.3 %.
+  It took 1.1 % of hard2's time in HA and dealt **52 %** of hard2's structure damage there (40 % in
+  HC, 25 % in HB).
+- **Why hard2 still lost** (Jev, per match, HA / HB):
+  - Medium took the first tower. Hard2 rarely had a chipped tower to finish.
+  - Hard2 stood under its own tower 727 / 744 s (three bots summed), where medium stood 653 / 647 s.
+    Hard2 stood in the enemy half 242 / 258 s, medium 332 / 347 s.
+  - Medium won the bearbot trade, 2,767 to 2,509 and 2,968 to 2,555. Medium's keytar chords any
+    bearbot in sight; hard's abilities only finish kills under 100 hp.
+  - Hard spent 10–11 % of its time chasing the enemy worth the most gold, and 7 % at its own tower
+    punishing divers.
+
+  The new rule works, but hard's other rules keep it behind its wave.
+
+## 3. Amendment: hard is medium plus the rule (committed after §2's results were seen, before its own first paid match)
+
+§2 failed both hard lines with $1.27 of the $4.00 left. As #90 §4 and #91 §1.6 did, one follow-up
+block is pre-registered here before its first paid match. §2's results stand as measured.
+
+### 3.1 What changes
+
+- **hard3 = the push-lane medium, rule for rule, plus §0.3's rule.**
+  - **The prose** is medium's, word for word, with a hard intro ("…you play the placement opponent's
+    game and you finish what it leaves standing…") and "Take a weakened tower. If an enemy tower in
+    sight has less than 150 hp, attack the nearest enemy tower." right after the shopping pair.
+  - **The schemas:** medium's rule objects, build, notes and default byte for byte, with hard2's
+    compiled weakened-tower rule object (m1) spliced in after the shopping recall. Nothing new was
+    compiled, because every rule object is already a compile of its own sentence.
+- **Why this shape:** medium against itself is a coin flip, so anything hard3 gains comes from the
+  one rule. It is the narrowest change that can put hard above this medium, and it is a clean test of
+  the rule.
+- **Stand-in check ($0, ranking only):** hard3 against medium went **10–2** on outer 400 and **6–6**
+  on 900 (12 a cell). Hard3 against easy went 4–0 on each.
+- **Gone from the economy-aware hard:** hunting the carrier, the 300-gold retreat, punishing divers,
+  "weaker → own tower", the Bandstand rules and hard's own drums ladder. The plain hard
+  (`house-hard.*`) is unchanged.
+- `test_house.mjs` pins hard as medium plus the rule. `prompts/pilots/README.md` and
+  `docs/economy-spec.md` §4.4 follow it.
+
+### 3.2 Block HD (Jev)
+
+- §1's server (`:9561`, its ledger at $2.7320, its `--budget-usd 3.90`), flags, stub smoke and spend
+  guard ($3.80; the prior is $0.124 a match, §2's measured mean). Waves of 4.
+
+| block | map | slots | matches |
+|---|---|---|---:|
+| **HD-a** | `pvp-1-hp400` | hard3–medium: 3, 7; medium–hard3: 3, 7 | 4 |
+| **HD-b** | `pvp-1` | hard3–medium: 3, 7; medium–hard3: 3, 7 | 4 |
+
+| line | pass | fail | otherwise |
+|---|---|---|---|
+| **H1′, hard3 above medium, outer 400 (HD-a)** | hard3 wins ≥ 3 | medium wins ≥ 2 | INCONCLUSIVE |
+| **H2′, hard3 above medium, pvp-1 (HD-b)** | hard3 wins ≥ 3 | medium wins ≥ 2 | INCONCLUSIVE |
+| **H4′, clean** | every match finishes and replay-verifies; 0 server errors; 0 parse errors | any of those | — |
+
+- **Medium above easy** is H3 on outer 400 (§2, passed) and #90 §4's M3 on pvp-1 (passed).
+- **Hard3 above easy is not re-run on Jev.** Hard3 is medium plus one rule, and medium beats easy on
+  both maps.
+- **If H1′ and H2′ pass,** hard3 ships on this branch. Otherwise the branch still carries hard3, the
+  write-up says hard is not above medium, and Ceryce chooses between hard3, §2's hard2 (`0969def`) and
+  develop's hard.
+- Matches cut by the guard count as not played. Nothing is added after a result is seen.

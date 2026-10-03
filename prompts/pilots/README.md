@@ -116,12 +116,13 @@ home when no rule applied, and dealt a third of medium's structure damage. Only
   times a match (medium 3.7).
 - **The plain hard is unchanged** (65 %, two minions, home). The Jam plays with an economy, so it
   plays the eco file.
-- `test_house.mjs` pins all four changes in the prose and the cascade.
+- `test_house.mjs` pinned all four changes. Since 2026-10-02 the economy-aware hard is medium plus
+  one rule ("Hard is medium plus a weakened-tower rule", below), and that is what it pins.
 
 **The Bandstand** (the river objective, [`docs/economy-spec.md` §9.7](../../docs/economy-spec.md)).
 Medium and hard go to `bandstand.pos` by rules placed right after the low-hp pair. Easy has no
-Bandstand rule: easy stays easy. The economy-aware hard plays the same three rules last, after its
-wave rule ("Siege with the wave" below).
+Bandstand rule: easy stays easy. The economy-aware hard played the same three rules last, after its
+wave rule ("Siege with the wave" below). Since 2026-10-02 it has none, like the economy-aware medium.
 
 | tier | worksheet keys added | Bandstand rules |
 |---|---|---|
@@ -206,7 +207,7 @@ gives each tier. With no economy nothing changes, so the placement bar above doe
 |---|---|---|---|
 | easy | `house-easy-eco.prose.md` (both sides) | Road Case → Metronome → Amp → Tour Bus → Bass Strings → Headliner → Fuzz Pedal → Feedback | can afford the next item and no enemy in sight: recall to shop (never walks home to shop) |
 | medium | `house-medium-eco.prose.md` (both sides; until 2026-10-02 the worksheet pair `house-eco-violet.md` / `house-eco-green.md`) | each instrument's default ladder | can afford the next item and no enemy bearbot in sight: with an enemy minion or tower in sight walk home, with none recall to shop |
-| hard | `house-hard-eco.prose.md` (both sides) | drums Road Case → Bass Strings → Amp → Backline → Metronome → Wall of Sound → Click Track → Arpeggiator; keytar and violin their default ladders | can afford the next item and no enemy bearbot in sight: with an enemy minion or tower in sight walk home, with none recall to shop; carrying ≥ 300 gold while its side is weaker in the fight near it → walk home to spend it; attack the enemy bearbot **worth the most gold** (`highest_bounty_enemy`) instead of the lowest-hp one; an enemy tower in sight under 150 hp → attack the nearest enemy tower, right after the shopping pair |
+| hard | `house-hard-eco.prose.md` (both sides) | medium's ladders (since 2026-10-02) | medium's rules, rule for rule (since 2026-10-02), plus: an enemy tower in sight under 150 hp → attack the nearest enemy tower, right after the shopping pair |
 
 **The shopping lists are full late-game ladders** (2026-10-02,
 [`runs/vocab-house-tiers-2026-10-02.md`](../../runs/vocab-house-tiers-2026-10-02.md)): three tier-1 items, a
@@ -318,13 +319,19 @@ and every sentence maps to its rule. On Jev (pre-registered, 8 matches):
 - **it also beat hard 2–0**, so hard no longer sits above the bar.
 - Whether to keep it, revert to the wait-at-tower medium, or retune hard is Ceryce's call (§4.4).
 
-**Hard takes a weakened tower** (2026-10-02, `runs/hard-above-medium-2026-10-02.md`). Ceryce kept
-the push-lane medium and asked for hard above it. Hard-eco gained one sentence, right after its
-shopping pair: "If an enemy tower in sight has less than 150 hp, attack the nearest enemy tower."
-It turns chip damage into a fallen tower: before 8:00 on the lower-hp map (`pvp-1-hp400`), and in
-sudden death on pvp-1, where every tower drops to a third. The rule was compiled from a shortened
-copy of the prose and spliced in. Every other rule object is byte for byte the old one, because the
-whole prose overruns the translator's 1,800-token reply. The Jev result is in the run file.
+**Hard is medium plus a weakened-tower rule** (2026-10-02, `runs/hard-above-medium-2026-10-02.md`).
+Ceryce kept the push-lane medium and asked for hard above it.
+- **First try (§2 there):** the old hard plus one sentence, "If an enemy tower in sight has less
+  than 150 hp, attack the nearest enemy tower". It still lost to medium on Jev: 2–4 on
+  `pvp-1-hp400` and 1–3 on pvp-1. Its other rules kept it at its own tower and out of the bearbot
+  trade.
+- **Now (§3):** `house-hard-eco.prose.md` is medium's prose with a hard intro and that one sentence,
+  right after the shopping pair. Its schemas are medium's rule objects, build and default, byte for
+  byte, with the compiled tower rule spliced in. It needs no compile of its own. The rule came from a
+  compile of a shortened copy of the first try's prose, because the whole prose overruns the
+  translator's 1,800-token reply.
+- Medium against itself is a coin flip, so whatever hard gains comes from finishing towers its wave
+  has worn down. The Jev result is in the run file.
 
 ## Sample entrants for the economy measurement: `sample-entrant*.prose.md`
 
