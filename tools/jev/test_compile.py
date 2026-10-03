@@ -44,6 +44,24 @@ def _without_shopping_line(md: str) -> str:
     return _SHOPPING.sub("", md, count=1)
 
 
+# Prose a reference pilot has changed since its checked-in run, as (quoted then, quoted now). violin.md's
+# Staccato paragraph opens "In a fight you can win," so the guards spec's worked tree is scoped under its
+# verdict (docs/vocabulary-spec.md §8.10, Ceryce's ruling 2026-10-02 17:59). Nothing else in a report moves.
+_PROSE_SINCE_RUN = {
+    "violin": [(
+        "  > Staccato (quick high-damage stab, short range) is your opener",
+        "  > In a fight you can win, Staccato (quick high-damage stab, short range) is your opener",
+    )],
+}
+
+
+def _as_prose_reads_now(md: str, instrument: str) -> str:
+    for then, now in _PROSE_SINCE_RUN.get(instrument, []):
+        assert md.count(then) == 1, (instrument, then)
+        md = md.replace(then, now)
+    return md
+
+
 _SELECTOR_BY_DESC = {v: k for k, v in TARGET_SELECTORS.items()}
 
 
@@ -96,7 +114,7 @@ class ReproducesCheckedInRunsTests(unittest.TestCase):
         self.assertEqual(entry["labels"], "hand")
         self.assertIn(f"Shopping list: ", entry["markdown"])
         self.assertIn(f"(default for {instrument} — your prose names no items)", entry["markdown"])
-        self.assertEqual(_without_shopping_line(entry["markdown"]), expected)
+        self.assertEqual(_without_shopping_line(entry["markdown"]), _as_prose_reads_now(expected, instrument))
 
     def test_drums(self):
         self._check("drums", CHECKED_IN["drums"])

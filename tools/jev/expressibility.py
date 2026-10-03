@@ -143,11 +143,11 @@ VIOLIN: list[Segment] = [
     ("open_strategy", " you only take fights you can win in one\nphrase."),
     ("voice", "\n\n"),
     ("rule",
-     "Staccato (quick high-damage stab, short range) is your opener on whoever you've picked as the\n"
-     "target — use it the moment you're in range of them, every time it's off cooldown, on that same\n"
-     "target if they're still alive."),
-    ("rule", " Solo (burst + speed, your ultimate) is for closing distance on a\ntarget that's about to get away, or for the decisive engage when the moment is right —"),
-    ("open_strategy", " it is not\nfree, so don't burn it just because it's up."),
+     "In a fight you can win, Staccato (quick high-damage stab, short range) is your opener on whoever\n"
+     "you've picked as the target — use it the moment you're in range of them, every time it's off\n"
+     "cooldown, on that same target if they're still alive."),
+    ("rule", " Solo (burst + speed, your ultimate) is for\nclosing distance on a target that's about to get away, or for the decisive engage when the moment is\nright —"),
+    ("open_strategy", " it is not free, so don't burn it just because it's up."),
     ("voice", "\n\n"),
     ("open_strategy",
      "Between fights, don't stand still: your speed exists so you can keep repositioning toward the next\n"

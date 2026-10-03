@@ -1529,19 +1529,25 @@ class GuardScopeTests(unittest.TestCase):
                 self.assertIs(T.enforce_guard_scope(schema, prose), schema)
                 self.assertIs(T.enforce_guard_scope(schema, prose, drop=True), schema)
 
-    def test_violin_md_does_not_place_its_opener_under_its_verdict(self):
-        # Known strictness, flagged for a ruling (docs/vocabulary-spec.md §8.10): the guards spec's own worked tree
-        # (§3.2) puts Staccato under "you only take fights you can win", which ends its paragraph; the Staccato
-        # paragraph after it never restates the verdict, so under vocab-2 the guard is rejected.
+    def test_violin_md_places_its_opener_under_its_verdict(self):
+        # The guards spec's own worked tree (§3.2) puts Staccato and Solo under "you only take fights you can win".
+        # Their paragraph once never restated the verdict, so the check rejected the spec's own example (§8.10's
+        # "known strictness"). Ceryce ruled 2026-10-02 17:59 to fix the prose, not the check: the paragraph now opens
+        # "In a fight you can win, Staccato ...", and the tree is accepted.
         prose = T.scope_to_instrument(open(os.path.join(os.path.dirname(__file__), "..", "..", "prompts", "pilots", "violin.md"),
                                            encoding="utf-8").read(), "violin").text
         opener = _node("staccato_opener", "is staccato off cooldown and is the target in its range?", "ability", "staccato", "isolated_enemy")
-        schema = _tree(RECALL_RULE, _guard("can_win_fight", "can this bot win the fight it is in or about to enter, by itself, right now?",
-                                           [opener], [], {"kind": "move", "ability": None, "target_selector": "isolated_enemy"}))
-        self.assertEqual(T._verdict_scope(schema.root.nodes[1], T._prose_paragraphs(prose)), {1})
-        with self.assertRaises(T.GuardScopeError) as err:
-            T.enforce_guard_scope(schema, prose)
-        self.assertIn('"Staccato (quick high-damage stab', str(err.exception))
+        solo = _node("solo_close", "is solo off cooldown and is the target about to get away?", "ability", "solo", "isolated_enemy")
+        question = "can this bot win the fight it is in or about to enter, by itself, right now?"
+        to_target = {"kind": "move", "ability": None, "target_selector": "isolated_enemy"}
+        schema = _tree(RECALL_RULE, _guard("can_win_fight", question, [opener, solo], [], to_target, to_target))
+        self.assertEqual(T._verdict_scope(schema.root.nodes[1], T._prose_paragraphs(prose)), {1, 2})
+        self.assertIs(T.enforce_guard_scope(schema, prose), schema)
+        self.assertIs(T.enforce_guard_scope(schema, prose, drop=True), schema)
+        # The check is as strict as before: the low-hp recall's paragraph is still outside the verdict.
+        inside = _tree(_guard("can_win_fight", question, [opener, RECALL_RULE], [], to_target, to_target))
+        with self.assertRaises(T.GuardScopeError):
+            T.enforce_guard_scope(inside, prose)
 
     def test_a_rule_from_other_prose_inside_a_branch_is_rejected(self):
         schema = _tree(_guard("can_win", STRONGER, [STACCATO_RULE], [RECALL_RULE]))

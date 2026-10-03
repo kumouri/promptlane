@@ -722,10 +722,13 @@ Under `vocab-2`, `translator.enforce_guard_scope` runs right after the instrumen
     question. So are nodes whose sentence is unclear, and the branches' own defaults.
 - A guard that holds only its verdict's rules, at the end of its cascade, is returned as it came.
 
-**Known strictness.** `prompts/pilots/violin.md` ends its verdict paragraph with "you only take fights
-you can win in one phrase", and puts Staccato and Solo in the next paragraph. That paragraph does not
-restate the verdict, so a guard holding them is rejected. A rule placed under a verdict has to say so
-in its own paragraph, or restate the verdict's words ("when my side is stronger in the fight …").
+**A rule placed under a verdict has to say so** in its own paragraph, or restate the verdict's words
+("when my side is stronger in the fight …"). `prompts/pilots/violin.md` ends its verdict paragraph
+with "you only take fights you can win in one phrase", and puts Staccato and Solo in the next one,
+which at first did not restate it, so the guards spec's own worked tree was rejected. Ceryce ruled
+(2026-10-02 17:59) to fix the prose, not the check: that paragraph now opens "In a fight you can
+win, Staccato …", and the tree is accepted (§8.15's run file). A recall rule from another paragraph
+inside the same guard is still rejected.
 
 The prompt is unchanged, and vocab-1 is unchanged. The evidence and the free recompiles are in
 `runs/vocab2-guard-scope-2026-10-02.md`.
