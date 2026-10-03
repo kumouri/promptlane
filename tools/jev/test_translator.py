@@ -7,6 +7,7 @@ import os
 import re
 import sys
 import unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.dirname(__file__))
 import translator as T  # noqa: E402
@@ -89,6 +90,13 @@ class ParseSchemaTests(unittest.TestCase):
         del bad["rules"][0]["condition"]
         with self.assertRaises(ValueError):
             T.parse_schema(bad, "x", "drums", "raw")
+
+
+def _without_clause_coverage():
+    """For a `translate_pilot` test of another guard's retry, run on a saved reply that also leaves a clause
+    out ("can this bot afford its next item?" for "When I can afford my next item and no enemy is in sight"):
+    the clause-coverage guard would retry that too. `ClauseCoverageTests` tests it."""
+    return mock.patch.object(T, "enforce_clause_coverage", lambda schema, pilot_text, drop=False, removed=(): schema)
 
 
 def _schema_from_rule_specs(rule_specs: list[dict], default_action: dict | None = None) -> T.TranslatedSchema:
@@ -264,8 +272,9 @@ class VocabTwoPriorityGuardTests(unittest.TestCase):
             prompts.append(prompt)
             return replies[len(prompts) - 1]
 
-        schema = T.translate_pilot(LOOKALIKE["prose"], "prompts/pilots/sample-entrant-eco.prose.md", "keytar", "chord", "glissando",
-                                   generate=generate, vocab="vocab-2", economy="eco-3-late")
+        with _without_clause_coverage():
+            schema = T.translate_pilot(LOOKALIKE["prose"], "prompts/pilots/sample-entrant-eco.prose.md", "keytar", "chord", "glissando",
+                                       generate=generate, vocab="vocab-2", economy="eco-3-late")
         self.assertEqual(len(prompts), 2)
         self.assertIn("on a rule the schema does not have", prompts[1])
         self.assertEqual(schema.rules[0].id, "back_off_tower")
@@ -391,8 +400,9 @@ class ShoppingListIsNotARuleTests(unittest.TestCase):
             prompts.append(prompt)
             return replies[len(prompts) - 1]
 
-        schema = T.translate_pilot(SHOPPING["prose"], "pilot.md", "violin", "staccato", "glissando", generate=generate, vocab="vocab-2",
-                                   economy="eco-3-late")
+        with _without_clause_coverage():
+            schema = T.translate_pilot(SHOPPING["prose"], "pilot.md", "violin", "staccato", "glissando", generate=generate, vocab="vocab-2",
+                                       economy="eco-3-late")
         self.assertEqual(len(prompts), 2)
         self.assertIn("Violin: Amp, then Bass Strings, then Road Case.", prompts[1].split("Your previous attempt was invalid:")[1])
         self.assertEqual(schema.build, ("amp", "bass-strings", "road-case"))
@@ -404,7 +414,9 @@ class ShoppingListIsNotARuleTests(unittest.TestCase):
             prompts.append(prompt)
             return json.dumps(_shopping_reply(0))  # #85 s4 drums
 
-        schema = T.translate_pilot(SHOPPING["prose"], "pilot.md", "drums", "kick", "fill", generate=generate, vocab="vocab-2", economy="eco-3-late")
+        with _without_clause_coverage():
+            schema = T.translate_pilot(SHOPPING["prose"], "pilot.md", "drums", "kick", "fill", generate=generate, vocab="vocab-2",
+                                       economy="eco-3-late")
         self.assertEqual(len(prompts), 1)
         self.assertFalse({"buy_road_case", "buy_bass_strings", "buy_metronome"} & {r.id for r in schema.rules})
         self.assertEqual(schema.build, ("road-case", "bass-strings", "metronome"))
@@ -1037,8 +1049,9 @@ class NegatedClauseKeepsItsNoTests(unittest.TestCase):
             prompts.append(prompt)
             return replies[len(prompts) - 1]
 
-        schema = T.translate_pilot(NEGATION["prose"], "pilot.md", "violin", "staccato", "glissando", generate=generate, vocab="vocab-2",
-                                   economy="eco-3-late")
+        with _without_clause_coverage():
+            schema = T.translate_pilot(NEGATION["prose"], "pilot.md", "violin", "staccato", "glissando", generate=generate, vocab="vocab-2",
+                                       economy="eco-3-late")
         self.assertEqual(len(prompts), 2)
         retry = prompts[1].split("Your previous attempt was invalid:")[1]
         self.assertIn(AFFORD_SENTENCE, retry)
@@ -1057,11 +1070,15 @@ class NegatedClauseKeepsItsNoTests(unittest.TestCase):
                                    economy="eco-3-late")
         self.assertEqual(len(prompts), 3)
         self.assertNotIn("shop_no_enemy", [r.id for r in schema.rules])
-        self.assertIn("shop_first", [r.id for r in schema.rules])
         md = T.render_markdown(schema)
         self.assertIn("**Negations -- what was removed:**", md)
         self.assertIn("removed rule shop_no_enemy", md)
         self.assertNotIn("Automatic priority fixes", md)
+        # The split's other half, "can this bot afford its next item?", left "no enemy is in sight" out:
+        # the clause-coverage guard drops it too, after the negation guard has had its say.
+        self.assertNotIn("shop_first", [r.id for r in schema.rules])
+        self.assertIn("**Conditions -- what was removed:**", md)
+        self.assertIn("removed rule shop_first", md)
 
     def test_vocab1_is_unchanged(self):
         schema, prose = _negation(0)
@@ -1205,8 +1222,9 @@ class IdentityRuleTests(unittest.TestCase):
             prompts.append(prompt)
             return replies[len(prompts) - 1]
 
-        schema = T.translate_pilot(IDENTITY["prose"], "pilot.md", "violin", "staccato", "glissando", generate=generate, vocab="vocab-2",
-                                   economy="eco-3-late")
+        with _without_clause_coverage():
+            schema = T.translate_pilot(IDENTITY["prose"], "pilot.md", "violin", "staccato", "glissando", generate=generate, vocab="vocab-2",
+                                       economy="eco-3-late")
         self.assertEqual(len(prompts), 2)
         retry = prompts[1].split("Your previous attempt was invalid:")[1]
         self.assertIn(VIOLIN_LINE, retry)
@@ -1317,8 +1335,9 @@ class UnfinishedGuardTests(unittest.TestCase):
             prompts.append(prompt)
             return replies[len(prompts) - 1]
 
-        schema = T.translate_pilot(IDENTITY["prose"], "pilot.md", "keytar", "chord", "glissando", generate=generate, vocab="vocab-2",
-                                   economy="eco-3-late")
+        with _without_clause_coverage():
+            schema = T.translate_pilot(IDENTITY["prose"], "pilot.md", "keytar", "chord", "glissando", generate=generate, vocab="vocab-2",
+                                       economy="eco-3-late")
         self.assertEqual(len(prompts), 2)
         retry = prompts[1].split("Your previous attempt was invalid:")[1]
         self.assertIn("write plain rules instead", retry)
@@ -1549,8 +1568,9 @@ class GuardScopeTests(unittest.TestCase):
             prompts.append(prompt)
             return replies[len(prompts) - 1]
 
-        schema = T.translate_pilot(GUARD_SCOPE["prose"], "pilot.md", "violin", "staccato", "glissando", generate=generate,
-                                   vocab="vocab-2", economy="eco-3-late")
+        with _without_clause_coverage():
+            schema = T.translate_pilot(GUARD_SCOPE["prose"], "pilot.md", "violin", "staccato", "glissando", generate=generate,
+                                       vocab="vocab-2", economy="eco-3-late")
         self.assertEqual(len(prompts), 2)
         retry = prompts[1].split("Your previous attempt was invalid:")[1]
         self.assertIn("a guard sends every decision into one of its two branches", retry)
@@ -1567,12 +1587,395 @@ class GuardScopeTests(unittest.TestCase):
             prompts.append(prompt)
             return GUARD_SCOPE["replies"][0]["reply"]
 
-        schema = T.translate_pilot(GUARD_SCOPE["prose"], "pilot.md", "drums", "kick", "fill", generate=generate, vocab="vocab-2",
-                                   economy="eco-3-late")
+        # Its "hp below a third OR an enemy tower in sight and no minions near" merges two sentences; the clause-coverage
+        # guard drops it (ClauseCoverageTests), so it is left out of this guard-scope test.
+        with _without_clause_coverage():
+            schema = T.translate_pilot(GUARD_SCOPE["prose"], "pilot.md", "drums", "kick", "fill", generate=generate, vocab="vocab-2",
+                                       economy="eco-3-late")
         self.assertEqual(len(prompts), 3)
         self.assertFalse([n for n in T.collect_nodes(schema.root) if isinstance(n, T.GuardNode)])
         self.assertIn("recall_if_hp_low_or_tower_threat", [n.id for n in schema.rules])
         self.assertTrue([n for n in schema.validation_notes if n.startswith("guard scope: removed the guard guard_shop_or_fight")])
+
+
+COVERAGE = json.loads(open(os.path.join(os.path.dirname(__file__), "testdata", "clause_coverage.json"), encoding="utf-8").read())
+GOLD_SENTENCE = "If I'm carrying more than 300 gold and an enemy bearbot is in sight, I don't start the fight: I go home and spend it."
+_MOVE_HOME = {"kind": "move", "ability": None, "target_selector": "home"}
+
+
+def _coverage_reply(index: int) -> dict:
+    saved = COVERAGE["schemas"][index]["schema"]
+    rules = [{"id": r["id"], "condition": r["condition"], "criteria": {"true": r["criteria_true"], "false": r["criteria_false"]},
+              "action": {"kind": r["action_kind"], "ability": r["action_ability"], "target_selector": r["action_target_selector"]}}
+             for r in saved["rules"]]
+    reply = {"rules": rules, "default_action": saved["default_action"]}
+    if saved.get("build") is not None:
+        reply["build"] = saved["build"]
+    return reply
+
+
+def _coverage_prose(index: int) -> str:
+    case = COVERAGE["schemas"][index]
+    return COVERAGE["prose"] if case["prose"] == "prose" else COVERAGE["prose_88"][case["prose"]]
+
+
+def _coverage(index: int) -> tuple[T.TranslatedSchema, str]:
+    from compile import schema_from_dict
+
+    case = COVERAGE["schemas"][index]
+    return schema_from_dict(case["schema"]), T.scope_to_instrument(_coverage_prose(index), case["instrument"]).text
+
+
+def _sample_rules(*rules: tuple[str, str]) -> T.TranslatedSchema:
+    return T.parse_schema({"rules": [{"id": rid, "condition": cond, "criteria": {"true": "yes", "false": "no"}, "action": _MOVE_HOME}
+                                     for rid, cond in rules],
+                           "default_action": {"kind": "move", "ability": None, "target_selector": "push_lane"}},
+                          "p.md", "drums", "raw", "vocab-2")
+
+
+class ClauseCoverageTests(unittest.TestCase):
+    """`enforce_clause_coverage` against the exact schemas the 9B wrote (`testdata/clause_coverage.json`)."""
+
+    def test_saved_compiles_lose_exactly_the_unfaithful_rules(self):
+        for i, case in enumerate(COVERAGE["schemas"]):
+            schema, prose = _coverage(i)
+            label = f"{case['pr']} {case['sample']} {case['instrument']}"
+            out = T.enforce_clause_coverage(schema, prose, drop=True)
+            if not case["rejects"] and not case["missing"]:
+                self.assertIs(out, schema, label)
+                continue
+            kept = [n.id for n in T.collect_nodes(out.root)]
+            self.assertEqual([n.id for n in T.collect_nodes(schema.root) if n.id not in kept], case["rejects"], label)
+            removed = [n for n in out.validation_notes if n.startswith("clause coverage: removed rule")]
+            self.assertEqual(len(removed), len(case["rejects"]), label)
+            unstated = [n for n in out.validation_notes if n.startswith("clause coverage: no rule states")]
+            self.assertEqual([n.split('no rule states "')[1].split('" -- ')[0] for n in unstated], case["missing"], label)
+
+    def test_the_named_shapes(self):
+        want = {
+            ("#85", "s6"): {"shop_first", "shop_no_enemy"},  # split: afford -> home, no enemy -> home
+            ("#86", "s1"): {"shop_first", "shop_no_enemy"},
+            ("#84", "s12"): {"spend_gold_safe"},  # "300 gold AND no enemy bearbot" -- the prose says an enemy IS in sight
+            ("#87", "s12"): {"spend_gold_before_risk"},  # "300 gold?" alone
+            ("#84", "s3"): {"guard_shop_or_retreat"},  # "afford OR 300 gold with an enemy"
+            ("#85", "s10"): {"staccato_ready"},  # "is staccato ready?" alone
+            ("#86", "s8"): {"push_tower_wave_near"},  # "at least two" minions dropped
+            ("#84", "s10"): {"push_tower_wave_present"},  # "one of theirs is dead" replaced
+        }
+        for case in COVERAGE["schemas"]:
+            if (case["pr"], case["sample"]) in want:
+                self.assertLessEqual(want[(case["pr"], case["sample"])], set(case["rejects"]), case["shows"])
+        follow = next(c for c in COVERAGE["schemas"] if (c["pr"], c["sample"]) == ("#84", "s10"))
+        self.assertNotIn("follow_wave_or_home", follow["rejects"])  # "is there a minion near this bot?" -> walk with it
+
+    def test_a_condition_no_rule_states_is_named(self):
+        # #84 s10 drums has no back-off rule at all, and its push rule replaced "one of theirs is dead".
+        case = next(i for i, c in enumerate(COVERAGE["schemas"]) if (c["pr"], c["sample"]) == ("#84", "s10"))
+        schema, prose = _coverage(case)
+        back_off = "If I can see an enemy tower and none of my minions are near me, I back off home instead of tanking the tower alone."
+        with self.assertRaises(T.SchemaValidationError) as err:
+            T.enforce_clause_coverage(schema, prose)
+        self.assertIn(f'"{back_off}"', str(err.exception))
+        notes = T.enforce_clause_coverage(schema, prose, drop=True).validation_notes
+        self.assertIn(f'clause coverage: no rule states "{back_off}"', "\n".join(notes))
+
+    def test_pr88_house_and_siege_schemas_are_untouched(self):
+        cases = [i for i, c in enumerate(COVERAGE["schemas"]) if c["pr"] == "#88"]
+        self.assertEqual(len(cases), 9)
+        for i in cases:
+            schema, prose = _coverage(i)
+            self.assertIs(T.enforce_clause_coverage(schema, prose), schema, COVERAGE["schemas"][i]["sample"])
+
+    def test_every_checked_in_schema_is_untouched(self):
+        # The house tiers and the sample entrants play these; each compiled before this guard and states every condition.
+        from compile import schema_from_dict
+
+        pilots = os.path.join(os.path.dirname(__file__), "..", "..", "prompts", "pilots")
+        checked = 0
+        for name in sorted(os.listdir(pilots)):
+            prose_path = os.path.join(pilots, name.replace(".schemas.json", ".prose.md"))
+            if not name.endswith(".schemas.json") or not os.path.exists(prose_path):
+                continue
+            prose = open(prose_path, encoding="utf-8").read()
+            for inst, d in json.loads(open(os.path.join(pilots, name), encoding="utf-8").read()).items():
+                if isinstance(d, dict) and d.get("vocab") == "vocab-2":
+                    schema = schema_from_dict(d)
+                    self.assertIs(T.enforce_clause_coverage(schema, T.scope_to_instrument(prose, schema.instrument).text), schema,
+                                  f"{name} {inst}")
+                    checked += 1
+        self.assertGreaterEqual(checked, 15)
+
+    def test_a_consequence_starts_at_i_and_any_action(self):
+        sentence = ("When my teleport is ready, an enemy bearbot is within 260 units of one of my towers, and no enemy is in sight, "
+                    "I teleport to the tower they are attacking.")
+        units = T._condition_units([sentence])
+        self.assertEqual([c for c, _ in units[0].clauses],
+                         ["my teleport is ready", "an enemy bearbot is within 260 units of one of my towers", "no enemy is in sight"])
+        self.assertEqual(T._facts("is an enemy bearbot within 260 units of one of the bot's towers?").things,
+                         {"enemy": {False}, "own tower": {False}})
+        self.assertEqual(T._facts("is an enemy bot's tower in sight?").things, {"enemy": {False}, "enemy tower": {False}})
+
+    def test_the_retry_quotes_the_sentence_and_never_a_rule(self):
+        for i, case in enumerate(COVERAGE["schemas"]):
+            if not case["rejects"]:
+                continue
+            schema, prose = _coverage(i)
+            with self.assertRaises(T.SchemaValidationError) as err:
+                T.enforce_clause_coverage(schema, prose)
+            msg = str(err.exception)
+            rules = {n.id: n for n in T.collect_nodes(schema.root)}
+            for rid in case["rejects"]:
+                self.assertNotIn(rules[rid].condition, msg, case["shows"])
+                self.assertNotIn(rid, msg, case["shows"])
+            self.assertTrue(any(" ".join(s.split()) in msg for s in T._prose_sentences(prose)), msg)
+        schema, prose = _coverage(0)
+        with self.assertRaises(T.SchemaValidationError) as err:
+            T.enforce_clause_coverage(schema, prose)
+        self.assertIn(f'"I can afford my next item" and "no enemy is in sight" -- "{AFFORD_SENTENCE}"', str(err.exception))
+
+    def test_what_a_sentence_states(self):
+        prose = COVERAGE["prose"]
+        units = {" ".join(T._prose_sentences(prose)[u.sentence].split())[:30]: [c for c, _ in u.clauses]
+                 for u in T._condition_units(T._prose_sentences(prose))}
+        self.assertEqual(units["When I can afford my next item"], ["I can afford my next item", "no enemy is in sight"])
+        self.assertEqual(units["After that: when my hp drops b"], ["my hp drops below a third of my max", "I'm not inside an enemy tower's range"])
+        self.assertEqual(units["If I'm carrying more than 300 "], ["I'm carrying more than 300 gold", "an enemy bearbot is in sight"])
+        self.assertEqual(units["Otherwise I walk with my neare"], ["I have no minions near me"])
+        easy = T._prose_sentences(COVERAGE["prose_88"]["house-easy-eco"])
+        clauses = [[c for c, _ in u.clauses] for u in T._condition_units(easy)]
+        self.assertIn(["your hp is below 100", "an enemy minion, enemy tower or enemy bearbot is in sight"], clauses)
+        self.assertIn(["you can afford the next item on your shopping list", "no enemy is in sight"], clauses)
+        hard = T._prose_sentences(COVERAGE["prose_88"]["house-hard-eco"])
+        clauses = [[c for c, _ in u.clauses] for u in T._condition_units(hard)]
+        self.assertIn(["you can afford the next item on your shopping list", "no enemy bearbot is in sight",
+                       "an enemy minion or enemy tower is in sight"], clauses)
+        self.assertIn(["the Bandstand is open", "it is contested or the enemy team is making progress on it",
+                       "your hp is above 40% of your max hp"], clauses)
+
+    def test_a_faithful_nesting_passes_and_the_wrong_branch_does_not(self):
+        def nested(branch: str) -> T.TranslatedSchema:
+            afford = {"id": "shop", "condition": "can this bot afford its next item?", "criteria": {"true": "yes", "false": "no"},
+                      "action": _MOVE_HOME}
+            guard = {"type": "guard", "id": "enemy_seen", "condition": "is an enemy in sight?", "criteria": {"true": "yes", "false": "no"},
+                     "then": {"nodes": [afford] if branch == "then" else [], "default_action": None},
+                     "else": {"nodes": [afford] if branch == "else" else [], "default_action": None}}
+            return T.parse_schema({"rules": [guard], "default_action": {"kind": "move", "ability": None, "target_selector": "push_lane"}},
+                                  "p.md", "drums", "raw", "vocab-2")
+
+        faithful = nested("else")
+        self.assertIs(T.enforce_clause_coverage(faithful, AFFORD_SENTENCE), faithful)
+        with self.assertRaises(T.SchemaValidationError):
+            T.enforce_clause_coverage(nested("then"), AFFORD_SENTENCE)
+
+    def test_or_between_the_clauses_is_not_and(self):
+        joined = _sample_rules(("shop", "can this bot afford its next item and is no enemy in sight?"))
+        self.assertIs(T.enforce_clause_coverage(joined, AFFORD_SENTENCE), joined)
+        with self.assertRaises(T.SchemaValidationError):
+            T.enforce_clause_coverage(_sample_rules(("shop", "can this bot afford its next item or is no enemy in sight?")), AFFORD_SENTENCE)
+        either = _sample_rules(("take", "is the bandstand open and is it either contested or is the enemy team making progress on it, "
+                                        "and is this bot's hp above 40% of its max hp?"))
+        prose = next(s for s in T._prose_sentences(COVERAGE["prose_88"]["house-hard-eco"]) if "contested" in s)
+        self.assertIs(T.enforce_clause_coverage(either, prose), either)
+
+    def test_a_list_of_alternatives_may_be_split_one_rule_each(self):
+        prose = "When your hp is below 100 and an enemy minion, enemy tower or enemy bearbot is in sight, move back home."
+        split = _sample_rules(("hp_minion", "is this bot's hp below 100 and is an enemy minion in sight?"),
+                              ("hp_tower", "is this bot's hp below 100 and is an enemy tower in sight?"),
+                              ("hp_bearbot", "is this bot's hp below 100 and is an enemy bearbot in sight?"))
+        self.assertIs(T.enforce_clause_coverage(split, prose), split)
+        with self.assertRaises(T.SchemaValidationError):  # the threshold is part of the clause
+            T.enforce_clause_coverage(_sample_rules(("low", "is this bot's hp low and is an enemy minion in sight?")), prose)
+
+    def test_wordings_that_ask_the_same_thing(self):
+        prose = "After that: when my hp drops below a third of my max and I'm not inside an enemy tower's range, I recall home to heal."
+        for cond in ("is this bot's hp below a third of its max and is it not inside an enemy tower's range?",
+                     "is this bot's hp below 33% of its max hp and is it outside every enemy tower's range?"):
+            schema = _sample_rules(("recall", cond))
+            self.assertIs(T.enforce_clause_coverage(schema, prose), schema, cond)
+        tower = "If an enemy bearbot is under your tower and my hp is above half, I attack it."
+        schema = _sample_rules(("diver", "is an enemy bearbot under this bot's own tower and is its hp above 50% of its max?"))
+        self.assertIs(T.enforce_clause_coverage(schema, tower), schema)
+
+    def test_a_number_keeps_its_unit(self):
+        prose = "When your hp is below 100 and no enemy is in sight, recall home to heal."
+        ok = _sample_rules(("heal", "is this bot's hp below 100 and is no enemy in sight?"))
+        self.assertIs(T.enforce_clause_coverage(ok, prose), ok)
+        share = _sample_rules(("heal", "is this bot's hp below 100% of its max and is no enemy in sight?"))
+        with self.assertRaises(T.SchemaValidationError) as err:
+            T.enforce_clause_coverage(share, prose)
+        msg = str(err.exception)
+        self.assertIn("Keep each number exactly as the prose writes it", msg)
+        self.assertNotIn("100%", msg)
+        self.assertEqual(T._numbers("below a third of my max"), T._numbers("below 33% of its max"))
+        self.assertEqual(T._numbers("less than half its hp"), T._numbers("hp < 50% of its max"))
+        self.assertNotEqual(T._numbers("hp below 100"), T._numbers("hp below 100% of its max"))
+        self.assertEqual(T._numbers("the third tower"), frozenset())
+        self.assertEqual(T._numbers("one of theirs is dead"), frozenset())
+
+    def test_a_no_carries_along_a_list(self):
+        prose = "When you can afford the next item on your shopping list and no enemy is in sight, recall home to buy it."
+        schema = _sample_rules(("buy", "can this bot afford the next item on its shopping list AND is there no enemy minion, enemy tower, "
+                                       "or enemy bearbot in sight?"))
+        self.assertIs(T.enforce_clause_coverage(schema, prose), schema)
+        # The negation guard's own reader is unchanged.
+        self.assertEqual(T._polarities("is there no enemy minion, enemy tower, or enemy bearbot in sight?"),
+                         {"enemy minion": {True}, "enemy tower": {False}, "enemy": {False}})
+
+    def test_develops_easy_compile_loses_its_always_true_and_half_rules(self):
+        case = next(i for i, c in enumerate(COVERAGE["schemas"]) if c["pr"] == "develop")
+        schema, prose = _coverage(case)
+        out = T.enforce_clause_coverage(schema, prose, drop=True)
+        gone = {n.id for n in T.collect_nodes(schema.root)} - {n.id for n in T.collect_nodes(out.root)}
+        # "hp below 100% of its max?" alone, and "an enemy minion, tower or bearbot in sight? -> home", half of the
+        # same sentence that happens to read like "If an enemy bearbot is in sight, attack ...".
+        self.assertLessEqual({"retreat_hp_low_threat", "retreat_hp_low_threat_present"}, gone)
+        self.assertIn("attack_enemy_bearbot", {n.id for n in T.collect_nodes(out.root)})
+
+    def test_translate_pilot_retries_with_the_sentence_and_keeps_the_fixed_reply(self):
+        bad = _coverage_reply(0)  # #85 s6 drums: afford -> home, no enemy -> home, and no 300-gold rule
+        good = json.loads(json.dumps(bad))
+        good["rules"] = [r for r in good["rules"] if r["id"] != "shop_no_enemy"]
+        for r in good["rules"]:
+            if r["id"] == "shop_first":
+                r["condition"] = "can this bot afford its next item and is no enemy in sight?"
+        good["rules"].insert(1, {"id": "spend_gold", "condition": "is this bot carrying more than 300 gold and is an enemy bearbot in sight?",
+                                 "criteria": {"true": "yes", "false": "no"}, "action": _MOVE_HOME})
+        # The rewrite also loses two rules the first reply had right, and adds one nothing asked for.
+        good["rules"] = [r for r in good["rules"] if r["id"] not in ("follow_wave_or_home", "attack_enemy_minion")]
+        good["rules"].append({"id": "extra", "condition": "is an enemy tower in sight?", "criteria": {"true": "yes", "false": "no"},
+                              "action": {"kind": "attack", "ability": None, "target_selector": "nearest_tower"}})
+        replies, prompts = [json.dumps(bad), json.dumps(good)], []
+
+        def generate(prompt):
+            prompts.append(prompt)
+            return replies[len(prompts) - 1]
+
+        schema = T.translate_pilot(COVERAGE["prose"], "pilot.md", "drums", "kick", "fill", generate=generate, vocab="vocab-2",
+                                   economy="eco-3-late")
+        self.assertEqual(len(prompts), 2)
+        retry = prompts[1].split("Your previous attempt was invalid:")[1]
+        self.assertIn(AFFORD_SENTENCE, retry)
+        self.assertIn(GOLD_SENTENCE, retry)  # no rule stated it at all
+        # The retry quotes the prose only: no rule of the first reply, failed or kept.
+        self.assertNotIn("can this bot afford its next item?", retry)
+        self.assertNotIn("is there no enemy bearbot in sight?", retry)
+        self.assertNotIn("shop_first", retry)
+        self.assertNotIn("avoid_tower_alone", retry)
+        self.assertIn("Every other rule you wrote passed and is kept as it was.", retry)
+        self.assertNotIn("is kept as it was", prompts[0])
+        # The first reply's rules that passed are kept as they were, in order; the rewrite supplies only the two
+        # wanted rules: the afford rule where the failed one was, the 300-gold rule where the prose puts it.
+        ids = [r.id for r in schema.rules]
+        self.assertEqual(ids, ["shop_first", "avoid_tower_alone", "recall_low_hp", "spend_gold", "kick_ready", "hunt_highest_bounty",
+                               "push_tower_wave", "attack_tower_wave", "attack_enemy_minion", "follow_wave_or_home"])
+        self.assertEqual(schema.rules[0].condition, "can this bot afford its next item and is no enemy in sight?")
+        self.assertFalse([n for n in schema.validation_notes if n.startswith("clause coverage:")])
+
+    def test_an_unreadable_last_repair_ships_what_passed(self):
+        # Batch v3's c9 and c10 violin: the last reply was cut off mid-JSON, and the instrument failed to compile.
+        bad = _coverage_reply(0)  # #85 s6 drums
+        replies, prompts = [json.dumps(bad), json.dumps(bad), '{\n  "rules": [\n    {\n      "id": "shop_first",'], []
+
+        def generate(prompt):
+            prompts.append(prompt)
+            return replies[len(prompts) - 1]
+
+        schema = T.translate_pilot(COVERAGE["prose"], "pilot.md", "drums", "kick", "fill", generate=generate, vocab="vocab-2",
+                                   economy="eco-3-late")
+        self.assertEqual(len(prompts), 3)
+        self.assertIn("follow_wave_or_home", [r.id for r in schema.rules])
+        notes = "\n".join(schema.validation_notes)
+        self.assertIn("clause coverage: removed rule shop_first", notes)
+        self.assertIn(f'no rule states "{GOLD_SENTENCE}"', notes)
+
+    def test_an_unreadable_reply_with_nothing_to_repair_still_fails(self):
+        replies = iter(['{"rules": [', '{"rules": [', '{"rules": ['])
+        with self.assertRaises(RuntimeError):
+            T.translate_pilot(COVERAGE["prose"], "pilot.md", "drums", "kick", "fill", generate=lambda p: next(replies), vocab="vocab-2",
+                              economy="eco-3-late")
+
+    def test_a_repair_that_still_leaves_a_condition_out_is_named_again(self):
+        bad = _coverage_reply(0)  # #85 s6 drums
+        still = json.loads(json.dumps(bad))  # the same split again, and still no 300-gold rule
+        replies, prompts = [json.dumps(bad), json.dumps(still), json.dumps(still)], []
+
+        def generate(prompt):
+            prompts.append(prompt)
+            return replies[len(prompts) - 1]
+
+        schema = T.translate_pilot(COVERAGE["prose"], "pilot.md", "drums", "kick", "fill", generate=generate, vocab="vocab-2",
+                                   economy="eco-3-late")
+        self.assertEqual(len(prompts), 3)
+        self.assertIn(AFFORD_SENTENCE, prompts[2].split("Your previous attempt was invalid:")[1])
+        ids = [r.id for r in schema.rules]
+        self.assertNotIn("shop_first", ids)
+        self.assertNotIn("shop_no_enemy", ids)
+        self.assertIn("follow_wave_or_home", ids)
+        # The repair took the split out on the first reply; the last attempt says so, as a drop would.
+        notes = "\n".join(schema.validation_notes)
+        self.assertIn('clause coverage: removed rule shop_first ("can this bot afford its next item?")', notes)
+        self.assertIn('leaves out "no enemy is in sight"', notes)
+        self.assertIn(f'no rule states "{GOLD_SENTENCE}"', notes)
+
+    def test_the_other_guards_retry_as_before(self):
+        # Only the clause-coverage rejection carries what passed: the shopping, negation and priority retries read as they did.
+        prompts = []
+        reply = _negation_reply(0)  # #85 s1 violin: the inverted split, which the negation guard rejects first
+
+        def generate(prompt):
+            prompts.append(prompt)
+            return json.dumps(reply)
+
+        with _without_clause_coverage():
+            T.translate_pilot(NEGATION["prose"], "pilot.md", "violin", "staccato", "glissando", generate=generate, vocab="vocab-2",
+                              economy="eco-3-late")
+        self.assertTrue(all("is kept as it was" not in p for p in prompts))
+        self.assertTrue(prompts[1].endswith("Output ONLY the JSON object, no other text."))
+
+    def test_translate_pilot_drops_the_rules_on_its_last_attempt_instead_of_failing(self):
+        prompts = []
+
+        def generate(prompt):
+            prompts.append(prompt)
+            return json.dumps(_coverage_reply(0))
+
+        schema = T.translate_pilot(COVERAGE["prose"], "pilot.md", "drums", "kick", "fill", generate=generate, vocab="vocab-2",
+                                   economy="eco-3-late")
+        self.assertEqual(len(prompts), 3)
+        ids = [r.id for r in schema.rules]
+        self.assertNotIn("shop_first", ids)
+        self.assertNotIn("shop_no_enemy", ids)
+        md = T.render_markdown(schema)
+        self.assertIn("**Conditions -- what was removed:**", md)
+        self.assertIn("removed rule shop_first", md)
+        self.assertIn('leaves out "no enemy is in sight"', md)
+        self.assertIn(f'no rule states "{GOLD_SENTENCE}"', md)
+
+    def test_vocab1_is_unchanged(self):
+        schema, prose = _coverage(0)
+        schema = dataclasses.replace(schema, vocab="vocab-1")
+        self.assertIs(T.enforce_clause_coverage(schema, prose), schema)
+        prompts = []
+        reply = {"rules": [{"id": "shop", "condition": "can this bot afford its next item?", "criteria": {"true": "yes", "false": "no"},
+                            "action": _MOVE_HOME}],
+                 "default_action": {"kind": "move", "ability": None, "target_selector": "push_lane"}}
+
+        def generate(prompt):
+            prompts.append(prompt)
+            return json.dumps(reply)
+
+        schema = T.translate_pilot(AFFORD_SENTENCE, "pilot.md", "drums", "kick", "fill", generate=generate, vocab="vocab-1")
+        self.assertEqual(len(prompts), 1)
+        self.assertEqual([r.id for r in schema.rules], ["shop"])
+
+    def test_the_negation_guard_reads_its_own_words(self):
+        # The coverage check reads "outside", "your tower" and "an enemy is dead" with wider lists; #87's guard keeps its own.
+        self.assertEqual(T._polarities("is it outside an enemy tower's range?"), {"enemy tower": {False}})
+        self.assertEqual(T._polarities("is an enemy bearbot under your tower?"), {"enemy": {False}, "enemy tower": {False}})
+        self.assertEqual(T._polarities("is an enemy bearbot dead?"), {"enemy": {True}})
+        self.assertEqual(T._facts("is it outside an enemy tower's range?").things, {"enemy tower": {True}})
+        self.assertEqual(T._facts("is an enemy bearbot under your tower?").things, {"enemy": {False}, "own tower": {False}})
+        self.assertEqual(T._facts("is an enemy bearbot dead?").things, {"enemy": {False}})
 
 
 if __name__ == "__main__":

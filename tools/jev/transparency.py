@@ -49,6 +49,7 @@ from translator import (  # noqa: E402
     TranslatedSchema,
     collect_nodes,
     display_rows,
+    COVERAGE_NOTE_PREFIX,
     GUARD_SCOPE_NOTE_PREFIX,
     IDENTITY_NOTE_PREFIX,
     NEGATION_NOTE_PREFIX,
@@ -435,10 +436,11 @@ def render_report_markdown(report: TransparencyReport) -> str:
     unfinished_notes = [n for n in schema.validation_notes if n.startswith(UNFINISHED_GUARD_NOTE_PREFIX)]
     negation_notes = [n for n in schema.validation_notes if n.startswith(NEGATION_NOTE_PREFIX)]
     guard_scope_notes = [n for n in schema.validation_notes if n.startswith(GUARD_SCOPE_NOTE_PREFIX)]
+    coverage_notes = [n for n in schema.validation_notes if n.startswith(COVERAGE_NOTE_PREFIX)]
     priority_notes = [n for n in schema.validation_notes
                       if n not in scope_notes and n not in build_notes and n not in target_notes
                       and n not in identity_notes and n not in unfinished_notes and n not in negation_notes
-                      and n not in guard_scope_notes]
+                      and n not in guard_scope_notes and n not in coverage_notes]
     if priority_notes:
         lines += ["## Automatic priority fixes applied to this schema", ""]
         lines += [f"- {note}" for note in priority_notes]
@@ -458,6 +460,10 @@ def render_report_markdown(report: TransparencyReport) -> str:
     if negation_notes:
         lines += ["## Negations — what was removed", ""]
         lines += [f"- {note}" for note in negation_notes]
+        lines.append("")
+    if coverage_notes:
+        lines += ["## Conditions — what was removed", ""]
+        lines += [f"- {note}" for note in coverage_notes]
         lines.append("")
     if target_notes:
         lines += ["## Targets — what was corrected", ""]

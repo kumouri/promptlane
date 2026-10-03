@@ -258,6 +258,15 @@ class ShoppingListLineTests(unittest.TestCase):
         self.assertIn(f"- {note}", text)
         self.assertNotIn("Automatic priority fixes", text)
 
+    def test_clause_coverage_notes_get_their_own_section(self):
+        note = ('clause coverage: removed rule shop_first ("can this bot afford its next item?") -- your prose says "When I can '
+                'afford my next item and no enemy is in sight, I head home to shop.", which fires only when all of "I can afford '
+                'my next item" and "no enemy is in sight" hold, but this rule leaves out "no enemy is in sight".')
+        text = self._render(self._schema("keytar", ("amp",), (note,)))
+        self.assertIn("## Conditions — what was removed", text)
+        self.assertIn(f"- {note}", text)
+        self.assertNotIn("Automatic priority fixes", text)
+
 
 class RecipeShoppingListLineTests(unittest.TestCase):
     """Under a ruleset with recipes the line is the plan the match will buy, parts filled in, with
