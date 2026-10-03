@@ -152,8 +152,8 @@ export const PVP_2_BASE_TOWER_MAP: MapVariant = {
  * The two base-tower tunings measured by runs/tower-tune-2026-10-02.md (opt-in, 2026-10-02; Ceryce: "Look
  * into lowering tower health a tad more, 50 or 100 points. Alternatively raising damage ... unless we just
  * add a flat multiplier to player attacks against towers"). Of the cuts and multipliers screened there,
- * these opened the most base towers. Neither gave a base kill in the $0 screen; the Jev check is in the
- * write-up.
+ * these opened the most base towers. Neither gave a base kill, at $0 or in 30 Jev matches; both bring the
+ * first tower forward (Jev medians 3:01 and 4:02 against 6:02).
  *
  * `pvp-1-hp200-400-base600`: pvp-1-hp300-base700 with every tier 100 lower (outer 200, inner 400, base 600).
  */

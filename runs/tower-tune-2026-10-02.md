@@ -15,7 +15,49 @@ opened in time ([`bots-push-to-base-2026-10-02.md`](bots-push-to-base-2026-10-02
 
 ## Verdict
 
-*Written after the run (§2). §0–1 were committed before the first paid call.*
+*Written after the run. §0–1 were committed (`187bee4`, 23:17 CT) before the first paid call.*
+
+- **Neither "a tad" of tower hp nor a flat damage multiplier gives base kills.**
+  - **At $0:** 0 of 1,800 stand-in sims, over every cut (outer, inner, base; −50 and −100, alone and
+    together) and every multiplier (×1.1, 1.2, 1.33). That held under the 8:00 Chorus, a 9:00 Chorus, no
+    Chorus, the arena with eco-3, and on pvp-2. The 54 recorded Jev logs project 0 as well.
+  - **On Jev:** 0 of 30, for the two best candidates.
+- **The two candidates, and why** (§0.7): all tiers −100 (`pvp-1-hp200-400-base600`) and bot →
+  structure ×1.33 (`pvp-1-hp300-base700-sd133`). They opened the most base towers at $0 (26 and 25 in
+  90), and they are her two mechanisms.
+- **What they do change, on Jev:**
+  - The first lane tower falls at a median **3:01** (all −100) and **4:02** (×1.33), against **6:02** on
+    the same 10 slots of #99 (`pvp-1-hp300-base700`).
+  - Under the Jam, more matches end at 8:00 on a tower lead: 7 of 10 in each, against 5 of 10. The rest
+    end in sudden death, as before.
+  - Every Jam match still lasted 8:00 or more, so neither is trivially short.
+- **Why there are still no base kills:**
+  - Under the Jam, no inner tower fell before 8:00 in 20 matches, so the base tower never opened.
+  - With the economy on and no Chorus (EA), five base towers opened, with 57–144 s left. They lost 17–103
+    of their 600 hp.
+  - After those openings the attackers' answered decisions went to the 8:00 close-out 375 times, the
+    low-hp walk or recall 247 times, and the push-to-base rule 23 times, of 688. The bots were hurt or
+    busy; the base tower's hp was not what saved it.
+- **Multiplier versus cut** (§0.2): minions do 40 % of an outer tower's damage and almost none of a base
+  tower's. So ×1.33 is worth about −50 hp on an outer tower, −100 on an inner and −175 on the base tower.
+  On Jev it put the first tower down about a minute later than the cut (4:02 against 3:01): a minion wave
+  on its own chips a tower no faster under the multiplier.
+- **The Chorus:** a later Chorus or none opens more base towers at $0 (8:00: 0–1 per 30; 9:00: 0–6; none:
+  2–10) but kills none.
+- **Ladder** (A + K + EA, 30 matches):
+  - medium beat easy 6–0, and the siege entrant beat easy 6–0;
+  - hard against medium went 1–3–2, so "medium ≤ hard" is not shown here (#99: 3–1–2);
+  - the siege entrant went 1–4–1 against medium and 1–5 against hard.
+- **Spend: $3.6605 of the $4.00 stop**, on the server's ledger. 30 matches, all three blocks whole, 0
+  errors, 0 parse errors, 3 TypeSafe calls failed over to Workers AI. All 30 logs replay-verify.
+
+| block (Jev, 10 each; #99's seed-3 slots) | map | base kill | Chorus lead | sudden death | 10:00 decided | draw | first tower <8:00 (median, earliest) | inner tower down | base opened (time left) | finished | median len | deaths a match |
+|---|---|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|
+| #99 J, seed 3 (Jam) | `pvp-1-hp300-base700` | 0 | 5 | 5 | — | 0 | 8 (6:02, 3:43) | 1 (8:07, ended it) | 1 (0 s) | 0 | 8:00 | 5.0 |
+| **A** (Jam) | `pvp-1-hp200-400-base600` | **0** | 7 | 3 | — | 0 | 8 (**3:01**, 2:32) | 0 | 0 | 0 | 8:00 | 5.4 |
+| **K** (Jam) | `pvp-1-hp300-base700-sd133` | **0** | 7 | 3 | — | 0 | 8 (**4:02**, 3:23) | 0 | 0 | 0 | 8:00 | 4.8 |
+| #99 E (arena + eco-3) | `pvp-1-hp300-base700` | 0 | — | — | 7 | 3 | 7 (6:19, 4:28) | 2 (9:29, 9:36) | 2 (30, 23 s) | 0 | 10:00 | 8.2 |
+| **EA** (arena + eco-3) | `pvp-1-hp200-400-base600` | **0** | — | — | 7 | 3 | 8 (**3:04**, 2:32) | 5 (7:35–9:02; 1 before 8:00) | 5 (57–144 s) | 0 | 10:00 | 7.8 |
 
 ## 0. What was built and screened, at $0
 
@@ -257,6 +299,109 @@ falls earlier in A than in K. In EA, a few inner towers fall after ~9:00 and the
 
 *Written after the run.*
 
+### 2.1 The run
+
+- **Timeline (CT, 2026-10-02):**
+  - the plan was pushed at 23:17 (`187bee4`);
+  - A ran 23:17–23:27, K 23:27–23:37, EA 23:37–23:50, in plan order.
+  - The guard never cut a slot. Nothing was retried, added or replayed.
+- **Clean:**
+  - 30 of 30 logs replay-verify (`--verify`), plus the 3 stub smokes;
+  - 0 parse errors and 0 call errors on either side;
+  - 0 server errors; 3 TypeSafe calls failed over to Workers AI (the same Jev model), 0 fallback errors.
+- **Spend: $3.6605** on the paid server's ledger (`health-9741-final.json`): A $1.1537, K $1.1616, EA
+  $1.3452. 44,918 requests.
+
+### 2.2 How matches end, slot for slot
+
+Winner and end, then (first lane tower down; first inner tower down). Times are exact, from replays.
+
+| slot (violet–green, seed 3) | #99 J | A | K | #99 E | EA |
+|---|---|---|---|---|---|
+| entrant3–medium | medium, SD 8:07 (5:35; inner 8:07) | medium, lead 8:00 (5:00) | medium, lead 8:00 (5:04) | medium, 10:00 (8:03) | medium, 10:00 (3:30) |
+| medium–entrant3 | entrant3, SD 8:01 (8:01) | medium, SD 8:06 (4:37) | entrant3, lead 8:00 (4:09) | entrant3, 10:00 (6:06) | draw, 10:00 (5:08) |
+| hard–medium | hard, SD 8:14 (3:43) | medium, SD 8:07 (8:07) | medium, SD 8:07 (8:07) | draw, 10:00 (9:20) | draw, 10:00 (8:54) |
+| medium–hard | medium, SD 8:10 (8:10) | hard, SD 8:08 (8:08) | medium, SD 8:13 (8:13) | draw, 10:00 (8:57) | draw, 10:00 (8:54) |
+| medium–easy | medium, lead 8:00 (6:34) | medium, lead 8:00 (2:32) | medium, lead 8:00 (4:02) | medium, 10:00 (6:09; inner 9:29) | medium, 10:00 (2:32; inner 7:35) |
+| easy–medium | medium, lead 8:00 (6:34) | medium, lead 8:00 (2:32) | medium, lead 8:00 (4:02) | medium, 10:00 (6:34) | medium, 10:00 (2:32; inner 8:35) |
+| entrant3–hard | hard, lead 8:00 (5:26) | hard, lead 8:00 (3:00) | entrant3, SD 8:06 (3:23) | entrant3, 10:00 (5:27) | hard, 10:00 (3:06; inner 9:02) |
+| hard–entrant3 | entrant3, SD 8:08 (4:11) | hard, lead 8:00 (3:00) | hard, lead 8:00 (3:50) | draw, 10:00 (6:06) | hard, 10:00 (2:34) |
+| entrant3–easy | entrant3, lead 8:00 (6:30) | entrant3, lead 8:00 (3:01) | entrant3, lead 8:00 (3:57) | entrant3, 10:00 (6:30; inner 9:36) | entrant3, 10:00 (3:01; inner 8:09) |
+| easy–entrant3 | entrant3, lead 8:00 (4:28) | entrant3, lead 8:00 (3:01) | entrant3, lead 8:00 (3:58) | entrant3, 10:00 (4:28) | entrant3, 10:00 (3:01; inner 8:08) |
+
+### 2.3 Against the questions (§1.2)
+
+1. **How matches end:**
+   - **Base kills: 0 of 30.**
+   - A and K: every match ended at 8:00–8:14, 7 on a tower lead and 3 in sudden death each (#99 J's
+     same slots: 5 and 5).
+   - EA: every match ran to 10:00, 7 decided by the tower count and 3 drawn, as in #99 E.
+2. **First towers:**
+   - A lane tower fell before 8:00 in 8 of 10 in every block. The two that didn't are hard–medium and
+     medium–hard, where even an outer tower of 200 stood until sudden death.
+   - Median first tower: A 3:01, K 4:02, EA 3:04, against 6:02 (J) and 6:19 (E) on #99's base map.
+   - **No inner tower fell before 8:00 in A or K.** In EA five fell, at 7:35, 8:08, 8:09, 8:35 and 9:02
+     (#99 E: two, at 9:29 and 9:36).
+3. **Base towers opened, and finished:**
+   - 5 opened (all EA), none finished. They opened with 144, 111, 111, 85 and 57 s left and lost 103, 17,
+     36, 35 and 33 of 600 hp.
+   - After the openings, the attackers' 688 answered decisions went to the close-out 375 times, the
+     low-hp walk 183, recall 64, the shop 23, the push-to-base rule 23, hard's weakened-tower rule 16 and
+     the fall-back 3 (`tt_opened.py`; another 2,050 decisions were cached repeats with no reply).
+   - The push-to-base rule's condition was right: yes 677 of 688 times while the enemy base tower could be
+     hit, and 0 of 12,860 while it couldn't. It won only when nothing above it did.
+4. **Length and deaths:**
+   - Median 8:00 (A, K) and 10:00 (EA); shortest 8:00 under the Jam.
+   - Deaths a match: A 5.4, K 4.8 (#99 J's slots 5.0); EA 7.8 (#99 E 8.2).
+5. **Ladder** (A + K + EA):
+   - medium beat easy 6–0 (A 2–0, K 2–0, EA 2–0);
+   - hard against medium 1–3–2 (A 1–1, K 0–2, EA 0–0–2). Every one of these six matches was decided in
+     sudden death or drawn: neither side takes a tower before 8:00 in this pairing;
+   - the siege entrant: easy 6–0; medium 1–4–1; hard 1–5.
+6. **Hygiene: PASS** (§2.1).
+7. **Spend: PASS**, $3.6605.
+
+### 2.4 Against the forecast
+
+The forecast (§1.2) held: no base kill in any block, no inner tower before 8:00 in A or K, and a few late
+inner towers in EA whose base towers stood. Two things came out stronger than the stand-in said:
+
+- **The first tower fell much earlier on Jev than in the stand-in's cells** (A 3:01 against the stand-in's
+  4:05; K 4:02 against 5:59), though the stand-in overstates pre-8:00 tower damage. The 10 slots are seed 3
+  only, and Jev replays easy's matches nearly identically: these are directions, not rates.
+- **EA's earliest opening (7:35, 2:24 left) is the most time any base tower has had open in this line of
+  work** (#96: 107 s, #99 E′: 50 s). It lost 103 of 600 hp.
+
+### 2.5 Caveats
+
+- 10-match blocks at one seed. Directions, not rates.
+- #99's baselines played its first base-tower wording (#99 §1.4); A, K and EA play the fixed wording and
+  the resolver fallback. That touches play after 8:00, so the sudden-death results and EA's post-opening
+  decisions are of the bots with the fix. The pre-8:00 tower times are not affected.
+- The stand-in ranks; it is never a result. Its tables are $0 evidence for the choice of candidates, not
+  for the Jev numbers.
+- Nothing bigger than −100 or ×1.33 was screened: she asked for "a tad".
+
+## 3. What Ceryce may want to decide
+
+1. **Whether to keep either map, for what it does do.** Neither gives base kills. Both bring the first
+   tower forward (3:01 / 4:02 from 6:02) and turn more Jam matches into an 8:00 tower lead. If earlier
+   first towers are wanted on the base map:
+   - all −100 lets minion waves alone take more of a tower;
+   - ×1.33 speeds up only towers a bot commits to.
+   Both are opt-in; `DEFAULT_MAP` stays `pvp-1`.
+2. **What would give base kills.** Each is unmeasured on Jev:
+   - **The bots after an opening.** The close-out (above the push rule after 8:00) and the low-hp rules
+     won 558 of 688 answered decisions; the push rule won 23. A push rule that outranks the close-out once
+     the base tower is open, or a close-out that names the base tower, is a bot change, not a balance one.
+   - **An inner tower before ~7:00 under the Chorus.** A Jam base kill needs outer, inner and base down
+     before 8:00. No candidate here got an inner tower down before 8:00 under the Jam, at $0 or on Jev.
+   - **More than a tad.** #99's stand-in with inner towers at 300 (−200) also gave none under the Chorus.
+3. **The Chorus.** At $0, moving it to 9:00 opens more base towers (0–6 per 30, against 0–1) and removing
+   it more still (2–10), but neither kills one with these bots. Not worth moving for base kills alone.
+4. **Keep the multiplier code?** `botStructureDamage` is opt-in, inert unless a map carries it, and
+   tested. It is the clean way to make bots matter more against structures without touching minions.
+
 ## Files
 
 - `src/structureDamage.ts`: `attachStructureDamage`.
@@ -267,3 +412,19 @@ falls earlier in A than in K. In EA, a few inner towers fall after ~9:00 and the
 - **Tests:** `tools/match/test_structure_damage.mjs` (new, in `test:match`); `tools/jev/test_vocab.py`.
 - **Docs:** `docs/arena-runbook.md` (`tournament.map`), `docs/vocabulary-spec.md` §8.14's map list,
   `cli.mjs` / `compile.py` help.
+- **Logs, not in git.** On the
+  [`data-tower-tune-2026-10-02`](https://github.com/kumouri/promptlane/releases/tag/data-tower-tune-2026-10-02)
+  prerelease:
+  - the 30 paid logs, `runs/tower-tune-2026-10-02-<block>-<violet>-<green>-seed3.json` (block A, K or EA),
+    and the 3 stub smokes;
+  - `runs/tower-tune-2026-10-02-analysis/`:
+    - `stand/`: the 1,800 stand-in sims, their exact falls (`falls.jsonl`), `tables.md` and `summary.json`,
+      and the damage streams of the 199 where an inner tower fell (`cf-opened.jsonl`);
+    - `cf-99.jsonl`, `cf-96.jsonl`, `cf-proj.md` / `cf-proj.json`: the recorded logs' damage streams and
+      §0.3's projection;
+    - `jev/`: falls, `tables.txt`, `summary.json`, `shares.txt`, the run log and the server's final `/health`;
+    - the kit: `cf_collect.mjs`, `cf_project.py`, `cf_shares.py`, `tt_stand.mjs`, `make_tt_plans.py`,
+      `tt_summary.py`, `tt_jev.mjs`, `make_jev_plan.py`, `tt_opened.py`, `slot_table.py`, the plans, and #99's
+      `ng_replay.mjs`, `ng_falls.mjs`, `pb_analyze.py`, `pb_opened.py`, `pl_oracle*.py`, `rates.json` they use.
+
+  To check a log, unzip at the repo root and run `npm run match -- --verify <log>`.
