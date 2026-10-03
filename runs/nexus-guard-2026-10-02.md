@@ -20,7 +20,54 @@ Chorus on) and as the live arena runs today. It also answers her question about 
 
 ## Verdict
 
-*Written after the run.*
+*Written after the run. §0–1 were committed (`e2c70f1`, amended `de206ad`) before the first paid
+match.*
+
+- **Built:** `pvp-1-hp300-base700`, opt-in.
+  - Outer towers 300, inner 500.
+  - One 700-hp base tower 100 units in front of each nexus. It can be hit only once one of its team's
+    inner towers has fallen.
+  - **Downing it wins, as a nexus kill (`endReason: 'nexus'`)**: the nexus falls with it.
+  - `pvp-1` stays the default. §0.1 has every choice and the readings not built.
+- **On Jev, no base tower fell in any of the 20 matches played on it, Chorus or not.** The bots take
+  an outer tower, and almost never the inner tower behind it.
+
+| block (8 matches unless noted) | base-tower kill | Chorus lead | sudden death | 10:00, more towers | 10:00 draw | decided | lane tower before 8:00 | inner tower before 8:00 | median length |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| **Jam ruleset (Chorus on)** | | | | | | | | | |
+| M: pvp-1 (#90 §4) | — | 0 | 8 | — | — | 8 | 0 | 0 | 8:42 |
+| T: `pvp-1-hp400` (#93) | — | 5 | 3 | — | — | 8 | 6 | 0 | 8:00 |
+| **N: new map** | **0** | 5 | 3 | — | — | 8 | 5 | 0 | 8:00 |
+| NF: new map, Chorus off (4) | **0** | — | — | 2 | 2 | 2 of 4 | 2 | 0 | 10:00 |
+| **As the live arena runs (no Chorus, economy, recall or objective)** | | | | | | | | | |
+| AP: pvp-1 (today's arena) | — | — | — | 3 | **5** | 3 | 2 | 0 | 10:00 |
+| AH: `pvp-1-hp400` | — | — | — | 6 | 2 | 6 | 5 | 2 | 10:00 |
+| **AN: new map** | **0** | — | — | 8 | 0 | **8** | 8 | 0 | 10:00 |
+
+- **The Chorus doesn't pre-empt base kills; there are none in reach for it to pre-empt.**
+  - At 8:00 in N, no inner tower had fallen (the most any had lost was 63 of 500), so no base tower
+    was even open.
+  - With the Chorus off (NF, the same slots), the two extra minutes produced:
+    - one inner tower down, at 9:44;
+    - one base tower opened, which took 116 of its 700;
+    - no kill;
+    - two draws.
+  - **The Chorus is the decisiveness lever, not the nexus-kill lever.** On these bots, the
+    nexus-kill lever is how far they push.
+- **The live arena today (AP) draws 5 of 8:** no Chorus, and no respawn (§0.4). The new map
+  decides all 8, but by the 10:00 tower count, never by a base kill.
+  - In AN, a base tower was opened 3 times, at 8:12 or later, and none was hit. Six of AN's 8
+    matches had a whole team dead by the end.
+- **The stand-in called it:** 0 base kills in 54 stand-in matches on the new map (§0.3). The $0
+  forecast for N held, except that N had 5 of 8 first towers before 8:00, not 6.
+- **Aggro (§0.5):**
+  - A bearbot that attacks an enemy bearbot under that enemy's tower, while its own minions are in
+    the tower's range, is never shot. 0 of 135 such divers died within 5 s, against about 1 in 10
+    of the others.
+  - It comes up about 1.5 times a match, as a single hit of about 12. That is 0.6 % of PvP damage.
+  - MOBA-style aggro would change little until bots dive.
+- **Spend: $3.4338 of the $4.00 stop**, on one server's ledger: 36 matches, 46,534 requests, 0
+  errors, 0 failovers. Every log replay-verifies.
 
 ## 0. Design and diagnosis, at $0
 
@@ -266,7 +313,125 @@ enemy bearbot):
 
 ## 2. Result
 
-*Written after the run.*
+*Written after the run.* The plan was pushed at 20:02 CT (`e2c70f1`). Its amendment, pinning #93's
+hard after #94 merged, was pushed at 20:04 (`de206ad`). The first paid match started at 20:05:15 CT.
+
+### 2.1 The run
+
+- Five stub smokes (one per block's map and config), plus one with the pinned hard, all clean before
+  any paid match. The first smoke pass wrote its logs into the worktree: a relative `--out`, fixed in
+  the runner. Those logs were deleted and the smokes re-run; nothing was paid.
+- Blocks N, AN, AP, AH and NF played in plan order, 20:05–20:28 CT. The guard never cut a slot.
+  Nothing was retried, added or replayed.
+- **36 matches for $3.4338** on the server's ledger:
+
+| block | matches | cost | per match |
+|---|---:|---:|---:|
+| N (Jam) | 8 | $0.9353 | $0.117 |
+| AN (arena) | 8 | $0.6519 | $0.081 |
+| AP (arena) | 8 | $0.6688 | $0.084 |
+| AH (arena) | 8 | $0.6146 | $0.077 |
+| NF (Jam, Chorus off) | 4 | $0.5632 | $0.141 |
+
+- 46,534 requests, 0 errors, 0 failovers.
+- **36 of 36 logs replay-verify**, with 0 parse errors. Hygiene line (§1.2.6): **PASS**.
+
+### 2.2 How matches end, slot for slot
+
+Winner and end, then (first lane tower down; inner tower down). Tower times are exact (each log
+replayed). "10:00 towers" is the sim's tiebreak deciding on towers standing. No match reached its
+nexus-hp step: in all 19 decided 10:00 matches, the tower counts differed.
+
+| slot (violet–green, seed) | M: pvp-1 | T: hp400 | **N: new map** | NF: new, no Chorus |
+|---|---|---|---|---|
+| easy–medium 3 | medium, SD 8:27 | medium, lead 8:00 (6:38) | medium, lead 8:00 (6:34) | |
+| entrant3–medium 3 | medium, SD 8:57 | medium, lead 8:00 (7:07) | entrant3, SD 8:24 | draw (8:04) |
+| entrant3–medium 7 | medium, SD 8:31 | entrant3, SD 8:03 | medium, lead 8:00 (6:00) | |
+| hard–medium 3 | medium, SD 8:55 | medium, SD 8:08 | medium, SD 8:01 | draw (7:30; inner 9:44, base opened, 116 lost) |
+| medium–easy 3 | medium, SD 8:05 | medium, lead 8:00 (7:03) | medium, lead 8:00 (6:34) | medium, 10:00 towers (6:34) |
+| medium–entrant3 3 | medium, SD 8:53 | entrant3, SD 8:28 (6:36) | medium, lead 8:00 (6:41) | medium, 10:00 towers (8:06) |
+| medium–entrant3 7 | medium, SD 8:31 | medium, lead 8:00 (7:40) | entrant3, lead 8:00 (4:12) | |
+| medium–hard 3 | medium, SD 9:25 | medium, lead 8:00 (7:42) | hard, SD 8:35 | |
+
+| slot | AP: pvp-1 (arena) | AH: hp400 (arena) | **AN: new map (arena)** |
+|---|---|---|---|
+| easy–medium 3 | draw, no tower | draw, no tower | medium, 10:00 towers (3:33) |
+| entrant3–medium 3 | draw, no tower | entrant3, 10:00 towers (2:54; inner 5:06) | entrant3, 10:00 towers (4:01; inner 8:13, base opened, 0 lost) |
+| entrant3–medium 7 | draw, no tower | medium, 10:00 towers (4:03; inner 6:33) | medium, 10:00 towers (6:33; inner 9:58, base opened, 0 lost) |
+| hard–medium 3 | medium, 10:00 towers (6:35) | medium, 10:00 towers (3:09) | medium, 10:00 towers (3:29) |
+| medium–easy 3 | draw, no tower | medium, 10:00 towers (5:29) | medium, 10:00 towers (4:31) |
+| medium–entrant3 3 | medium, 10:00 towers (8:05) | entrant3, 10:00 towers (8:58) | entrant3, 10:00 towers (4:06) |
+| medium–entrant3 7 | draw, no tower | draw, no tower | entrant3, 10:00 towers (4:01; inner 8:12, base opened, 0 lost) |
+| medium–hard 3 | medium, 10:00 towers (6:52) | medium, 10:00 towers (3:03) | medium, 10:00 towers (2:35) |
+
+### 2.3 Against the questions (§1.2)
+
+1. **How matches end:**
+   - Base-tower kills: **0 of 20** on the new map (N 0/8, NF 0/4, AN 0/8).
+   - Under the Jam ruleset, the new map ends like T: 5 Chorus leads and 3 sudden deaths.
+   - As the arena runs, every match goes to 10:00. The tower count decides 3 of 8 on pvp-1, 6 on
+     hp400 and 8 on the new map.
+2. **First tower:**
+   - Before 8:00:
+     - N: 5 of 8 (median 6:34, earliest 4:12); T: 6 of 8 (7:05); M: 0.
+     - AN: 8 of 8 (median 4:01, earliest 2:35); AH: 5; AP: 2.
+   - Inner towers before 8:00: 0 in every block but AH (2). Inner towers ever: AN 3, NF 1, AH 2.
+     Each one opened its team's base tower when it fell (AH has no base towers).
+3. **Length:**
+   - Jam: N median and shortest both 8:00, like T. M's median was 8:42.
+   - Arena: every match runs the full 10:00.
+4. **Decisiveness:** N 8/8 (like M and T), NF 2/4, AP 3/8, AH 6/8, AN 8/8.
+5. **The Chorus and base kills:**
+   - In N, at 8:00, no match had an inner tower down or a base tower open. The most any inner tower
+     had lost was 63 of 500.
+   - The Chorus ended matches that were nowhere near a base kill.
+   - Without it (NF), 10:00 came first in all 4, and 2 of 4 drew.
+6. **Hygiene:** PASS (§2.1).
+
+### 2.4 Why nobody reaches a base tower
+
+- **A base kill needs one push to take a 300 outer, a 500 inner and a 700 base tower.**
+  - In 36 Jev matches, the pushers took the outer tower, early on this map (N's median 6:34, AN's
+    4:01), and stopped there.
+  - The arena's no-respawn games had a whole team dead by the end in 19 of 24 matches (AP 7, AH 6,
+    AN 6).
+  - Even so, the inner tower fell in only 3 of AN's 8, and then only after 8:00.
+- **When a base tower did open, the attackers came close and then backed off.** This is from
+  replaying the 4 matches where one opened (`ng_opened.mjs`):
+  - In AN entrant3–medium 3 and medium–entrant3 7, it opened at 8:12–8:13. All three attackers were
+    alive for the remaining 1:47.
+    - The closest any came was 119–121 units, and none was ever within its own attack range of the
+      base tower.
+    - Their decisions after the opening: 82–87 moves, 15–20 recalls and 31–33 tower attacks, which
+      never touched the base tower (it ended at 700).
+  - The other two openings came at 9:44 (NF hard–medium) and 9:58 (AN entrant3–medium 7), with 16 s
+    or less left.
+    - In NF, two attackers got within range for a few seconds and took 116.
+  - The schemas' default walks straight at the enemy base (`push_lane`). Their attack rules wait for
+    an enemy tower in sight, and their hurt rules send a bot home under 50 % hp.
+  - The base tower stands 81 from the mid inner tower and shoots like any tower, so the walk in is
+    under fire. The attackers turned back before they reached it.
+  - This is read from positions and action kinds, not from each decision's reply.
+- **So the levers, for Ceryce to rank:**
+  1. **A push rule** in the house tiers and the sample entrant: "an enemy inner tower is down and
+     the base tower is in sight → attack it". It is a schema change, and the map is unchanged.
+  2. **Lower hp** on the inner or base tower.
+  3. **A later Chorus**, or none: more time. NF says time alone barely helps (one inner tower in 4
+     matches).
+  4. Turning the backdoor protection off (`needsInnerDown: false`). It is one field, but no bot
+     reached an open base tower anyway.
+
+### 2.5 Caveats
+
+- 8-match blocks (4 for NF). Seeds 3 and 7 are near-replays on Jev (#88 §2.4). These are directions,
+  not rates.
+- The arena blocks use the house tiers and the siege entrant, the same bots as the Jam blocks, not
+  the ladder's real entrants.
+- A protected base tower reads as full hp in the description, and nothing tells Jev it is protected
+  (§0.1). No bot tried to hit one, so this didn't come up.
+- The dive counts on this job's 36 new logs match §0.5:
+  - 28 shielded hits of 7,448 PvP hits;
+  - 27 shielded episodes, and none of those divers died within 5 s.
 
 ## Files
 
@@ -279,4 +444,17 @@ enemy bearbot):
 - `tools/match/cli.mjs`: `--map` help.
 - `tools/jev/vocab.py` and its test: the name in the Python mirror.
 - `docs/arena-runbook.md`: the `tournament.map` row.
-- **Logs, not in git:** on the `data-nexus-guard-2026-10-02` prerelease.
+- **Logs, not in git.** On the
+  [`data-nexus-guard-2026-10-02`](https://github.com/kumouri/promptlane/releases/tag/data-nexus-guard-2026-10-02)
+  prerelease:
+  - the 36 paid logs, `runs/nexus-guard-2026-10-02-<block>-<violet>-<green>-seed<N>.json`, and the
+    stub smokes;
+  - the analysis kit:
+    - `ng_dives.mjs` (the dive counter, §0.5);
+    - `ng_falls.mjs` / `ng_replay.mjs` (exact tower falls);
+    - `ng_ends.py` / `ng_push.py` / `ng_tiebreak.py` / `ng_cf300.py`;
+  - the stand-in kit (`ng_stand.mjs`, the oracle and its plans) and all 162 stand-in sims;
+  - #93's pinned hard, the plans, the run log, and the server's final `/health`;
+  - every output table.
+
+  To check a log, unzip at the repo root and run `npm run match -- --verify <log>`.
