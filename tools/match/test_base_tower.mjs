@@ -179,6 +179,68 @@ test('the scripted push wins by downing the base tower', () => {
   assert.ok(onBase.result.baseTower.openedTick.green <= onBase.result.baseTower.fellTick.green);
 });
 
+/** What bot `i`'s own pilot is handed: the sim's observation through every layer `attachMapRules` wrapped around it. */
+async function seenBy(map, i) {
+  const seen = [];
+  const roster = ROSTER.map((s) => ({ ...s, pilotKind: 'scripted', makePilot: () => ({ decide: async (obs) => (seen.push(obs), { kind: 'hold' }) }) }));
+  const m = new h.Match(1, roster);
+  const variant = h.resolveMap(map);
+  h.applyMapVariant(m, variant);
+  h.attachResolution(m, h.resolveResolution('simultaneous-1'));
+  h.attachMapRules(m, variant, 'simultaneous-1');
+  await m.pilotState.get(m.bearbots[i].id).pilot.decide(m.observe(m.bearbots[i]));
+  return { m, obs: seen[0] };
+}
+
+test('pilots see both base towers map-wide, and whether each can be hit, by the rule the sim applies', () => {
+  const m = built();
+  const handed = h.getBaseTowers(m).observe(m.observe(m.bearbots[0])).baseTowers;
+  assert.deepEqual(Object.keys(handed), ['own', 'enemy']);
+  assert.equal(m.bearbots[0].team, 'violet');
+  assert.equal(handed.own.id, baseOf(m, 'violet').id);
+  assert.equal(handed.enemy.id, baseOf(m, 'green').id);
+  assert.deepEqual([handed.enemy.hp, handed.enemy.maxHp, handed.enemy.alive, handed.enemy.canBeHit], [700, 700, true, false]);
+  assert.ok(dist(m.bearbots[0].pos, handed.enemy.pos) > 390, 'listed map-wide, far beyond the 390 towers are listed within');
+  inner(m, 'green', 'bottom').hp = 0;
+  inner(m, 'green', 'bottom').alive = false;
+  tick(m);
+  const after = h.getBaseTowers(m).observe(m.observe(m.bearbots[0])).baseTowers;
+  assert.equal(after.enemy.canBeHit, true, 'one of their inner towers is down');
+  assert.equal(after.own.canBeHit, false);
+  assert.equal(after.enemy.canBeHit, h.getBaseTowers(m).vulnerable('green'), 'one source of truth');
+  const green = h.getBaseTowers(m).observe(m.observe(m.bearbots[3])).baseTowers;
+  assert.equal(green.own.canBeHit, true, 'and green sees its own as open');
+});
+
+test('the layer hands every pilot the base towers; a map without them hands none', async () => {
+  for (let i = 0; i < 6; i++) {
+    const { m, obs } = await seenBy(MAP, i);
+    assert.equal(obs.baseTowers.own.id, baseOf(m, m.bearbots[i].team).id);
+    assert.equal(obs.baseTowers.enemy.id, baseOf(m, other(m.bearbots[i].team)).id);
+  }
+  assert.ok('teleport' in (await seenBy('pvp-2-hp400-base950', 0)).obs, 'pvp-2`s layers still wrap it');
+  assert.ok('baseTowers' in (await seenBy('pvp-2-hp400-base950', 0)).obs);
+  assert.ok(!('baseTowers' in (await seenBy('pvp-1', 0)).obs));
+});
+
+test('pvp-2-hp400-base950 is pvp-2 with towers at 400 / 700 and a 950 base tower 133 in front of its nexus; opt-in', () => {
+  const v = h.resolveMap('pvp-2-hp400-base950');
+  const { name, towerHp, baseTower, ...rest } = v;
+  const { name: _n, ...pvp2 } = h.PVP_2_MAP;
+  assert.deepEqual(towerHp, [700, 400]);
+  assert.deepEqual(baseTower, { hp: 950, standoff: 100, needsInnerDown: true });
+  assert.deepEqual(rest, pvp2, 'pvp-2 otherwise: scale, towers, boost, teleport');
+  assert.equal(h.DEFAULT_MAP.name, 'pvp-1');
+  const m = built(v);
+  assert.equal(m.towers.length, 14);
+  for (const team of ['violet', 'green']) {
+    const b = baseOf(m, team);
+    assert.deepEqual([b.hp, b.maxHp], [950, 950]);
+    assert.ok(Math.abs(dist(b.pos, nexusOf(m, team).pos) - 133) < 1e-6);
+  }
+  for (const t of m.towers.filter((t) => !h.isBaseTower(t))) assert.equal(t.hp, t.tier === 2 ? 400 : 700);
+});
+
 test('a pvp-1 log has no base tower and replays as before', async () => {
   assert.ok(!('baseTower' in onPvp1.map));
   assert.ok(!('baseTower' in onPvp1.result));

@@ -44,9 +44,9 @@ import {
 export { mockCallModel } from '../../src/pilots/callModel';
 export { jevTracingPilot } from './jevPilot';
 export { jevTeamTracingPilot } from './jevTeamPilot';
-export { DEFAULT_TARGETING, FIRST_MIN, OWN_LANE_1, TARGETINGS, jevSchemaTracingPilot, resolveTargeting, targetingUnsupported } from './jevSchemaPilot';
+export { DEFAULT_TARGETING, FIRST_MIN, OWN_LANE_1, TARGETINGS, baseTowerUnsupported, jevSchemaTracingPilot, resolveTargeting, targetingUnsupported } from './jevSchemaPilot';
 export { DEFAULT_VOCAB, VOCAB_1, VOCAB_2, VOCABS, approachOutOfRange, schemaVocab, towerAggroUnsupported, vocabUnsupported, vocabsOf } from './jevSchemaPilot';
-export { DEFAULT_MAP, MAP_VARIANTS, PVP_MAP, PVP_2_MAP, PVP_BASE_TOWER_MAP, SPECIMEN_MAP, laneCoverage, resolveMap, towerPos, variantGeometry } from '../../src/mapVariant';
+export { DEFAULT_MAP, MAP_VARIANTS, PVP_MAP, PVP_2_MAP, PVP_2_BASE_TOWER_MAP, PVP_BASE_TOWER_MAP, SPECIMEN_MAP, laneCoverage, resolveMap, towerPos, variantGeometry } from '../../src/mapVariant';
 export { BASE_TOWER_TIER, getBaseTowers, isBaseTower } from '../../src/baseTower';
 export { attachAttribution } from '../../src/attribution';
 export { attachMapRules } from '../../src/mapRules';

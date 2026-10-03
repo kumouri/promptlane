@@ -25,6 +25,9 @@ the nearest enemy tower.
 Never stand in an enemy tower's fire. If an enemy tower will shoot you, fall back to your own
 tower.
 
+Take their base. Destroying the enemy base tower wins the match, and it can be hit once one of
+their inner towers is down, so if the enemy base tower can be hit, attack the enemy base tower.
+
 Siege with your wave. If you are inside an enemy tower's range and that tower has your own minions in
 its range to shoot first, attack the nearest enemy tower.
 
