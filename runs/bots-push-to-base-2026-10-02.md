@@ -15,7 +15,53 @@ recommended a "push to their base tower once a lane is open" rule, and Ceryce ag
 
 ## Verdict
 
-*Written after the run.*
+*Written after the run. §0–1.3 were committed (`9482949`, 21:39 CT) before the first paid call; §1.4
+(`67c0499`) and §1.5 (`fea6c33`) before their own.*
+
+- **Built:**
+  - the push-to-base rule in medium, hard and the siege entrant, right after the fall-back. Easy gets
+    none (§0.1).
+  - vocab-2's base-tower status, from the sim (`baseTowers`), and the `enemy_base_tower` target;
+  - the opt-in map `pvp-2-hp400-base950` (the brief's "pvp-2-base"), its hp derived from #91's paired logs
+    (§0.3).
+- **No base tower fell in any of the 34 Jev matches**, on either map, with the Chorus or without, as the
+  stand-in forecast. #96's was 0 of 20.
+- **The wall is the inner tower and the clock, not the base tower:**
+  - No inner tower fell before 8:00 in any block.
+  - Under the Jam ruleset, the Chorus ends the match at 8:00, on a tower lead or in sudden death, before
+    any inner tower is down.
+  - Every base tower that opened (5) opened at 8:07–9:36, with 0 to 50 s left. None was finished.
+- **The rule reads right on Jev:**
+  - It said yes to a shut or absent base tower **0 times** in 40,323 decisions and 240 probe states.
+  - It said yes to an open one 111 of 111 times in play, and 54 of 60 in the probe (90 %, P0′; the
+    misses are keytar).
+- **But this job's own description line had a defect**, found in the blocks and fixed (§1.4–1.5):
+  - Jev read the map-wide "enemy base tower … 1000 units away" as an enemy tower in sight.
+  - After 8:00, the close-out rule then attacked nothing in 36–66 % of its wins.
+  - All 32 block matches played with it. It touches play after 8:00 (the sudden-death race and the
+    ladder there), not the headline: the stand-in reads the observation, not the text, and also gives no
+    base kill.
+  - The fixed wording plus a resolver fallback took it to 2 % in E′. After E′'s opening, the close-out
+    went at the base tower 21 times of 34, and time ran out (34 of 700 hp).
+- **Ladder** (J + E + P, 32 matches): easy < medium ≤ hard holds.
+  - Medium beat easy 6–0; hard against medium 3–1–2.
+  - The siege entrant beat easy 6–0, went 4–4 with medium and 2–3–1 with hard.
+- **Rejected compiles:** 32 of 40 instrument compiles, by the by-hand order and clause screen (§0.4).
+- **Spend: $4.3053 of the $5.00 stop**, on the servers' ledgers:
+  - 34 matches;
+  - 0 errors;
+  - 13 TypeSafe read timeouts failed over. Workers AI answered 922 of 47,945 decisions, the same Jev
+    model.
+
+| map, ruleset (Jev) | n | base kill | Chorus lead | sudden death | 10:00 decided | draw | lane tower before 8:00 (median) | inner tower down | base tower opened (time left) | finished | median length | deaths a match |
+|---|---:|---:|---:|---:|---:|---:|---|---|---|---:|---:|---:|
+| #96 N: `pvp-1-hp300-base700`, Jam, old bots | 8 | 0 | 5 | 3 | — | 0 | 5 (6:34) | 0 | 0 | 0 | 8:00 | 5.4 |
+| **J: same, new bots** (N's 8 slots) | 8 | **0** | 3 | 5 | — | 0 | 6 (5:55) | 1 (8:07) | 1 (8:07, as sudden death ended it) | 0 | 8:04 | 5.0 |
+| **J: all 12** | 12 | **0** | 6 | 6 | — | 0 | 10 (5:31) | 1 (8:07) | 1 (8:07, 0 s) | 0 | 8:00 | 5.2 |
+| #96 AN: same map, live arena (no economy), old bots | 8 | 0 | — | — | 8 | 0 | 8 (4:01) | 3 (8:11–9:58) | 3 (107, 108, 2 s) | 0 | 10:00 | 3.1 |
+| **E: same map, arena + `eco-3` + `recall-2`** | 10 | **0** | — | — | 7 | 3 | 7 (6:06) | 2 (9:29, 9:36) | 2 (30, 23 s) | 0 | 10:00 | 8.2 |
+| E′: 2 of E's slots, fixed line + fallback | 2 | 0 | — | — | 2 | 0 | 2 (6:32) | 1 (9:09) | 1 (50 s) | 0 | 10:00 | 7.5 |
+| **P: `pvp-2-hp400-base950`, Jam** | 10 | **0** | 8 | 2 | — | 0 | 10 (6:09) | 1 (9:10) | 1 (9:10, as sudden death ended it) | 0 | 8:00 | 5.3 |
 
 ## 0. What was built, at $0
 
@@ -55,7 +101,8 @@ that it wins. So a rule "attack the enemy base tower once it can be hit" had not
   base-tower map only:
   - both base towers, map-wide: `{id, pos, hp, maxHp, alive, canBeHit}`;
   - `canBeHit` is `BaseTowers.vulnerable`, the rule the sim applies at the end of every tick.
-- **vocab-2 states it** (`docs/vocabulary-spec.md` §8.14):
+- **vocab-2 states it** (`docs/vocabulary-spec.md` §8.14; the wording below is what §1.3's blocks played, and
+  §1.4 replaced it):
   - "The enemy base tower tw-13 can be hit now: one of their inner towers is down. It has 412/700 hp,
     at (829,171), 183 units away, and destroying it wins the match." Or "…can't be hit yet: it takes no
     damage until one of their inner towers is down…";
@@ -319,6 +366,141 @@ Post hoc, like §1.4. Nothing in §1.3 or §1.4 is changed by it.
   - Never extended. The private server's cap is the room left under $4.90 ($0.86 at the restart).
   - Jev replays easy's matches near-identically (#88, #91), so an opening is likely to recur, not certain.
 
+## 2. Result
+
+*Written after the run.*
+
+### 2.1 The run
+
+- **Timeline (CT):**
+  - the plan was pushed at 21:39 (`9482949`); P0 ran right after;
+  - J, E and P ran 21:40–22:16, in plan order. The guard never cut a slot, and nothing was retried,
+    added or replayed;
+  - §1.4 was pushed at 22:20 (`67c0499`), then P1 arms A and B ran;
+  - the fixed wording was committed (`1b91e17`), then P1 C and P0′ ran;
+  - §1.5 was pushed at 22:27 (`fea6c33`), and E′ ran 22:27–22:30.
+- **Clean:**
+  - 34 of 34 match logs replay-verify (`--verify`), plus the 3 stub smokes;
+  - 0 parse errors and 0 call errors on either side;
+  - 0 server errors.
+- **Spend: $4.3053** on the four server processes' ledgers (`health-*.json`):
+
+| item | cost |
+|---|---:|
+| P0 (180 calls) | $0.0162 |
+| J (12) | $1.4331 |
+| E (10) | $1.3653 |
+| P (10) | $1.2143 |
+| P1 arms A, B (120 calls) | $0.0099 |
+| P1 arm C, P0′ (240 calls) | $0.0210 |
+| E′ (2) | $0.2455 |
+| **total** | **$4.3053** |
+
+### 2.2 How matches end, slot for slot
+
+Winner and end, then (first lane tower down; first inner tower down; base tower opened). Times are
+exact, from replays. Sudden death and the Chorus lead are the Final Chorus's (`src/finale.ts`). "10:00"
+is the sim's tower-count tiebreak.
+
+| slot (violet–green, seed) | #96 N (old bots) | J | E | P |
+|---|---|---|---|---|
+| easy–medium 3 | medium, lead 8:00 (6:34) | medium, lead 8:00 (6:34) | medium, 10:00 (6:34) | medium, lead 8:00 (6:47) |
+| entrant3–medium 3 | entrant3, SD 8:24 | medium, SD 8:07 (5:35; inner 8:07, which ended it) | medium, 10:00 (8:03) | medium, lead 8:00 (5:38) |
+| entrant3–medium 7 | medium, lead 8:00 (6:00) | entrant3, SD 8:56 (6:15) | | |
+| hard–medium 3 | medium, SD 8:01 | hard, SD 8:14 (3:43) | draw, 10:00 (9:20) | hard, SD 8:03 (6:28) |
+| medium–easy 3 | medium, lead 8:00 (6:34) | medium, lead 8:00 (6:34) | medium, 10:00 (6:09; inner 9:29, base opened, 0 lost) | medium, lead 8:00 (6:51) |
+| medium–entrant3 3 | medium, lead 8:00 (6:41) | entrant3, SD 8:01 (8:01) | entrant3, 10:00 (6:06) | medium, SD 9:10 (5:50; inner 9:10, which ended it) |
+| medium–entrant3 7 | entrant3, lead 8:00 (4:12) | entrant3, lead 8:00 (4:11) | | |
+| medium–hard 3 | hard, SD 8:35 | medium, SD 8:10 (8:10) | draw, 10:00 (8:57) | hard, lead 8:00 (7:14) |
+| entrant3–hard 3 | | hard, lead 8:00 (5:26) | entrant3, 10:00 (5:27) | hard, lead 8:00 (3:57) |
+| hard–entrant3 3 | | entrant3, SD 8:08 (4:11) | draw, 10:00 (6:06) | hard, lead 8:00 (3:31) |
+| entrant3–easy 3 | | entrant3, lead 8:00 (6:30) | entrant3, 10:00 (6:30; inner 9:36, base opened, 34 lost) | entrant3, lead 8:00 (7:08) |
+| easy–entrant3 3 | | entrant3, lead 8:00 (4:28) | entrant3, 10:00 (4:28) | entrant3, lead 8:00 (5:49) |
+
+E′ re-played E's two opening slots on the fixed code:
+- entrant3–easy: entrant3 at 10:00 (6:30; inner 9:09, base opened with 50 s left, 34 lost);
+- medium–easy: medium at 10:00 (6:34; no inner tower this time).
+
+### 2.3 Against the questions (§1.2)
+
+1. **How matches end:**
+   - **Base kills: 0 of 34.**
+   - The Jam ruleset ended every J and P match at 8:00–9:10: Chorus lead 14, sudden death 8.
+   - The arena with an economy (E) played every match to 10:00: 7 decided by the tower count, 3 draws.
+2. **First towers:**
+   - A lane tower fell before 8:00 in 10 of 12 J (median 5:31, earliest 3:43), 7 of 10 E (6:06, 4:28)
+     and 10 of 10 P (6:09, 3:31). N was 5 of 8.
+   - **No inner tower fell before 8:00 in any block.** Inner towers fell at 8:07 (J), 9:29 and 9:36 (E),
+     9:09 (E′) and 9:10 (P).
+3. **Base towers opened, and finished:**
+   - 5 opened, none finished.
+   - Two opened on the tick the inner tower's fall ended the match in sudden death (J, P).
+   - Three opened with 23, 30 and 50 s left (E, E′).
+   - In E, every decision after the opening went to the close-out or a retreat: the close-out sits above
+     the push rule, and with §0.2's line it attacked nothing (§1.4).
+   - In E′, on the fixed code, the close-out went at the base tower 21 times of its 34 wins. The bots
+     arrived from across the map and took 34 of its 700 hp before 10:00.
+4. **Length and deaths:**
+   - Median 8:00 (J, P) and 10:00 (E).
+   - Deaths a match: J 5.2 (N 5.4), P 5.3, E 8.2. E respawns, where #96's AN, with no economy, had 3.1.
+     Easy died 0.1 times a match.
+5. **Ladder** (J + E + P): easy < medium ≤ hard holds.
+   - Medium beat easy 6–0.
+   - Hard against medium went 3–1 with 2 draws (J 1–1, E 0–0–2, P 2–0).
+   - **The siege entrant:** easy 6–0; medium 4–4 (J 3–1, E 1–1, P 0–2); hard 2–3, 1 draw (J 1–1, E 1–0–1,
+     P 0–2).
+6. **The push rule on Jev:**
+   - **Shut or absent: 0 yes** in 38,721 J/E/P decisions, 1,602 in E′, and 240 probe states (P0, P0′).
+   - **Open: yes 61 of 61 (E) and 50 of 50 (E′).**
+   - It never won a decision, because every opening came after 8:00 and the close-out sits above it.
+   - Probe: P0 53/60 on open (B), P0′ 54/60 (C). Every miss is keytar.
+7. **Hygiene: PASS** (§2.1).
+8. **Spend: PASS**, $4.3053.
+
+### 2.4 Why still no base kill
+
+- **Under the Jam ruleset, the Chorus decides first.** A base kill needs an outer (300), an inner (500)
+  and the base tower (700) before 8:00.
+  - The bots take the first outer tower at a median of ~5:30–6:10.
+  - No inner tower was down at 8:00 in any of 22 J and P matches.
+  - Then a tower lead wins, or sudden death's first tower does.
+- **Softer inner towers don't change that under the Chorus** (stand-in, $0, ranking only, not
+  pre-registered; `stand/in300`). The same 30 slots on the base map with inner towers at 300:
+  - Jam stack: no inner tower before 8:00, 0 base kills.
+  - Arena + eco: inner towers fell in 12 of 30 (median 9:10). That opened 12 base towers, finished 0.
+    The bots got there late, and the close-out still sat above the push rule.
+- **Without the Chorus, time runs out.** E's and E′'s openings came at 9:09–9:36.
+  - #96's AN, with no economy (no respawn), opened two at 8:11–8:12 with 107 s left, and its old bots never
+    hit them.
+  - The economy brings the defenders back, and the inner tower holds longer.
+
+### 2.5 Caveats
+
+- 8–12-match blocks. Seeds 3 and 7 are near-replays on Jev, and Jev replays easy's matches near
+  identically. These are directions, not rates.
+- §0.2's defective line was in all 32 block matches. It changes post-8:00 play, so the sudden-death
+  results and the ladder are of the bots with it. The base-tower count doesn't rest on it (§2.4).
+- E against #96's AN changes two things at once, the bots and the economy. The stand-in's old/new split
+  (§0.5) is the only separation, and it found nothing between them.
+- E′ is 2 matches, chosen after E was read (§1.5 says so).
+
+## 3. What Ceryce may want to decide
+
+1. **What to try next for base kills.** The data points at the inner tower and the 8:00 Chorus, not the
+   base tower. Each is unmeasured on Jev:
+   - **A "lane open" rule:** once an enemy outer tower is down, push that lane's inner tower with the wave.
+     That is Margo's original wording; the brief fixed the trigger at an inner tower down. It needs a
+     map-wide "their towers down" fact; vocab-2 only lists dead towers within 390.
+   - **A later Chorus, or none, on base-tower maps.** With no Chorus (E), inner towers fall after ~9:10.
+   - **Lower inner hp.** Alone it doesn't beat the Chorus (§2.4).
+2. **The close-out rule outside the Chorus.** Its reason ("at eight minutes every tower drops to a
+   third") is only true with the Chorus. In the arena's config it still fires after 8:00, above the push
+   rule. It would need a "the match has the Chorus" fact to be conditional. Not changed here.
+3. **Keep the resolver fallback (§1.5)?** It is its own commit (`6f88bbe`). It turns the close-out's
+   misread into a walk to the open base tower instead of nothing.
+4. **The placement bar moved.** `house-medium-eco.schemas.json` changed (one rule, inert without base
+   towers: 0 yes in 60 pvp-1 probe states). A ladder restarted on it records a new `house` hash.
+
 ## Files
 
 - `src/baseTower.ts`: `baseTowers` in the observation (`BaseTowerObservation`).
@@ -345,4 +527,22 @@ Post hoc, like §1.4. Nothing in §1.3 or §1.4 is changed by it.
   - `tools/arena/test_house.mjs`;
   - `tools/jev/test_vocab.py`, `test_pvp2.py`.
 - **Docs:** `docs/vocabulary-spec.md` §8.14; `docs/arena-runbook.md` (`tournament.map`).
-- **Logs, not in git:** on the `data-bots-push-to-base-2026-10-02` prerelease (§2).
+- **Logs, not in git.** On the
+  [`data-bots-push-to-base-2026-10-02`](https://github.com/kumouri/promptlane/releases/tag/data-bots-push-to-base-2026-10-02)
+  prerelease:
+  - the 34 paid logs, `runs/bots-push-to-base-2026-10-02-<block>-<violet>-<green>-seed<N>.json` (block J, E,
+    P or Eprime), and the stub smokes;
+  - `runs/bots-push-to-base-2026-10-02-analysis/`:
+    - the probes (`probe-*.json`, `p1-*.json`);
+    - the 240 stand-in sims (`stand/old`, `stand/new`, `stand/in300`) with their exact falls and summaries;
+    - all 40 compile samples (`compiles/`) and the pre-job schemas (`old/`);
+    - the kit:
+      - `kit/ng_jev.mjs`, `ng_stand.mjs` (#96's, with this worktree and `arenaeco`);
+      - `pl_oracle*.py` (with the base-tower atom);
+      - `probe.mjs`;
+      - `pb_analyze.py`, `pb_opened.py`, `pb_targets.py`, `pb_closeout.py`, `pb_tables.py`, `p1_states.mjs`;
+      - `ng_falls.mjs` / `ng_replay.mjs`, `tower_ids.mjs`;
+    - `hp_derive.py`, `easy_towers.py`;
+    - the plans, the run log, and each server's final `/health`.
+
+  To check a log, unzip at the repo root and run `npm run match -- --verify <log>`.
