@@ -601,6 +601,8 @@ before the priority guard:
 - A question that keeps its "no", "not", "none", "zero" or "out of sight" is never touched.
 - A sentence that names the thing both ways ("walk with my nearest minion, and if I have no minions
   near me …") decides nothing.
+- Only a sentence of the prose the rule states can decide (§8.11): a "no" in another sentence never
+  vetoes it.
 
 The prompt is unchanged, and vocab-1 is unchanged. The evidence and the free recompiles are in
 `runs/vocab2-negation-polarity-2026-10-02.md`.
@@ -723,3 +725,59 @@ in its own paragraph, or restate the verdict's words ("when my side is stronger 
 
 The prompt is unchanged, and vocab-1 is unchanged. The evidence and the free recompiles are in
 `runs/vocab2-guard-scope-2026-10-02.md`.
+
+### 8.11 A cascade keeps the prose's order
+
+A cascade is first-match-wins: a rule placed below one that nearly always fires rarely runs. Once the
+token caps were gone (#95), house-hard-eco's 16-rule prose compiled whole, and in 16 of 36 schemas the
+translator moved the 480-second tower rule, the tower-fire retreat or the finish kills below "push with
+your wave". The sample entrant's compiles put "afford my next item → go shop" above the back-off and
+the recall in 33 of 36. Nothing checked order. Under `vocab-2`, `translator.enforce_rule_order` runs
+after the negation guard and before the priority guard:
+
+- **Where each node is in the prose.** The prose is cut into parts: each rule sentence, with the label
+  sentences that introduce it ("Finish kills.", "Never stand in an enemy tower's fire."). A sentence is
+  a rule sentence when it has "if", "when", "unless", "otherwise", "while", "until" or a ":".
+- **Scoring.** A node scores against each part by the share of that part's words it uses:
+  - the words are weighted by how few parts use them;
+  - the node's words are its question, action, target, id, and the target's vocab-2 meaning;
+  - "see" and "visible" count as "sight", and "none" as "no";
+  - a part that names a different action ("attack" for an ability rule) counts half.
+- **Candidate parts.** Every part scoring at least 75% of the node's best is one it may state. A node
+  that shares fewer than two words with every part is not judged.
+- **Override language.** A node from a part using override language ("no exceptions") is not judged
+  either. The prose takes it out of order itself, and the priority guard puts it first.
+- **Out of order.** The fewest nodes whose removal leaves the rest in the prose's order are out of
+  order. Every cascade in the tree is checked, guard branches included.
+- **Rejected:** a reply with any node out of order. The retry lists, numbered in the prose's order,
+  every sentence the reply's nodes state. It quotes only prose, never a rule. A first message that
+  quoted only the misplaced pairs came back out of order 10 of 11 times; the list came back in order
+  11 of 11.
+- **On the last attempt** each out-of-order node is moved to its own part, with an `order:` note the
+  entrant sees under "Rule order — what was moved or removed":
+  - its own part is the one that beats every other by 20%;
+  - with no such part it is removed instead, with a note saying so.
+- **The retry can fix the order, never cost a rule.** The first reply wrong only in its order has
+  passed every other check, so it is kept, reordered as above. It ships instead of the retry when:
+  - every later attempt fails for another reason; or
+  - the reply that passes states fewer rules for some part of the prose (`keeps_every_rule`).
+
+  Told to keep the prose's order, the 9B wrote one rule per sentence. That dropped "walk with my
+  nearest minion" from "Otherwise I walk with my nearest minion, and if I have no minions near me
+  I go home …".
+- **Known miss.** Two rules whose sentences share a paragraph and every condition word but one, like
+  the low-hp "move home" / "recall" pair, can swap unflagged. Their conditions exclude each other,
+  so the swap plays the same.
+
+**Negation attribution.** `enforce_negation` (§8.6) uses the same parts. A sentence can decide a rule
+only if it is in a part the rule may state. In 3 of #95's 36 hard-eco compiles, a correct shopping
+rule was dropped. Its id read `shop_afford_no_enemy_minion_tower`, and the sentence backing the "no"
+was "Never stand in an enemy tower's fire". All of #87's fixtures still pass.
+
+**vocab-1 sends no reply cap** (Ceryce, 2026-10-02 17:59, "any token cap"). Its request is the one its
+recorded runs used, byte for byte, less `num_predict` 1800. It gains nothing, not even
+`"truncate": false`. Its prompts and its golden (`tools/jev/testdata/vocab1_golden.json`) are
+unchanged.
+
+The prompt is unchanged. The evidence, the free recompiles and the measurement of the part scoring
+are in `runs/vocab2-rule-order-2026-10-02.md`.

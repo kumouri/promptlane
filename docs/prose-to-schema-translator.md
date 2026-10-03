@@ -172,8 +172,9 @@ without a GPU, `tools/jev/compile.py --backend openrouter` runs the same transla
 model hosted, `qwen/qwen3.5-9b`, ≈$0.0006 per three-instrument compile — see
 [`entrant-compile-preview.md`](entrant-compile-preview.md).)*
 *(2026-10-02: no token caps. Ceryce ruled at 17:59 CT: "Get rid of any fucking token caps." A reply
-is no longer cut at 1,800 tokens, and no compile is refused for its token total. vocab-1 alone keeps
-the 1,800 it was measured with, so its request is byte-identical. A reply that never ends is stopped
+is no longer cut at 1,800 tokens, and no compile is refused for its token total, under any
+vocabulary: vocab-1 kept its 1,800 at first, and lost it too, so its request is the recorded one less
+that one field (`runs/vocab2-rule-order-2026-10-02.md`). A reply that never ends is stopped
 by a wall-clock timeout instead (`tools/jev/llm_backends.py`). Evidence:
 [`runs/remove-token-caps-2026-10-02.md`](../runs/remove-token-caps-2026-10-02.md).)*
 
@@ -237,7 +238,18 @@ See [`translator-guards-and-defaults-spec.md` §10](translator-guards-and-defaul
 when a rule's question asks only whether a thing IS there ("is there any enemy within 260 units?"),
 but the rule's own id or its prose sentence says it is NOT ("no enemy is in sight"). The retry quotes
 the sentence. On the last attempt the rule is dropped with a `negation:` note instead. A question that
-keeps its "no" or "not" is never touched. See `docs/vocabulary-spec.md` §8.6.
+keeps its "no" or "not" is never touched. See `docs/vocabulary-spec.md` §8.6. Only a sentence of the
+prose the rule states can decide, so a "no" in another sentence never vetoes it (§8.11).
+
+**Rule-order check, vocab-2 only, added 2026-10-02.** `translator.enforce_rule_order` rejects a reply
+whose cascade leaves the order the prose states its rules in: the first rule whose question is true
+decides, so a rule moved below one that nearly always fires rarely runs. Each node is placed at the
+part of the prose it states; rules from override-worded prose are left to the priority guard. The retry
+lists the prose's rule sentences in order, quoting only prose. On the last attempt each out-of-order
+rule is moved to its own sentence, or removed when no one sentence is clearly its own, with an `order:`
+note. The first reply wrong only in its order is kept, reordered, and ships if no later reply passes
+with as many rules, so the retry can fix the order but never cost a rule. See
+`docs/vocabulary-spec.md` §8.11.
 
 **Guard-scope check, vocab-2 only, added 2026-10-02.** `translator.enforce_guard_scope` rejects a
 reply in which a guard has any node after it, because a guard always routes, so those nodes are never
