@@ -57,7 +57,7 @@ const observed = await scripted({ towerAggro: 'aggro-1', decisionPilotFor: (i) =
  * pilot holds. Green's mid outer tower has a violet keytar A and a violet minion (which stands still
  * and deals nothing) inside its range, and green's violin V beside A.
  */
-async function setup({ aggro = true, plan = {} } = {}) {
+async function setup({ aggro = true, plan = {}, mapName = 'pvp-1', pick = (t) => t.team === 'green' && t.lane === 'mid' && t.tier === 2 } = {}) {
   const s = { ready: false };
   const asks = ROSTER.map(() => 0);
   const roster = ROSTER.map((slot, i) => ({
@@ -68,7 +68,7 @@ async function setup({ aggro = true, plan = {} } = {}) {
     }),
   }));
   const match = new h.Match(1, roster);
-  const map = h.resolveMap('pvp-1');
+  const map = h.resolveMap(mapName);
   h.applyMapVariant(match, map);
   const resolution = h.resolveResolution('simultaneous-1');
   h.attachResolution(match, resolution);
@@ -81,7 +81,7 @@ async function setup({ aggro = true, plan = {} } = {}) {
       await flush();
     }
   };
-  s.tower = match.towers.find((t) => t.team === 'green' && t.lane === 'mid' && t.tier === 2);
+  s.tower = match.towers.find(pick);
   s.at = (u, dx, dy) => {
     u.pos.x = s.tower.pos.x + dx;
     u.pos.y = s.tower.pos.y + dy;
@@ -204,6 +204,17 @@ test('a killing blow counts, and a shot that kills the locked attacker is a kill
   assert.equal(s.V.alive, false);
   assert.equal(s.A.alive, false);
   assert.equal(s.layer.summary().teams.green.kills, 1);
+});
+
+test('a tower a map adds gets the rule too: the base tower (pvp-1-hp300-base700)', async () => {
+  const s = await setup({ plan: { 1: attackV }, mapName: 'pvp-1-hp300-base700', pick: (t) => t.team === 'green' && h.isBaseTower(t) });
+  assert.ok(s.tower, 'the map has a green base tower');
+  await s.untilHit();
+  assert.equal(s.layer.lockOf(s.tower.id)?.target, s.A.id, 'the base tower is locked on the keytar');
+  const m0 = s.minion.hp;
+  await s.step(19);
+  assert.equal(s.minion.hp, m0, 'no tower in range shot the minion');
+  assert.ok(s.layer.summary().teams.green.triggersWithMinions >= 1);
 });
 
 test('attaching after something wrapped the tower step refuses', async () => {

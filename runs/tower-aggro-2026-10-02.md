@@ -17,7 +17,8 @@ enemy bearbot under that enemy's tower for free while its own wave stands there.
 ## Verdict
 
 *Written after the run. §0 and §1 were committed (`485c6cd`) and pushed at 20:10:42 CT, before the
-first paid match (20:11:57 CT).*
+first paid match (20:11:57 CT). After the run the branch was rebased onto #96 (nexus-guard), so that
+commit is now `3e2b020`, with the plan text unchanged.*
 
 - **Built:** `--tower-aggro aggro-1`, opt-in and off by default everywhere.
   - **Trigger:** an enemy bearbot damages a bearbot of the tower's team while the **attacker** is
@@ -25,8 +26,11 @@ first paid match (20:11:57 CT).*
   - **Effect:** the tower shoots that attacker for **3 s** from the hit (refreshed by each further
     hit), or until it leaves the range or dies.
   - **Unchanged:** minion damage doesn't count, and everything else is the specimen's.
-  - **Scope:** every tower, including any a map adds. `src/sim` is untouched.
-  - **Replay:** all 74 older paid Jev logs (§0.4) replay byte for byte.
+  - **Scope:** every tower, including any a map adds. #96's base tower (`pvp-1-hp300-base700`,
+    merged during this job) gets it with no change; that is tested, not measured on Jev. `src/sim` is
+    untouched.
+  - **Replay:** all 74 older paid Jev logs (§0.4) replay byte for byte, before and after the rebase
+    onto #96, and so do this run's 20.
 - **Jev reads it perfectly.** On the 160 asks where a tower was locked on the bot, "will an enemy
   tower shoot this bot?" came back yes 160 times. On the other 26,386 asks it agreed with the fact every
   time, as before.
