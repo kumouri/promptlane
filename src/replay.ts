@@ -17,6 +17,7 @@ import { getRecall, type RecallRules, type RecallSummary } from './recall';
 import type { EndReason, FinaleRules, FinaleSummary } from './finale';
 import { getHomeguard, type HomeguardSummary } from './homeguard';
 import { getTeleport, type TeleportSummary } from './teleport';
+import type { BaseTowerSummary } from './baseTower';
 
 export const MATCH_LOG_SCHEMA = 'promptlane-match-log-1';
 
@@ -86,6 +87,7 @@ export interface MatchResult {
   /**
    * Why it ended: `nexus`, `timeout` (the 10:00 tiebreak), or under a finale (`src/finale.ts`)
    * `chorus-lead` (a tower lead at 8:00) or `sudden-death` (the first tower after a level 8:00).
+   * On a map with a base tower (`src/baseTower.ts`), `nexus` means a base tower fell.
    * `null` = unfinished.
    */
   endReason: EndReason;
@@ -106,6 +108,8 @@ export interface MatchResult {
   homeguard?: HomeguardSummary;
   /** The map's teleport (pvp-2, `src/teleport.ts`), when its map has one. */
   teleport?: TeleportSummary;
+  /** When each base tower became damageable and when it fell, when the map has them (`src/baseTower.ts`). */
+  baseTower?: BaseTowerSummary;
 }
 
 export interface MatchLog {

@@ -21,6 +21,10 @@
  * - `laneTowerFractions`: one lane's tower fractions, overriding `towerFractions` for that lane.
  * - `homeguard` and `teleport`: rule layers the map brings with it (`src/homeguard.ts`,
  *   `src/teleport.ts`), attached by `attachMapRules`.
+ *
+ * `towerHp` and `nexusHp` (runs/tower-hp-2026-10-02.md) set the structures' hp; `baseTower`
+ * (runs/nexus-guard-2026-10-02.md) adds a tower in front of each nexus that wins the match when it
+ * falls (`src/baseTower.ts`, also attached by `attachMapRules`).
  */
 import type { Lane, Team, Vec2 } from './types';
 import type { Match } from './sim/match';
@@ -28,6 +32,7 @@ import { LANE_PATHS, LANES, dist, pointAlongPath } from './sim/map';
 import { scaledGeometry, setGeometry, type MapGeometry } from './geometry';
 import type { HomeguardRules } from './homeguard';
 import type { TeleportRules } from './teleport';
+import type { BaseTowerRules } from './baseTower';
 import HOMEGUARD_1_JSON from './homeguard/homeguard-1.json';
 import TELEPORT_1_JSON from './teleport/teleport-1.json';
 
@@ -56,6 +61,11 @@ export interface MapVariant {
   towerHp?: [number, number];
   /** Nexus hp (and maxHp) at the start. Absent = the specimen's 2200, not touched. */
   nexusHp?: number;
+  /**
+   * One tower in front of each nexus; the team whose base tower falls loses (`src/baseTower.ts`,
+   * attached by `attachMapRules`). Absent = no base tower, and the nexus is the sim's own.
+   */
+  baseTower?: BaseTowerRules;
 }
 
 /** The specimen's own map, exactly as `sim/map.ts` and `sim/entities.ts` build it. */
@@ -102,12 +112,27 @@ export const PVP_2_MAP: MapVariant = {
  */
 export const PVP_TOWER_HP_MAP: MapVariant = { ...PVP_MAP, name: 'pvp-1-hp400', towerHp: [600, 400] };
 
+/**
+ * pvp-1 with a base tower (opt-in; Ceryce, 2026-10-02 19:39 CT: "Can we try 300, 500, one tower in
+ * front of the Nexus at 700 and if you down that you win?"). Outer towers 300, inner 500, and one
+ * base tower of 700 hp 100 units in front of each nexus, on the mid lane. Downing it wins
+ * (`endReason: 'nexus'`). It can be damaged only once one of its team's inner towers has fallen.
+ * `src/baseTower.ts` has the rule; runs/nexus-guard-2026-10-02.md has the reasons and the measurement.
+ */
+export const PVP_BASE_TOWER_MAP: MapVariant = {
+  ...PVP_MAP,
+  name: 'pvp-1-hp300-base700',
+  towerHp: [500, 300],
+  baseTower: { hp: 700, standoff: 100, needsInnerDown: true },
+};
+
 export const MAP_VARIANTS: Record<string, MapVariant> = {
   [SPECIMEN_MAP.name]: SPECIMEN_MAP,
   [PVP_MAP.name]: PVP_MAP,
   [PVP_SHORT_RANGE_MAP.name]: PVP_SHORT_RANGE_MAP,
   [PVP_2_MAP.name]: PVP_2_MAP,
   [PVP_TOWER_HP_MAP.name]: PVP_TOWER_HP_MAP,
+  [PVP_BASE_TOWER_MAP.name]: PVP_BASE_TOWER_MAP,
 };
 
 /**
