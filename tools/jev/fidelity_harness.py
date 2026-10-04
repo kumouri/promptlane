@@ -325,10 +325,13 @@ def _tower_lines(obs: dict, spec: MapSpec) -> list[str]:
     facts = sorted(tower_facts(obs, spec), key=lambda f: (f.distance, f.tower["id"]))
     alive = [f for f in facts if f.tower.get("alive", True)]
     rng = f"{spec.tower_range:g}"
+    # a map with base towers names them (src/baseTower.ts); without `baseTowers` every line is as before
+    base_ids = {b["id"] for b in (obs.get("baseTowers") or {}).values()}
     lines: list[str] = []
     for f in alive:
         t = f.tower
-        head = f"{'Your' if f.own else 'Enemy'} tower {t['id']} ({t['lane']}, {t['hp']:.0f}/{t['maxHp']:.0f} hp) at {_xy(t['pos'])} is {_units(f.distance)}"
+        lane = f"{t['lane']}, base tower" if t["id"] in base_ids else t["lane"]
+        head = f"{'Your' if f.own else 'Enemy'} tower {t['id']} ({lane}, {t['hp']:.0f}/{t['maxHp']:.0f} hp) at {_xy(t['pos'])} is {_units(f.distance)}"
         if not f.in_range:
             text = f"{head}; you are outside its {rng}-unit range"
         elif f.own:
@@ -452,10 +455,42 @@ def _describe_vocab2(obs: dict, spec: MapSpec) -> str:
         parts.append("The base shop sells: " + ", ".join(f"{item_name(i['item'])} ({i['cost']} gold)" for i in obs["shop"]) + ".")
     parts.extend(_bandstand_lines(obs))
     parts.extend(_map_rule_lines(obs))
+    parts.extend(_base_tower_lines(obs))
     return " ".join(parts)
 
 
-_TIER = {1: "inner", 2: "outer"}
+_TIER = {1: "inner", 2: "outer", 3: "base"}
+
+
+def _base_tower_lines(obs: dict) -> list[str]:
+    """A map with base towers (`src/baseTower.ts`): both, map-wide, and whether each can be hit now,
+    as the sim's own rule says (`baseTowers.*.canBeHit`). Stated only when the observation carries
+    `baseTowers`, so every other description is unchanged; the fact is `vocab.FACTS_BASE`."""
+    bt = obs.get("baseTowers")
+    if not bt:
+        return []
+    lines: list[str] = []
+    e = bt["enemy"]
+    # No position or distance, and "out of sight" first unless the tower lines list it: stated with them, Jev
+    # read the far base tower as an enemy tower in sight ("is an enemy tower visible?" yes 28 of 60 with none
+    # listed; runs/bots-push-to-base-2026-10-02.md §1.4). When listed, its own tower line places it.
+    listed = any(t["id"] == e["id"] and t.get("alive", True) for t in obs.get("nearbyTowers") or ())
+    head = f"The enemy base tower is {e['id']}, listed above: it" if listed else f"Out of sight, map-wide: the enemy base tower {e['id']}"
+    if not e["alive"]:
+        lines.append(f"The enemy base tower {e['id']} is destroyed.")
+    elif e["canBeHit"]:
+        lines.append(f"{head} can be hit now (one of their inner towers is down; {e['hp']:.0f}/{e['maxHp']:.0f} hp), "
+                     f"and destroying it wins the match.")
+    else:
+        lines.append(f"{head} can't be hit yet: it takes no damage until one of their inner towers is down.")
+    o = bt["own"]
+    if not o["alive"]:
+        lines.append(f"Your base tower {o['id']} is destroyed.")
+    elif o["canBeHit"]:
+        lines.append(f"Your base tower {o['id']} can be hit now: one of your inner towers is down, and if it falls your team loses.")
+    else:
+        lines.append(f"Your base tower {o['id']} can't be hit yet.")
+    return lines
 
 
 def _map_rule_lines(obs: dict) -> list[str]:

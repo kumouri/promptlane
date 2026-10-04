@@ -203,7 +203,9 @@ class SampleEntrant(unittest.TestCase):
             tp = [r for r in mine["rules"] if r.get("action_ability") == "teleport"]
             self.assertEqual(len(tp), 1, inst)
             self.assertEqual(tp[0]["action_target_selector"], "tp_threatened_tower")
-            self.assertEqual([r for r in mine["rules"] if r is not tp[0]], base["rules"], inst)
+            # the siege entrant as #91 measured it: its push-to-base rule (runs/bots-push-to-base-2026-10-02.md) came later
+            siege_then = [r for r in base["rules"] if r.get("action_target_selector") != "enemy_base_tower"]
+            self.assertEqual([r for r in mine["rules"] if r is not tp[0]], siege_then, inst)
             at = mine["rules"].index(tp[0])
             self.assertIn("will an enemy tower shoot", mine["rules"][at - 1]["condition"])
             self.assertEqual(schema_from_dict(mine).map, "pvp-2")

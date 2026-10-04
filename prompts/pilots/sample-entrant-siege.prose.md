@@ -17,6 +17,9 @@ tower.
 
 When an enemy tower will shoot me, I fall back to my own tower.
 
+Destroying the enemy base tower wins the match, and it can be hit once one of their inner towers
+is down, so when the enemy base tower can be hit, I attack the enemy base tower.
+
 When I am inside an enemy tower's range and that tower has my own minions in its range to shoot
 first, I attack the nearest enemy tower.
 
