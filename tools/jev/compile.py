@@ -68,6 +68,7 @@ from translator import (  # noqa: E402
     Action,
     Cascade,
     GuardNode,
+    Question,
     TranslatedRule,
     TranslatedSchema,
     scope_to_instrument,
@@ -91,6 +92,9 @@ FORMAT_VERSION = 2
 # "then": {"nodes": [...], "default_action": {...} | null}, "else": {...same...}} -- the WHOLE tree is
 # written, not `schema.rules` (the root's plain rules only), so a guard and everything under it
 # reaches the Jev server (`schema_server.py`). A schema with no guards serializes exactly as before.
+# A vocab-2 AND rule (translator AND NODE) writes "all": [{"condition", "criteria_true", "criteria_false"},
+# ...] (two or more) in place of its own three, so an older reader fails on it loudly (KeyError
+# 'condition', a 400 from an older schema_server) instead of asking Jev the questions joined as one.
 
 def _action_to_dict(action: Action | None) -> dict | None:
     return None if action is None else {"kind": action.kind, "ability": action.ability, "target_selector": action.target_selector}
@@ -106,6 +110,14 @@ def _node_to_dict(n) -> dict:
             "criteria_false": n.criteria_false,
             "then": {"nodes": [_node_to_dict(c) for c in n.then.nodes], "default_action": _action_to_dict(n.then.default)},
             "else": {"nodes": [_node_to_dict(c) for c in n.else_.nodes], "default_action": _action_to_dict(n.else_.default)},
+        }
+    if n.all_of:  # an AND rule (translator AND NODE): its questions, and no "condition" of its own
+        return {
+            "id": n.id,
+            "all": [{"condition": q.condition, "criteria_true": q.criteria_true, "criteria_false": q.criteria_false} for q in n.all_of],
+            "action_kind": n.action_kind,
+            "action_ability": n.action_ability,
+            "action_target_selector": n.action_target_selector,
         }
     return {
         "id": n.id,
@@ -153,6 +165,17 @@ def _node_from_dict(r: dict):
         branch = lambda b: Cascade(nodes=tuple(_node_from_dict(c) for c in b.get("nodes") or ()), default=_action_from_dict(b.get("default_action")))  # noqa: E731
         return GuardNode(id=r["id"], condition=r["condition"], criteria_true=ct, criteria_false=cf, then=branch(r["then"]), else_=branch(r["else"]))
     action = r.get("action") or {}
+    if r.get("all") is not None:
+        if not isinstance(r["all"], list) or len(r["all"]) < 2:
+            raise ValueError(f'rule {r["id"]}: "all" must list two or more questions')
+        questions = []
+        for q in r["all"]:
+            qc = q.get("criteria") or {}
+            questions.append(Question(q["condition"], q.get("criteria_true", qc.get("true", "the condition holds")),
+                                      q.get("criteria_false", qc.get("false", "the condition does not hold"))))
+        return TranslatedRule(id=r["id"], condition="", criteria_true="", criteria_false="",
+                              action_kind=r.get("action_kind", action.get("kind")), action_ability=r.get("action_ability", action.get("ability")),
+                              action_target_selector=r.get("action_target_selector", action.get("target_selector")), all_of=tuple(questions))
     return TranslatedRule(
         id=r["id"],
         condition=r["condition"],

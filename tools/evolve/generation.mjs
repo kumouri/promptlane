@@ -244,7 +244,9 @@ export function diagnosticsFor(store, parentId, generation) {
           lines.push(`  - ${r.id}: guard -- if ${r.condition} -> its yes-rules, else its no-rules`);
           continue;
         }
-        lines.push(`  - ${r.id}: if ${r.condition} -> ${r.action_kind}${r.action_ability ? ` ${r.action_ability}` : ''}${row ? ` (fired ${fired[r.id] ?? 0}x)` : ''}`);
+        // a vocab-2 AND rule (tools/jev/translator.py AND NODE) has "all", its questions, and no "condition"
+        const condition = Array.isArray(r.all) ? r.all.map((q) => q.condition).join(' AND ') : r.condition;
+        lines.push(`  - ${r.id}: if ${condition} -> ${r.action_kind}${r.action_ability ? ` ${r.action_ability}` : ''}${row ? ` (fired ${fired[r.id] ?? 0}x)` : ''}`);
       }
       lines.push(`  - otherwise -> ${schema.default_action?.kind ?? 'hold'}${row ? ` (fired ${fired.default ?? 0}x)` : ''}`);
     }

@@ -12,7 +12,8 @@ and one process serves every practice match at once. (Its listen backlog is size
 The decision itself is `fidelity_harness.run_prediction`, unchanged -- the same code that measured
 the translator (`docs/prose-to-schema-translator.md` §3): every node's condition anywhere in the
 tree (rules, guards, and the rules inside a guard's branches) is one `noul` question in a single Jev
-call, the first "yes" in cascade order wins, a guard routes to its yes- or no-branch, and the winning
+call -- a vocab-2 AND rule's ("all", `translator` AND NODE) is one per question, and it matches only when
+every one passes --, the first match in cascade order wins, a guard routes to its yes- or no-branch, and the winning
 rule's target selector is resolved against the observation in Python (`target_resolve.py`), under
 the targeting rule the request names (`target_resolve.TARGETING_RULES`). A request that names none
 gets `first-min`, the rule every caller had before the field existed: a runner from an older
@@ -41,7 +42,7 @@ from one that played it.
                   -> 200 {"action": {kind, target?, ability?}, "rule": <rule id | null>,
                           "targeting": <the rule the target resolved under>,
                           "vocab": <the vocabulary the schema played under>,
-                          "answers": {rule id: 0.0-1.0}, "ms": float,
+                          "answers": {question id: 0.0-1.0}, "ms": float,   (a node's id; an AND rule's are <id>.1, <id>.2, ...)
                           "door": "typesafe" | "workers-ai" | "stub",   (which door answered THIS call)
                           "tokens_in": int, "cost_usd": float}          (this call's Jev spend)
                   -> non-2xx {"error": "..."} -- the caller (tools/match/jevSchemaPilot.ts) holds.

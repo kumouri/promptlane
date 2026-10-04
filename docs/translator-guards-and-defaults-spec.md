@@ -80,6 +80,11 @@ GuardNode := { "type": "guard", "id": str, "condition": str, "criteria": {true, 
 Action  := { "kind": one of ACTION_KINDS, "ability": str|null, "target_selector": str|null }   # unchanged from today
 ```
 
+**`vocab-2` adds the AND rule** (2026-10-02, Ceryce: "Build it."). A RuleNode may carry
+`"all": [{"condition", "criteria"}, ...]`, two or more one-condition questions, in place of its own
+`condition` and `criteria`. It fires only when every one of them is yes. A guard still asks one question.
+The rules, the threshold and the measurement are in `docs/vocabulary-spec.md` §8.13.
+
 `TranslatedSchema.rules: list[TranslatedRule]` becomes `TranslatedSchema.root: Cascade`. A pilot with
 no class-1 prose translates to a `root` whose `nodes` are all `RuleNode`s and whose `default` is the
 same `default_action` shipped today — **the flat case is a Cascade with zero guards, not a different
@@ -88,7 +93,8 @@ code path.** This is a compatibility property, not just a convenience: `parse_sc
 unchanged against a `root` with no `GuardNode`s in it.
 
 **Evaluation stays one systemone call per decision.** Every node's condition anywhere in the tree
-(root rules, every guard, every branch's rules) is collected into one flat list of `noul` questions
+(root rules, every guard, every branch's rules, and each question of a `vocab-2` AND rule) is collected
+into one flat list of `noul` questions
 up front, exactly like today's per-rule batching — Jev answers all of them in parallel, in one call,
 regardless of which branches turn out to matter. The tree-walk that turns those answers into one
 action is Python, after the call returns, same posture as `rules.first_match` and
