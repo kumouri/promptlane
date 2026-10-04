@@ -19,17 +19,19 @@ even though it is drawn from a subscription's usage window, not real API dollars
 NO TOKEN CAPS (Ceryce, 2026-10-02 17:59 CT: "Get rid of any fucking token caps."). A reply is never
 cut at a token count and a run is never refused for its token total: the old 1,800-token reply cap
 cut every reply of a 16-rule cascade before any check ran (`runs/remove-token-caps-2026-10-02.md`).
-`max_tokens=None`, the default, sends no completion cap at all. The one exception is vocab-1, the
-frozen research vocabulary: a caller compiling under it passes `VOCAB1_MAX_COMPLETION_TOKENS`, so its
-request body stays byte-identical to the one its recorded runs used.
+`max_tokens=None`, the default, sends no completion cap at all, under every vocabulary. vocab-1, the
+frozen research vocabulary, kept its 1,800-token cap at first so its request stayed byte-identical; the
+ruling covers any token cap, so it is gone there too. A caller compiling under vocab-1 passes
+`vocab1=True` instead, and its Ollama body is the one its recorded runs used less that one field
+(`ollama_body`).
 
 What guards an uncapped reply instead, measured on the host (`runs/remove-token-caps-2026-10-02.md`):
 - A reply that never ends (a loop) is stopped by `CALL_TIMEOUT_SEC` of wall clock, not by a token
   count. Ollama cancels the generation when the client hangs up. The timeout is long enough for the
   model to fill its whole context window, so it never cuts a reply that could be valid.
-- An uncapped Ollama request sets `"truncate": false`. A prompt bigger than the context window is
-  then an error, where Ollama's default silently drops the start of the prompt (the instructions and
-  the head of the prose).
+- An uncapped Ollama request sets `"truncate": false` (except vocab-1's, which changes in nothing but
+  its cap). A prompt bigger than the context window is then an error, where Ollama's default silently
+  drops the start of the prompt (the instructions and the head of the prose).
 - It does NOT set `"shift": false`, though that would end a reply at a full window. In Ollama 0.35
   that option is a llama-server startup flag, so each request that flips it restarts the shared
   model for every other caller (5-30 s each time, measured).
@@ -61,9 +63,6 @@ OPENROUTER_PRICES = {DEFAULT_OPENROUTER_MODEL: (0.10, 0.15)}
 
 # Same sampling the translator was measured with (`ground_truth._ollama_generate`).
 TEMPERATURE = 0.2
-# vocab-1 only: the reply cap its recorded runs were made with, kept so its request is byte-identical.
-# No other vocabulary sends a cap (see NO TOKEN CAPS above).
-VOCAB1_MAX_COMPLETION_TOKENS = 1800
 # Seconds per model call: the runaway guard, not a length limit. At the 85 tokens/s measured on the
 # host's qwen3.5:9b, filling its whole 32,768-token window takes about 6.4 minutes. 15 minutes leaves
 # room to wait behind another caller first, since Ollama serves one request at a time. Measured in
@@ -105,7 +104,7 @@ class Usage:
 
 
 class Backend:
-    """`max_tokens` None (the default) sends no completion cap; only a vocab-1 compile passes one."""
+    """`max_tokens` None (the default) sends no completion cap; nothing on the translation path passes one."""
 
     kind = "base"
 
@@ -153,16 +152,16 @@ def resolve_ollama_url(explicit: str | None = None) -> str:
     return raw.rstrip("/")
 
 
-def ollama_body(model: str, prompt: str, max_tokens: int | None) -> dict:
-    """The `/api/generate` body the translator sends (thinking off, temperature 0.2). With a
-    `max_tokens` (vocab-1 only) it is byte-for-byte the body its recorded runs used. Without one there
-    is no `num_predict`, and `truncate` false makes a prompt over the context window an error instead
-    of a silently cut prompt (see NO TOKEN CAPS above)."""
+def ollama_body(model: str, prompt: str, max_tokens: int | None, vocab1: bool = False) -> dict:
+    """The `/api/generate` body the translator sends (thinking off, temperature 0.2). Without a
+    `max_tokens` there is no `num_predict`, and `truncate` false makes a prompt over the context window
+    an error instead of a silently cut prompt (see NO TOKEN CAPS above). `vocab1`: the body vocab-1's
+    recorded runs used, byte for byte, less its `num_predict` 1800, and nothing added."""
     options = {"temperature": TEMPERATURE}
     if max_tokens is not None:
         options["num_predict"] = max_tokens
     body = {"model": model, "prompt": prompt, "stream": False, "keep_alive": "30m", "options": options, "think": False}
-    if max_tokens is None:
+    if max_tokens is None and not vocab1:
         body["truncate"] = False
     return body
 
@@ -173,12 +172,13 @@ class OllamaBackend(Backend):
 
     kind = "ollama"
 
-    def __init__(self, model: str = DEFAULT_OLLAMA_MODEL, url: str | None = None, **kw):
+    def __init__(self, model: str = DEFAULT_OLLAMA_MODEL, url: str | None = None, vocab1: bool = False, **kw):
         super().__init__(model, **kw)
         self.url = resolve_ollama_url(url)
+        self.vocab1 = vocab1
 
     def _call(self, prompt: str) -> tuple[str, int, int, float]:
-        body = ollama_body(self.model, prompt, self.max_tokens)
+        body = ollama_body(self.model, prompt, self.max_tokens, self.vocab1)
         try:
             data = _post_json(self.url + "/api/generate", body, {}, self.timeout)
         except BackendError as err:
@@ -336,10 +336,11 @@ class ScriptedBackend(Backend):
 
 def make_backend(kind: str, model: str | None = None, *, max_tokens: int | None = None, ollama_url: str | None = None,
                  api_key_env: str = "OPENROUTER_API_KEY", timeout: float = CALL_TIMEOUT_SEC, executable: str | None = None,
-                 effort: str | None = "low") -> Backend:
-    """`max_tokens` None sends no completion cap; pass `VOCAB1_MAX_COMPLETION_TOKENS` only for a vocab-1 compile."""
+                 effort: str | None = "low", vocab1: bool = False) -> Backend:
+    """`max_tokens` None sends no completion cap; nothing on the translation path passes one. `vocab1`: a vocab-1
+    compile, whose Ollama body is its recorded one less the cap (`ollama_body`)."""
     if kind == "ollama":
-        return OllamaBackend(model or DEFAULT_OLLAMA_MODEL, url=ollama_url, max_tokens=max_tokens, timeout=timeout)
+        return OllamaBackend(model or DEFAULT_OLLAMA_MODEL, url=ollama_url, max_tokens=max_tokens, timeout=timeout, vocab1=vocab1)
     if kind == "openrouter":
         return OpenRouterBackend(os.environ.get(api_key_env, ""), model or DEFAULT_OPENROUTER_MODEL, max_tokens=max_tokens, timeout=timeout)
     if kind == "claude":

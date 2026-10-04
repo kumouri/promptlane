@@ -117,8 +117,8 @@ if rule recall on any reference pilot drops below 85%.
   (`"truncate": false`). The guard's reasons and measurements are in `tools/jev/llm_backends.py`.
 - `--max-total-tokens` is still accepted, and does nothing, so the PR bot's pinned promptlane keeps
   working.
-- `--vocab vocab-1` alone still sends the 1,800-token reply cap. That keeps its request
-  byte-identical to the research runs it was measured in.
+- `--vocab vocab-1` sends no reply cap either. Its request is the one its research runs used, less
+  their 1,800-token cap, and nothing else changed.
 
 **Exit status:**
 

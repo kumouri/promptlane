@@ -74,11 +74,12 @@ def parse_action(reply: str) -> dict | None:
     return parsed
 
 
-def _ollama_generate(url: str, model: str, prompt: str, timeout: float = 60.0, max_tokens: int | None = 120) -> str:
-    """`max_tokens` None sends no reply cap, with the window-bounded body `llm_backends.ollama_body`
-    builds (the translator under any vocabulary after vocab-1); a number sends exactly the old body."""
+def _ollama_generate(url: str, model: str, prompt: str, timeout: float = 60.0, max_tokens: int | None = 120,
+                     vocab1: bool = False) -> str:
+    """`max_tokens` None sends no reply cap, with the body `llm_backends.ollama_body` builds (the
+    translator; `vocab1` for a vocab-1 compile); a number sends exactly the old body."""
     if max_tokens is None:
-        body = ollama_body(model, prompt, None)
+        body = ollama_body(model, prompt, None, vocab1)
     else:
         body = {
             "model": model,

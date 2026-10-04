@@ -162,9 +162,11 @@ verdict" is in `docs/vocabulary-spec.md` §8.10. In short, a node must state a s
 verdict's own paragraph or section, or one that restates the verdict's words, and no node may follow
 a guard. The evidence is `runs/vocab2-guard-scope-2026-10-02.md`. vocab-1 trees are unchanged.
 
-One consequence needs a look. This spec's own worked example (§3.2) puts violin.md's Staccato and Solo
-under "you only take fights you can win". They are in the next paragraph and don't restate it, so
-under `vocab-2` that tree is rejected, and the retry asks for plain rules.
+This spec's own worked example (§3.2) puts violin.md's Staccato and Solo under "you only take fights
+you can win". They are in the next paragraph, which at first didn't restate it, so under `vocab-2`
+the check rejected the example. Ceryce ruled on 2026-10-02 to fix the prose, not the check. That
+paragraph now opens "In a fight you can win, Staccato …", and the tree is accepted
+(`test_translator.test_violin_md_places_its_opener_under_its_verdict`).
 
 ### 2.3 Rendering: `render_markdown` and the transparency view
 

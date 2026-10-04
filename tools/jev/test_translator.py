@@ -13,6 +13,14 @@ sys.path.insert(0, os.path.dirname(__file__))
 import translator as T  # noqa: E402
 
 
+def _order_check_off(test):
+    """For a test of another check through `translate_pilot` whose recorded replies are also out of the prose's
+    order (#84-#87's sample-entrant compiles put "shop" above the back-off and the recall): `enforce_rule_order`
+    would retry them too, and the test's reply count is about its own check. Order has its own tests
+    (`RuleOrderTests`)."""
+    return mock.patch.object(T, "enforce_rule_order", lambda schema, *args, **kwargs: schema)(test)
+
+
 VALID_SCHEMA = {
     "rules": [
         {
@@ -260,6 +268,7 @@ class VocabTwoPriorityGuardTests(unittest.TestCase):
             fixed = T.enforce_absolute_priority(dataclasses.replace(schema, vocab="vocab-1"), prose)
             self.assertEqual(fixed.rules[0].id, want[i], case["sample"])
 
+    @_order_check_off
     def test_translate_pilot_retries_and_the_retry_names_the_sentence(self):
         dropped = LOOKALIKE["schemas"][0]["reply"]
         back_off = {"id": "back_off_tower", "condition": "is an enemy tower visible and are none of this bot's minions near it?",
@@ -407,6 +416,7 @@ class ShoppingListIsNotARuleTests(unittest.TestCase):
         self.assertIn("Violin: Amp, then Bass Strings, then Road Case.", prompts[1].split("Your previous attempt was invalid:")[1])
         self.assertEqual(schema.build, ("amp", "bass-strings", "road-case"))
 
+    @_order_check_off
     def test_translate_pilot_drops_them_without_a_retry_when_build_is_there(self):
         prompts = []
 
@@ -1017,6 +1027,33 @@ class NegatedClauseKeepsItsNoTests(unittest.TestCase):
                          {"kind": "recall", "ability": None, "target_selector": None})
         self.assertIs(T.enforce_negation(kept, prose), kept)
 
+    def test_outside_a_towers_range_is_not_inside_it(self):
+        # Flagged by #98's job: "outside an enemy tower's range" read as the tower being there, so a correct recall
+        # rule worded that way was rejected for losing the prose's "not inside". "outside" and "beyond" negate, as
+        # they already did for clause coverage (_COVERAGE_LEXICON).
+        prose = ("If I can see an enemy tower and none of my minions are near me, I back off home.\n\n"
+                 "When my hp drops below a third of my max and I'm not inside an enemy tower's range, I recall home to heal.")
+        recall = {"kind": "recall", "ability": None, "target_selector": None}
+        for condition in ("is this bot's hp below a third and is it outside an enemy tower's range?",
+                          "is this bot's hp below a third of max and is it outside the range of every enemy tower?",
+                          "is this bot's hp below a third and is it beyond an enemy tower's reach?",
+                          # "the", "of", "an" no longer push the "not" out of the four-word window
+                          "is this bot's hp below a third and is it not inside the range of an enemy tower?"):
+            for rid in ("recall_heal", "recall_low_hp_outside_tower_range"):
+                schema = _one_rule(rid, condition, recall)
+                self.assertIs(T.enforce_negation(schema, prose), schema, (rid, condition))
+        self.assertEqual(T._polarities("is it outside an enemy tower's range?"), {"enemy tower": {True}})
+        self.assertEqual(T._polarities("recall_outside_enemy_tower", after=False), {"enemy tower": {True}})
+        # Inside still lost the "not".
+        with self.assertRaises(T.SchemaValidationError):
+            T.enforce_negation(_one_rule("recall_heal", "is this bot's hp below a third and is it inside an enemy tower's range?", recall), prose)
+        # And a prose "outside" is a "not" a question can lose.
+        outside = prose.replace("I'm not inside an enemy tower's range", "I'm outside every enemy tower's range")
+        with self.assertRaises(T.SchemaValidationError) as err:
+            T.enforce_negation(_one_rule("recall_heal", "is this bot's hp below a third and is it inside an enemy tower's range?", recall),
+                               outside)
+        self.assertIn("the prose says \"I'm outside every enemy tower's range\"", str(err.exception))
+
     def test_none_of_my_minions_keeps_its_none(self):
         prose = "If I can see an enemy tower and none of my minions are near me, I back off home instead of tanking the tower alone."
         lost = _one_rule("tower_no_minions", "is an enemy tower visible and are my minions near this bot?", {"kind": "move", "ability": None, "target_selector": "home"})
@@ -1032,10 +1069,22 @@ class NegatedClauseKeepsItsNoTests(unittest.TestCase):
         schema = _one_rule("walk_with_minion", "is an allied minion near this bot?", {"kind": "move", "ability": None, "target_selector": "nearby_minion"})
         self.assertIs(T.enforce_negation(schema, prose), schema)
 
+    def test_an_id_saying_no_is_not_backed_by_a_sentence_naming_the_thing_both_ways(self):
+        # This job's merged-code batch (v5 s1 keytar, last attempt): "walk_or_home_no_wave" merges both halves of the walk
+        # sentence in its id, and its question and action are the first half's, correctly. The sentence names minions both
+        # ways, so, as for the rule's own sentence, it decides nothing.
+        prose = ("If an enemy minion is in sight, I attack the nearest enemy.\n\n"
+                 "Otherwise I walk with my nearest minion, and if I have no minions near me I go home and wait for the next wave.")
+        schema = _one_rule("walk_or_home_no_wave", "is there at least one minion near me?",
+                           {"kind": "move", "ability": None, "target_selector": "nearby_minion"})
+        self.assertIs(T.enforce_negation(schema, prose), schema)
+        self.assertIs(T.enforce_negation(schema, prose, drop=True), schema)
+
     def test_an_id_saying_no_needs_a_prose_sentence_saying_no(self):
         schema = _one_rule("go_no_enemy", "is an enemy bearbot in sight?", {"kind": "attack", "ability": None, "target_selector": "nearest_enemy"})
         self.assertIs(T.enforce_negation(schema, "If an enemy bearbot is in sight, I attack the nearest enemy."), schema)
 
+    @_order_check_off
     def test_translate_pilot_retries_with_the_sentence_and_keeps_the_fixed_reply(self):
         bad = _negation_reply(0)  # #85 s1 violin
         good = json.loads(json.dumps(bad))
@@ -1213,6 +1262,7 @@ class IdentityRuleTests(unittest.TestCase):
         schema = _rule_on("is this bot's instrument 'Violin'?", vocab="vocab-1")
         self.assertIs(T.enforce_identity_rules(schema, VIOLIN_LINE), schema)
 
+    @_order_check_off
     def test_translate_pilot_retries_and_keeps_the_fixed_reply(self):
         bad = _identity_reply(0)  # #87 s1 violin
         fixed = {**bad, "rules": [r for r in bad["rules"] if r["id"] != "shop_order_violin"]}
@@ -1490,19 +1540,25 @@ class GuardScopeTests(unittest.TestCase):
                 self.assertIs(T.enforce_guard_scope(schema, prose), schema)
                 self.assertIs(T.enforce_guard_scope(schema, prose, drop=True), schema)
 
-    def test_violin_md_does_not_place_its_opener_under_its_verdict(self):
-        # Known strictness, flagged for a ruling (docs/vocabulary-spec.md §8.10): the guards spec's own worked tree
-        # (§3.2) puts Staccato under "you only take fights you can win", which ends its paragraph; the Staccato
-        # paragraph after it never restates the verdict, so under vocab-2 the guard is rejected.
+    def test_violin_md_places_its_opener_under_its_verdict(self):
+        # The guards spec's own worked tree (§3.2) puts Staccato and Solo under "you only take fights you can win".
+        # Their paragraph once never restated the verdict, so the check rejected the spec's own example (§8.10's
+        # "known strictness"). Ceryce ruled 2026-10-02 17:59 to fix the prose, not the check: the paragraph now opens
+        # "In a fight you can win, Staccato ...", and the tree is accepted.
         prose = T.scope_to_instrument(open(os.path.join(os.path.dirname(__file__), "..", "..", "prompts", "pilots", "violin.md"),
                                            encoding="utf-8").read(), "violin").text
         opener = _node("staccato_opener", "is staccato off cooldown and is the target in its range?", "ability", "staccato", "isolated_enemy")
-        schema = _tree(RECALL_RULE, _guard("can_win_fight", "can this bot win the fight it is in or about to enter, by itself, right now?",
-                                           [opener], [], {"kind": "move", "ability": None, "target_selector": "isolated_enemy"}))
-        self.assertEqual(T._verdict_scope(schema.root.nodes[1], T._prose_paragraphs(prose)), {1})
-        with self.assertRaises(T.GuardScopeError) as err:
-            T.enforce_guard_scope(schema, prose)
-        self.assertIn('"Staccato (quick high-damage stab', str(err.exception))
+        solo = _node("solo_close", "is solo off cooldown and is the target about to get away?", "ability", "solo", "isolated_enemy")
+        question = "can this bot win the fight it is in or about to enter, by itself, right now?"
+        to_target = {"kind": "move", "ability": None, "target_selector": "isolated_enemy"}
+        schema = _tree(RECALL_RULE, _guard("can_win_fight", question, [opener, solo], [], to_target, to_target))
+        self.assertEqual(T._verdict_scope(schema.root.nodes[1], T._prose_paragraphs(prose)), {1, 2})
+        self.assertIs(T.enforce_guard_scope(schema, prose), schema)
+        self.assertIs(T.enforce_guard_scope(schema, prose, drop=True), schema)
+        # The check is as strict as before: the low-hp recall's paragraph is still outside the verdict.
+        inside = _tree(_guard("can_win_fight", question, [opener, RECALL_RULE], [], to_target, to_target))
+        with self.assertRaises(T.GuardScopeError):
+            T.enforce_guard_scope(inside, prose)
 
     def test_a_rule_from_other_prose_inside_a_branch_is_rejected(self):
         schema = _tree(_guard("can_win", STRONGER, [STACCATO_RULE], [RECALL_RULE]))
@@ -1556,6 +1612,7 @@ class GuardScopeTests(unittest.TestCase):
         self.assertIs(T.enforce_guard_scope(schema, prose), schema)
         self.assertIs(T.enforce_guard_scope(schema, prose, drop=True), schema)
 
+    @_order_check_off
     def test_translate_pilot_retries_without_the_generic_guard_line_and_keeps_the_flat_reply(self):
         bad = GUARD_SCOPE["replies"][0]["reply"]  # #89's A/B: a typed guard holding every rule
         flat = json.loads(json.dumps(_negation_reply(0)))  # a flat reply that passes every check after its fix
@@ -1596,6 +1653,407 @@ class GuardScopeTests(unittest.TestCase):
         self.assertFalse([n for n in T.collect_nodes(schema.root) if isinstance(n, T.GuardNode)])
         self.assertIn("recall_if_hp_low_or_tower_threat", [n.id for n in schema.rules])
         self.assertTrue([n for n in schema.validation_notes if n.startswith("guard scope: removed the guard guard_shop_or_fight")])
+
+
+ORDER = json.loads(open(os.path.join(os.path.dirname(__file__), "testdata", "rule_order.json"), encoding="utf-8").read())
+
+
+def _order_case(index: int) -> tuple[T.TranslatedSchema, str]:
+    """A recorded reply of `rule_order.json`, parsed and through the checks that run before the order check's
+    input matters (the shopping list, and the negation check's last-attempt drop), with its scoped prose."""
+    case = ORDER["cases"][index]
+    prose = T.scope_to_instrument(ORDER["prose"][case["prose"]], case["instrument"]).text
+    schema = T.parse_schema(T._extract_json_object(case["text"]), "pilot.md", case["instrument"], case["text"], "vocab-2",
+                            economy="eco-3-late")
+    schema = T.enforce_shopping_list(schema, prose)
+    return T.enforce_negation(schema, prose, drop=True), prose
+
+
+OUT_OF_ORDER = (0, 1, 2, 3, 8, 9, 10)  # rule_order.json's cases that leave the prose's order
+IN_ORDER = (4, 5, 6, 7)
+HARD_S7_KEYTAR_FIXED = [
+    "recall_low_hp_enemy_present", "recall_low_hp_no_enemy", "recall_shop_afford_enemy_present", "recall_shop_afford_no_enemy",
+    "retreat_wealthy_weak_fight", "punish_tower_diver", "close_match_attack_tower", "fall_back_tower_shoots",
+    "finish_kill_ability_ready_low_hp", "attack_lowest_hp_no_ability", "siege_tower_wave_present", "retreat_weak_fight_own_tower",
+    "hunt_highest_bounty", "attack_lowest_hp_minion_present", "move_to_nearest_ally", "bandstand_open_no_enemy_hp_ok",
+    "bandstand_contested_hp_ok", "bandstand_upcoming_close", "default_push_lane",
+]
+
+
+class RuleOrderTests(unittest.TestCase):
+    """vocab-2: a cascade keeps the prose's order. #95's whole house-hard-eco compiles moved the 480 s tower rule, the
+    tower-fire retreat and the finish kills below "push with your wave" in 16 of 36 schemas, and the sample entrant and
+    siege put "afford -> go shop" above the back-off and the recall (runs/vocab2-rule-order-2026-10-02.md)."""
+
+    def test_the_out_of_order_replies_are_rejected_and_the_retry_quotes_only_prose(self):
+        for i in OUT_OF_ORDER:
+            schema, prose = _order_case(i)
+            case = ORDER["cases"][i]
+            with self.subTest(f"{case['prose']} {case['run']} {case['instrument']}"):
+                with self.assertRaises(T.RuleOrderError) as err:
+                    T.enforce_rule_order(schema, prose)
+                msg = str(err.exception)
+                self.assertTrue(msg.startswith("the first rule whose question is true decides"), msg)
+                # never the model's own rules: the 9B copies back what it is shown (#87, #89)
+                for node in T.collect_nodes(schema.root):
+                    self.assertNotIn(node.condition, msg)
+                    self.assertNotIn(node.id, msg)
+                for quoted in re.findall(r'"([^"]+)"', msg):
+                    self.assertIn(quoted, " ".join(prose.split()))
+
+    def test_the_retry_lists_the_whole_order_in_the_prose(self):
+        schema, prose = _order_case(0)  # #95 §6's s7 keytar
+        with self.assertRaises(T.RuleOrderError) as err:
+            T.enforce_rule_order(schema, prose)
+        msg = str(err.exception)
+        self.assertIn("Write the rules in this order, the order of these sentences of the prose: 1. \"Recall with discipline.", msg)
+        # the moved rules' sentences in their places: 480 s, tower fire, the finish kills, then the siege
+        listed = re.findall(r'(\d+)\. "([^"]+)"', msg)
+        self.assertEqual([n for n, _ in listed], [str(i) for i in range(1, len(listed) + 1)])
+        texts = [t for _, t in listed]
+        at = {key: next(i for i, t in enumerate(texts) if key in t) for key in
+              ("480 seconds", "will shoot you", "use your primary ability", "less than 100 hp, attack", "Siege with your wave", "Bandstand is open")}
+        self.assertEqual(sorted(at, key=at.get), ["480 seconds", "will shoot you", "use your primary ability", "less than 100 hp, attack",
+                                                 "Siege with your wave", "Bandstand is open"])
+
+    def test_the_retry_lists_every_sentence_a_rule_may_state(self):
+        # the walk rule may state "push ... with the wave" or "Otherwise I walk with my nearest minion": both are listed,
+        # or the retry drops the walk rule (13 of 36 did when only its first candidate was)
+        schema, prose = _order_case(8)  # sample entrant, #95 s4 drums
+        with self.assertRaises(T.RuleOrderError) as err:
+            T.enforce_rule_order(schema, prose)
+        self.assertIn('"Otherwise I walk with my nearest minion, and if I have no minions near me I go home and wait for the next wave."',
+                      str(err.exception))
+
+    def test_on_the_last_attempt_every_moved_rule_goes_back_to_its_place(self):
+        for i in OUT_OF_ORDER:
+            schema, prose = _order_case(i)
+            case = ORDER["cases"][i]
+            with self.subTest(f"{case['prose']} {case['run']} {case['instrument']}"):
+                fixed = T.enforce_rule_order(schema, prose, drop=True)
+                self.assertEqual(sorted(n.id for n in fixed.root.nodes), sorted(n.id for n in schema.root.nodes))  # none removed
+                self.assertIs(T.enforce_rule_order(fixed, prose), fixed)
+                notes = fixed.validation_notes[len(schema.validation_notes):]
+                self.assertTrue(notes)
+                self.assertTrue(all(n.startswith("order: moved rule ") for n in notes), notes)
+                self.assertEqual(fixed.root.default, schema.root.default)
+                self.assertEqual(fixed.build, schema.build)
+        fixed = T.enforce_rule_order(*_order_case(0), drop=True)
+        self.assertEqual([n.id for n in fixed.root.nodes], HARD_S7_KEYTAR_FIXED)
+
+    def test_the_afford_rule_goes_below_the_rules_the_prose_states_first(self):
+        fixed = T.enforce_rule_order(*_order_case(8), drop=True)  # sample entrant, #95 s4 drums
+        self.assertEqual([n.id for n in fixed.root.nodes][:3], ["enemy_tower_no_minions", "low_hp_no_tower_diver", "shopping_order"])
+        fixed = T.enforce_rule_order(*_order_case(10), drop=True)  # siege, #95 s1 drums
+        self.assertEqual([n.id for n in fixed.root.nodes][:3], ["retreat_low_hp_enemy_present", "retreat_low_hp_no_enemy", "shop_if_affordable"])
+
+    def test_in_order_compiles_are_returned_untouched(self):
+        for i in IN_ORDER:
+            schema, prose = _order_case(i)
+            with self.subTest(ORDER["cases"][i]["run"] + " " + ORDER["cases"][i]["instrument"]):
+                self.assertIs(T.enforce_rule_order(schema, prose), schema)
+
+    def test_and_rules_keep_the_prose_order_too(self):
+        # Clause coverage runs first and splits a compound question into an AND rule (vocabulary-spec §8.13); the order
+        # check reads an AND rule's questions joined, so the split changes no verdict and no rule's place.
+        split = 0
+        for i, case in enumerate(ORDER["cases"]):
+            schema, prose = _order_case(i)
+            with self.subTest(case["run"] + " " + case["instrument"]):
+                ands = T.enforce_clause_coverage(schema, prose, drop=True)
+                split += sum(1 for n in T.collect_nodes(ands.root) if isinstance(n, T.TranslatedRule) and n.all_of)
+                if i in OUT_OF_ORDER:
+                    with self.assertRaises(T.RuleOrderError):
+                        T.enforce_rule_order(ands, prose)
+                else:
+                    self.assertIs(T.enforce_rule_order(ands, prose), ands)
+                kept = {n.id for n in ands.root.nodes}  # a raw first reply: coverage's last attempt drops what it can't keep
+                self.assertEqual([n.id for n in T.enforce_rule_order(ands, prose, drop=True).root.nodes],
+                                 [n.id for n in T.enforce_rule_order(schema, prose, drop=True).root.nodes if n.id in kept])
+        self.assertGreater(split, 50)
+
+    def test_a_rule_with_no_one_sentence_of_its_own_is_removed_not_guessed(self):
+        prose = ("When my hp is below half of my max, I recall home to heal.\n\n"
+                 "If I carry at least 300 gold, I move back home to spend it.\n\n"
+                 "If an enemy tower is in sight, I attack the nearest enemy tower.\n\n"
+                 "If an enemy tower is in sight, I attack the nearest enemy tower.")  # said twice: no one place is its own
+        tower = {"id": "tower", "condition": "is an enemy tower in sight?", "criteria": {"true": "y", "false": "n"},
+                 "action": {"kind": "attack", "ability": None, "target_selector": "nearest_tower"}}
+        recall = {"id": "heal", "condition": "is this bot's hp below half of its max?", "criteria": {"true": "y", "false": "n"},
+                  "action": {"kind": "recall", "ability": None, "target_selector": None}}
+        spend = {"id": "spend", "condition": "does this bot carry at least 300 gold?", "criteria": {"true": "y", "false": "n"},
+                 "action": {"kind": "move", "ability": None, "target_selector": "home"}}
+        schema = T.parse_schema({"rules": [tower, recall, spend], "default_action": {"kind": "move", "ability": None,
+                                 "target_selector": "push_lane"}}, "p.md", "drums", "raw", "vocab-2")
+        with self.assertRaises(T.RuleOrderError):
+            T.enforce_rule_order(schema, prose)
+        fixed = T.enforce_rule_order(schema, prose, drop=True)
+        self.assertEqual([n.id for n in fixed.root.nodes], ["heal", "spend"])
+        note = fixed.validation_notes[-1]
+        self.assertTrue(note.startswith('order: removed rule tower ("is an enemy tower in sight?"). It was above heal'), note)
+        self.assertIn("no one sentence of your prose is clearly its own", note)
+
+    def test_a_rule_the_prose_puts_first_with_override_words_is_left_to_the_priority_guard(self):
+        dropped = LOOKALIKE["schemas"][0]["reply"]  # #84's sample entrant with "no matter what else is going on"
+        back_off = {"id": "back_off_tower", "condition": "is an enemy tower visible and are none of this bot's minions near it?",
+                    "criteria": {"true": "y", "false": "n"}, "action": {"kind": "move", "ability": None, "target_selector": "home"}}
+        rules = [r for r in dropped["rules"] if r["id"] in ("recall_low_hp", "shop_first")]  # in the prose's order but for the override
+        rules = sorted(rules, key=lambda r: r["id"] != "recall_low_hp") + [back_off]
+        schema = T.parse_schema({**dropped, "rules": rules}, "p.md", "keytar", "raw", "vocab-2", economy="eco-3-late")
+        prose = T.scope_to_instrument(LOOKALIKE["prose"], "keytar").text
+        self.assertIs(T.enforce_rule_order(schema, prose), schema)
+        self.assertEqual(T.enforce_absolute_priority(schema, prose).rules[0].id, "back_off_tower")
+
+    def test_a_guard_branch_keeps_the_prose_order_too(self):
+        prose = ORDER["prose"]["house-hard-eco"]
+        soon = {"id": "soon", "condition": "will the Bandstand open within 10 seconds and is it less than 400 units from this bot?",
+                "criteria": {"true": "y", "false": "n"}, "action": {"kind": "move", "ability": None, "target_selector": "bandstand"}}
+        contested = {"id": "contested", "condition": "is the Bandstand contested or is the enemy team making progress on it, "
+                     "and is this bot's hp above 40% of its max?", "criteria": {"true": "y", "false": "n"},
+                     "action": {"kind": "move", "ability": None, "target_selector": "bandstand"}}
+        guard = {"id": "guard_bandstand", "type": "guard", "condition": "is the Bandstand open?", "criteria": {"true": "y", "false": "n"},
+                 "then": {"nodes": [soon, contested], "default_action": {"kind": "move", "ability": None, "target_selector": "bandstand"}},
+                 "else": {"nodes": [], "default_action": {"kind": "move", "ability": None, "target_selector": "push_lane"}}}
+        schema = T.parse_schema({"rules": [guard], "default_action": {"kind": "move", "ability": None, "target_selector": "push_lane"}},
+                                "p.md", "drums", "raw", "vocab-2", economy="eco-3-late")
+        scoped = T.scope_to_instrument(prose, "drums").text
+        with self.assertRaises(T.RuleOrderError):
+            T.enforce_rule_order(schema, scoped)
+        fixed = T.enforce_rule_order(schema, scoped, drop=True)
+        self.assertEqual([n.id for n in fixed.root.nodes[0].then.nodes], ["contested", "soon"])
+
+    def test_vocab1_is_unchanged(self):
+        schema, prose = _order_case(0)
+        schema = dataclasses.replace(schema, vocab="vocab-1")
+        self.assertIs(T.enforce_rule_order(schema, prose), schema)
+
+    @staticmethod
+    def _reply_in_order(index: int) -> str:
+        """`rule_order.json`'s reply `index` with its rules in the order the last attempt puts them."""
+        reply = T._extract_json_object(ORDER["cases"][index]["text"])
+        order = [n.id for n in T.enforce_rule_order(*_order_case(index), drop=True).root.nodes]
+        reply["rules"] = sorted(reply["rules"], key=lambda r: order.index(r["id"]) if r["id"] in order else len(order))
+        return json.dumps(reply)
+
+    def test_translate_pilot_retries_with_the_prose_and_keeps_the_reordered_reply(self):
+        replies, prompts = [ORDER["cases"][0]["text"], self._reply_in_order(0)], []
+
+        def generate(prompt):
+            prompts.append(prompt)
+            return replies[len(prompts) - 1]
+
+        schema = T.translate_pilot(ORDER["prose"]["house-hard-eco"], "pilot.md", "keytar", "chord", "glissando", generate=generate,
+                                   vocab="vocab-2", economy="eco-3-late")
+        self.assertEqual(len(prompts), 2)
+        retry = prompts[1].split("Your previous attempt was invalid:")[1]
+        self.assertIn("Close out the match. If it is more than 480 seconds", retry)
+        self.assertNotIn("finish the guard shape", retry)
+        self.assertNotIn("close_match_attack_tower", retry)
+        self.assertEqual([n.id for n in schema.root.nodes], HARD_S7_KEYTAR_FIXED)
+        self.assertFalse([n for n in schema.validation_notes if n.startswith("order:")])
+
+    def test_translate_pilot_reorders_on_its_last_attempt_instead_of_failing(self):
+        prompts = []
+
+        def generate(prompt):
+            prompts.append(prompt)
+            return ORDER["cases"][0]["text"]
+
+        schema = T.translate_pilot(ORDER["prose"]["house-hard-eco"], "pilot.md", "keytar", "chord", "glissando", generate=generate,
+                                   vocab="vocab-2", economy="eco-3-late")
+        self.assertEqual(len(prompts), 3)
+        self.assertEqual([n.id for n in schema.root.nodes], HARD_S7_KEYTAR_FIXED)
+        md = T.render_markdown(schema)
+        self.assertIn("**Rule order -- what was moved or removed:**", md)
+        self.assertIn("order: moved rule close_match_attack_tower to where your prose states it", md)
+        self.assertNotIn("Automatic priority fixes", md)
+
+    def test_a_retry_that_loses_a_rule_never_ships(self):
+        # this branch's batch: told to keep the prose's order, the 9B wrote one rule per sentence and dropped "walk with my
+        # nearest minion" from "Otherwise I walk with my nearest minion, and if I have no minions near me I go home ..."
+        in_order = json.loads(self._reply_in_order(8))  # sample entrant, #95 s4 drums
+        in_order["rules"] = [r for r in in_order["rules"] if (r.get("action") or {}).get("target_selector") != "nearby_minion"]
+        replies, prompts = [ORDER["cases"][8]["text"], json.dumps(in_order)], []
+
+        def generate(prompt):
+            prompts.append(prompt)
+            return replies[len(prompts) - 1]
+
+        # Its "afford my next item" rule also leaves out "no enemy is in sight"; clause coverage, which runs first, would
+        # repair that before the order is judged (test_a_reply_missing_a_clause_and_out_of_order_is_repaired_then_reordered).
+        with _without_clause_coverage():
+            schema = T.translate_pilot(ORDER["prose"]["sample-entrant-eco"], "pilot.md", "drums", "kick", "fill", generate=generate,
+                                       vocab="vocab-2", economy="eco-3-late")
+        self.assertEqual(len(prompts), 2)
+        self.assertIn("nearby_minion", [n.action_target_selector for n in schema.rules])  # the first reply's walk rule
+        self.assertEqual([n.id for n in schema.root.nodes][:3], ["enemy_tower_no_minions", "low_hp_no_tower_diver", "shopping_order"])
+        self.assertTrue([n for n in schema.validation_notes if n.startswith("order: moved rule")])
+        prose = T.scope_to_instrument(ORDER["prose"]["sample-entrant-eco"], "drums").text
+        whole = T.parse_schema(json.loads(self._reply_in_order(8)), "p.md", "drums", "raw", "vocab-2", economy="eco-3-late")
+        self.assertTrue(T.keeps_every_rule(whole, schema, prose))
+        self.assertFalse(T.keeps_every_rule(T.parse_schema(in_order, "p.md", "drums", "raw", "vocab-2", economy="eco-3-late"), schema, prose))
+
+    def test_a_rule_the_prose_states_nowhere_is_not_moved(self):
+        # This job's violin.md compile s1: "is an enemy bearbot in attack range? -> attack" is the model's own rule. It shares
+        # "enemy" and "bearbot" with the voice line "you exist to end one enemy ..." (score 0.61), and the check moved it up
+        # to rule 2, above the Staccato opener and "wait until one enemy is isolated". Below _ORDER_STATED_FLOOR the prose
+        # states a rule nowhere, and it is not judged.
+        prose = T.scope_to_instrument(open(os.path.join(os.path.dirname(__file__), "..", "..", "prompts", "pilots", "violin.md"),
+                                           encoding="utf-8").read(), "violin").text
+        spec = [("recall_low_hp", "is this bearbot's hp below a quarter of its max?", "recall", None, "none"),
+                ("engage_isolated_target", "is there exactly one isolated enemy bearbot visible (alone or clearly the softest target in a group)?",
+                 "move", None, "isolated_enemy"),
+                ("use_staccato_on_target", "is the selected target within this bearbot's attack range and is staccato ready?", "ability",
+                 "staccato", "nearest_enemy_bearbot"),
+                ("use_solo_for_engage_or_escape", "is a target about to get away or is the moment right for a decisive engage?", "ability",
+                 "solo", "nearest_enemy_bearbot"),
+                ("move_toward_isolated_target", "is there an isolated enemy bearbot visible?", "move", None, "isolated_enemy"),
+                ("attack_nearest_enemy", "is there an enemy bearbot within this bearbot's attack range?", "attack", None, "nearest_enemy_bearbot"),
+                ("hold_position", "is there no fight near this bearbot and no isolated target?", "hold", None, "none")]
+        schema = T.parse_schema({"rules": [{"id": i, "condition": c, "criteria": {"true": "yes", "false": "no"},
+                                            "action": {"kind": k, "ability": a, "target_selector": t}} for i, c, k, a, t in spec],
+                                 "default_action": {"kind": "hold", "ability": None, "target_selector": "none"}}, "violin.md", "violin", "raw", "vocab-2")
+        P = T._ProseUnits(prose)
+        attack = next(n for n in schema.root.nodes if n.id == "attack_nearest_enemy")
+        self.assertLess(max(P.scores(attack)), T._ORDER_STATED_FLOOR)
+        self.assertEqual(P.placed(attack), set())
+        self.assertTrue(P.candidates(attack))  # negation attribution still sees its candidates
+        self.assertIs(T.enforce_rule_order(schema, prose), schema)
+
+    def test_attack_range_is_a_distance_not_the_attack(self):
+        # This job's keytar.md compile s3 (batch v6): "If a visible enemy is inside your attack range, that is too close ...
+        # you should be leaving" was read as naming the attack, so the model's basic-attack rule placed there and was moved
+        # above Chord, against "Chord first, basic-attack second". That paragraph is a move ("leaving"); the basic attack
+        # now scores under the order floor there and stays where the model put it.
+        prose = T.scope_to_instrument(open(os.path.join(os.path.dirname(__file__), "..", "..", "prompts", "pilots", "keytar.md"),
+                                           encoding="utf-8").read(), "keytar").text
+        spec = [("avoid_melee_range", "is there a visible enemy bearbot within melee range of this bot?", "move", None, "nearest_enemy_bearbot"),
+                ("avoid_attack_range", "is there a visible enemy bearbot inside this bot's attack range?", "move", None, "nearest_enemy_bearbot"),
+                ("dash_in_for_angle", "is this bot in range of an enemy but not close enough to attack them directly (needs angle)?", "move",
+                 None, "nearest_enemy_bearbot"),
+                ("use_chord_if_ready", "is the 'chord' ability ready?", "ability", "chord", "densest_cluster_enemy"),
+                ("attack_minions_or_enemies", "is there a visible enemy bearbot or minion within this bot's attack range?", "attack", None,
+                 "nearest_enemy_bearbot"),
+                ("recall_low_hp", "is this bot's hp below a quarter of its max?", "recall", None, "none"),
+                ("push_lane_default", "is there no immediate threat or opportunity to fight?", "move", None, "push_lane")]
+        schema = T.parse_schema({"rules": [{"id": i, "condition": c, "criteria": {"true": "yes", "false": "no"},
+                                            "action": {"kind": k, "ability": a, "target_selector": t}} for i, c, k, a, t in spec],
+                                 "default_action": {"kind": "move", "ability": None, "target_selector": "push_lane"}}, "keytar.md", "keytar", "raw",
+                                "vocab-2")
+        P = T._ProseUnits(prose)
+        keep_away = next(k for k, t in enumerate(P.texts) if "attack range, that is too" in " ".join(t.split()))
+        self.assertEqual(P._actions[keep_away], {"move"})
+        ids = [n.id for n in T.enforce_rule_order(schema, prose, drop=True).root.nodes]
+        self.assertLess(ids.index("use_chord_if_ready"), ids.index("attack_minions_or_enemies"))
+
+    def test_a_retry_that_swaps_a_rule_for_its_sentences_other_half_never_ships(self):
+        # This job's merged-code batch, sample s8 drums and violin: the order retry kept a rule for the walk sentence, but the
+        # wrong half: "are there no minions near? -> home" (or "-> the nearest ally") in place of "walk with my nearest
+        # minion". Counting rules per sentence passed it; what each sentence's rules do does not.
+        in_order = json.loads(self._reply_in_order(8))  # sample entrant, #95 s4 drums
+        for r in in_order["rules"]:
+            if (r.get("action") or {}).get("target_selector") == "nearby_minion":
+                r["id"], r["condition"] = "walk_or_home_no_targets", "are there no minions near this bot?"
+                r["action"] = {"kind": "move", "ability": None, "target_selector": "home"}
+        replies, prompts = [ORDER["cases"][8]["text"], json.dumps(in_order)], []
+
+        def generate(prompt):
+            prompts.append(prompt)
+            return replies[len(prompts) - 1]
+
+        with _without_clause_coverage():  # as in test_a_retry_that_loses_a_rule_never_ships
+            schema = T.translate_pilot(ORDER["prose"]["sample-entrant-eco"], "pilot.md", "drums", "kick", "fill", generate=generate,
+                                       vocab="vocab-2", economy="eco-3-late")
+        self.assertEqual(len(prompts), 2)
+        self.assertIn("nearby_minion", [n.action_target_selector for n in schema.rules])  # the first reply's walk rule
+        self.assertNotIn("walk_or_home_no_targets", [n.id for n in schema.rules])
+        prose = T.scope_to_instrument(ORDER["prose"]["sample-entrant-eco"], "drums").text
+        swapped = T.parse_schema(in_order, "p.md", "drums", "raw", "vocab-2", economy="eco-3-late")
+        self.assertFalse(T.keeps_every_rule(swapped, schema, prose))
+
+    def test_a_reply_missing_a_clause_and_out_of_order_is_repaired_then_reordered(self):
+        # #95 s4 drums: "can this bot afford its next item and is it at its base?" leaves out "no enemy is in sight", and the
+        # cascade puts it above the back-off. Clause coverage runs first and splices the rewrite's afford rule into the
+        # rules that passed, which are still in the first reply's order; the order check then retries with the prose.
+        def fixed(reply: dict) -> dict:
+            for r in reply["rules"]:
+                if r["id"] == "shopping_order":
+                    r["condition"] = "can this bot afford its next item and is no enemy in sight?"
+            return reply
+
+        first = T._extract_json_object(ORDER["cases"][8]["text"])
+        replies = [ORDER["cases"][8]["text"], json.dumps(fixed(json.loads(json.dumps(first)))),
+                   json.dumps(fixed(json.loads(self._reply_in_order(8))))]
+        prompts = []
+
+        def generate(prompt):
+            prompts.append(prompt)
+            return replies[len(prompts) - 1]
+
+        schema = T.translate_pilot(ORDER["prose"]["sample-entrant-eco"], "pilot.md", "drums", "kick", "fill", generate=generate,
+                                   vocab="vocab-2", economy="eco-3-late")
+        self.assertEqual(len(prompts), 3)
+        self.assertIn("Every other rule you wrote passed and is kept as it was.", prompts[1])
+        self.assertIn("the order of these sentences of the prose", prompts[2])
+        self.assertNotIn("Every other rule you wrote passed", prompts[2])  # an order retry is a whole rewrite
+        ids = [n.id for n in schema.root.nodes]
+        self.assertLess(ids.index("enemy_tower_no_minions"), ids.index("shopping_order"))
+        self.assertIn("no enemy", next(n for n in schema.rules if n.id == "shopping_order").condition)
+        self.assertIn("nearby_minion", [n.action_target_selector for n in schema.rules])
+        self.assertFalse([n for n in schema.validation_notes if n.startswith(("order:", "clause coverage:"))])
+
+    def test_a_reply_wrong_only_in_its_order_ships_reordered_when_the_retries_break_something_else(self):
+        # this branch's batch, sample s12 violin: both order retries came back with a "build"-kind rule, a parse error
+        broken = T._extract_json_object(ORDER["cases"][0]["text"])
+        broken["rules"][0] = {**broken["rules"][0], "action": {"kind": "build", "ability": None, "target_selector": None}}
+        replies, prompts = [ORDER["cases"][0]["text"], json.dumps(broken), json.dumps(broken)], []
+
+        def generate(prompt):
+            prompts.append(prompt)
+            return replies[len(prompts) - 1]
+
+        schema = T.translate_pilot(ORDER["prose"]["house-hard-eco"], "pilot.md", "keytar", "chord", "glissando", generate=generate,
+                                   vocab="vocab-2", economy="eco-3-late")
+        self.assertEqual(len(prompts), 3)
+        self.assertEqual([n.id for n in schema.root.nodes], HARD_S7_KEYTAR_FIXED)
+        self.assertTrue([n for n in schema.validation_notes if n.startswith("order: moved rule close_match_attack_tower")])
+
+        def always_broken(prompt):
+            return json.dumps(broken)
+
+        with self.assertRaises(RuntimeError):  # nothing wrong only in its order: it still fails
+            T.translate_pilot(ORDER["prose"]["house-hard-eco"], "pilot.md", "keytar", "chord", "glissando", generate=always_broken,
+                              vocab="vocab-2", economy="eco-3-late")
+
+
+class NegationAttributionTests(unittest.TestCase):
+    """vocab-2: a "no" in another sentence never vetoes a rule. #87's check removed a correct shopping rule in 3 of #95's
+    36 hard-eco compiles: its id read "shop_afford_no_enemy_minion_tower", and "Never stand in an enemy tower's fire" was
+    the sentence that said "no enemy tower"."""
+
+    def test_the_shopping_rules_95_dropped_are_kept(self):
+        for i in (3, 4, 5):  # #95's s6, s5 and s10 keytar, each rejected three times and dropped
+            case = ORDER["cases"][i]
+            prose = T.scope_to_instrument(ORDER["prose"][case["prose"]], case["instrument"]).text
+            schema = T.enforce_shopping_list(T.parse_schema(T._extract_json_object(case["text"]), "pilot.md", case["instrument"],
+                                                            case["text"], "vocab-2", economy="eco-3-late"), prose)
+            with self.subTest(case["run"]):
+                self.assertIs(T.enforce_negation(schema, prose), schema)
+                afford = next(r for r in schema.rules if "afford_no_enemy" in r.id and "minion_tower" in r.id)
+                sentences = T._ProseUnits(prose).sentences
+                polarities = [T._polarities(s) for s in sentences]
+                # the attribution #87 shipped: the id's "no" read onto the minion and the tower, backed by another sentence
+                self.assertEqual(T._negation_lost(afford, sentences, polarities)[1], "Never stand in an enemy tower's fire.")
+                self.assertIsNone(T._negation_lost(afford, sentences, polarities, T._ProseUnits(prose).sentences_of(afford)))
+
+    def test_a_real_lost_no_is_still_caught(self):
+        schema, prose = _order_case(9)  # the sample entrant's #95 s6 keytar, first reply, before its negation drop
+        case = ORDER["cases"][9]
+        schema = T.enforce_shopping_list(T.parse_schema(T._extract_json_object(case["text"]), "pilot.md", case["instrument"],
+                                                        case["text"], "vocab-2", economy="eco-3-late"), prose)
+        with self.assertRaises(T.SchemaValidationError) as err:
+            T.enforce_negation(schema, prose)
+        self.assertIn('rule no_enemy_sight_shop lost a "no" the prose states: the prose says "no enemy is in sight"', str(err.exception))
 
 
 COVERAGE = json.loads(open(os.path.join(os.path.dirname(__file__), "testdata", "clause_coverage.json"), encoding="utf-8").read())
@@ -1847,6 +2305,7 @@ class ClauseCoverageTests(unittest.TestCase):
         self.assertLessEqual({"retreat_hp_low_threat", "retreat_hp_low_threat_present"}, gone)
         self.assertIn("attack_enemy_bearbot", {n.id for n in T.collect_nodes(out.root)})
 
+    @_order_check_off  # #85 s6's reply also puts "shop" above the back-off; order has its own tests
     def test_translate_pilot_retries_with_the_sentence_and_keeps_the_fixed_reply(self):
         bad = _coverage_reply(0)  # #85 s6 drums: afford -> home, no enemy -> home, and no 300-gold rule
         good = json.loads(json.dumps(bad))
@@ -1985,15 +2444,35 @@ class ClauseCoverageTests(unittest.TestCase):
         self.assertEqual(len(prompts), 1)
         self.assertEqual([r.id for r in schema.rules], ["shop"])
 
+    def test_the_tower_fire_rule_is_its_own_sentences_not_half_the_siege(self):
+        # This job's batches v5 and v6, house-hard-eco, 3 of 54 compiles: "will an enemy tower shoot this bearbot? -> my own
+        # tower" shares more words with the siege sentence than with its own, so it was held to the siege sentence and
+        # removed as half of it. The tie now goes to its own part of the prose (_ProseUnits, which counts the siege
+        # sentence's "attack" against a move rule).
+        prose = T.scope_to_instrument(open(os.path.join(os.path.dirname(__file__), "..", "..", "prompts", "pilots",
+                                                        "house-hard-eco.prose.md"), encoding="utf-8").read(), "violin").text
+        fire = {"id": "enemy_tower_shoot_fallback", "condition": "will an enemy tower shoot this bearbot?",  # v5 s11 violin, as written
+                "criteria": {"true": "this bearbot is inside an enemy tower's range and that tower will shoot it (no minions in range to block)",
+                             "false": "this bearbot is not being targeted by any enemy tower"},
+                "action": {"kind": "move", "ability": None, "target_selector": "own_tower"}}
+        siege = _node("siege_wave_attack", "is this bearbot inside an enemy tower's range and does that tower have this bearbot's "
+                      "own minions in its range?", "attack", target="nearest_tower")
+        recall = _node("afford_recall", "can this bearbot afford the next item on its shopping list and is no enemy in sight?",
+                       "recall", target=None)
+        schema = _tree(recall, fire, siege)
+        out = T.enforce_clause_coverage(schema, prose, drop=True)  # the other sentences have no rule here, so not `is`
+        self.assertEqual([n.id for n in out.root.nodes], ["afford_recall", "enemy_tower_shoot_fallback", "siege_wave_attack"])
+        self.assertFalse([x for x in out.validation_notes if x.startswith("clause coverage: removed")])
+
     def test_the_negation_guard_reads_its_own_words(self):
-        # The coverage check reads "outside", "your tower" and "an enemy is dead" with wider lists; #87's guard keeps its own.
-        self.assertEqual(T._polarities("is it outside an enemy tower's range?"), {"enemy tower": {False}})
+        # The coverage check reads "your tower" and "an enemy is dead" with wider lists; #87's guard keeps its own. Both
+        # read "outside" as a "not" (NegatedClauseKeepsItsNoTests.test_outside_a_towers_range_is_not_inside_it).
+        self.assertEqual(T._polarities("is it outside an enemy tower's range?"), {"enemy tower": {True}})
         self.assertEqual(T._polarities("is an enemy bearbot under your tower?"), {"enemy": {False}, "enemy tower": {False}})
         self.assertEqual(T._polarities("is an enemy bearbot dead?"), {"enemy": {True}})
         self.assertEqual(T._facts("is it outside an enemy tower's range?").things, {"enemy tower": {True}})
         self.assertEqual(T._facts("is an enemy bearbot under your tower?").things, {"enemy": {False}, "own tower": {False}})
         self.assertEqual(T._facts("is an enemy bearbot dead?").things, {"enemy": {False}})
-
 
 if __name__ == "__main__":
     unittest.main()

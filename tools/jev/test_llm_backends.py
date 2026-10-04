@@ -84,11 +84,12 @@ class OpenRouterTests(unittest.TestCase):
         with self.assertRaises(L.BackendError):
             L.OpenRouterBackend("")
 
-    def test_vocab1_cap_is_still_sent(self):
+    def test_vocab1_sends_no_cap_either(self):
+        self.assertFalse(hasattr(L, "VOCAB1_MAX_COMPLETION_TOKENS"))
         fake = _Fake({"choices": [{"message": {"content": "x"}}], "usage": {"prompt_tokens": 1, "completion_tokens": 1}})
         try:
-            L.OpenRouterBackend("k", base_url=fake.url, max_tokens=L.VOCAB1_MAX_COMPLETION_TOKENS).generate("p")
-            self.assertEqual(fake.requests[0][2]["max_tokens"], 1800)
+            L.OpenRouterBackend("k", base_url=fake.url).generate("p")  # what compile.py builds for a vocab-1 compile too
+            self.assertNotIn("max_tokens", fake.requests[0][2])
         finally:
             fake.close()
 
@@ -110,16 +111,18 @@ class OllamaTests(unittest.TestCase):
         finally:
             fake.close()
 
-    def test_vocab1_body_is_byte_identical_to_the_recorded_one(self):
-        """With vocab-1's cap the body is exactly what the translator sent before the caps went: same keys,
-        same order, num_predict 1800, no truncate."""
+    def test_vocab1_body_is_the_recorded_one_less_its_cap(self):
+        """The body vocab-1's recorded runs sent, byte for byte, with its one cap field gone: same keys, same
+        order, no truncate, no num_predict (Ceryce, 2026-10-02 17:59: no token caps at all)."""
         fake = _Fake({"response": "{}", "prompt_eval_count": 1, "eval_count": 1})
         try:
-            L.OllamaBackend(url=fake.url, max_tokens=L.VOCAB1_MAX_COMPLETION_TOKENS).generate("hi")
+            L.OllamaBackend(url=fake.url, vocab1=True).generate("hi")
             body = fake.requests[0][2]
-            old = {"model": "qwen3.5:9b", "prompt": "hi", "stream": False, "keep_alive": "30m",
-                   "options": {"temperature": 0.2, "num_predict": 1800}, "think": False}
-            self.assertEqual(json.dumps(body), json.dumps(old))
+            recorded = {"model": "qwen3.5:9b", "prompt": "hi", "stream": False, "keep_alive": "30m",
+                        "options": {"temperature": 0.2, "num_predict": 1800}, "think": False}
+            del recorded["options"]["num_predict"]  # the one field that changes
+            self.assertEqual(json.dumps(body), json.dumps(recorded))
+            self.assertEqual(json.dumps(L.ollama_body("qwen3.5:9b", "hi", None, vocab1=True)), json.dumps(recorded))
         finally:
             fake.close()
 
@@ -202,9 +205,11 @@ class NoCapTests(unittest.TestCase):
         self.assertEqual(b.usage.calls, 5)
         self.assertEqual(b.usage.total_tokens, 5 * 200_000)
 
-    def test_make_backend_sends_no_cap_unless_asked(self):
+    def test_make_backend_sends_no_cap_under_any_vocabulary(self):
         self.assertIsNone(L.make_backend("ollama").max_tokens)
-        self.assertEqual(L.make_backend("ollama", max_tokens=L.VOCAB1_MAX_COMPLETION_TOKENS).max_tokens, 1800)
+        vocab1 = L.make_backend("ollama", vocab1=True)
+        self.assertIsNone(vocab1.max_tokens)
+        self.assertTrue(vocab1.vocab1)
 
 
 if __name__ == "__main__":

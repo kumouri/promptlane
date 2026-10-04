@@ -21,7 +21,7 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(__file__))
 import compile as C  # noqa: E402
-from llm_backends import CALL_TIMEOUT_SEC, VOCAB1_MAX_COMPLETION_TOKENS, ScriptedBackend  # noqa: E402
+from llm_backends import CALL_TIMEOUT_SEC, ScriptedBackend  # noqa: E402
 from translator import TARGET_SELECTORS, TranslatedRule, TranslatedSchema  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
@@ -42,6 +42,24 @@ _SHOPPING = re.compile(r"\nShopping list: [^\n]*\n")
 
 def _without_shopping_line(md: str) -> str:
     return _SHOPPING.sub("", md, count=1)
+
+
+# Prose a reference pilot has changed since its checked-in run, as (quoted then, quoted now). violin.md's
+# Staccato paragraph opens "In a fight you can win," so the guards spec's worked tree is scoped under its
+# verdict (docs/vocabulary-spec.md §8.10, Ceryce's ruling 2026-10-02 17:59). Nothing else in a report moves.
+_PROSE_SINCE_RUN = {
+    "violin": [(
+        "  > Staccato (quick high-damage stab, short range) is your opener",
+        "  > In a fight you can win, Staccato (quick high-damage stab, short range) is your opener",
+    )],
+}
+
+
+def _as_prose_reads_now(md: str, instrument: str) -> str:
+    for then, now in _PROSE_SINCE_RUN.get(instrument, []):
+        assert md.count(then) == 1, (instrument, then)
+        md = md.replace(then, now)
+    return md
 
 
 _SELECTOR_BY_DESC = {v: k for k, v in TARGET_SELECTORS.items()}
@@ -96,7 +114,7 @@ class ReproducesCheckedInRunsTests(unittest.TestCase):
         self.assertEqual(entry["labels"], "hand")
         self.assertIn(f"Shopping list: ", entry["markdown"])
         self.assertIn(f"(default for {instrument} — your prose names no items)", entry["markdown"])
-        self.assertEqual(_without_shopping_line(entry["markdown"]), expected)
+        self.assertEqual(_without_shopping_line(entry["markdown"]), _as_prose_reads_now(expected, instrument))
 
     def test_drums(self):
         self._check("drums", CHECKED_IN["drums"])
@@ -218,11 +236,11 @@ class EntrantProseTests(unittest.TestCase):
             finally:
                 C.make_backend = orig
 
-    def test_only_vocab1_sends_a_reply_cap(self):
+    def test_no_vocabulary_sends_a_reply_cap(self):
         seen = []
 
         def fake(*a, **k):
-            seen.append((k.get("max_tokens"), k.get("timeout")))
+            seen.append((k.get("max_tokens"), k.get("timeout"), k.get("vocab1")))
             return ScriptedBackend([_reply(i) for i in C.INSTRUMENTS])
 
         with tempfile.TemporaryDirectory() as d:
@@ -236,8 +254,8 @@ class EntrantProseTests(unittest.TestCase):
                         C.main([str(f), "--format", "json"] + extra)
             finally:
                 C.make_backend = orig
-        self.assertEqual(seen, [(None, CALL_TIMEOUT_SEC), (None, CALL_TIMEOUT_SEC),
-                                (VOCAB1_MAX_COMPLETION_TOKENS, C.VOCAB1_TIMEOUT_SEC), (None, 5.0)])
+        self.assertEqual(seen, [(None, CALL_TIMEOUT_SEC, False), (None, CALL_TIMEOUT_SEC, False),
+                                (None, C.VOCAB1_TIMEOUT_SEC, True), (None, 5.0, False)])
 
     def test_missing_file_and_bad_usage(self):
         import contextlib
