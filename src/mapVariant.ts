@@ -24,7 +24,9 @@
  *
  * `towerHp` and `nexusHp` (runs/tower-hp-2026-10-02.md) set the structures' hp; `baseTower`
  * (runs/nexus-guard-2026-10-02.md) adds a tower in front of each nexus that wins the match when it
- * falls (`src/baseTower.ts`, also attached by `attachMapRules`).
+ * falls (`src/baseTower.ts`, also attached by `attachMapRules`); `botStructureDamage`
+ * (runs/tower-tune-2026-10-02.md) multiplies a bearbot's damage to structures (`src/structureDamage.ts`,
+ * likewise).
  */
 import type { Lane, Team, Vec2 } from './types';
 import type { Match } from './sim/match';
@@ -66,6 +68,11 @@ export interface MapVariant {
    * attached by `attachMapRules`). Absent = no base tower, and the nexus is the sim's own.
    */
   baseTower?: BaseTowerRules;
+  /**
+   * Bearbot damage to enemy towers, base towers and nexuses × this (`src/structureDamage.ts`, attached
+   * by `attachMapRules`); minion damage and every hp unchanged. Absent = 1, nothing attached.
+   */
+  botStructureDamage?: number;
 }
 
 /** The specimen's own map, exactly as `sim/map.ts` and `sim/entities.ts` build it. */
@@ -141,6 +148,41 @@ export const PVP_2_BASE_TOWER_MAP: MapVariant = {
   baseTower: { hp: 950, standoff: 100, needsInnerDown: true },
 };
 
+/**
+ * The two base-tower tunings measured by runs/tower-tune-2026-10-02.md (opt-in, 2026-10-02; Ceryce: "Look
+ * into lowering tower health a tad more, 50 or 100 points. Alternatively raising damage ... unless we just
+ * add a flat multiplier to player attacks against towers"). Of the cuts and multipliers screened there,
+ * these opened the most base towers. Neither gave a base kill, at $0 or in 30 Jev matches; both bring the
+ * first tower forward (Jev medians 3:01 and 4:02 against 6:02).
+ *
+ * `pvp-1-hp200-400-base600`: pvp-1-hp300-base700 with every tier 100 lower (outer 200, inner 400, base 600).
+ */
+export const PVP_BASE_TOWER_HP_CUT_MAP: MapVariant = {
+  ...PVP_BASE_TOWER_MAP,
+  name: 'pvp-1-hp200-400-base600',
+  towerHp: [400, 200],
+  baseTower: { ...PVP_BASE_TOWER_MAP.baseTower!, hp: 600 },
+};
+
+/**
+ * `pvp-1-hp300-base700-sd133`: pvp-1-hp300-base700's hp, with a bearbot's damage to towers, base towers and
+ * nexuses × 1.33 (`src/structureDamage.ts`). Minion damage is unchanged, so an outer tower, which minions
+ * did 40 % of the damage to on the recorded Jev logs, falls about as it would 50 hp lower, and the inner and
+ * base towers, which bots hit almost alone, as they would ~25 % lower.
+ */
+export const PVP_BASE_TOWER_SD133_MAP: MapVariant = { ...PVP_BASE_TOWER_MAP, name: 'pvp-1-hp300-base700-sd133', botStructureDamage: 1.33 };
+
+/** pvp-2-hp400-base950 with every tier 140 lower (× 1.37, its factor over pvp-1, of the pvp-1 cut): 260 / 560 / 810. Stand-in only. */
+export const PVP_2_BASE_TOWER_HP_CUT_MAP: MapVariant = {
+  ...PVP_2_BASE_TOWER_MAP,
+  name: 'pvp-2-hp260-560-base810',
+  towerHp: [560, 260],
+  baseTower: { ...PVP_2_BASE_TOWER_MAP.baseTower!, hp: 810 },
+};
+
+/** pvp-2-hp400-base950 with a bearbot's damage to structures × 1.33. Stand-in only. */
+export const PVP_2_BASE_TOWER_SD133_MAP: MapVariant = { ...PVP_2_BASE_TOWER_MAP, name: 'pvp-2-hp400-base950-sd133', botStructureDamage: 1.33 };
+
 export const MAP_VARIANTS: Record<string, MapVariant> = {
   [SPECIMEN_MAP.name]: SPECIMEN_MAP,
   [PVP_MAP.name]: PVP_MAP,
@@ -149,6 +191,10 @@ export const MAP_VARIANTS: Record<string, MapVariant> = {
   [PVP_TOWER_HP_MAP.name]: PVP_TOWER_HP_MAP,
   [PVP_BASE_TOWER_MAP.name]: PVP_BASE_TOWER_MAP,
   [PVP_2_BASE_TOWER_MAP.name]: PVP_2_BASE_TOWER_MAP,
+  [PVP_BASE_TOWER_HP_CUT_MAP.name]: PVP_BASE_TOWER_HP_CUT_MAP,
+  [PVP_BASE_TOWER_SD133_MAP.name]: PVP_BASE_TOWER_SD133_MAP,
+  [PVP_2_BASE_TOWER_HP_CUT_MAP.name]: PVP_2_BASE_TOWER_HP_CUT_MAP,
+  [PVP_2_BASE_TOWER_SD133_MAP.name]: PVP_2_BASE_TOWER_SD133_MAP,
 };
 
 /**

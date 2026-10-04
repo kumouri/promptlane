@@ -848,7 +848,7 @@ unchanged). A compile doesn't know the match's tower rule, and two translator jo
 
 (§8.13 is left for `fix/vocab2-rule-order`, open when this landed.)
 
-A map with base towers (`pvp-1-hp300-base700`, `pvp-2-hp400-base950`; `src/baseTower.ts`;
+A map with base towers (`pvp-1-hp300-base700`, `pvp-2-hp400-base950`, and their tunings in `vocab.BASE_TOWER_MAPS`; `src/baseTower.ts`;
 [`runs/bots-push-to-base-2026-10-02.md`](../runs/bots-push-to-base-2026-10-02.md)) puts `baseTowers` in
 the observation: both base towers, map-wide, each with its hp and `canBeHit`. `canBeHit` is the rule the
 sim applies (`BaseTowers.vulnerable`: one of that team's inner towers is down), so the description and
