@@ -190,7 +190,8 @@ export class Queue {
     const unsupported =
       this.headless.targetingUnsupported(health, this.headless.DEFAULT_TARGETING) ??
       // entrants compile under the default vocabulary (tools/jev/compile.py --vocab); the house is vocab-1
-      this.headless.vocabUnsupported(health, [this.headless.DEFAULT_VOCAB]);
+      this.headless.vocabUnsupported(health, [this.headless.DEFAULT_VOCAB]) ??
+      this.headless.baseTowerUnsupported(health, this.map ?? undefined);
     if (unsupported) return `${backend.endpoint}: ${unsupported}`;
     if (health.budget_usd != null && health.cost_usd >= health.budget_usd) {
       return `the schema server's own --budget-usd $${health.budget_usd} is spent; restart it to reset`;

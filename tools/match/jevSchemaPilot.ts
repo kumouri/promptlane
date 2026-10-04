@@ -95,6 +95,18 @@ export function towerAggroUnsupported(health: { tower_aggro?: unknown } | null |
     : `the schema server doesn't describe tower aggro ${name} (it knows: ${known.join(', ') || 'none'}); restart tools/jev/schema_server.py from this checkout`;
 }
 
+/**
+ * Why a schema server's /health says it can't describe `map`'s base towers (`src/baseTower.ts`), or
+ * null when it can or the map has none. A server from before them would leave the base tower's status
+ * out of Jev's description, so a push-to-base rule could never fire.
+ */
+export function baseTowerUnsupported(health: { base_towers?: unknown } | null | undefined, map: string | MapVariant | undefined): string | null {
+  if (map === undefined || !resolveMap(map).baseTower) return null;
+  return health?.base_towers === true
+    ? null
+    : 'the schema server doesn\'t describe base towers; restart tools/jev/schema_server.py from this checkout';
+}
+
 export interface JevSchemaPilotConfig {
   /** The schema-server endpoint, e.g. http://127.0.0.1:8797/ */
   endpoint: string;

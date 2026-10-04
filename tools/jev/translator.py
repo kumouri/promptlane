@@ -113,7 +113,7 @@ from llm_backends import CALL_TIMEOUT_SEC, VOCAB1_MAX_COMPLETION_TOKENS  # noqa:
 from economy_rules import NOTE_PREFIX, format_build, items, items_prompt_block, normalize_build  # noqa: E402
 from number_normalize import normalize_numbers_for_trace  # noqa: E402
 from scenarios import ABILITIES  # noqa: E402
-from vocab import VOCAB_1, VOCAB_2, facts_for, map_has_teleport, resolve_vocab  # noqa: E402
+from vocab import VOCAB_1, VOCAB_2, facts_for, map_has_base_tower, map_has_teleport, resolve_vocab  # noqa: E402
 
 DEFAULT_MODEL = "qwen3.5:9b"
 
@@ -173,18 +173,32 @@ PVP2_SELECTORS = {
 }
 SELECTOR_DESCRIPTIONS.update(PVP2_SELECTORS)  # the reports describe every target a schema can hold
 
+# A map with base towers (`src/baseTower.ts`): one more target, offered only to a vocab-2 compile told such
+# a map (`compile.py --map pvp-1-hp300-base700`), so every other prompt and parse is unchanged.
+BASE_SELECTORS = {
+    "enemy_base_tower": "the enemy BASE tower, the one in front of their nexus whose fall wins the match, wherever it is "
+    "(push to / attack their base tower)",
+}
+SELECTOR_DESCRIPTIONS.update(BASE_SELECTORS)
+
+
+def map_targets_recorded(vocab: str, map_) -> bool:
+    """Whether a schema records the map it was compiled for: a vocab-2 compile offered a map's own rules."""
+    return vocab == VOCAB_2 and (map_has_teleport(map_) or map_has_base_tower(map_))
+
 
 def allowed_selectors(vocab: str, map_=None) -> tuple:
     """The selector names a schema in `vocab`, compiled for `map_`, may use."""
     vocab = resolve_vocab(vocab)
     extra = tuple(PVP2_SELECTORS) if vocab == VOCAB_2 and map_has_teleport(map_) else ()
+    extra += tuple(BASE_SELECTORS) if vocab == VOCAB_2 and map_has_base_tower(map_) else ()
     return SELECTORS_BY_VOCAB[vocab] + extra
 
 
 def selectors_for(vocab: str, map_=None) -> dict:
     """The selectors a schema in `vocab` may name, with their translator-prompt meanings."""
     vocab = resolve_vocab(vocab)
-    meanings = {**SELECTOR_DESCRIPTIONS, **VOCAB2_MEANINGS, **PVP2_SELECTORS} if vocab == VOCAB_2 else SELECTOR_DESCRIPTIONS
+    meanings = {**SELECTOR_DESCRIPTIONS, **VOCAB2_MEANINGS, **PVP2_SELECTORS, **BASE_SELECTORS} if vocab == VOCAB_2 else SELECTOR_DESCRIPTIONS
     return {k: meanings[k] for k in allowed_selectors(vocab, map_)}
 
 
@@ -417,7 +431,7 @@ class TranslatedSchema:
     build: tuple[str, ...] | None = None
     vocab: str = VOCAB_1
     economy: str | None = None
-    # The map a compile was told (`compile.py --map`), when it offered that map's rules (pvp-2's teleport).
+    # The map a compile was told (`compile.py --map`), when it offered that map's rules (pvp-2's teleport, a base tower).
     map: str | None = None
 
     def __post_init__(self):
@@ -758,7 +772,7 @@ def parse_schema(raw_json: dict, pilot_file: str, instrument: str, raw_text: str
     return TranslatedSchema(
         pilot_file=pilot_file, instrument=instrument, raw_model_output=raw_text, root=root,
         validation_notes=target_notes + build_notes, build=build, vocab=vocab, economy=economy,
-        map=map_ if vocab == VOCAB_2 and map_has_teleport(map_) else None,
+        map=map_ if map_targets_recorded(vocab, map_) else None,
     )
 
 

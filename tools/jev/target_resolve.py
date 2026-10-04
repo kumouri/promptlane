@@ -37,7 +37,13 @@ One vocab-1 selector reads more under vocab-2 (`VOCAB2_WIDER`): `nearest_tower` 
 towers vocab-2's description lists (`vocab.tower_facts`, out to `nearbyTowers`' 390), not only those in
 `visibleEnemies` (260). Jev is told a tower is there, so "attack their tower" gets it as a target, and
 the sim's `attack` walks to a target that is out of reach (src/sim/match.ts approachAndAttack).
-Under vocab-1 it reads `visibleEnemies` as it always has."""
+Under vocab-1 it reads `visibleEnemies` as it always has.
+
+Map targets, vocab-2 only: pvp-2's teleport has two (`PVP2_SELECTORS`), and a map with base towers
+has `enemy_base_tower` (`BASE_SELECTORS`), the enemy base tower's id from the observation's
+`baseTowers`, which lists it map-wide, so an `attack` on it walks there from anywhere. On such a map,
+`nearest_tower` with no enemy tower listed is that base tower once it can be hit, not nothing (the
+vocabulary spec's §8.14)."""
 from __future__ import annotations
 
 import sys
@@ -157,6 +163,9 @@ VOCAB2_SELECTORS = ("own_tower", "own_front_tower", "nearest_enemy_bearbot", "ne
 # a tower id from the observation's own `teleport.towers` list, or None when it names none (a match
 # without the teleport, or no tower that qualifies).
 PVP2_SELECTORS = ("tp_lane_tower", "tp_threatened_tower")
+# A map with base towers (`src/baseTower.ts`; translator.BASE_SELECTORS): the enemy base tower's id from
+# the observation's `baseTowers`, which lists it map-wide, or None in a match without one.
+BASE_SELECTORS = ("enemy_base_tower",)
 # vocab-1 selectors that vocab-2 resolves from what its description states (module docstring).
 VOCAB2_WIDER = ("nearest_tower",)
 
@@ -210,7 +219,8 @@ def _teleport_tower(selector: str, obs: dict) -> str | None:
     towers = (obs.get("teleport") or {}).get("towers") or []
     lane = obs["self"].get("lane")
     if selector == "tp_lane_tower":
-        mine = sorted((t for t in towers if t.get("lane") == lane), key=lambda t: -t.get("tier", 0))
+        # a lane's towers only: a base tower (tier 3, on a base-tower map) stands in mid but is no lane tower
+        mine = sorted((t for t in towers if t.get("lane") == lane and t.get("tier") in (1, 2)), key=lambda t: -t.get("tier", 0))
         return mine[0]["id"] if mine else None
     hot = [t for t in towers if (t.get("enemyBearbots") or 0) > 0]
     if not hot:
@@ -235,6 +245,9 @@ def _resolve_vocab2(selector: str, obs: dict, targeting: str, spec: MapSpec) -> 
 
     if selector in PVP2_SELECTORS:
         return _teleport_tower(selector, obs)
+    if selector == "enemy_base_tower":
+        enemy_base = (obs.get("baseTowers") or {}).get("enemy")
+        return enemy_base["id"] if enemy_base and enemy_base.get("alive", True) else None
     if selector == "own_tower":
         # the nearest of my towers listed alive, else my lane's spots, the inner one first
         return stand_by(nearest(own_alive)["pos"], team, spec) if own_alive else _lane_tower(obs, spec, (1, 2))
@@ -254,7 +267,13 @@ def _resolve_vocab2(selector: str, obs: dict, targeting: str, spec: MapSpec) -> 
         towers = [e for e in enemies if e.get("kind") in ("tower", "nexus")]
         seen = {e["id"] for e in towers}
         towers += [f.tower for f in tower_facts(obs, spec) if not f.own and f.tower.get("alive", True) and f.tower["id"] not in seen]
-        return nearest(towers)["id"] if towers else None
+        if towers:
+            return nearest(towers)["id"]
+        # A base-tower map with none listed: the description still names one enemy tower, the base tower, and once
+        # it can be hit Jev reads "an enemy tower in sight?" as yes (6 of 6 such states; runs/bots-push-to-base-
+        # 2026-10-02.md §1.5). That tower, not nothing: an `attack` walks to it.
+        enemy_base = (obs.get("baseTowers") or {}).get("enemy")
+        return enemy_base["id"] if enemy_base and enemy_base.get("alive", True) and enemy_base.get("canBeHit") else None
     if selector == "nearest_ally":
         allies = obs.get("allies", [])
         if allies:
@@ -278,7 +297,8 @@ def resolve_target(selector: str | None, obs: dict, targeting: str = DEFAULT_TAR
     if selector in (None, "none"):
         return None
     spec = map_ if isinstance(map_, MapSpec) else map_spec(map_)
-    if vocab != VOCAB_1 and (selector in VOCAB2_SELECTORS or selector in VOCAB2_WIDER or selector in PVP2_SELECTORS):
+    if vocab != VOCAB_1 and (selector in VOCAB2_SELECTORS or selector in VOCAB2_WIDER or selector in PVP2_SELECTORS
+                             or selector in BASE_SELECTORS):
         return _resolve_vocab2(selector, obs, targeting, spec)
     self_ = obs["self"]
     team = self_["team"]
