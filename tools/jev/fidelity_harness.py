@@ -58,8 +58,10 @@ from translator import (  # noqa: E402
     TranslatedSchema,
     collect_nodes,
     evaluate_schema,
+    node_answers,
     parse_schema,
     render_markdown,
+    schema_questions,
     translate_pilot,
 )
 
@@ -325,10 +327,13 @@ def _tower_lines(obs: dict, spec: MapSpec) -> list[str]:
     facts = sorted(tower_facts(obs, spec), key=lambda f: (f.distance, f.tower["id"]))
     alive = [f for f in facts if f.tower.get("alive", True)]
     rng = f"{spec.tower_range:g}"
+    # a map with base towers names them (src/baseTower.ts); without `baseTowers` every line is as before
+    base_ids = {b["id"] for b in (obs.get("baseTowers") or {}).values()}
     lines: list[str] = []
     for f in alive:
         t = f.tower
-        head = f"{'Your' if f.own else 'Enemy'} tower {t['id']} ({t['lane']}, {t['hp']:.0f}/{t['maxHp']:.0f} hp) at {_xy(t['pos'])} is {_units(f.distance)}"
+        lane = f"{t['lane']}, base tower" if t["id"] in base_ids else t["lane"]
+        head = f"{'Your' if f.own else 'Enemy'} tower {t['id']} ({lane}, {t['hp']:.0f}/{t['maxHp']:.0f} hp) at {_xy(t['pos'])} is {_units(f.distance)}"
         if not f.in_range:
             text = f"{head}; you are outside its {rng}-unit range"
         elif f.own:
@@ -452,10 +457,42 @@ def _describe_vocab2(obs: dict, spec: MapSpec) -> str:
         parts.append("The base shop sells: " + ", ".join(f"{item_name(i['item'])} ({i['cost']} gold)" for i in obs["shop"]) + ".")
     parts.extend(_bandstand_lines(obs))
     parts.extend(_map_rule_lines(obs))
+    parts.extend(_base_tower_lines(obs))
     return " ".join(parts)
 
 
-_TIER = {1: "inner", 2: "outer"}
+_TIER = {1: "inner", 2: "outer", 3: "base"}
+
+
+def _base_tower_lines(obs: dict) -> list[str]:
+    """A map with base towers (`src/baseTower.ts`): both, map-wide, and whether each can be hit now,
+    as the sim's own rule says (`baseTowers.*.canBeHit`). Stated only when the observation carries
+    `baseTowers`, so every other description is unchanged; the fact is `vocab.FACTS_BASE`."""
+    bt = obs.get("baseTowers")
+    if not bt:
+        return []
+    lines: list[str] = []
+    e = bt["enemy"]
+    # No position or distance, and "out of sight" first unless the tower lines list it: stated with them, Jev
+    # read the far base tower as an enemy tower in sight ("is an enemy tower visible?" yes 28 of 60 with none
+    # listed; runs/bots-push-to-base-2026-10-02.md §1.4). When listed, its own tower line places it.
+    listed = any(t["id"] == e["id"] and t.get("alive", True) for t in obs.get("nearbyTowers") or ())
+    head = f"The enemy base tower is {e['id']}, listed above: it" if listed else f"Out of sight, map-wide: the enemy base tower {e['id']}"
+    if not e["alive"]:
+        lines.append(f"The enemy base tower {e['id']} is destroyed.")
+    elif e["canBeHit"]:
+        lines.append(f"{head} can be hit now (one of their inner towers is down; {e['hp']:.0f}/{e['maxHp']:.0f} hp), "
+                     f"and destroying it wins the match.")
+    else:
+        lines.append(f"{head} can't be hit yet: it takes no damage until one of their inner towers is down.")
+    o = bt["own"]
+    if not o["alive"]:
+        lines.append(f"Your base tower {o['id']} is destroyed.")
+    elif o["canBeHit"]:
+        lines.append(f"Your base tower {o['id']} can be hit now: one of your inner towers is down, and if it falls your team loses.")
+    else:
+        lines.append(f"Your base tower {o['id']} can't be hit yet.")
+    return lines
 
 
 def _map_rule_lines(obs: dict) -> list[str]:
@@ -569,16 +606,20 @@ def _bandstand_lines(obs: dict) -> list[str]:
 
 
 def run_prediction(client, schema: TranslatedSchema, obs: dict, targeting: str = DEFAULT_TARGETING, map_: str | dict | None = None) -> dict:
-    """One systemone call, EVERY node's condition anywhere in the tree batched together (spec §2.2:
+    """One systemone call, EVERY question anywhere in the tree batched together (spec §2.2:
     "evaluation stays one systemone call per decision" no matter how deep the tree gets --
     `translator.collect_nodes`), then the tree-walk in Python (`translator.evaluate_schema`) --
     same posture as `rules.first_match` and as house-violet.md's own prose ("Take the FIRST rule
     that matches"), generalized to guards. For a schema with zero guards this is exactly the old
     flat first-match behavior; `all_nodes == schema.rules` in that case. The winning rule's target
     resolves under `targeting` (`target_resolve.TARGETING_RULES`). The description and the target
-    are both in the schema's own vocabulary (`schema.vocab`, `vocab.py`), on the match's `map_`."""
-    all_nodes = collect_nodes(schema.root)
-    questions = [BoundQuestion(n.id, n.condition, {"true": n.criteria_true, "false": n.criteria_false}) for n in all_nodes]
+    are both in the schema's own vocabulary (`schema.vocab`, `vocab.py`), on the match's `map_`.
+
+    A vocab-2 AND rule (`translator` AND NODE) asks each of its questions as its own `noul`, ids `<rule>.1`,
+    `<rule>.2`, ...; each passes at the same `> 0.5` a one-question rule does, and the rule matches only when
+    every one passes. `per_question` is keyed by question id, so it names each of them."""
+    asked = schema_questions(schema.root)  # an AND rule asks each of its questions (`translator` AND NODE)
+    questions = [BoundQuestion(qid, q.condition, {"true": q.criteria_true, "false": q.criteria_false}) for qid, q in asked]
     state = describe_observation(obs, schema.vocab, map_)
     start = time.perf_counter()
     # Which Jev door answered: `FallbackJevClient` says per call; any other client is one door.
@@ -591,15 +632,17 @@ def run_prediction(client, schema: TranslatedSchema, obs: dict, targeting: str =
     usage = response.get("usage", {})
 
     per_question = {}
-    bool_answers = {}
-    for n in all_nodes:
-        cell = answers.get(n.id)
+    question_answers = {}
+    for qid, _ in asked:
+        cell = answers.get(qid)
         if cell is None or "noul" not in cell:
-            raise ValueError(f"systemone response missing a noul answer for {n.id!r}: {response!r}")
+            raise ValueError(f"systemone response missing a noul answer for {qid!r}: {response!r}")
         val = cell["noul"]
         answered = val > 0.5
-        per_question[n.id] = {"noul": val, "answered": answered}
-        bool_answers[n.id] = answered
+        per_question[qid] = {"noul": val, "answered": answered}
+        question_answers[qid] = answered
+    # Each question passes or fails alone at the one threshold; an AND rule matches when all of its pass (no product).
+    bool_answers = node_answers(schema.root, question_answers)
 
     guard_trace: list[dict] = []
     result_action = evaluate_schema(schema, bool_answers, trace=guard_trace)

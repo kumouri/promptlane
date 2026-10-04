@@ -160,6 +160,10 @@ rulings made under this priority:
 - **Guards (16:20 CT):** a `vocab-2` guard may only sit above rules the prose places under its
   verdict. See `docs/translator-guards-and-defaults-spec.md` §2.2 and `docs/vocabulary-spec.md`
   §8.10.
+- **One question per condition (21:58 CT, "Build it."):** a `vocab-2` rule whose sentence joins
+  conditions with "and" asks Jev one question per condition, and fires only when all are yes (the
+  AND rule, `docs/vocabulary-spec.md` §8.13). TypeSafe's Noul guidance asks for exactly this. Clause
+  coverage then holds each clause to one question.
 
 **Follow-up, `docs/translator-transparency.md`:** adds per-rule provenance (which prose sentence a
 rule came from), an explicit "what was dropped" view, and a working prose-revision loop built on the
@@ -255,8 +259,8 @@ lists the prose's rule sentences in order, quoting only prose. On the last attem
 rule is moved to its own sentence, or removed when no one sentence is clearly its own, with an `order:`
 note. The first reply wrong only in its order is kept, reordered, and ships unless a later reply passes
 with every action it had for each sentence, so the retry can fix the order but never cost or change
-a rule. See
-`docs/vocabulary-spec.md` §8.15.
+a rule. It runs after the clause-coverage check, so an AND rule (§8.13) is placed by its questions
+joined, as one rule. See `docs/vocabulary-spec.md` §8.15.
 
 **Guard-scope check, vocab-2 only, added 2026-10-02.** `translator.enforce_guard_scope` rejects a
 reply in which a guard has any node after it, because a guard always routes, so those nodes are never
@@ -277,7 +281,9 @@ clauses, never a rule. From the rewritten reply, only the rules for those senten
 the rules that passed: a full rewrite was measured to drop rules the rejected reply had right. On the
 last attempt the rule is dropped with a `clause coverage:` note instead, and a condition no rule
 states is named in a note. A faithful nesting under a guard question counts. See
-`docs/vocabulary-spec.md` §8.11.
+`docs/vocabulary-spec.md` §8.11. Since the AND rule (§8.13) it reads a rule clause by clause: one
+question must ask all of a clause. A faithful rule that still asks two of a sentence's conditions in
+one question is split into an AND rule at no model cost.
 
 **Shopping list (`build`), added with the economy.** The schema also carries `build`: an ordered
 tuple of at most `shop.slots` unique item keys, or `None` for "the prose names no items" (the

@@ -195,7 +195,8 @@ class Names(unittest.TestCase):
         for bad in ("nope", {"name": "x"}):
             with self.assertRaises(ValueError):
                 map_spec(bad)
-        self.assertEqual(set(MAPS), {"v1", "pvp-1", "pvp-1r", "pvp-2", "pvp-1-hp400", "pvp-1-hp300-base700"})
+        self.assertEqual(set(MAPS), {"v1", "pvp-1", "pvp-1r", "pvp-2", "pvp-1-hp400", "pvp-1-hp300-base700", "pvp-2-hp400-base950",
+                                      "pvp-1-hp200-400-base600", "pvp-1-hp300-base700-sd133", "pvp-2-hp260-560-base810", "pvp-2-hp400-base950-sd133"})
 
 
 class TowerFacts(unittest.TestCase):

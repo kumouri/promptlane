@@ -795,7 +795,8 @@ guard:
 
   A rule that meets nothing of any condition is not this check's to judge.
 - **The retry** quotes each such sentence and its clauses. It asks for one rule per sentence whose
-  question asks every condition, joined by "and", and no other rule that asks only some of them. When
+  question asks every condition, joined by "and", and no other rule that asks only some of them. The
+  clause-coverage guard then splits that question into an AND rule (§8.13). When
   a number is what's missing, it adds that a plain number is an amount. It never quotes a rule that
   failed: the translator copies back what it is shown (§8.5, §8.6).
 - **The retry repairs the reply; it doesn't replace it.** Three designs were measured:
@@ -823,11 +824,10 @@ guard:
     passed ship with those notes, rather than the instrument failing to compile.
   - It raises only if nothing would be left at the root.
 
-TypeSafe's docs recommend one condition per `noul`, with "A and B" combined in code
-([Noul](https://docs.typesafe.ai/primitives/noul.md)). The schema has no AND node, so this guard keeps
-the conjunction in one question, or in a guard nesting. An AND node of atomic questions would follow
-that advice, and is a follow-up. The prompt is unchanged, and so are vocab-1 and the other guards.
-The evidence and the free recompiles are in `runs/vocab2-clause-coverage-2026-10-02.md`.
+This guard first kept a conjunction in one question. Since §8.13 it holds a rule clause by clause:
+one question must ask all of a clause. A faithful rule that still asks two conditions in one question
+is split into an AND rule. vocab-1 and the other guards are unchanged by this section. The evidence and
+the free recompiles are in `runs/vocab2-clause-coverage-2026-10-02.md`.
 
 ### 8.12 Tower aggro is stated when the match has it
 
@@ -860,6 +860,140 @@ the tower shoots minions first. The translator prompt doesn't list the fact yet 
 unchanged). A compile doesn't know the match's tower rule, and two translator jobs were open in
 `translator.py` when this landed.
 
+### 8.13 One Jev question per condition: the AND rule
+
+TypeSafe's [Noul](https://docs.typesafe.ai/primitives/noul.md) guidance says: *"Ask one yes/no question
+per Noul. If a question has two conditions ... the model has to judge both at once and the value means
+less. Ask two Nouls and combine them in code."* Under §8.11 a vocab-2 rule stated every condition of its
+sentence, but in one question ("can this bot afford its next item and is no enemy in sight?"). Ceryce,
+2026-10-02 21:58 CT: "Build it." So under `vocab-2`:
+
+- **The schema.** A rule may carry `"all"`: two or more one-condition questions, each with its own
+  criteria, in place of its own `condition` and criteria (`translator.TranslatedRule.all_of`; a
+  `Question` each). `compile.py` writes `"all": [{"condition", "criteria_true", "criteria_false"}, ...]`
+  and no `"condition"`.
+  - So a reader older than this fails on it loudly: a 400 from an older `schema_server.py`, whose
+    `jevSchemaPilot.ts` then holds. It never asks the questions joined as one.
+  - An `"all"` of one is a plain rule.
+  - A guard still asks one judgment question.
+  - A schema with no AND rule serializes byte for byte as before, and vocab-1 never reads `"all"`.
+- **Evaluation.** All of it is in one Jev call, as every decision already is (§2.2 of
+  `translator-guards-and-defaults-spec.md`).
+  - Each question of an AND rule is its own `noul` in that call, with ids `<rule>.1`, `<rule>.2`, …
+    (`translator.schema_questions`).
+  - Each passes or fails at the same `noul > 0.5` a one-question rule uses.
+  - The rule matches only when every one passes (`translator.node_answers`, used by
+    `fidelity_harness.run_prediction`, so the schema server and the practice match).
+  - **The probabilities are not multiplied.** The docs threshold each Noul in code ("Handling multiple
+    Noul answers in code") and give no product. A product would also make a sentence's bar stricter the
+    more conditions it has: 0.6 × 0.6 is below 0.5. J1 measured the product's Brier score, as a
+    diagnostic only.
+  - The server's `"answers"` are keyed by question id.
+- **The prompt is unchanged**, byte for byte #98's, for vocab-1 and vocab-2: 324 prompts were compared
+  to develop's.
+  - **It was changed first, and measured.** It named `"all"` in the condition line, in a paragraph with a
+    worked example, and in its closing JSON skeleton.
+  - **The 9B then wrote AND rules but lost fidelity.** Its own AND questions turned a "not" positive ("is
+    this bot inside an enemy tower's range?" for "I'm not inside"). Its retries, asked for `"all"`, lost
+    whole sentences: 7 of 42 conditions unstated on the sample entrant, against develop's 0 of 42 the same
+    evening.
+  - **So the AND rules come from the split below.** The 9B writes "A and B" in one question, as #98
+    measured. A reply's own `"all"` still parses.
+- **Clause coverage, clause by clause** (§8.11). A clause is stated only when ONE question of the rule
+  asks all of it, with the guard questions above it (`translator._alternatives`, `_tally`).
+  - So "is an enemy bearbot in sight?" + "does it have less than 100 hp?" is not "an enemy bearbot in
+    sight has less than 100 hp": each is answered alone, so the second has nothing to refer to.
+  - For a one-question rule this is §8.11 exactly. Its retry is #98's, word for word.
+- **The split.** A faithful rule that asks two conditions in one question is split into an AND rule at no
+  model cost (`translator._split_compound`, `_split_question`).
+  - **Where it cuts.** It tries the cuts at every "and" (", and" too) and keeps the one with the most
+    pieces.
+  - **What a cut must do.** In it, each piece asks clauses of exactly one condition, no two pieces ask the
+    same condition, and together they ask every clause the question asked.
+  - **What it never cuts.** A list ("an enemy minion, enemy tower, and enemy bearbot") is never cut. Nor
+    is a question with an "or" across the cuts.
+  - **The criteria** split the same way ("A and B" / "not A or not B") when they can. Otherwise a piece
+    gets the plain criteria a rule with none gets.
+  - **The pieces' form.** A piece that doesn't start like a question ("no enemy is in sight") is asked as
+    a statement, which the Noul docs say works as well. No note is added: the rule asks what it asked.
+- **One thing asked about twice is one condition.** "If you are inside an enemy tower's range and THAT
+  tower has your own minions in its range" is one condition (`translator._clause_groups`): two questions
+  answered alone could each be about a different tower.
+  - So it stays one question, and the split never cuts there.
+  - An AND question that refers back ("does that tower …?") is joined onto the one before it
+    (`_rejoined`).
+- **Identity (§8.7).** A question of an AND rule that asks only whether this bearbot is this schema's own
+  instrument is always yes, so it is taken out with an `identity:` note. Any other identity question
+  rejects the rule as before.
+- **Every other check reads the questions joined.** The negation (§8.6), shopping (§8.5), guard-scope
+  (§8.10), rule-order (§8.15), instrument-scope and priority checks read an AND rule's questions joined
+  with "and", as they read a compound question before.
+- **Rendering.** The entrant sees the questions joined by a bold **and** in the quick view and the rule
+  heading. "What Jev is asked" lists each question with its yes/no, and says the rule fires only when
+  every one is yes. The arena's compile panel and the entrants' PR bot render this same markdown. The
+  evolve brief lists the questions joined by AND.
+- **The checked-in schemas are unchanged on disk** and still play as compiled. A recompile, or the
+  coverage guard run over them (`test_and_node.py`), turns their compound rules into AND rules and loses
+  nothing.
+
+**The evidence** (`runs/vocab2-and-node-2026-10-02.md`):
+- **J1, on Jev.** The 9B's own 56 compound wordings of 20 conditions, against the code's split of the same
+  words, on 476 replayed game states with the truth read off the sim: 23,124 (state, wording) pairs.
+  - **Accuracy:** split right 99.5 %, compound 98.8 %. Exact McNemar p ≈ 8 × 10⁻⁴¹; split − compound
+    +0.67 points, 95 % cluster-bootstrap CI +0.53 to +0.81.
+  - **False fires** (the rule fires when it shouldn't): **58 against 208** of 20,435.
+  - **Where the gain is.** Almost all of it is in the near misses, where exactly one condition fails. Most
+    of it is one sentence: "I can see an enemy tower and none of my minions are near me" false-fired
+    136 of 975 times as one question and 8 of 975 split.
+  - $0.2834.
+- **The free recompiles** (12 each; the final code against develop the same evening and #98's batches):
+  - **Multi-condition sentences shipped as AND rules:** sample entrant 252 of 252, easy 107 of 108,
+    hard-eco 212 of 216. The 4 put a third condition in a parenthesis, with no "and" to cut at.
+  - **Stated in full, in part:** 252/0, 107/0 and 252/0, with no regression on #98's list.
+  - **Model calls per compile:** the same as develop's.
+- **J2, on Jev.** The siege entrant's schemas as compiled were played against the same schemas split, each
+  vs house medium, 4 matches an arm. The split rules fired with their sentence false 4 times of 998,
+  against 62 of 963 for the compound questions. Most of those were "afford and no enemy" firing for a bot
+  that could not afford its next item. $0.9754.
+
+### 8.14 A map with base towers states them, and offers `enemy_base_tower`
+
+A map with base towers (`pvp-1-hp300-base700`, `pvp-2-hp400-base950`, and their tunings in `vocab.BASE_TOWER_MAPS`; `src/baseTower.ts`;
+[`runs/bots-push-to-base-2026-10-02.md`](../runs/bots-push-to-base-2026-10-02.md)) puts `baseTowers` in
+the observation: both base towers, map-wide, each with its hp and `canBeHit`. `canBeHit` is the rule the
+sim applies (`BaseTowers.vulnerable`: one of that team's inner towers is down), so the description and
+the sim can't disagree. vocab-2 states it only when the observation carries it, so every other
+description is unchanged; vocab-1 never does (`fidelity_harness._base_tower_lines`, `vocab.FACTS_BASE`,
+lead "base tower"):
+- "Out of sight, map-wide: the enemy base tower tw-13 can be hit now (one of their inner towers is down;
+  412/700 hp), and destroying it wins the match." Or: "…can't be hit yet: it takes no damage until one
+  of their inner towers is down." Within 390 units, where the tower lines already place it: "The enemy
+  base tower is tw-13, listed above: it can be hit now…".
+- **No position or distance, and "out of sight" first.** Stated with them ("…at (829,171), 1000 units
+  away"), Jev read a far base tower as an enemy tower in sight. With no enemy tower listed, "is an enemy
+  tower visible?" got a yes 28 times in 60, against 0 without the line, and the 8:00 close-out then
+  attacked nothing (the run's §1.4).
+- "Your base tower tw-12 can be hit now: one of your inner towers is down, and if it falls your team
+  loses." Or "Your base tower tw-12 can't be hit yet."
+- The base tower's own line in the tower facts says so: "Enemy tower tw-13 (mid, base tower, 700/700
+  hp)…". A protected base tower reads full hp, because its damage is undone every tick.
+
+**`nearest_tower` with none listed:** on such a map, once the enemy base tower can be hit, Jev reads "is
+an enemy tower in sight?" as yes even with none within 390 (6 of 6 such states, the run's §1.5). So a
+vocab-2 `nearest_tower` that finds no enemy tower listed resolves to the enemy base tower when it can be
+hit, the one enemy tower the description names, instead of to nothing. Shut, or on any other map, it is
+nothing, as before.
+
+A compile told such a map (`compile.py --map pvp-1-hp300-base700`, vocab-2 only) is offered the fact
+and one target, `enemy_base_tower`: the enemy base tower's id, wherever it is. The sim's `attack` walks
+to it from anywhere. The schema records the map. Without `--map`, or with any other map, the prompt and
+the parse are byte for byte what they were. On `pvp-2-hp400-base950`, `tp_lane_tower` never picks a
+base tower (it is no lane's tower).
+
+`/health` says `"base_towers": true`. A match on such a map refuses a schema server that doesn't
+(`jevSchemaPilot.baseTowerUnsupported`): an older server would leave the status out, so a push-to-base
+rule could never fire.
+
 ### 8.15 A cascade keeps the prose's order
 
 A cascade is first-match-wins: a rule placed below one that nearly always fires rarely runs. Once the
@@ -868,7 +1002,8 @@ translator moved the 480-second tower rule, the tower-fire retreat or the finish
 your wave". The sample entrant's compiles put "afford my next item → go shop" above the back-off and
 the recall in 33 of 36. Nothing checked order. Under `vocab-2`, `translator.enforce_rule_order` runs
 after the clause-coverage guard (§8.11) and before the priority guard, so order is judged on rules
-that state every clause. An order rejection is a whole rewrite, not a §8.11 splice:
+that state every clause, and after the split into AND rules (§8.13). An order rejection is a whole
+rewrite, not a §8.11 splice:
 
 - **Where each node is in the prose.** The prose is cut into parts: each rule sentence, with the label
   sentences that introduce it ("Finish kills.", "Never stand in an enemy tower's fire."). A sentence is
@@ -892,6 +1027,9 @@ that state every clause. An order rejection is a whole rewrite, not a §8.11 spl
   either. The prose takes it out of order itself, and the priority guard puts it first.
 - **Out of order.** The fewest nodes whose removal leaves the rest in the prose's order are out of
   order. Every cascade in the tree is checked, guard branches included.
+- **AND rules.** An AND rule is one node, placed by its questions joined with "and" plus its action,
+  target and id, as the compound question it was split from. Split first or not, #95's recorded replies
+  get the same verdict and the same fixed order (`test_and_rules_keep_the_prose_order_too`).
 - **Rejected:** a reply with any node out of order. The retry lists, numbered in the prose's order,
   every sentence the reply's nodes state. It quotes only prose, never a rule. A first message that
   quoted only the misplaced pairs came back out of order 10 of 11 times; the list came back in order

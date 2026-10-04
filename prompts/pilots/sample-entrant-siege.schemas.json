@@ -49,6 +49,15 @@
     "action_target_selector": "own_tower"
    },
    {
+    "id": "attack_enemy_base_tower_hitable",
+    "condition": "can the enemy base tower be hit (one of their inner towers is down)?",
+    "criteria_true": "enemy base tower is vulnerable to damage",
+    "criteria_false": "enemy base tower is protected by an inner tower",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "enemy_base_tower"
+   },
+   {
     "id": "attack_tower_if_diver_present",
     "condition": "is this bot inside an enemy tower's range and does that tower have this bot's own minions in its range?",
     "criteria_true": "bot is under enemy tower AND enemy tower has friendly minions in range",
@@ -111,7 +120,8 @@
    "backline"
   ],
   "economy": "eco-3-late",
-  "vocab": "vocab-2"
+  "vocab": "vocab-2",
+  "map": "pvp-1-hp300-base700"
  },
  "keytar": {
   "pilot_file": "prompts/pilots/sample-entrant-siege.prose.md",
@@ -161,6 +171,15 @@
     "action_kind": "move",
     "action_ability": null,
     "action_target_selector": "own_tower"
+   },
+   {
+    "id": "attack_base_tower_if_hitable",
+    "condition": "can the enemy base tower be hit now (one of their inner towers is down)?",
+    "criteria_true": "enemy base tower is vulnerable to damage",
+    "criteria_false": "enemy base tower is protected by an inner tower",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "enemy_base_tower"
    },
    {
     "id": "attack_enemy_tower_diver_scenario",
@@ -225,7 +244,8 @@
    "click-track"
   ],
   "economy": "eco-3-late",
-  "vocab": "vocab-2"
+  "vocab": "vocab-2",
+  "map": "pvp-1-hp300-base700"
  },
  "violin": {
   "pilot_file": "prompts/pilots/sample-entrant-siege.prose.md",
@@ -275,6 +295,15 @@
     "action_kind": "move",
     "action_ability": null,
     "action_target_selector": "own_tower"
+   },
+   {
+    "id": "attack_enemy_base_tower_available",
+    "condition": "can the enemy base tower be hit (one of their inner towers is down)?",
+    "criteria_true": "enemy base tower is vulnerable to damage",
+    "criteria_false": "enemy base tower is protected by an inner tower",
+    "action_kind": "attack",
+    "action_ability": null,
+    "action_target_selector": "enemy_base_tower"
    },
    {
     "id": "attack_tower_diver_scenario",
@@ -339,6 +368,7 @@
    "fuzz-pedal"
   ],
   "economy": "eco-3-late",
-  "vocab": "vocab-2"
+  "vocab": "vocab-2",
+  "map": "pvp-1-hp300-base700"
  }
 }

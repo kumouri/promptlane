@@ -48,6 +48,7 @@ from translator import (  # noqa: E402
     TranslatedRule,
     TranslatedSchema,
     collect_nodes,
+    display_condition,
     display_rows,
     COVERAGE_NOTE_PREFIX,
     GUARD_SCOPE_NOTE_PREFIX,
@@ -143,6 +144,11 @@ class TransparencyReport:
 
 
 def _describe_jev_ask(rule: TranslatedRule) -> str:
+    if rule.all_of:  # an AND rule (translator AND NODE): each question separately, and all must be yes
+        asks = "; ".join(f'({k}) "{q.condition}" -- yes means {q.criteria_true}; no means {q.criteria_false}'
+                         for k, q in enumerate(rule.all_of, 1))
+        return (f"Jev is asked {len(rule.all_of)} `noul` questions, each on its own, verbatim: {asks}. "
+                "The rule fires only when every one of them is yes.")
     return (
         f'Jev is asked one `noul` question, verbatim: "{rule.condition}" -- '
         f"yes means {rule.criteria_true}; no means {rule.criteria_false}."
@@ -416,7 +422,7 @@ def render_report_markdown(report: TransparencyReport) -> str:
         rp = rule_by_label[label]
         r = rp.rule
         action_desc = _describe_action(r.action_kind, r.action_ability, r.action_target_selector)
-        lines.append(f"### {rp.position}. `{r.id}` — {r.condition}")
+        lines.append(f"### {rp.position}. `{r.id}` — {display_condition(r)}")
         lines.append("")
         lines.append(f"- **Then:** {action_desc}")
         lines.append(f"- **What Jev is asked:** {rp.jev_ask}")

@@ -292,6 +292,7 @@ Its rules, in order:
 - the shopping pair (walk out of reach, then recall);
 - after 480 s, attack any enemy tower it can see;
 - step back to its own tower whenever an enemy tower will shoot it;
+- once the enemy base tower can be hit (a map with base towers), attack it ("Push to base" below);
 - siege while that tower has its own minions to shoot first;
 - its ability: keytar chords the nearest enemy bearbot whenever it can (old medium's rule 7), and drums
   and violin finish a bearbot under 100 hp;
@@ -336,6 +337,29 @@ Ceryce kept the push-lane medium and asked for hard above it.
 - Medium against itself is a coin flip, so whatever hard gains comes from finishing towers its wave
   has worn down. The Jev result is in the run file.
 
+**Push to base** (2026-10-02, [`runs/bots-push-to-base-2026-10-02.md`](../../runs/bots-push-to-base-2026-10-02.md)).
+On a map with base towers (`pvp-1-hp300-base700`, `pvp-2-hp400-base950`) no base tower fell in 20 Jev
+matches: the bots took an outer tower and stopped. Medium, hard and the siege entrant now have one more
+sentence, right after "fall back to your own tower": "Destroying the enemy base tower wins the match, and
+it can be hit once one of their inner towers is down, so if the enemy base tower can be hit, attack the
+enemy base tower." Below the fall-back, a base tower with no minion of theirs to shoot still turns them
+back, so they hit it while their wave tanks it. Above it stay the low-hp pair, shopping, (hard) the
+weakened-tower rule, the 8:00 close-out and the fall-back.
+- **Easy has none.** In 17 recorded Jev matches easy took no enemy tower, so a rule that waits for an
+  enemy inner tower to fall would never fire. It would also contradict easy's "never stand inside an
+  enemy tower's range".
+- **The schemas were spliced.** Each prose was compiled with `compile.py --vocab vocab-2 --economy
+  eco-3-late --map pvp-1-hp300-base700 --backend ollama`, and each cascade was checked by hand for rule
+  order and clauses against the prose. The push rule was taken from the first faithful sample per
+  instrument and placed right after the fall-back rule. Every other rule object is byte for byte. Hard
+  takes medium's rule objects, so hard is still medium plus the weakened-tower rule. 32 of 40 instrument
+  compiles were rejected (the run file §0.4).
+- **The rule asks "can the enemy base tower be hit now?"**, which vocab-2 states on a base-tower map
+  (`docs/vocabulary-spec.md` §8.14), and targets `enemy_base_tower`. On any other map the description
+  has no base tower, and the target resolves to none. Each spliced schema records `"map":
+  "pvp-1-hp300-base700"`, the map its rule was compiled for. It plays on any map.
+- `test_house.mjs` pins the sentence, the rule's place and hard's copy.
+
 ## Sample entrants for the economy measurement: `sample-entrant*.prose.md`
 
 Two entrant-shaped prose files for §6's "house medium vs a sample entrant" pairing, compiled the
@@ -360,6 +384,7 @@ A vocab-2 entrant that plays to win, and a baseline an entrant can learn from
 - after 480 s, attack any enemy tower it can see (sudden death: towers are at a third of their hp and
   the first to fall wins);
 - step back to its own tower whenever an enemy tower will shoot it;
+- once the enemy base tower can be hit (a map with base towers), attack it ("Push to base" below);
 - siege while that tower has its own minions to shoot first;
 - fight bearbots, then minions;
 - walk with the wave;
@@ -391,3 +416,5 @@ they are attacking."
 - **Its targets:** the rule fires `ability teleport` at `tp_threatened_tower`, which is only offered
   to pvp-2 compiles.
 - **Where it plays:** on pvp-1 the observation has no teleport fields, so the rule never fires.
+- **It has no push-to-base rule.** It is the siege entrant as #91 measured it; the siege entrant's
+  push-to-base rule came later ("Push to base" below).

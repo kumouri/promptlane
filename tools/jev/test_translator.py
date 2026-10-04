@@ -1753,6 +1753,25 @@ class RuleOrderTests(unittest.TestCase):
             with self.subTest(ORDER["cases"][i]["run"] + " " + ORDER["cases"][i]["instrument"]):
                 self.assertIs(T.enforce_rule_order(schema, prose), schema)
 
+    def test_and_rules_keep_the_prose_order_too(self):
+        # Clause coverage runs first and splits a compound question into an AND rule (vocabulary-spec §8.13); the order
+        # check reads an AND rule's questions joined, so the split changes no verdict and no rule's place.
+        split = 0
+        for i, case in enumerate(ORDER["cases"]):
+            schema, prose = _order_case(i)
+            with self.subTest(case["run"] + " " + case["instrument"]):
+                ands = T.enforce_clause_coverage(schema, prose, drop=True)
+                split += sum(1 for n in T.collect_nodes(ands.root) if isinstance(n, T.TranslatedRule) and n.all_of)
+                if i in OUT_OF_ORDER:
+                    with self.assertRaises(T.RuleOrderError):
+                        T.enforce_rule_order(ands, prose)
+                else:
+                    self.assertIs(T.enforce_rule_order(ands, prose), ands)
+                kept = {n.id for n in ands.root.nodes}  # a raw first reply: coverage's last attempt drops what it can't keep
+                self.assertEqual([n.id for n in T.enforce_rule_order(ands, prose, drop=True).root.nodes],
+                                 [n.id for n in T.enforce_rule_order(schema, prose, drop=True).root.nodes if n.id in kept])
+        self.assertGreater(split, 50)
+
     def test_a_rule_with_no_one_sentence_of_its_own_is_removed_not_guessed(self):
         prose = ("When my hp is below half of my max, I recall home to heal.\n\n"
                  "If I carry at least 300 gold, I move back home to spend it.\n\n"
@@ -2075,13 +2094,29 @@ def _sample_rules(*rules: tuple[str, str]) -> T.TranslatedSchema:
 class ClauseCoverageTests(unittest.TestCase):
     """`enforce_clause_coverage` against the exact schemas the 9B wrote (`testdata/clause_coverage.json`)."""
 
+    def assertKeptAsAsked(self, out, schema, msg=None):
+        """`out` keeps every node of `schema`, in order, with its action and notes, and asks what it asked: a faithful
+        rule comes back as it came, or as an AND rule of the same question's pieces (`_split_compound`)."""
+        def asks(n):
+            text = " ".join(T.rule_conditions(n)) if isinstance(n, T.TranslatedRule) else n.condition
+            return [w for w in re.findall(r"[a-z0-9']+", text.lower()) if w != "and"]
+
+        before, after = T.collect_nodes(schema.root), T.collect_nodes(out.root)
+        self.assertEqual([n.id for n in after], [n.id for n in before], msg)
+        for a, b in zip(after, before):
+            self.assertEqual(asks(a), asks(b), msg)
+            if isinstance(b, T.TranslatedRule):
+                self.assertEqual((a.action_kind, a.action_ability, a.action_target_selector),
+                                 (b.action_kind, b.action_ability, b.action_target_selector), msg)
+        self.assertEqual(out.validation_notes, schema.validation_notes, msg)
+
     def test_saved_compiles_lose_exactly_the_unfaithful_rules(self):
         for i, case in enumerate(COVERAGE["schemas"]):
             schema, prose = _coverage(i)
             label = f"{case['pr']} {case['sample']} {case['instrument']}"
             out = T.enforce_clause_coverage(schema, prose, drop=True)
             if not case["rejects"] and not case["missing"]:
-                self.assertIs(out, schema, label)
+                self.assertKeptAsAsked(out, schema, label)
                 continue
             kept = [n.id for n in T.collect_nodes(out.root)]
             self.assertEqual([n.id for n in T.collect_nodes(schema.root) if n.id not in kept], case["rejects"], label)
@@ -2123,7 +2158,7 @@ class ClauseCoverageTests(unittest.TestCase):
         self.assertEqual(len(cases), 9)
         for i in cases:
             schema, prose = _coverage(i)
-            self.assertIs(T.enforce_clause_coverage(schema, prose), schema, COVERAGE["schemas"][i]["sample"])
+            self.assertKeptAsAsked(T.enforce_clause_coverage(schema, prose), schema, COVERAGE["schemas"][i]["sample"])
 
     def test_every_checked_in_schema_is_untouched(self):
         # The house tiers and the sample entrants play these; each compiled before this guard and states every condition.
@@ -2139,7 +2174,7 @@ class ClauseCoverageTests(unittest.TestCase):
             for inst, d in json.loads(open(os.path.join(pilots, name), encoding="utf-8").read()).items():
                 if isinstance(d, dict) and d.get("vocab") == "vocab-2":
                     schema = schema_from_dict(d)
-                    self.assertIs(T.enforce_clause_coverage(schema, T.scope_to_instrument(prose, schema.instrument).text), schema,
+                    self.assertKeptAsAsked(T.enforce_clause_coverage(schema, T.scope_to_instrument(prose, schema.instrument).text), schema,
                                   f"{name} {inst}")
                     checked += 1
         self.assertGreaterEqual(checked, 15)
@@ -2202,26 +2237,26 @@ class ClauseCoverageTests(unittest.TestCase):
                                   "p.md", "drums", "raw", "vocab-2")
 
         faithful = nested("else")
-        self.assertIs(T.enforce_clause_coverage(faithful, AFFORD_SENTENCE), faithful)
+        self.assertKeptAsAsked(T.enforce_clause_coverage(faithful, AFFORD_SENTENCE), faithful)
         with self.assertRaises(T.SchemaValidationError):
             T.enforce_clause_coverage(nested("then"), AFFORD_SENTENCE)
 
     def test_or_between_the_clauses_is_not_and(self):
         joined = _sample_rules(("shop", "can this bot afford its next item and is no enemy in sight?"))
-        self.assertIs(T.enforce_clause_coverage(joined, AFFORD_SENTENCE), joined)
+        self.assertKeptAsAsked(T.enforce_clause_coverage(joined, AFFORD_SENTENCE), joined)
         with self.assertRaises(T.SchemaValidationError):
             T.enforce_clause_coverage(_sample_rules(("shop", "can this bot afford its next item or is no enemy in sight?")), AFFORD_SENTENCE)
         either = _sample_rules(("take", "is the bandstand open and is it either contested or is the enemy team making progress on it, "
                                         "and is this bot's hp above 40% of its max hp?"))
         prose = next(s for s in T._prose_sentences(COVERAGE["prose_88"]["house-hard-eco"]) if "contested" in s)
-        self.assertIs(T.enforce_clause_coverage(either, prose), either)
+        self.assertKeptAsAsked(T.enforce_clause_coverage(either, prose), either)
 
     def test_a_list_of_alternatives_may_be_split_one_rule_each(self):
         prose = "When your hp is below 100 and an enemy minion, enemy tower or enemy bearbot is in sight, move back home."
         split = _sample_rules(("hp_minion", "is this bot's hp below 100 and is an enemy minion in sight?"),
                               ("hp_tower", "is this bot's hp below 100 and is an enemy tower in sight?"),
                               ("hp_bearbot", "is this bot's hp below 100 and is an enemy bearbot in sight?"))
-        self.assertIs(T.enforce_clause_coverage(split, prose), split)
+        self.assertKeptAsAsked(T.enforce_clause_coverage(split, prose), split)
         with self.assertRaises(T.SchemaValidationError):  # the threshold is part of the clause
             T.enforce_clause_coverage(_sample_rules(("low", "is this bot's hp low and is an enemy minion in sight?")), prose)
 
@@ -2230,15 +2265,15 @@ class ClauseCoverageTests(unittest.TestCase):
         for cond in ("is this bot's hp below a third of its max and is it not inside an enemy tower's range?",
                      "is this bot's hp below 33% of its max hp and is it outside every enemy tower's range?"):
             schema = _sample_rules(("recall", cond))
-            self.assertIs(T.enforce_clause_coverage(schema, prose), schema, cond)
+            self.assertKeptAsAsked(T.enforce_clause_coverage(schema, prose), schema, cond)
         tower = "If an enemy bearbot is under your tower and my hp is above half, I attack it."
         schema = _sample_rules(("diver", "is an enemy bearbot under this bot's own tower and is its hp above 50% of its max?"))
-        self.assertIs(T.enforce_clause_coverage(schema, tower), schema)
+        self.assertKeptAsAsked(T.enforce_clause_coverage(schema, tower), schema)
 
     def test_a_number_keeps_its_unit(self):
         prose = "When your hp is below 100 and no enemy is in sight, recall home to heal."
         ok = _sample_rules(("heal", "is this bot's hp below 100 and is no enemy in sight?"))
-        self.assertIs(T.enforce_clause_coverage(ok, prose), ok)
+        self.assertKeptAsAsked(T.enforce_clause_coverage(ok, prose), ok)
         share = _sample_rules(("heal", "is this bot's hp below 100% of its max and is no enemy in sight?"))
         with self.assertRaises(T.SchemaValidationError) as err:
             T.enforce_clause_coverage(share, prose)
@@ -2255,7 +2290,7 @@ class ClauseCoverageTests(unittest.TestCase):
         prose = "When you can afford the next item on your shopping list and no enemy is in sight, recall home to buy it."
         schema = _sample_rules(("buy", "can this bot afford the next item on its shopping list AND is there no enemy minion, enemy tower, "
                                        "or enemy bearbot in sight?"))
-        self.assertIs(T.enforce_clause_coverage(schema, prose), schema)
+        self.assertKeptAsAsked(T.enforce_clause_coverage(schema, prose), schema)
         # The negation guard's own reader is unchanged.
         self.assertEqual(T._polarities("is there no enemy minion, enemy tower, or enemy bearbot in sight?"),
                          {"enemy minion": {True}, "enemy tower": {False}, "enemy": {False}})
@@ -2308,7 +2343,8 @@ class ClauseCoverageTests(unittest.TestCase):
         ids = [r.id for r in schema.rules]
         self.assertEqual(ids, ["shop_first", "avoid_tower_alone", "recall_low_hp", "spend_gold", "kick_ready", "hunt_highest_bounty",
                                "push_tower_wave", "attack_tower_wave", "attack_enemy_minion", "follow_wave_or_home"])
-        self.assertEqual(schema.rules[0].condition, "can this bot afford its next item and is no enemy in sight?")
+        # The rewrite's compound afford question ships as an AND of its two questions (AND NODE).
+        self.assertEqual(T.rule_conditions(schema.rules[0]), ("can this bot afford its next item?", "is no enemy in sight?"))
         self.assertFalse([n for n in schema.validation_notes if n.startswith("clause coverage:")])
 
     def test_an_unreadable_last_repair_ships_what_passed(self):
@@ -2394,7 +2430,7 @@ class ClauseCoverageTests(unittest.TestCase):
     def test_vocab1_is_unchanged(self):
         schema, prose = _coverage(0)
         schema = dataclasses.replace(schema, vocab="vocab-1")
-        self.assertIs(T.enforce_clause_coverage(schema, prose), schema)
+        self.assertKeptAsAsked(T.enforce_clause_coverage(schema, prose), schema)
         prompts = []
         reply = {"rules": [{"id": "shop", "condition": "can this bot afford its next item?", "criteria": {"true": "yes", "false": "no"},
                             "action": _MOVE_HOME}],
