@@ -23,6 +23,7 @@ const LF = (s) => s.replace(/\r\n/g, '\n'); // a CRLF checkout's pilots; the web
 const KEYTAR = LF(readFileSync(path.join(ROOT, 'prompts', 'pilots', 'keytar.md'), 'utf8'));
 const VIOLIN = LF(readFileSync(path.join(ROOT, 'prompts', 'pilots', 'violin.md'), 'utf8'));
 const CUTOFF = Date.parse('2026-10-16T05:00:00Z');
+const OPEN_NOW = CUTOFF - 86_400_000; // a day before the cutoff: these tests must not depend on the real calendar
 
 /** Texts on every edge of the rules, including where Python's regex dialect and JavaScript's part ways. */
 const TEXTS = [
@@ -82,7 +83,7 @@ const pilotFile = (f, folder) => path.join(f.entrants, 'entrants', folder, 'pilo
 
 async function withArena(opts, fn) {
   const f = fixture({ handles: opts.handles ?? {}, tweak: (c) => { c.submissions = { ...(opts.submissions ?? {}) }; } });
-  const a = await accessArena(f, { hooks: opts.hooks });
+  const a = await accessArena(f, { hooks: { now: () => OPEN_NOW, ...opts.hooks } });
   try {
     const base = await a.arena.listen(0);
     if (opts.paused) a.arena.queue.pause('test');
