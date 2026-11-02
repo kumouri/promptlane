@@ -9,7 +9,7 @@
    "rejects": "shop_no_enemy",
    "shows": "the afford sentence split in two; the second rule asks 'is there any enemy within 260 units?' -> home",
    "schema": {
-    "pilot_file": "C:/Users/willa/AppData/Local/Temp/claude-vocab2cap/final.prose.md",
+    "pilot_file": "<home>/AppData/Local/Temp/claude-vocab2cap/final.prose.md",
     "instrument": "violin",
     "rules": [
      {
@@ -145,7 +145,7 @@
    "rejects": "no_enemy_sight_shop",
    "shows": "the same, worded 'are there any enemies in sight?'",
    "schema": {
-    "pilot_file": "C:/Users/willa/AppData/Local/Temp/claude-vocab2cap/final.prose.md",
+    "pilot_file": "<home>/AppData/Local/Temp/claude-vocab2cap/final.prose.md",
     "instrument": "drums",
     "rules": [
      {
@@ -254,7 +254,7 @@
    "rejects": "shop_no_enemy",
    "shows": "the same, worded 'is there any enemy bearbot in sight?' (#86's one inverted compile)",
    "schema": {
-    "pilot_file": "C:/Users/willa/workspace/repos/promptlane-worktrees/vocab2-shopping-home/prompts/pilots/sample-entrant-eco.prose.md",
+    "pilot_file": "<home>/workspace/repos/promptlane-worktrees/vocab2-shopping-home/prompts/pilots/sample-entrant-eco.prose.md",
     "instrument": "drums",
     "rules": [
      {
@@ -499,7 +499,7 @@
    "rejects": null,
    "shows": "split, but the second rule keeps its 'no': 'is no enemy bearbot in sight?' -- never touched",
    "schema": {
-    "pilot_file": "C:/Users/willa/workspace/repos/promptlane-worktrees/vocab2-shopping-home/prompts/pilots/sample-entrant-eco.prose.md",
+    "pilot_file": "<home>/workspace/repos/promptlane-worktrees/vocab2-shopping-home/prompts/pilots/sample-entrant-eco.prose.md",
     "instrument": "violin",
     "rules": [
      {
@@ -617,7 +617,7 @@
    "rejects": null,
    "shows": "split, negation kept: 'are there no enemies within 260 units?'",
    "schema": {
-    "pilot_file": "C:/Users/willa/workspace/repos/promptlane-worktrees/vocab2-shopping-home/prompts/pilots/sample-entrant-eco.prose.md",
+    "pilot_file": "<home>/workspace/repos/promptlane-worktrees/vocab2-shopping-home/prompts/pilots/sample-entrant-eco.prose.md",
     "instrument": "drums",
     "rules": [
      {
@@ -753,7 +753,7 @@
    "rejects": null,
    "shows": "one rule for the whole sentence, afford AND no enemy in sight",
    "schema": {
-    "pilot_file": "C:/Users/willa/workspace/repos/promptlane-worktrees/vocab2-shopping-home/prompts/pilots/sample-entrant-eco.prose.md",
+    "pilot_file": "<home>/workspace/repos/promptlane-worktrees/vocab2-shopping-home/prompts/pilots/sample-entrant-eco.prose.md",
     "instrument": "violin",
     "rules": [
      {
@@ -989,7 +989,7 @@
    "rejects": null,
    "shows": "'push_wave_dead_enemy' -- a dead enemy, not a dead wave",
    "schema": {
-    "pilot_file": "C:/Users/willa/AppData/Local/Temp/claude-vocab2cap/final.prose.md",
+    "pilot_file": "<home>/AppData/Local/Temp/claude-vocab2cap/final.prose.md",
     "instrument": "keytar",
     "rules": [
      {
@@ -1107,7 +1107,7 @@
    "rejects": null,
    "shows": "afford rule without its enemy clause (a different miss, left alone), back off, gated recall, no minions -> home",
    "schema": {
-    "pilot_file": "C:/Users/willa/AppData/Local/Temp/claude-vocab2cap/final.prose.md",
+    "pilot_file": "<home>/AppData/Local/Temp/claude-vocab2cap/final.prose.md",
     "instrument": "drums",
     "rules": [
      {

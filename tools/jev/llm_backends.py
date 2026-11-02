@@ -16,7 +16,7 @@ completion tokens, USD) so a caller can report real spend, not an estimate. `Cla
 reports `total_cost_usd` (what the call would have billed on the metered API) for comparability,
 even though it is drawn from a subscription's usage window, not real API dollars.
 
-NO TOKEN CAPS (Ceryce, 2026-10-02 17:59 CT: "Get rid of any fucking token caps."). A reply is never
+NO TOKEN CAPS (Ceryce, 2026-10-02 17:59 CT: remove every token cap). A reply is never
 cut at a token count and a run is never refused for its token total: the old 1,800-token reply cap
 cut every reply of a 16-rule cascade before any check ran (`runs/remove-token-caps-2026-10-02.md`).
 `max_tokens=None`, the default, sends no completion cap at all, under every vocabulary. vocab-1, the

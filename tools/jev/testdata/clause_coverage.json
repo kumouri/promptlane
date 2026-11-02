@@ -21,7 +21,7 @@
    ],
    "shows": "the afford sentence split in two, the second keeping its 'no': 'can this bot afford its next item?' -> home, then 'is there no enemy bearbot in sight?' -> home; each checks only half of the sentence",
    "schema": {
-    "pilot_file": "C:/Users/willa/AppData/Local/Temp/claude-vocab2cap/final.prose.md",
+    "pilot_file": "<home>/AppData/Local/Temp/claude-vocab2cap/final.prose.md",
     "instrument": "drums",
     "rules": [
      {
@@ -146,7 +146,7 @@
    ],
    "shows": "the same split, worded 'is no enemy bearbot in sight?' (#86 B)",
    "schema": {
-    "pilot_file": "C:/Users/willa/workspace/repos/promptlane-worktrees/vocab2-shopping-home/prompts/pilots/sample-entrant-eco.prose.md",
+    "pilot_file": "<home>/workspace/repos/promptlane-worktrees/vocab2-shopping-home/prompts/pilots/sample-entrant-eco.prose.md",
     "instrument": "violin",
     "rules": [
      {
@@ -391,7 +391,7 @@
    "missing": [],
    "shows": "'is this bot carrying more than 300 gold?' -- the enemy clause dropped",
    "schema": {
-    "pilot_file": "C:/Users/willa/workspace/repos/promptlane-worktrees/vocab2-negation/prompts/pilots/sample-entrant-eco.prose.md",
+    "pilot_file": "<home>/workspace/repos/promptlane-worktrees/vocab2-negation/prompts/pilots/sample-entrant-eco.prose.md",
     "instrument": "violin",
     "rules": [
      {
@@ -647,7 +647,7 @@
    "missing": [],
    "shows": "\"is the ability 'staccato' ready?\" -- 'an enemy bearbot has less than half its hp' dropped",
    "schema": {
-    "pilot_file": "C:/Users/willa/AppData/Local/Temp/claude-vocab2cap/final.prose.md",
+    "pilot_file": "<home>/AppData/Local/Temp/claude-vocab2cap/final.prose.md",
     "instrument": "violin",
     "rules": [
      {
@@ -781,7 +781,7 @@
    ],
    "shows": "'is an enemy tower visible and are minions near this bot?' -- 'at least two' dropped",
    "schema": {
-    "pilot_file": "C:/Users/willa/workspace/repos/promptlane-worktrees/vocab2-shopping-home/prompts/pilots/sample-entrant-eco.prose.md",
+    "pilot_file": "<home>/workspace/repos/promptlane-worktrees/vocab2-shopping-home/prompts/pilots/sample-entrant-eco.prose.md",
     "instrument": "keytar",
     "rules": [
      {
@@ -1029,7 +1029,7 @@
    "missing": [],
    "shows": "a faithful compile: every condition of two or more clauses is one rule asking all of them",
    "schema": {
-    "pilot_file": "C:/Users/willa/workspace/repos/promptlane-worktrees/vocab2-negation/prompts/pilots/sample-entrant-eco.prose.md",
+    "pilot_file": "<home>/workspace/repos/promptlane-worktrees/vocab2-negation/prompts/pilots/sample-entrant-eco.prose.md",
     "instrument": "drums",
     "rules": [
      {
@@ -1149,7 +1149,7 @@
    "missing": [],
    "shows": "a faithful compile: every condition of two or more clauses is one rule asking all of them",
    "schema": {
-    "pilot_file": "C:/Users/willa/workspace/repos/promptlane-worktrees/vocab2-negation/prompts/pilots/sample-entrant-eco.prose.md",
+    "pilot_file": "<home>/workspace/repos/promptlane-worktrees/vocab2-negation/prompts/pilots/sample-entrant-eco.prose.md",
     "instrument": "keytar",
     "rules": [
      {
@@ -2504,7 +2504,7 @@
    "missing": [],
    "shows": "'is this bot's hp below 100% of its max?' -> home as rule 1, for 'When your hp is below 100 and an enemy ... is in sight'; and 'no enemy minion, enemy tower, or enemy bearbot' read as none of them",
    "schema": {
-    "pilot_file": "C:/Users/willa/.claude/scratch/vocab2-clause-coverage/easy88.prose.md",
+    "pilot_file": "<home>/.claude/scratch/vocab2-clause-coverage/easy88.prose.md",
     "instrument": "drums",
     "rules": [
      {

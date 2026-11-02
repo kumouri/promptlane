@@ -1,7 +1,7 @@
 # Elysium — the promptlane arena — website spec
 
 **Status: PHASE B BUILT — 2026-09-22; PHASE C HOSTED BACKEND WIRED — 2026-09-22.** Markdown is
-canonical. Written 2026-09-21 for the InRhythm AI Jam round one (then Fri 2026-10-02, IR-only; entrant
+canonical. Written 2026-09-21 for the AI Jam round one (then Fri 2026-10-02, company-only; entrant
 cutoff then Thu 2026-10-01 17:00 CT; those dates no longer hold, and the Jam's dates are in
 [the Jam calendar](arena-runbook.md#the-jam-calendar)). Phase A (§6, the ladder) and Phase B (the live view and the
 jam-day bracket) are checked in under `tools/arena/` + `src/live.ts` and run on the mock in CI; how
@@ -66,14 +66,14 @@ Hard constraints carried from phase 1:
 
 ## 2. Users and flows
 
-Three roles. In the IR-only round, all three are InRhythm people; the roles are about what the
+Three roles. In the company-only round, all three are people from her employer; the roles are about what the
 page lets you *do*, not who you are.
 
 | Role | Who | Can |
 |---|---|---|
 | **Entrant** | someone with a merged `entrants/<handle>/pilot.md` (or about to have one) | submit a scratch prompt, queue a test match, watch their own and anyone's matches, see the ladder |
 | **Organizer** | Ceryce | everything an entrant can, plus: create/edit a tournament, choose its backend and budget, seed the bracket, run a round, pause/resume the queue, void or re-run a match, rule on a tie |
-| **Spectator** | an IR coworker with the link | watch live and replay, see the bracket and ladder |
+| **Spectator** | a coworker with the link | watch live and replay, see the bracket and ladder |
 
 ### 2.1 Entrant: submit → test → watch
 
@@ -189,15 +189,15 @@ last tick for which every decision has arrived. Lag is one round of asks (0.5 si
 ### 3.0 Stack, in one picture
 
 The smallest thing that runs on Ceryce's workstation (Windows 10, RTX 4090, Ollama at
-`127.0.0.1:11999`) and is reachable to IR through a Cloudflare Tunnel.
+`127.0.0.1:11999`) and is reachable to the company through a Cloudflare Tunnel.
 
 ```mermaid
 flowchart LR
-    subgraph internet["IR people (browser)"]
+    subgraph internet["Company people (browser)"]
         B[Browser]
     end
     subgraph cf["Cloudflare (edge)"]
-        ACC[Access policy<br/>IR emails only]
+        ACC[Access policy<br/>company emails only]
         TUN[Tunnel<br/>elysium.&lt;zone&gt;<br/>(arena. → 301)]
     end
     subgraph host["Ceryce's workstation — everything binds 127.0.0.1"]
@@ -301,7 +301,7 @@ webhook — the tunnel makes that possible, but polling is simpler and 60 s is f
 **Upload (the arena is the store).** Entrants paste text into the site; the arena validates and
 stores it under the authenticated handle.
 
-- For: seconds per iteration; no git knowledge needed (the IR audience includes people learning to
+- For: seconds per iteration; no git knowledge needed (the audience includes people learning to
   work with agents, not necessarily git users).
 - Against: a second source of truth that will drift from the repo unless the arena also *writes*
   the repo (a bot committing on entrants' behalf — more machinery, and it moves the validator
@@ -468,15 +468,15 @@ wall time, so it is a button, not the default. Ladder (Elo) draws are simply dra
 
 ---
 
-## 4. Auth for the IR-only round
+## 4. Auth for the company-only round
 
-The site must be reachable to InRhythm people and nobody else, entrants must be tied to a handle so
+The site must be reachable to people at her employer and nobody else, entrants must be tied to a handle so
 quotas and "vs my merged prompt" work, and Ceryce must be the only organizer. Spectators need the
 least: the link.
 
 | Option | How | Identity you get | Effort | Cost | Against |
 |---|---|---|---|---|---|
-| **A. Cloudflare Access, one-time PIN to email, domain rule** | Access application on `elysium.<zone>`; policy `emails ending in @<IR domain>` + Ceryce's address; Access emails a 6-digit code; the arena verifies the `Cf-Access-Jwt-Assertion` JWT on every request | verified email → handle claimed once from the unclaimed list (first-come; organizer can reassign) | ~1–2 job-hours (Access app + JWT check + claim table) | $0 (Zero Trust free tier covers 50 users) | needs the IR email domain confirmed; handle ↔ email is a self-claim (fine for 20 coworkers) |
+| **A. Cloudflare Access, one-time PIN to email, domain rule** | Access application on `elysium.<zone>`; policy `emails ending in @<company domain>` + Ceryce's address; Access emails a 6-digit code; the arena verifies the `Cf-Access-Jwt-Assertion` JWT on every request | verified email → handle claimed once from the unclaimed list (first-come; organizer can reassign) | ~1–2 job-hours (Access app + JWT check + claim table) | $0 (Zero Trust free tier covers 50 users) | needs the company email domain confirmed; handle ↔ email is a self-claim (fine for 20 coworkers) |
 | B. GitHub OAuth gated on entrants-repo collaborator | OAuth app; callback on the tunnel hostname; after login, `gh api /repos/kumouri/jamobair-entrants/collaborators/<login>` | GitHub login → handle via the merged PR's author | ~4–6 job-hours (OAuth flow, sessions, CSRF, collaborator check, PR-author mapping) | $0 | handles are *Slack* handles per the entrants README, so a mapping table is needed anyway; spectators who are not collaborators are locked out; more code on the trust boundary |
 | C. Shared link + token | one bearer token in the URL / a cookie, posted in Slack | none — entrants pick a handle from a dropdown | ~1 job-hour | $0 | the token is in Slack forever; quotas are honour-system; no way to lock the organizer page except a second token |
 
@@ -485,7 +485,7 @@ tunnel, so *nothing* reaches `:8790` unauthenticated — spectators included), i
 integration because OTP is built in, identity is a verified email, and the same Access policy is
 what changes for Phase C (add `Everyone` on the read-only paths). The organizer role is an Access
 *group* (Ceryce's email) surfaced as a claim; `/admin` and every mutating `/api/tournaments`,
-`/api/queue`, `/api/matches/*/{void,rerun,ruling}` route require it. If IR already uses Google
+`/api/queue`, `/api/matches/*/{void,rerun,ruling}` route require it. If the company already uses Google
 Workspace, switching the Access login method from OTP to Google later is a policy change, not code.
 
 Local development: `--dev-user <email>` treats every request as that organizer *and* is refused
@@ -607,13 +607,13 @@ README section "Arena". Watching a finished match uses the existing `/play/?repl
 
 **Effort.** 10–14 job-hours: server + pages 4, queue + runner integration + verify 3, ledger + Elo
 + placements 2, entrants sync + scratch validation 1, Access JWT + claim table 1–2, tests + CI 1,
-tunnel + Access app + first smoke with a real IR account 1 (this last one needs Ceryce present).
+tunnel + Access app + first smoke with a real company account 1 (this last one needs Ceryce present).
 
-**Needs from Ceryce (rulings only — §7):** Q1 auth, Q2 IR email domain, Q3 store, Q4 rating,
+**Needs from Ceryce (rulings only — §7):** Q1 auth, Q2 company email domain, Q3 store, Q4 rating,
 Q5 revision, Q10 quick-test shape, Q11 quota, Q12 hosted budget, Q13 house bot, Q14 placement
 seeds, Q16 zone/hostname.
 
-**Done when:** an IR coworker can open the link on their phone, get an OTP, paste a prompt, see a
+**Done when:** a coworker can open the link on their phone, get an OTP, paste a prompt, see a
 result line and a replay link within ~5 minutes, merge a PR and see themselves on the ladder within
 ~2 hours (three placements), all with the arena running unattended on the workstation overnight.
 
@@ -632,7 +632,7 @@ Checklist against the file list above:
   standings headers, README and runbook say *Elysium*; `arena.<zone>` → 301 `elysium.<zone>` at the
   edge (runbook §2 step 5) and again at the origin on the `Host` header (`hostRedirect`, tested).
   Code paths keep the word `arena` — paths are not the name.
-- [ ] Access application, tunnel ingress `elysium.<zone>`, the `arena.` redirect rule, first smoke with a real IR account — **by hand, Ceryce** (runbook §2)
+- [ ] Access application, tunnel ingress `elysium.<zone>`, the `arena.` redirect rule, first smoke with a real company account — **by hand, Ceryce** (runbook §2)
 
 Where this document was silent, the smallest thing was chosen and is now the rule:
 
@@ -839,7 +839,7 @@ original wording is kept beneath for the record. **One departure from the recomm
 | # | Ruling |
 |---|---|
 | 1 | **Cloudflare Access one-time PIN** |
-| 2 | IR email domain **`inrhythm.com`** (settled by Margo — Ceryce's own work address) |
+| 2 | Company email domain: her employer's domain (settled by Margo) |
 | 3 | **Git-backed + scratch tests** — the entrants repo is the record; the paste-to-test lane is never ranked or persisted |
 | 4 | **Elo** (1000 start, K = 32, draw = 0.5) |
 | 5 | A revised prompt **keeps its Elo and re-places** |
@@ -865,7 +865,7 @@ original wording is kept beneath for the record. **One departure from the recomm
 Each is answerable with one word or a pick. Recommendations are marked.
 
 1. **Auth:** Cloudflare Access OTP *(rec)* / GitHub OAuth / shared token?
-2. **IR email domain for the Access rule:** `inrhythm.com`? (yes / other)
+2. **Company email domain for the Access rule:** her employer's domain? (yes / other)
 3. **Prompt store:** git-backed + scratch tests *(rec)* / upload is the store / git only, no scratch?
 4. **Ladder rating:** Elo *(rec)* / Swiss / house-bot placements only?
 5. **Revised prompt keeps its Elo?** keep + re-place *(rec)* / reset to 1000?

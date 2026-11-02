@@ -19,7 +19,7 @@ function sign(payload, { key = privateKey, kid = 'k1', alg = 'RS256' } = {}) {
 }
 
 const nowSec = () => Math.floor(Date.now() / 1000);
-const good = (over = {}) => ({ aud: [AUD], iss: ISS, email: 'Someone@InRhythm.com', exp: nowSec() + 600, iat: nowSec(), ...over });
+const good = (over = {}) => ({ aud: [AUD], iss: ISS, email: 'Someone@Example.com', exp: nowSec() + 600, iat: nowSec(), ...over });
 const keys = [jwk(publicKey, 'k1')];
 const getKeys = async () => keys;
 
@@ -30,7 +30,7 @@ test('decodeJwt rejects anything that is not three base64url parts', () => {
 
 test('a valid Access token verifies and yields the email claim', async () => {
   const p = await verifyAccessJwt(sign(good()), { aud: AUD, issuer: ISS, getKeys });
-  assert.equal(p.email, 'Someone@InRhythm.com');
+  assert.equal(p.email, 'Someone@Example.com');
 });
 
 test('refusals: bad signature, wrong aud, wrong issuer, expired, unknown kid, no email, wrong alg', async () => {
@@ -55,7 +55,7 @@ test('key rotation: an unknown kid re-fetches the JWKS once', async () => {
     return fetches === 1 ? [jwk(publicKey, 'k1')] : [jwk(publicKey, 'k1'), jwk(otherPublic, 'k2')];
   };
   const p = await verifyAccessJwt(sign(good(), { key: otherPrivate, kid: 'k2' }), { aud: AUD, issuer: ISS, getKeys: rotating });
-  assert.equal(p.email, 'Someone@InRhythm.com');
+  assert.equal(p.email, 'Someone@Example.com');
   assert.equal(fetches, 2);
 });
 
@@ -64,19 +64,19 @@ test('makeAuth in Access mode: no token → 401; organizer by email, case-insens
     assert.equal(url, `${ISS}/cdn-cgi/access/certs`);
     return { keys };
   };
-  const auth = makeAuth({ aud: AUD, team: TEAM, organizerEmail: 'Ceryce@InRhythm.com', fetchJson });
+  const auth = makeAuth({ aud: AUD, team: TEAM, organizerEmail: 'Ceryce@Example.com', fetchJson });
   assert.equal(auth.mode, 'access');
   await assert.rejects(auth.identify({ headers: {} }), (e) => e instanceof AuthError && e.status === 401);
   await assert.rejects(auth.identify({ headers: { 'cf-access-jwt-assertion': 'garbage' } }), AuthError);
   const me = await auth.identify({ headers: { 'cf-access-jwt-assertion': sign(good()) } });
-  assert.deepEqual(me, { email: 'someone@inrhythm.com', organizer: false, mode: 'access' });
-  const org = await auth.identify({ headers: { cookie: `x=1; CF_Authorization=${sign(good({ email: 'ceryce@inrhythm.com' }))}` } });
-  assert.deepEqual(org, { email: 'ceryce@inrhythm.com', organizer: true, mode: 'access' });
+  assert.deepEqual(me, { email: 'someone@example.com', organizer: false, mode: 'access' });
+  const org = await auth.identify({ headers: { cookie: `x=1; CF_Authorization=${sign(good({ email: 'ceryce@example.com' }))}` } });
+  assert.deepEqual(org, { email: 'ceryce@example.com', organizer: true, mode: 'access' });
 });
 
 test('makeAuth refuses a half-configured Access mode and a placeholder organizer', () => {
   assert.throws(() => makeAuth({ aud: AUD }), /ARENA_ACCESS_TEAM/);
-  assert.throws(() => makeAuth({ aud: AUD, team: TEAM, organizerEmail: 'CHANGE-ME@inrhythm.com' }), /organizerEmail/);
+  assert.throws(() => makeAuth({ aud: AUD, team: TEAM, organizerEmail: 'CHANGE-ME@example.com' }), /organizerEmail/);
   assert.throws(() => makeAuth({}), /--dev-user/);
 });
 

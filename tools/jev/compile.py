@@ -27,7 +27,7 @@ its output is unchanged. Under a ruleset with recipes (`eco-3-late`) the compile
 as declared and the match fills in parts (`docs/late-game-economy-spec.md` §7.4): FORMAT_VERSION
 stays 2.
 
-NO TOKEN CAPS (Ceryce, 2026-10-02 17:59 CT: "Get rid of any fucking token caps."). No reply is cut
+NO TOKEN CAPS (Ceryce, 2026-10-02 17:59 CT: remove every token cap). No reply is cut
 at a token count and no run is refused for its token total (`llm_backends`, NO TOKEN CAPS). The old
 per-run cap, --max-total-tokens, is still accepted so a caller pinned to an older promptlane (the
 entrants' PR bot) keeps working, and it does nothing. A vocab-1 compile sends no cap either: its

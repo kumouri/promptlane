@@ -1,6 +1,6 @@
 {
   "mode": "live (workers-ai, model=typesafe/jev)",
-  "schema_source": "reference (C:\\Users\\willa\\AppData\\Local\\Temp\\harness_verify)",
+  "schema_source": "reference (<home>\\AppData\\Local\\Temp\\harness_verify)",
   "ollama_model": "qwen3.5:9b",
   "pilots": [
     "drums"

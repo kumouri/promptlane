@@ -13,7 +13,7 @@
    ],
    "shows": "three 'is this bot at its base? -> home' rules, one per item",
    "schema": {
-    "pilot_file": "C:/Users/willa/AppData/Local/Temp/claude-vocab2cap/final.prose.md",
+    "pilot_file": "<home>/AppData/Local/Temp/claude-vocab2cap/final.prose.md",
     "instrument": "drums",
     "rules": [
      {
@@ -145,7 +145,7 @@
    ],
    "shows": "'at its base -> home', then 'at its base and can afford <item> -> home' per item",
    "schema": {
-    "pilot_file": "C:/Users/willa/AppData/Local/Temp/claude-vocab2cap/final.prose.md",
+    "pilot_file": "<home>/AppData/Local/Temp/claude-vocab2cap/final.prose.md",
     "instrument": "keytar",
     "rules": [
      {
@@ -303,7 +303,7 @@
    ],
    "shows": "'can this bot afford the <item>? -> home' per item",
    "schema": {
-    "pilot_file": "C:/Users/willa/AppData/Local/Temp/claude-vocab2cap/final.prose.md",
+    "pilot_file": "<home>/AppData/Local/Temp/claude-vocab2cap/final.prose.md",
     "instrument": "keytar",
     "rules": [
      {
@@ -430,7 +430,7 @@
    "drops": "raise",
    "shows": "'at its base -> home' and per-item rules, and no build list",
    "schema": {
-    "pilot_file": "C:/Users/willa/AppData/Local/Temp/claude-vocab2cap/final.prose.md",
+    "pilot_file": "<home>/AppData/Local/Temp/claude-vocab2cap/final.prose.md",
     "instrument": "violin",
     "rules": [
      {
@@ -820,7 +820,7 @@
    "drops": [],
    "shows": "a clean compile: nothing to drop",
    "schema": {
-    "pilot_file": "C:/Users/willa/AppData/Local/Temp/claude-vocab2cap/final.prose.md",
+    "pilot_file": "<home>/AppData/Local/Temp/claude-vocab2cap/final.prose.md",
     "instrument": "drums",
     "rules": [
      {

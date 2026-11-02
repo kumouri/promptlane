@@ -204,7 +204,7 @@ class EntrantProseTests(unittest.TestCase):
         self.assertEqual(backend.usage.calls, 2)
 
     def test_no_token_cap_refuses_a_call(self):
-        """Ceryce, 2026-10-02 17:59 CT: "Get rid of any fucking token caps." A long reply is never refused
+        """Ceryce, 2026-10-02 17:59 CT: remove every token cap. A long reply is never refused
         or cut: every instrument compiles however many tokens it takes."""
         padded = [_reply(i) + " " * 400_000 for i in C.INSTRUMENTS]  # ~100k tokens of reply each
         backend = ScriptedBackend(padded)

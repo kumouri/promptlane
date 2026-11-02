@@ -40,7 +40,7 @@ export function contractPage({ user }) {
   const body = `
 <h1>The prompt contract</h1>
 <p class="dim">The exact text the game sends your prompt, the reply it expects back, and the entry rules —
-served here so reading it needs only your InRhythm login, not access to a private GitHub repo.</p>
+served here so reading it needs only your work login, not access to a private GitHub repo.</p>
 
 <h2>1 · What you submit</h2>
 <p>One file per team: <code>entrants/&lt;team&gt;/pilot.md</code>, where <code>&lt;team&gt;</code> is your handles
@@ -96,7 +96,7 @@ reason (the house bot's own prompts do this; see <a href="/test">Test</a> to try
 <h2>5 · Where it lives</h2>
 <p>Merge your file to <code>main</code> of
 <a href="https://github.com/kumouri/jamobair-entrants">jamobair-entrants</a> (needs access — ask Ceryce in
-Slack; the repo is private, round one is IR-only). The arena polls <code>main</code> every minute, validates and
+Slack; the repo is private, round one is invite-only). The arena polls <code>main</code> every minute, validates and
 hashes what it finds, and queues your placement matches automatically.</p>
 `;
   return page({ title: 'Contract', path: '/contract', user, body });

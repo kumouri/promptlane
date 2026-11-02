@@ -30,7 +30,7 @@ export async function json(url, init) {
 }
 
 /** Access-mode arena with a fake JWKS, so a non-organizer entrant can be exercised over HTTP. */
-export async function accessArena(f, { organizerEmail = 'ceryce@inrhythm.com', sync = false, hooks } = {}) {
+export async function accessArena(f, { organizerEmail = 'ceryce@example.com', sync = false, hooks } = {}) {
   const { generateKeyPairSync, createSign } = await import('node:crypto');
   const { publicKey, privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
   const AUD = 'c'.repeat(64);

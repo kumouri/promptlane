@@ -1,6 +1,6 @@
 # No token caps on the prose-to-Jev path, 2026-10-02
 
-**Ruling (Ceryce, 2026-10-02 17:59 CT).** "Get rid of any fucking token caps."
+**Ruling (Ceryce, 2026-10-02 17:59 CT).** Remove every token cap.
 - Earlier the same day, at 11:43, she said: "If there's no reason for a limit, there's NO LIMIT."
 - At 15:14 she said the prose-to-Jev translation "HAS to be right".
 
@@ -245,7 +245,7 @@ from this batch's own prompt and reply counts:
 - **One runaway call at the dearest listed provider:** at most $0.059 (235,929 tokens out at $0.25
   per million). In practice the per-call timeout ends it sooner.
 
-## 6. Fidelity defects that whole compiles now show (not fixed here)
+## 6. Translation-fidelity defects that whole compiles now show (not fixed here)
 
 1. **Rule order on a long cascade.** 16 of 36 hard-eco schemas move rules out of the prose's
    order. The usual move puts the 480-second tower rule, and sometimes the tower-fire retreat and

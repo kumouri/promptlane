@@ -89,5 +89,5 @@
     "joinsPerMinute": 5,
     "joinsPerDay": 20
   },
-  "organizerEmail": "CHANGE-ME@inrhythm.com"
+  "organizerEmail": "CHANGE-ME@example.com"
 }

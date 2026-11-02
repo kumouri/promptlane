@@ -77,7 +77,7 @@ The harness has no model-free schema pilot: schema bots ask Jev each decision th
     `fidelity_harness.run_prediction` and `translator.evaluate_schema` do.
   - It resolves the winning target with a port of `tools/jev/target_resolve.py` (`own-lane-1` and
     `first-min`).
-- **Fidelity, checked against Jev's own answers.** Each logged decision's reply holds Jev's answer
+- **Translation fidelity, checked against Jev's own answers.** Each logged decision's reply holds Jev's answer
   to every condition. Replaying 60 logs and asking the oracle the same observation:
 
 | logs (60) | decisions | same rule fired | same action (kind, ability, target) |

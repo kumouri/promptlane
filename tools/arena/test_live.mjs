@@ -186,7 +186,7 @@ test('e2e: bracket — create from the ladder, pre-run a held round, hide it, re
   const carol = readFileSync(path.join(process.cwd(), 'prompts', 'pilots', 'keytar.md'), 'utf8') + '\nStay in lane.\n';
   const f = fixture({ handles: { alice: 'keytar.md', bob: 'violin.md', carol }, tweak: (c) => { c.tournament.placementSeeds = [7]; c.tournament.maxSimSec = 60; } });
   const { arena, organizer, as } = await accessArena(f);
-  const spectator = as('spec@inrhythm.com');
+  const spectator = as('spec@example.com');
   try {
     const base = await arena.listen(0);
     await arena.sync();

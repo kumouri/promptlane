@@ -1,4 +1,4 @@
-# Jev compile preview: `C:/Users/willa/workspace/scratch/vocab-house-tiers/r3/compile/src/house-easy-eco.prose.md`
+# Jev compile preview: `<home>/workspace/scratch/vocab-house-tiers/r3/compile/src/house-easy-eco.prose.md`
 
 Compiled by promptlane's prose-to-schema translator with `ollama:qwen3.5:9b` -- 4 model call(s), 16,955 tokens of a 60,000-token cap, $0.0000, 46.4 s.
 
@@ -16,7 +16,7 @@ Items and shopping lists follow the `eco-3-late` ruleset.
 
 ---
 
-# Transparency report: `C:/Users/willa/workspace/scratch/vocab-house-tiers/r3/compile/src/house-easy-eco.prose.md` -> Jev decision schema (drums)
+# Transparency report: `<home>/workspace/scratch/vocab-house-tiers/r3/compile/src/house-easy-eco.prose.md` -> Jev decision schema (drums)
 
 Rules are checked in order; the first one whose condition is true fires. Every rule below shows what it will literally ask Jev, which words in your prose it came from, and why it fires where it does. The **Dropped** section at the end lists everything from your prose that did *not* become a rule, and why.
 
@@ -123,7 +123,7 @@ identity, tone, or in-character justification -- zero decision content. Removing
 
 ---
 
-# Transparency report: `C:/Users/willa/workspace/scratch/vocab-house-tiers/r3/compile/src/house-easy-eco.prose.md` -> Jev decision schema (keytar)
+# Transparency report: `<home>/workspace/scratch/vocab-house-tiers/r3/compile/src/house-easy-eco.prose.md` -> Jev decision schema (keytar)
 
 Rules are checked in order; the first one whose condition is true fires. Every rule below shows what it will literally ask Jev, which words in your prose it came from, and why it fires where it does. The **Dropped** section at the end lists everything from your prose that did *not* become a rule, and why.
 
@@ -226,7 +226,7 @@ identity, tone, or in-character justification -- zero decision content. Removing
 
 ---
 
-# Transparency report: `C:/Users/willa/workspace/scratch/vocab-house-tiers/r3/compile/src/house-easy-eco.prose.md` -> Jev decision schema (violin)
+# Transparency report: `<home>/workspace/scratch/vocab-house-tiers/r3/compile/src/house-easy-eco.prose.md` -> Jev decision schema (violin)
 
 Rules are checked in order; the first one whose condition is true fires. Every rule below shows what it will literally ask Jev, which words in your prose it came from, and why it fires where it does. The **Dropped** section at the end lists everything from your prose that did *not* become a rule, and why.
 
