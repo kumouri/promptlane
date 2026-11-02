@@ -1,10 +1,9 @@
 # Translator transparency, the keytar revision loop, and jam-rule options
 
-*Ceryce, 2026-09-23 14:57 CT: "we should also attempt to improve on the prompt->jev prompt
-translator to see if we can make it transparent, or we could modify the rules or something… I just
-kind of want this to still be relevant to their work so they learn some prompt engineering shit but
-we can't use Jev at work. But I also am super interested in Jev and this seems like such a good
-situation for it."*
+*Ceryce, 2026-09-23 14:57 CT, paraphrased: try to make the prompt-to-Jev translator transparent,
+or change the rules, so the jam stays relevant to entrants' day jobs and teaches prompt-engineering
+skills they can use where Jev isn't available, while still building on Jev, which she finds a good
+fit for this.*
 
 **The success criterion is hers, and it's the whole point:** jam entrants must come away with
 prompt-engineering skills that *transfer* to their jobs, where Jev isn't available, while Jev keeps

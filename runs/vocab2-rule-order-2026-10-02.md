@@ -10,7 +10,7 @@ showed:
    (`shop_afford_no_enemy_minion_tower`) to "Never stand in an enemy tower's fire".
 
 - **Ceryce's rulings (2026-10-02):** 15:14 CT, *"The most important part of this whole thing is the
-  translation from prose to Jev. It HAS to be right."* 17:59 CT, *"Get rid of any fucking token caps."*
+  translation from prose to Jev. It HAS to be right."* 17:59 CT, remove every token cap.
 - **Brief:**
   1. The compiled vocab-2 cascade keeps the prose's priority order (prose order, unless the prose
      reorders it, as with #85's override words). On a mismatch: reject and retry, quoting only prose.

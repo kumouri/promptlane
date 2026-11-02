@@ -10,8 +10,8 @@
  *   - per client IP: `perIpPerMinute` compiles in any rolling minute, `perIpPerDay` per Central day;
  *   - everyone: `globalPerDay` per Central day, `maxConcurrent` compiles at once (503 past that);
  *   - per compile: `timeoutSec` of wall clock.
- * There is no token cap and no prose-size cap (Ceryce, 2026-10-02 17:59 CT: "Get rid of any fucking
- * token caps."; the entry rules have had no byte cap since 2026-09-22). A compile is never cut at a
+ * There is no token cap and no prose-size cap (Ceryce, 2026-10-02 17:59 CT: remove every
+ * token cap; the entry rules have had no byte cap since 2026-09-22). A compile is never cut at a
  * token count; the request body is bounded only by the server's transport limit (`readBody`).
  * The client IP is the socket address unless `ipHeader` names a header set by a proxy you trust —
  * behind the Cloudflare Tunnel every request arrives from 127.0.0.1, so set `"cf-connecting-ip"`

@@ -181,7 +181,7 @@ compute — wall-clock and token counts are still measured; see §4.1). *(2026-0
 without a GPU, `tools/jev/compile.py --backend openrouter` runs the same translation on the same
 model hosted, `qwen/qwen3.5-9b`, ≈$0.0006 per three-instrument compile — see
 [`entrant-compile-preview.md`](entrant-compile-preview.md).)*
-*(2026-10-02: no token caps. Ceryce ruled at 17:59 CT: "Get rid of any fucking token caps." A reply
+*(2026-10-02: no token caps. Ceryce ruled at 17:59 CT to remove every token cap. A reply
 is no longer cut at 1,800 tokens, and no compile is refused for its token total, under any
 vocabulary: vocab-1 kept its 1,800 at first, and lost it too, so its request is the recorded one less
 that one field (`runs/vocab2-rule-order-2026-10-02.md`). A reply that never ends is stopped

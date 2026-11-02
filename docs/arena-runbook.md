@@ -27,7 +27,7 @@ Dev mode = no Cloudflare Access; every request is you, as organizer. The listene
 npm ci && npm run build                     # once; `build` produces dist/ for the /play/ replay viewer
 cp tools/arena/config.example.json runs/arena/config.json   # edit: organizerEmail
 python tools/jev/schema_server.py           # terminal 1 — Jev on :8797, the ladder's backend (§1c)
-npm run arena -- --config runs/arena/config.json --dev-user you@inrhythm.com   # terminal 2 — :8790
+npm run arena -- --config runs/arena/config.json --dev-user you@example.com   # terminal 2 — :8790
 ```
 
 Entrant prose compiles on host Ollama (`$OLLAMA_HOST`, `qwen3.5:9b`) unless `compile.backend` is
@@ -384,16 +384,16 @@ learner2Email?, learner2Handle?}`, `/api/teams/<teamId>/disband`.
 
 ---
 
-## 2. Expose it to InRhythm (Access + tunnel) — by hand, once
+## 2. Expose it to the company (Access + tunnel) — by hand, once
 
-Rulings: Cloudflare Access one-time PIN (Q1), `inrhythm.com` (Q2), hostname **`elysium.`** on the
+Rulings: Cloudflare Access one-time PIN (Q1), her employer's email domain (Q2), hostname **`elysium.`** on the
 cockpit tunnel's zone is canonical and `arena.` on the same zone 301-redirects to it (Q16),
 spectators behind Access too (Q18), organizer = Ceryce only (Q19). **None of
 this is created by code**; the steps below are the deployment note.
 
 1. **Access application.** Zero Trust → Access → Applications → *Add* → Self-hosted. Application
    domain `elysium.<zone>`. Session duration: 24 h is fine. Identity providers: *One-time PIN* only.
-2. **Policy.** Allow → include *Emails ending in* `@inrhythm.com`, and *Emails* = your address
+2. **Policy.** Allow → include *Emails ending in* `@<company domain>`, and *Emails* = your address
    if it is not on that domain. No bypass rules, no `Everyone` (that is Phase C).
 3. **Copy the AUD.** On the application's overview: *Application Audience (AUD) Tag* — a 64-hex
    string. Team name is the `<team>` in `https://<team>.cloudflareaccess.com`.
@@ -577,7 +577,7 @@ The same rules can instead be played by Jev (shadow only unless Ceryce flips it)
 
 ### The Jam calendar
 
-**Unsettled as of 2026-10-02 03:05 CT.** The date depends on InRhythm's answer on work time.
+**Unsettled as of 2026-10-02 03:05 CT.** The date depends on her employer's answer on work time.
 Ceryce fills in the dates in this table once she sets them. This is the one place the repo gives
 Jam dates. Every other doc names the milestone and points here. The dates written on 2026-09-30 for
 a Fri 10-16 Jam no longer hold.

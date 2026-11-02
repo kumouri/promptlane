@@ -113,7 +113,7 @@ test("the sync's JS port of the rules says exactly what the vendored validator s
 
 test('web parity: the web refuses what the GitHub check refuses and accepts what it accepts, with its words', async () => {
   await withArena({ paused: true, submissions: { perUserPerMinute: 1000, perUserPerDay: 1000 } }, async ({ f, base, as }) => {
-    const alice = as('alice@inrhythm.com');
+    const alice = as('alice@example.com');
     assert.equal((await post(base, 'api/team/create', alice, { handle: 'alice' })).status, 200);
     let blob = '';
     let accepted = 0;
@@ -137,13 +137,13 @@ test('web parity: the web refuses what the GitHub check refuses and accepts what
 test('a folder name the validator refuses cannot be made on the web either', async () => {
   await withArena({ paused: true }, async ({ base, as }) => {
     for (const handle of ['al ice', '-x', 'a+b', 'x'.repeat(40)]) {
-      const r = await post(base, 'api/team/create', as('x@inrhythm.com'), { handle });
+      const r = await post(base, 'api/team/create', as('x@example.com'), { handle });
       assert.equal(r.status, 400, `${handle} → ${r.status}`);
     }
     assert.equal(githubCheck('a+a', 'x').ok, false);
-    const lead = as('a@inrhythm.com');
+    const lead = as('a@example.com');
     const { body } = await post(base, 'api/team/create', lead, { handle: 'a' });
-    const r = await post(base, 'api/team/join', as('a2@inrhythm.com'), { handle: 'A', code: body.team.joinCode });
+    const r = await post(base, 'api/team/join', as('a2@example.com'), { handle: 'A', code: body.team.joinCode });
     assert.equal(r.status, 409, 'A is a, case-insensitively — the validator refuses a+A');
   });
 });
@@ -155,7 +155,7 @@ test('cutoff: midnight Central at the end of Thu 15 Oct by default; refused serv
   assert.equal(fmtCutoff(SUBMISSION_DEFAULTS.cutoff), 'Fri, Oct 16, 2026, 12:00 AM CT');
   let clock = CUTOFF - 60_000;
   await withArena({ paused: true, hooks: { now: () => clock } }, async ({ f, base, as }) => {
-    const alice = as('alice@inrhythm.com');
+    const alice = as('alice@example.com');
     const created = await post(base, 'api/team/create', alice, { handle: 'alice' });
     assert.equal(created.status, 200);
     assert.equal((await post(base, 'api/team/submit', alice, { prompt: KEYTAR, base: '' })).status, 201, 'a minute before: accepted');
@@ -166,8 +166,8 @@ test('cutoff: midnight Central at the end of Thu 15 Oct by default; refused serv
     assert.equal(late.status, 403);
     assert.match(late.body.error, /submissions closed at Fri, Oct 16, 2026, 12:00 AM CT/);
     assert.equal(readFileSync(pilotFile(f, 'alice'), 'utf8'), KEYTAR, 'nothing written');
-    assert.equal((await post(base, 'api/team/create', as('bob@inrhythm.com'), { handle: 'bob' })).status, 403, 'no new teams');
-    assert.equal((await post(base, 'api/team/join', as('bob@inrhythm.com'), { handle: 'bob', code: created.body.team.joinCode })).status, 403, 'no joins');
+    assert.equal((await post(base, 'api/team/create', as('bob@example.com'), { handle: 'bob' })).status, 403, 'no new teams');
+    assert.equal((await post(base, 'api/team/join', as('bob@example.com'), { handle: 'bob', code: created.body.team.joinCode })).status, 403, 'no joins');
     assert.equal((await json(`${base}api/teams`, { headers: alice })).body.open, false);
     const page = await html(`${base}team`, alice);
     assert.match(page, /Submissions closed/);
@@ -181,8 +181,8 @@ test('cutoff: midnight Central at the end of Thu 15 Oct by default; refused serv
 test("authz: only a team's members can submit for it; joining needs the code; no squatting on a handle or a GitHub entry", async () => {
   await withArena({ paused: true, handles: { 'zed+yan': 'keytar.md' } }, async ({ f, base, as, organizer, arena }) => {
     await arena.sync();
-    const alice = as('alice@inrhythm.com');
-    const bob = as('bob@inrhythm.com');
+    const alice = as('alice@example.com');
+    const bob = as('bob@example.com');
     const { body } = await post(base, 'api/team/create', alice, { handle: 'alice' });
     const code = body.team.joinCode;
     assert.match(code, /^[A-Z2-9]{10}$/);
@@ -192,30 +192,30 @@ test("authz: only a team's members can submit for it; joining needs the code; no
     assert.equal((await post(base, 'api/team/submit', organizer, { prompt: VIOLIN, base: '' })).status, 403, 'the organizer is not a member either');
     assert.equal((await post(base, 'api/team/join', bob, { handle: 'bob', code: 'WRONGCODE2' })).status, 404);
 
-    const carol = as('carol@inrhythm.com');
+    const carol = as('carol@example.com');
     await post(base, 'api/team/create', carol, { handle: 'carol' });
     r = await post(base, 'api/team/submit', carol, { team: body.team.teamId, prompt: VIOLIN, base: '' });
     assert.equal(r.status, 403, "naming someone else's team");
     assert.equal(existsSync(pilotFile(f, 'alice')), false);
 
-    assert.equal((await post(base, 'api/team/create', as('eve@inrhythm.com'), { handle: 'alice' })).status, 409, "someone else's handle");
-    r = await post(base, 'api/team/create', as('mallory@inrhythm.com'), { handle: 'zed' });
+    assert.equal((await post(base, 'api/team/create', as('eve@example.com'), { handle: 'alice' })).status, 409, "someone else's handle");
+    r = await post(base, 'api/team/create', as('mallory@example.com'), { handle: 'zed' });
     assert.equal(r.status, 409, 'a handle a GitHub entry names');
     assert.match(r.body.error, /ask the organizer to link it/);
 
     assert.equal((await post(base, 'api/team/join', bob, { handle: 'bob', code: code.toLowerCase() })).status, 200, 'codes are case-insensitive');
-    assert.equal((await post(base, 'api/team/join', as('dave@inrhythm.com'), { handle: 'dave', code })).status, 409, 'a third member is the organizer’s to assign');
+    assert.equal((await post(base, 'api/team/join', as('dave@example.com'), { handle: 'dave', code })).status, 409, 'a third member is the organizer’s to assign');
     assert.equal((await post(base, 'api/team/submit', bob, { prompt: VIOLIN, base: '' })).status, 201, 'the learner can submit');
     assert.equal(readFileSync(pilotFile(f, 'alice+bob'), 'utf8'), VIOLIN);
 
     // A GitHub-only team is read-only here until the organizer links it.
-    assert.equal((await post(base, 'api/teams', alice, { leadEmail: 'zed@inrhythm.com', leadHandle: 'zed' })).status, 403, 'organizer only');
-    r = await post(base, 'api/teams', organizer, { leadEmail: 'zed@inrhythm.com', leadHandle: 'zed', learnerEmail: 'yan@inrhythm.com', learnerHandle: 'yan' });
+    assert.equal((await post(base, 'api/teams', alice, { leadEmail: 'zed@example.com', leadHandle: 'zed' })).status, 403, 'organizer only');
+    r = await post(base, 'api/teams', organizer, { leadEmail: 'zed@example.com', leadHandle: 'zed', learnerEmail: 'yan@example.com', learnerHandle: 'yan' });
     assert.equal(r.status, 200, JSON.stringify(r.body));
     assert.equal(r.body.linked, true);
-    const zedSees = (await json(`${base}api/teams/${encodeURIComponent('zed+yan')}`, { headers: as('zed@inrhythm.com') })).body;
+    const zedSees = (await json(`${base}api/teams/${encodeURIComponent('zed+yan')}`, { headers: as('zed@example.com') })).body;
     assert.equal(zedSees.source, 'web');
-    r = await post(base, 'api/team/submit', as('yan@inrhythm.com'), { prompt: VIOLIN, base: zedSees.current.blobSha });
+    r = await post(base, 'api/team/submit', as('yan@example.com'), { prompt: VIOLIN, base: zedSees.current.blobSha });
     assert.equal(r.status, 201, JSON.stringify(r.body));
     assert.equal(readFileSync(pilotFile(f, 'zed+yan'), 'utf8'), VIOLIN);
 
@@ -231,11 +231,11 @@ test("authz: only a team's members can submit for it; joining needs the code; no
 test('entrant prose is data: escaped on the team page, in the textarea and in a conflict', async () => {
   const evil = '<script>alert("x")</script>\n</textarea><img src=x onerror=alert(1)>\n"quotes" & \'apos\'\n';
   await withArena({ paused: true }, async ({ base, as }) => {
-    const alice = as('alice@inrhythm.com');
+    const alice = as('alice@example.com');
     await post(base, 'api/team/create', alice, { handle: 'alice' });
     assert.equal((await post(base, 'api/team/submit', alice, { prompt: evil, base: '' })).status, 201);
     const escaped = '&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;\n&lt;/textarea&gt;&lt;img src=x onerror=alert(1)&gt;';
-    for (const page of [await html(`${base}teams/alice`, as('bob@inrhythm.com')), await html(`${base}team`, alice)]) {
+    for (const page of [await html(`${base}teams/alice`, as('bob@example.com')), await html(`${base}team`, alice)]) {
       assert.ok(!page.includes('<script>alert'), 'no live script');
       assert.ok(!page.includes('<img src=x'), 'no live tag');
       assert.ok(page.includes(escaped), 'shown as text');
@@ -250,10 +250,10 @@ test('teams view: GitHub and web teams, roles, status, ladder standing, matches 
   await withArena({ handles: { 'zed+yan': 'keytar.md' } }, async ({ f, base, as, organizer, arena }) => {
     await arena.sync();
     await arena.queue.waitForIdle(60000);
-    const alice = as('alice@inrhythm.com');
+    const alice = as('alice@example.com');
     await post(base, 'api/team/create', alice, { handle: 'alice' });
 
-    const list = (await json(`${base}api/teams`, { headers: as('viewer@inrhythm.com') })).body;
+    const list = (await json(`${base}api/teams`, { headers: as('viewer@example.com') })).body;
     assert.deepEqual(list.teams.map((t) => t.folder), ['zed+yan', 'alice'], 'ranked teams first');
     const [zy, al] = list.teams;
     assert.deepEqual(zy.members, [{ handle: 'zed', role: 'lead' }, { handle: 'yan', role: 'learner' }]);
@@ -266,20 +266,20 @@ test('teams view: GitHub and web teams, roles, status, ladder standing, matches 
     assert.ok(!JSON.stringify(list).includes('@'), 'no email reaches a non-organizer');
     assert.ok(!JSON.stringify(list).includes(arena.ledger.state().teams.values().next().value.joinCode), 'nor a join code');
     const asOrg = (await json(`${base}api/teams`, { headers: organizer })).body;
-    assert.equal(asOrg.teams[1].members[0].email, 'alice@inrhythm.com');
+    assert.equal(asOrg.teams[1].members[0].email, 'alice@example.com');
 
-    const page = await html(`${base}teams`, as('viewer@inrhythm.com'));
+    const page = await html(`${base}teams`, as('viewer@example.com'));
     assert.ok(page.includes('href="/teams/zed%2Byan"'));
-    assert.ok(!page.includes('alice@inrhythm.com'));
+    assert.ok(!page.includes('alice@example.com'));
 
-    const d = (await json(`${base}api/teams/zed%2Byan`, { headers: as('viewer@inrhythm.com') })).body;
+    const d = (await json(`${base}api/teams/zed%2Byan`, { headers: as('viewer@example.com') })).body;
     assert.equal(d.current.text, readFileSync(pilotFile(f, 'zed+yan'), 'utf8'));
     assert.equal(d.compile.state, 'n/a', 'the mock ladder compiles nothing');
     assert.equal(d.matches.length, 3);
     assert.equal(d.joinCode, null);
-    const detail = await html(`${base}teams/zed%2Byan`, as('viewer@inrhythm.com'));
+    const detail = await html(`${base}teams/zed%2Byan`, as('viewer@example.com'));
     for (const j of d.matches) assert.ok(detail.includes(`/play/?replay=/logs/${j.id}.json`), `replay link for ${j.id}`);
-    assert.equal((await fetch(`${base}teams/nobody`, { headers: as('viewer@inrhythm.com') })).status, 404);
+    assert.equal((await fetch(`${base}teams/nobody`, { headers: as('viewer@example.com') })).status, 404);
   });
 });
 
@@ -287,8 +287,8 @@ test('teams view: GitHub and web teams, roles, status, ladder standing, matches 
 
 test('lifecycle: submit commits and places; a join moves the entry to lead+learner; a stale edit is a conflict, not an overwrite', async () => {
   await withArena({ submissions: { perUserPerMinute: 100 } }, async ({ f, base, as, arena }) => {
-    const alice = as('alice@inrhythm.com');
-    const bob = as('bob@inrhythm.com');
+    const alice = as('alice@example.com');
+    const bob = as('bob@example.com');
     const { body } = await post(base, 'api/team/create', alice, { handle: 'alice' });
     let r = await post(base, 'api/team/submit', alice, { prompt: KEYTAR, base: '' });
     assert.equal(r.status, 201);
@@ -333,7 +333,7 @@ test('lifecycle: submit commits and places; a join moves the entry to lead+learn
 
 test('limits: per-person rate limit (429 with Retry-After) and the size cap (413)', async () => {
   await withArena({ paused: true }, async ({ base, as }) => {
-    const alice = as('alice@inrhythm.com');
+    const alice = as('alice@example.com');
     await post(base, 'api/team/create', alice, { handle: 'alice' });
     const big = 'Push mid. '.repeat(4000);
     let r = await post(base, 'api/team/submit', alice, { prompt: big, base: '' });
@@ -344,15 +344,15 @@ test('limits: per-person rate limit (429 with Retry-After) and the size cap (413
     const res = await fetch(`${base}api/team/submit`, { method: 'POST', headers: { ...alice, 'content-type': 'application/json' }, body: JSON.stringify({ prompt: KEYTAR, base: gitBlobSha(VIOLIN) }) });
     assert.equal(res.status, 429);
     assert.ok(Number(res.headers.get('retry-after')) > 0);
-    r = await post(base, 'api/team/join', as('bob@inrhythm.com'), { handle: 'bob', code: 'NOPE' });
-    for (let i = 0; i < 5; i++) r = await post(base, 'api/team/join', as('bob@inrhythm.com'), { handle: 'bob', code: 'NOPE' });
+    r = await post(base, 'api/team/join', as('bob@example.com'), { handle: 'bob', code: 'NOPE' });
+    for (let i = 0; i < 5; i++) r = await post(base, 'api/team/join', as('bob@example.com'), { handle: 'bob', code: 'NOPE' });
     assert.equal(r.status, 429, 'guessing join codes is rate-limited');
   });
 });
 
 test('validator drift: a different validate_entry.py in the entrants repo pauses web submissions; the same one does not', async () => {
   await withArena({ paused: true }, async ({ f, base, as }) => {
-    const alice = as('alice@inrhythm.com');
+    const alice = as('alice@example.com');
     await post(base, 'api/team/create', alice, { handle: 'alice' });
     mkdirSync(path.join(f.entrants, 'tools'), { recursive: true });
     writeFileSync(path.join(f.entrants, 'tools', 'validate_entry.py'), readFileSync(VENDORED_VALIDATOR, 'utf8').replace(/\r\n/g, '\n') + '\n# changed\n');

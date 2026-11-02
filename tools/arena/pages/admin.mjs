@@ -82,7 +82,7 @@ pre-run and held until you reveal them (Q9). Nothing runs until you press <em>Ru
 <form method="post" action="/api/brackets">
 <div class="row">
   <div><label for="b-id">Tournament id</label><input type="text" id="b-id" name="id" value="jam" pattern="[a-z0-9][a-z0-9-]{0,30}" required></div>
-  <div><label for="b-name">Name</label><input type="text" id="b-name" name="name" value="InRhythm AI Jam — round one" required></div>
+  <div><label for="b-name">Name</label><input type="text" id="b-name" name="name" value="AI Jam — round one" required></div>
   <div><label for="b-backend">Backend</label><select id="b-backend" name="backend">${Object.keys(backends).map((id) => `<option value="${esc(id)}" ${id === tournament.backend ? 'selected' : ''}>${esc(id)}</option>`).join('')}</select></div>
 </div>
 <div class="row">

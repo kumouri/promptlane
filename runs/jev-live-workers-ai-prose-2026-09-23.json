@@ -1087,9 +1087,9 @@
   "mode": "live (workers-ai)",
   "state_encoding": "prose",
   "run_paths": [
-    "C:\\Users\\willa\\workspace\\repos\\promptlane-worktrees\\jev-harness\\runs\\house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
-    "C:\\Users\\willa\\workspace\\repos\\promptlane-worktrees\\jev-harness\\runs\\house-prompt-2026-09-21-r2-drums-vs-house-seed11.json",
-    "C:\\Users\\willa\\workspace\\repos\\promptlane-worktrees\\jev-harness\\runs\\house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
-    "C:\\Users\\willa\\workspace\\repos\\promptlane-worktrees\\jev-harness\\runs\\house-prompt-2026-09-21-r4-house-vs-house-seed7.json"
+    "<home>\\workspace\\repos\\promptlane-worktrees\\jev-harness\\runs\\house-prompt-2026-09-21-r1-house-vs-drums-seed7.json",
+    "<home>\\workspace\\repos\\promptlane-worktrees\\jev-harness\\runs\\house-prompt-2026-09-21-r2-drums-vs-house-seed11.json",
+    "<home>\\workspace\\repos\\promptlane-worktrees\\jev-harness\\runs\\house-prompt-2026-09-21-r3-house-vs-drums-seed11.json",
+    "<home>\\workspace\\repos\\promptlane-worktrees\\jev-harness\\runs\\house-prompt-2026-09-21-r4-house-vs-house-seed7.json"
   ]
 }

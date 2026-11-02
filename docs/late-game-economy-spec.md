@@ -13,7 +13,7 @@ what she needs to rule on.
 **Written:** Fri 2026-10-02, on `develop` at `92e6044`.
 **Spend:** $0. No model call of any kind was made, and nothing touched the live arena. The analysis
 replays recorded match logs on local code. The tools are outside git, in
-`C:\Users\willa\workspace\scratch\late-game-spec\`.
+`<home>\workspace\scratch\late-game-spec\`.
 **Related:**
 - [`economy-spec.md`](economy-spec.md) is the economy this extends (`eco-3`, §3, §13.6).
 - [`vocabulary-spec.md`](vocabulary-spec.md) covers what a compiled rule can see and say. This spec
@@ -81,8 +81,8 @@ makes a dive a losing trade is still a house tier that pushes while an enemy is 
   upgrade per instrument, 6 new items, all on existing stat paths. It is 12–15 h, has to ride
   vocab-2's recompile when entrant-facing changes land, and carries medium-high risk.
 
-> Ceryce's ruling, 2026-09-30 19:58 CT: "With the extra time and both Alex and Kristen ghosting me
-> today let's go minimal economy before the jam."
+> Ceryce's ruling, 2026-09-30 19:58 CT, paraphrased: with the extra time, and two collaborators
+> unavailable that day, go with the minimal economy before the jam.
 
 This spec does not override that ruling. §8 sets out what each version costs against the dates, and
 §9 asks her to choose.
@@ -689,7 +689,7 @@ version both need her to override that ruling explicitly. **The recommendation:*
 
 ## 10. Reproducing the analysis
 
-Everything is in `C:\Users\willa\workspace\scratch\late-game-spec\` (outside git; $0):
+Everything is in `<home>\workspace\scratch\late-game-spec\` (outside git; $0):
 - `ledgerprobe.ts` / `.mjs` and `run-probe.sh`: replay all 158 logs on `develop` and sample each bot
   once a second. All 158 replay OK.
 - `s1.py`: per-side income, XP, caps and surplus (`s1.out`).
@@ -698,7 +698,7 @@ Everything is in `C:\Users\willa\workspace\scratch\late-game-spec\` (outside git
   (`s2b.out`).
 - `s3.py`: the dive re-score for every arm, lean and strong, with the identity and eco-4 checks
   (`s3.out`). `s4.py` gives defender multipliers and the dive's damage mix (`s4.out`).
-- Inputs: the logs and job 4e15's per-death probe output, in `C:\Users\willa\workspace\scratch\dive-trade\`.
+- Inputs: the logs and job 4e15's per-death probe output, in `<home>\workspace\scratch\dive-trade\`.
 
 ---
 
@@ -763,7 +763,7 @@ D1 (which version ships) and D6 (the Jev measurement) are hers. The build is the
   hash is vocabulary-spec §5.2's job.
 
 **The paper analysis, re-run on the built code** ($0; recorded decisions only, no model). The tools
-are in `C:\Users\willa\workspace\scratch\late-game-build\analysis\`.
+are in `<home>\workspace\scratch\late-game-build\analysis\`.
 - **Identity.** All 160 economy logs in the dive-trade set replay checkpoint-identical. The spec
   counted 158.
 - **The rules match the paper.** The built `eco-3-late.json` equals `ladder.py`'s strong items,

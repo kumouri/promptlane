@@ -175,7 +175,7 @@ async function accessArena(f) {
     dataDir: f.data,
     accessAud: AUD,
     accessTeam: 'team',
-    organizerEmail: 'ceryce@inrhythm.com',
+    organizerEmail: 'ceryce@example.com',
     fetchJson: async () => ({ keys: [{ ...publicKey.export({ format: 'jwk' }), kid: 'k1', alg: 'RS256' }] }),
     log: quiet,
     sync: false,
@@ -190,14 +190,14 @@ test('e2e: quota over HTTP — one at a time, then 6 quick per day, then 429', a
     const base = await arena.listen(0);
     const as = (email) => ({ 'cf-access-jwt-assertion': token(email) });
     const body = (i, kind = 'quick') => JSON.stringify({ handle: 'carol', source: 'scratch', prompt: `Prompt ${i}. Reply with JSON.`, kind });
-    const post = (i, email = 'carol@inrhythm.com', kind) => json(`${base}api/tests`, { method: 'POST', body: body(i, kind), headers: as(email) });
+    const post = (i, email = 'carol@example.com', kind) => json(`${base}api/tests`, { method: 'POST', body: body(i, kind), headers: as(email) });
 
     arena.queue.pause('e2e');
     assert.equal((await post(0)).status, 202);
     const second = await post(1);
     assert.equal(second.status, 429);
     assert.match(second.body.error, /one at a time/);
-    const other = await post(1, 'dave@inrhythm.com');
+    const other = await post(1, 'dave@example.com');
     assert.equal(other.status, 409, 'carol is claimed by someone else');
     arena.queue.resume('e2e');
     await arena.queue.waitForIdle(60000);
@@ -209,11 +209,11 @@ test('e2e: quota over HTTP — one at a time, then 6 quick per day, then 429', a
     const seventh = await post(6);
     assert.equal(seventh.status, 429);
     assert.match(seventh.body.error, /daily quota reached: 6\/6 quick/);
-    const full = await post(7, 'carol@inrhythm.com', 'full');
+    const full = await post(7, 'carol@example.com', 'full');
     assert.equal(full.status, 202, 'full tests are a separate budget');
     await arena.queue.waitForIdle(120000);
-    assert.equal((await fetch(`${base}admin`, { headers: as('carol@inrhythm.com') })).status, 403);
-    assert.equal((await fetch(`${base}admin`, { headers: as('ceryce@inrhythm.com') })).status, 200);
+    assert.equal((await fetch(`${base}admin`, { headers: as('carol@example.com') })).status, 403);
+    assert.equal((await fetch(`${base}admin`, { headers: as('ceryce@example.com') })).status, 200);
   } finally {
     await arena.close();
     f.cleanup();
@@ -244,10 +244,10 @@ test('e2e: Access mode refuses a request with no token, accepts a signed one', a
       assert.equal(res.headers.get('content-type'), type, file);
     }
     assert.equal((await fetch(`${base}assets/favicon/make_favicon.mjs`)).status, 404, 'only images are served from assets/');
-    const t = token('x@inrhythm.com');
+    const t = token('x@example.com');
     const me = await json(`${base}api/me`, { headers: { 'cf-access-jwt-assertion': t } });
     assert.equal(me.status, 200);
-    assert.deepEqual(me.body, { email: 'x@inrhythm.com', organizer: false, mode: 'access', handle: null });
+    assert.deepEqual(me.body, { email: 'x@example.com', organizer: false, mode: 'access', handle: null });
     assert.equal((await fetch(`${base}admin`, { headers: { 'cf-access-jwt-assertion': t } })).status, 403, 'not the organizer');
     assert.equal((await fetch(`${base}api/me`, { headers: { 'cf-access-jwt-assertion': t.slice(0, -3) + 'xyz' } })).status, 401);
   } finally {

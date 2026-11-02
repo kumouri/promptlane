@@ -15,7 +15,7 @@ stdout: one JSON line -- {"ok": true, "prose", "change", "sentence_changes", "at
 (difflib), and more than --max-sentence-changes added+removed sentences is a rejected attempt,
 retried with the reason. The model is any `tools/jev/llm_backends.py` backend -- the same
 module and key handling the translator uses, with no token cap on a reply or a call (Ceryce,
-2026-10-02: "Get rid of any fucking token caps."); nothing here reads a key itself.
+2026-10-02: remove every token cap); nothing here reads a key itself.
 Standard library only.
 """
 from __future__ import annotations

@@ -1,6 +1,6 @@
 # Entrant compile preview — three ways to try your prose before the jam
 
-The InRhythm AI Jam (date unsettled: [the Jam calendar](arena-runbook.md#the-jam-calendar); arena = Elysium) runs entrants on **Jev**. Each entrant's
+The AI Jam (date unsettled: [the Jam calendar](arena-runbook.md#the-jam-calendar); arena = Elysium) runs entrants on **Jev**. Each entrant's
 prose `pilot.md` is compiled once into a Jev rule cascade by the prose-to-schema translator
 ([`prose-to-schema-translator.md`](prose-to-schema-translator.md),
 [`translator-transparency.md`](translator-transparency.md)), and Jev answers the cascade's yes/no
@@ -104,7 +104,7 @@ if rule recall on any reference pilot drops below 85%.
 
 `$JEV_COMPILE_BACKEND` sets the default backend.
 
-**No token caps.** Ceryce ruled on 2026-10-02 at 17:59 CT: "Get rid of any fucking token caps."
+**No token caps.** Ceryce ruled on 2026-10-02 at 17:59 CT to remove every token cap.
 
 - No reply is cut at a token count, and no run is refused for its token total.
 - The old 1,800-token reply cap cut every reply of house-hard-eco's 16-rule cascade before any check
